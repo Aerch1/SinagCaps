@@ -39,7 +39,7 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[url('/public/test3.jpg')] bg-cover bg-center flex items-center justify-center p-2 sm:p-4">
+    <div className="min-h-screen bg-[url('/test3.jpg')] bg-cover bg-center flex items-center justify-center p-2 sm:p-4">
       {/* Main Wrapper - Centered Container */}
       <div className="w-full max-w-sm sm:max-w-md md:max-w-4xl bg-gray-800 bg-opacity-95  backdrop-filter backdrop-blur-xl rounded-lg shadow-2xl overflow-hidden">
         <div className="flex flex-col md:flex-row min-h-[500px] md:min-h-[550px]">
@@ -47,7 +47,7 @@ const LoginPage = () => {
           {/* Left Side - Image Section */}
           <div className="hidden md:flex md:w-1/2 bg-[url('src/assets/hero2.png')] bg-cover bg-center relative overflow-hidden">
             <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-end p-8 text-white">
-              <h1 className="text-3xl lg:text-4xl font-bold text-center mb-4">
+              <h1 className="text-3xl lg:text-4xl text-pr font-bold text-center mb-4">
                 Welcome Back
               </h1>
               <p className="text-lg lg:text-xl text-center text-gray-200 leading-relaxed">
