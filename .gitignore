@@ -28,6 +28,7 @@ build/
 !**/.env.example
 !**/.env.sample
 
+
 # Editor / OS junk
 .vscode/*
 !.vscode/extensions.json
