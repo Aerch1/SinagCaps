@@ -39,7 +39,9 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[url('/test3.jpg')] bg-cover bg-center flex items-center justify-center p-2 sm:p-4">
+    <div className="min-h-screen bg-[url('/test3.jpg')] bg-cover  bg-center  flex items-center justify-center p-2 sm:p-4">
+
+
       {/* Main Wrapper - Centered Container */}
       <div className="w-full max-w-sm sm:max-w-md md:max-w-4xl bg-gray-800 bg-opacity-95  backdrop-filter backdrop-blur-xl rounded-lg shadow-2xl overflow-hidden">
         <div className="flex flex-col md:flex-row min-h-[500px] md:min-h-[550px]">
@@ -57,7 +59,7 @@ const LoginPage = () => {
           </div>
 
           {/* Right Side - Login Form */}
-          <div className="w-full md:w-1/2 flex flex-col min-h-[500px] md:min-h-auto">
+          <div className="w-full  md:w-1/2 flex flex-col min-h-[500px] md:min-h-auto">
             <div className="flex-1 p-6 sm:p-8 md:p-8 flex flex-col justify-center">
 
               {/* Mobile Logo - Only shown on small screens */}
@@ -69,7 +71,7 @@ const LoginPage = () => {
                 <h2 className="text-2xl sm:text-3xl text-center font-bold mb-2 text-white  bg-clip-text">
                   OLOPGV LOGIN
                 </h2>
-                <p className="text-gray-400 text-sm">
+                <p className="text-gray-400 text-sm text-center">
                   Please enter your credentials to access your account
                 </p>
               </div>
@@ -93,7 +95,7 @@ const LoginPage = () => {
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
                   <Link
                     to="/forgot-password"
-                    className="text-sm text-[#710000] hover:text-[#500000] hover:underline transition-colors duration-200"
+                    className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors duration-200"
                   >
                     Forgot password?
                   </Link>
@@ -118,7 +120,7 @@ const LoginPage = () => {
                 Don't have an account?{" "}
                 <Link
                   to="/signup"
-                  className="text-[#710000] font-medium hover:text-[#500000] hover:underline transition-colors duration-200"
+                  className="text-blue-600 hover:text-blue-700  font-medium  hover:underline transition-colors duration-200"
                 >
                   Create Account
                 </Link>

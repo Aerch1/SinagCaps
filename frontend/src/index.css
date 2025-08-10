@@ -3,13 +3,18 @@
 
 @import "tailwindcss";
 
+
+
 /* Set Outfit as global font */
 body {
   margin: 0;
   font-family: "Roboto", sans-serif;
   background-color: #f9fbfc;
   scroll-behavior: smooth;
+  
 }
+
+
 
 
 
@@ -18,7 +23,7 @@ body {
   --font-Roboto: "Roboto", sans-serif;
   --font-inter: "Inter", sans-serif;
   --color-primary: #FFD700;   /* Gold */
-  --color-secondary: #C62828; /* Red */
+  --color-secondary: #D91C14; /* Red */
 
 
   --color-dark-100: #1f1f36;
@@ -127,3 +132,149 @@ body {
 .animation-delay-500 {
   animation-delay: 0.5s;
 }
+
+/* Thin scrollbar with visible thumb, no arrows */
+.scroll-thin {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+/* WebKit (Chrome, Edge, Safari) */
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px; /* for horizontal scrollers */
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;      /* slate-300 */
+  border-radius: 9999px;          /* pill */
+  border: 2px solid transparent;  /* keeps thumb slim */
+  background-clip: content-box;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;      /* slate-400 */
+}
+
+/* Hide the up/down arrows (older WebKit variants) */
+.scroll-thin::-webkit-scrollbar-button,
+.scroll-thin::-webkit-scrollbar-button:single-button,
+.scroll-thin::-webkit-scrollbar-corner {
+  display: none;
+  width: 0;
+  height: 0;
+}
+/* Hide FullCalendar's built-in toolbar */
+.fc .fc-header-toolbar {
+  display: none;
+}
+
+/* No internal scrollbars */
+.fc .fc-scroller,
+.fc .fc-daygrid-body-natural {
+  overflow: hidden !important;
+}
+
+/* Weekday header: small, muted, two-letter labels (content handled in dayHeaderContent) */
+.fc .fc-col-header-cell-cushion {
+  font-size: 12px;
+  color: #6b7280; /* gray-500 */
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 6px 0;
+}
+
+/* Remove heavy borders for an airy look; we rely on spacing instead of cell lines */
+.fc .fc-scrollgrid,
+.fc .fc-scrollgrid-section,
+.fc .fc-scrollgrid-section > td,
+.fc .fc-col-header,
+.fc .fc-col-header-cell,
+.fc .fc-daygrid-day,
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+}
+
+/* Header: no borders at all */
+.fc .fc-col-header,
+.fc .fc-col-header-cell {
+  border: none !important;
+}
+
+/* Day cells: no borders at all inside */
+.fc .fc-daygrid-day {
+  border: none !important;
+}
+.fc .fc-daygrid-day:last-child {
+  border: none !important;
+}
+
+/* Make the whole day cell a centered flex box */
+.fc .fc-daygrid-day-frame {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* vertical center */
+  align-items: center; /* horizontal center */
+  padding: 0; /* remove extra padding */
+  height: 100%;
+}
+
+/* Keep the day-top minimal and centered; no top padding */
+.fc .fc-daygrid-day-top {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  width: 100%;
+}
+
+/* Centered number; no background fill by default */
+.fc .fc-daygrid-day-number {
+   display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  padding: 0 6px;
+  color: #111827; /* gray-900 */
+  font-weight: 400;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Remove FullCalendar's built-in today cell fill; keep subtle text color only if desired */
+.fc .fc-daygrid-day.fc-day-today {
+  background: transparent !important;
+}
+
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+  background: #D91C14 !important; /* your secondary brand red */
+  color: #ffffff !important;
+  font-weight: 700; /* slightly stronger for today */
+}
+
+.fc .cb-has-events .fc-daygrid-day-number {
+  font-weight: 900;
+  color: var(--color-primary);
+}
+
+/* Hide event blocks entirely (we only use the dot) */
+.fc .fc-daygrid-event-harness,
+.fc .fc-h-event,
+.fc .fc-event {
+  display: none !important;
+  
+}
+
+/* Other-month days: muted */
+.fc .fc-day-other .fc-daygrid-day-number {
+  color: #9ca3af; /* gray-400 */
+}
+

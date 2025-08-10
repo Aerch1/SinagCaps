@@ -15,7 +15,6 @@ const SignUpPage = () => {
   const navigate = useNavigate()
   const { signup, error, isLoading, message, clearError, clearMessage, clearAll } = useAuthStore()
 
-  // ✅ Clear any existing errors/messages when component mounts
   useEffect(() => {
     clearAll()
   }, [clearAll])
@@ -27,66 +26,100 @@ const SignUpPage = () => {
       if (result) {
         navigate("/verify-email")
       }
-    } catch (error) {
-      // Error is handled in authStore
-    }
+    } catch (error) { }
   }
 
   return (
-    <div className="max-w-md w-full bg-gray-800 bg-opacity-50 backdrop-filter backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden">
-      <div className="p-8">
-        <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-green-400 to-emerald-500 text-transparent bg-clip-text">
-          Create Account
-        </h2>
-        
-        <form onSubmit={handleSignUp}>
-          <Input
-            icon={User}
-            type="text"
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <Input
-            icon={Mail}
-            type="email"
-            placeholder="Email Address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <Input
-            icon={Lock}
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+    <div className="min-h-screen bg-[url('/test3.jpg')] bg-cover bg-center flex items-center justify-center p-2 sm:p-4">
+      {/* Main Wrapper */}
+      <div className="w-full max-w-sm sm:max-w-md md:max-w-5xl bg-gray-800 bg-opacity-95 backdrop-filter backdrop-blur-xl rounded-lg shadow-2xl overflow-hidden">
+        <div className="flex flex-col md:flex-row min-h-[420px] md:min-h-[460px]">
 
-          <ErrorAlert error={error} onClose={clearError} />
-          <SuccessAlert message={message} onClose={clearMessage} />
+          {/* Left Side */}
+          <div className="hidden md:flex md:w-1/2 bg-[url('src/assets/hero2.png')] bg-cover bg-center relative overflow-hidden">
+            <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-end p-6 text-white">
+              <h1 className="text-2xl lg:text-3xl font-bold text-center mb-3">
+                Join OLOPGV
+              </h1>
+              <p className="text-base lg:text-lg text-center text-gray-200 leading-relaxed">
+                Create your account to start your academic journey
+              </p>
+            </div>
+          </div>
 
-          <PasswordStrengthMeter password={password} />
+          {/* Right Side */}
+          <div className="w-full md:w-1/2 flex flex-col min-h-[420px] md:min-h-auto">
+            <div className="flex-1 p-5 sm:p-6 md:p-8 flex flex-col justify-center">
 
-          <button
-            className="mt-5 w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-200 disabled:opacity-50"
-            type="submit"
-            disabled={isLoading}
-          >
-            {isLoading ? <Loader className="animate-spin mx-auto" size={24} /> : "Sign Up"}
-          </button>
-        </form>
-      </div>
-      
-      <div className="px-8 py-4 bg-gray-900 bg-opacity-50 flex justify-center">
-        <p className="text-sm text-gray-400">
-          Already have an account?{" "}
-          <Link to={"/login"} className="text-green-400 hover:underline">
-            Login
-          </Link>
-        </p>
+              {/* Mobile Logo */}
+              <div className="flex justify-center mb-2">
+                <img src="/logo.png" alt="OLOPGV Logo" className="w-14 h-14 sm:w-16 sm:h-16" />
+              </div>
+
+              <div className="mb-5 sm:mb-6">
+                <h2 className="text-xl sm:text-2xl md:text-3xl text-center font-bold mb-1 text-white">
+                  OLOPGV SIGN UP
+                </h2>
+                <p className="text-gray-400 text-sm text-center">
+                  Create your account with your details below
+                </p>
+              </div>
+
+              <form onSubmit={handleSignUp} className="space-y-3 sm:space-y-4">
+                <Input
+                  icon={User}
+                  type="text"
+                  placeholder="Full Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <Input
+                  icon={Mail}
+                  type="email"
+                  placeholder="Email Address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <Input
+                  icon={Lock}
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+
+                <ErrorAlert error={error} onClose={clearError} />
+                <SuccessAlert message={message} onClose={clearMessage} />
+
+                <PasswordStrengthMeter password={password} />
+
+                <button
+                  className="w-full py-3 px-4 bg-gradient-to-r from-[#710000] to-[#500000] text-white font-medium rounded-lg shadow-lg hover:from-[#600000] hover:to-[#400000] focus:outline-none focus:ring-2 focus:ring-[#710000] focus:ring-offset-2 focus:ring-offset-gray-800 transition-all duration-200 disabled:opacity-50 transform hover:scale-[1.02]"
+                  type="submit"
+                  disabled={isLoading}
+                >
+                  {isLoading ? <Loader className="w-6 h-6 animate-spin mx-auto" /> : "Create Account"}
+                </button>
+              </form>
+            </div>
+
+            {/* Bottom Section */}
+            <div className="px-5 sm:px-6 md:px-10 py-3 sm:py-4 bg-gray-900 bg-opacity-50 border-t border-gray-700">
+              <p className="text-sm text-gray-400 text-center">
+                Already have an account?{" "}
+                <Link
+                  to="/login"
+                  className="text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors duration-200"
+                >
+                  Sign In
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-export default SignUpPage;
+export default SignUpPage

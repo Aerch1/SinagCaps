@@ -20,10 +20,7 @@ export const connectDB = async () => {
     console.log(`✅ MySQL Connected: ${process.env.DB_HOST}`);
 
     // Drop existing table if it exists (for development only)
-    if (process.env.NODE_ENV === "development") {
-      await connection.execute("DROP TABLE IF EXISTS users");
-      console.log("🗑️ Dropped existing users table");
-    }
+
 
     // Create users table with all required columns
     await connection.execute(`

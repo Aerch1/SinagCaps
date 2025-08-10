@@ -170,18 +170,23 @@ export const login = handleAsyncError(async (req, res) => {
     );
 
     if (users.length === 0) {
-      throw new AppError("Invalid credentials", 401);
+      throw new AppError("Account not registered", 404);
     }
 
     const user = users[0];
 
+    // Optional: Require email verification
+    if (!user.isVerified) {
+      throw new AppError("Please verify your email before logging in", 403);
+    }
+
     // Verify password
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) {
-      throw new AppError("Invalid credentials", 401);
+      throw new AppError("Incorrect password", 401);
     }
 
-    // Update last login
+    // Update last login timestamp
     await connection.execute(
       "UPDATE users SET lastLogin = NOW() WHERE id = ?",
       [user.id]

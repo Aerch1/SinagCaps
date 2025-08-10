@@ -31,9 +31,7 @@ function App() {
               <Route
                 path="/signup"
                 element={
-                  <div className="min-h-screen bg-[url('/public/bg.jpg')]  bg-cover bg-center bg-white flex items-center justify-center relative overflow-hidden">
                     <SignUpPage />
-                  </div>
                 }
                
               />
