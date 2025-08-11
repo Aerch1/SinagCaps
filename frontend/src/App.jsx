@@ -14,6 +14,13 @@ import ForgotPasswordPage from "./pages/Auth/ForgotPasswordPage"
 import ResetPasswordPage from "./pages/Auth/ResetPasswordPage"
 import AdminDashboard from "./pages/Admin/AdminDashboard"
 
+
+import SettingsPage from "./pages/Public/settings/SettingsPage";
+import PersonalInfoPanel from "./pages/Public/settings/panels/PersonalInfoPanel";
+import AccountSecurityPanel from "./pages/Public/settings/panels/AccountSecurityPanel";
+import AppointmentsPanel from "./pages/Public/settings/panels/AppointmentsPanel";
+import MessagesPanel from "./pages/Public/settings/panels/MessagesPanel";
+
 // Components
 import FloatingShape from "./components/FloatingShape"
 import ProtectedRoute from "./components/ProtectedRoute"
@@ -31,15 +38,15 @@ function App() {
               <Route
                 path="/signup"
                 element={
-                    <SignUpPage />
+                  <SignUpPage />
                 }
-               
+
               />
               <Route
                 path="/login"
                 element={
                   <div >
-                     {/* <FloatingShape color="bg-green-500" size="w-64 h-64" top="-5%" left="10%" delay={0} />
+                    {/* <FloatingShape color="bg-green-500" size="w-64 h-64" top="-5%" left="10%" delay={0} />
                     <FloatingShape color="bg-emerald-500" size="w-48 h-48" top="70%" left="80%" delay={5} />
                     <FloatingShape color="bg-lime-500" size="w-32 h-32" top="40%" left="-10%" delay={2} /> */}
                     <LoginPage />
@@ -86,6 +93,22 @@ function App() {
                 <Route path="/services" element={<div className="p-8">Services Page</div>} />
                 <Route path="/about" element={<div className="p-8">About Page</div>} />
                 <Route path="/contact" element={<div className="p-8">Contact Page</div>} />
+
+                {/* 🔒 Protect the whole settings branch */}
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <SettingsPage />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<AccountSecurityPanel />} />
+                  <Route path="profile" element={<PersonalInfoPanel />} />
+                  <Route path="security" element={<AccountSecurityPanel />} />
+                  <Route path="appointments" element={<AppointmentsPanel />} />
+                  <Route path="messages" element={<MessagesPanel />} />
+                </Route>
               </Route>
 
               {/* Protected Admin Routes */}

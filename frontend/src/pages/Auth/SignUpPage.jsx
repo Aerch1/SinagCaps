@@ -36,7 +36,7 @@ const SignUpPage = () => {
         <div className="flex flex-col md:flex-row min-h-[420px] md:min-h-[460px]">
 
           {/* Left Side */}
-          <div className="hidden md:flex md:w-1/2 bg-[url('src/assets/hero2.png')] bg-cover bg-center relative overflow-hidden">
+          <div className="hidden md:flex md:w-1/2 bg-[url('/hero2.png')] bg-cover bg-center relative overflow-hidden">
             <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-end p-6 text-white">
               <h1 className="text-2xl lg:text-3xl font-bold text-center mb-3">
                 Join OLOPGV

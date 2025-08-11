@@ -3,15 +3,13 @@ import { useAuthStore } from '../store/authStore';
 import LoadingSpinner from './LoadingSpinner';
 
 const AuthChecker = ({ children }) => {
-    const { checkAuth, isCheckingAuth } = useAuthStore();
+    // const { checkAuth, isCheckingAuth } = useAuthStore();
+    const { hasCheckedAuth, checkAuth } = useAuthStore();
+
 
     useEffect(() => {
-        checkAuth();
-    }, [checkAuth]);
-
-    if (isCheckingAuth) {
-        return <LoadingSpinner />;
-    }
+        if (!hasCheckedAuth) checkAuth();   // 👈 one-shot
+    }, [hasCheckedAuth, checkAuth]);
 
     return children;
 };

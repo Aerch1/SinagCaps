@@ -14,13 +14,12 @@ const ForgotPasswordPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        try {
-            await forgotPassword(email)
-            setIsSubmitted(true)
-        } catch (error) {
-            // Error is handled in authStore, but we still show success message for security
-            setIsSubmitted(true)
-        }
+        clearError()
+
+        const ok = await forgotPassword(email);   // returns true on success, null on validation fail
+        if (!ok) return;                          // stay on the form, show <ErrorAlert>
+
+        setIsSubmitted(true);
     }
 
     return (
@@ -31,17 +30,18 @@ const ForgotPasswordPage = () => {
                 </h2>
 
                 {!isSubmitted ? (
-                    <form onSubmit={handleSubmit}>
+                    // ✅ noValidate disables native bubbles even if inputs have constraints
+                    <form onSubmit={handleSubmit} noValidate>
                         <p className="text-gray-300 mb-6 text-center">
                             Enter your email address and we'll send you a link to reset your password.
                         </p>
+
                         <Input
                             icon={Mail}
-                            type="email"
+                            type="email"                      // keep email keyboard; native validation is off due to noValidate
                             placeholder="Email Address"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            required
                         />
 
                         <ErrorAlert error={error} onClose={clearError} />
@@ -59,11 +59,11 @@ const ForgotPasswordPage = () => {
                         <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Mail className="h-8 w-8 text-white" />
                         </div>
-
                         <SuccessAlert message={message} onClose={clearMessage} />
                     </div>
                 )}
             </div>
+
             <div className="px-8 py-4 bg-gray-900 bg-opacity-50 flex justify-center">
                 <Link to={"/login"} className="text-sm text-green-400 hover:underline flex items-center">
                     <ArrowLeft className="h-4 w-4 mr-2" /> Back to Login
@@ -73,4 +73,4 @@ const ForgotPasswordPage = () => {
     )
 }
 
-export default ForgotPasswordPage;
+export default ForgotPasswordPage

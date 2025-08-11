@@ -47,7 +47,7 @@ const LoginPage = () => {
         <div className="flex flex-col md:flex-row min-h-[500px] md:min-h-[550px]">
 
           {/* Left Side - Image Section */}
-          <div className="hidden md:flex md:w-1/2 bg-[url('src/assets/hero2.png')] bg-cover bg-center relative overflow-hidden">
+          <div className="hidden md:flex md:w-1/2 bg-[url('/church.jpg')] bg-cover bg-center relative overflow-hidden">
             <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-end p-8 text-white">
               <h1 className="text-3xl lg:text-4xl text-pr font-bold text-center mb-4">
                 Welcome Back

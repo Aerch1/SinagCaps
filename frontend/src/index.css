@@ -9,9 +9,8 @@
 body {
   margin: 0;
   font-family: "Roboto", sans-serif;
-  background-color: #f9fbfc;
-  scroll-behavior: smooth;
-  
+  background-color: #f9f9f9;
+  scroll-behavior: smooth;  
 }
 
 
@@ -277,4 +276,16 @@ body {
 .fc .fc-day-other .fc-daygrid-day-number {
   color: #9ca3af; /* gray-400 */
 }
+
+ .cb-has-events .fc-daygrid-day-frame::after {
+   content: "";
+          position: absolute;
+          left: 50%;
+          bottom: 6px;
+          transform: translateX(-50%) translateY(-400%);
+          width: 6px;
+          height: 6px;
+          border-radius: 999px;
+          background: #475569; /* slate-600 */
+ }
 

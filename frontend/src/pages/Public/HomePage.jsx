@@ -1,6 +1,12 @@
 import Hero from "../../components/Hero"
 import PublicAdvisory from "../../components/PublicAdvisory"
 import ChurchBulletin from "../../components/ChurchBulletin"
+import AboutSection from "../../components/AboutSection"
+import InfoBanner from "../../components/InfoBanner"
+// import ServicesStrip from "../../components/ServicesStrip"
+import TwoFeatureCards from "../../components/TwoFeatureCards"
+import AppointmentInfo from "../../components/AppointmentInfo"
+import AppointmentQuickLinks from "../../components/AppointmentQuickLinks"
 const slides = [
     {
         image: "/hero2.png",
@@ -34,7 +40,7 @@ const slides = [
 export default function HomePage() {
     return (
         <>
-            {/* Full-width only here */}
+            {/* Full-width sections */}
             <Hero slides={slides} />
             <PublicAdvisory
                 variant="announcement"
@@ -42,15 +48,43 @@ export default function HomePage() {
                 ctas={[{ label: "View Details", to: "/announcements" }]}
             />
 
-            {/* Everything below stays centered & constrained */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            {/* NEW: Full-width, white background, lots of breathing room */}
+
+            <AboutSection />
+            <InfoBanner
+                image="/banner.png" // change if you want
+                title="Don't miss the latest announcements & news"
+                description="Check our Announcements page for parish updates, liturgical schedules, and upcoming events."
+                ctaLabel="FIND OUT MORE"
+                ctaTo="/announcements"
+            />
+
+
+
+            {/* Constrained content below */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
                 <ChurchBulletin />
 
-                {/* your other sections go here */}
-                {/* <Features /> */}
-                {/* <Announcements /> */}
-                {/* <FooterCTA /> */}
+
+                {/* other sections… */}
             </div>
+            <TwoFeatureCards />
+
+            <AppointmentInfo
+                image="/service.jpg"
+                title="Book parish services in minutes"
+                description="Choose a service, pick a time, and receive confirmation by email."
+                bullets={[
+                    "Confession & spiritual direction",
+                    "Baptism prep & documentation",
+                    "Sacramental records & requests",
+                ]}
+            />
+
+            <AppointmentQuickLinks />
+
+            {/* <ServicesStrip /> */}
+
         </>
-    )
+    );
 }

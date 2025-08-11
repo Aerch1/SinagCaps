@@ -9,39 +9,42 @@ import {
   sendPasswordResetEmail,
   sendPasswordResetSuccessEmail,
 } from "../utils/emailService.js";
+
+import {
+  validateSignup,
+  validateVerifyEmail,
+  validateResetPassword,
+  validateLogin,
+  validateForgotPassword,
+} from "../../shared/validation.js";
+
 import {
   AppError,
   handleAsyncError,
   sendResponse,
 } from "../utils/errorHandler.js";
 
+/**
+ * POST /auth/signup
+ */
 export const signup = handleAsyncError(async (req, res) => {
   const { email, password, name } = req.body;
+
+  // Shared validation (single source of truth)
+  const v = validateSignup({ name, email, password });
+  if (!v.ok) throw new AppError(v.message, 400);
+
+  const normalizedEmail = email.trim().toLowerCase();
   let connection;
 
   try {
-    // Validation
-    if (!email || !password || !name) {
-      throw new AppError("All fields are required", 400);
-    }
-
-    if (password.length < 6) {
-      throw new AppError("Password must be at least 6 characters long", 400);
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      throw new AppError("Please provide a valid email address", 400);
-    }
-
     connection = await pool.getConnection();
 
     // Check if user already exists
     const [existingUsers] = await connection.execute(
       "SELECT id FROM users WHERE email = ?",
-      [email]
+      [normalizedEmail]
     );
-
     if (existingUsers.length > 0) {
       throw new AppError("User already exists", 400);
     }
@@ -61,9 +64,9 @@ export const signup = handleAsyncError(async (req, res) => {
     const [result] = await connection.execute(
       "INSERT INTO users (email, password, name, verificationToken, verificationTokenExpiresAt) VALUES (?, ?, ?, ?, ?)",
       [
-        email,
+        normalizedEmail,
         hashedPassword,
-        name,
+        name.trim(),
         verificationToken,
         verificationTokenExpiresAt,
       ]
@@ -79,13 +82,12 @@ export const signup = handleAsyncError(async (req, res) => {
     // Generate tokens and set cookies
     generateTokenAndSetCookie(res, user.id);
 
-    // Send verification email (don't fail signup if email fails)
+    // Send verification email (non-fatal if it fails)
     try {
-      await sendVerificationEmail(email, verificationToken);
-      console.log(`📧 Verification email sent to: ${email}`);
+      await sendVerificationEmail(normalizedEmail, verificationToken);
+      console.log(`📧 Verification email sent to: ${normalizedEmail}`);
     } catch (emailError) {
       console.error("Email sending failed:", emailError.message);
-      // Continue with signup even if email fails
     }
 
     return sendResponse(
@@ -100,20 +102,24 @@ export const signup = handleAsyncError(async (req, res) => {
   }
 });
 
+/**
+ * POST /auth/verify-email
+ */
 export const verifyEmail = handleAsyncError(async (req, res) => {
   const { code } = req.body;
+
+  // Shared validation
+  const v = validateVerifyEmail({ code });
+  if (!v.ok) throw new AppError(v.message, 400);
+
   let connection;
 
   try {
-    if (!code) {
-      throw new AppError("Verification code is required", 400);
-    }
-
     connection = await pool.getConnection();
 
     const [users] = await connection.execute(
       "SELECT * FROM users WHERE verificationToken = ? AND verificationTokenExpiresAt > NOW()",
-      [code]
+      [code.trim()]
     );
 
     if (users.length === 0) {
@@ -128,7 +134,7 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
       [user.id]
     );
 
-    // Send welcome email (don't fail verification if email fails)
+    // Send welcome email (non-fatal if it fails)
     try {
       await sendWelcomeEmail(user.email, user.name);
       console.log(`🎉 Welcome email sent to: ${user.email}`);
@@ -152,21 +158,26 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
   }
 });
 
+/**
+ * POST /auth/login
+ */
 export const login = handleAsyncError(async (req, res) => {
   const { email, password } = req.body;
+
+  // Shared validation
+  const v = validateLogin({ email, password });
+  if (!v.ok) throw new AppError(v.message, 400);
+
+  const normalizedEmail = email.trim().toLowerCase();
   let connection;
 
   try {
-    if (!email || !password) {
-      throw new AppError("Email and password are required", 400);
-    }
-
     connection = await pool.getConnection();
 
     // Find user by email
     const [users] = await connection.execute(
       "SELECT * FROM users WHERE email = ?",
-      [email]
+      [normalizedEmail]
     );
 
     if (users.length === 0) {
@@ -211,7 +222,10 @@ export const login = handleAsyncError(async (req, res) => {
   }
 });
 
-export const logout = handleAsyncError(async (req, res) => {
+/**
+ * POST /auth/logout
+ */
+export const logout = handleAsyncError(async (_req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -226,6 +240,9 @@ export const logout = handleAsyncError(async (req, res) => {
   return sendResponse(res, 200, true, "Logged out successfully");
 });
 
+/**
+ * POST /auth/refresh-token
+ */
 export const refreshToken = handleAsyncError(async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
   let connection;
@@ -252,7 +269,7 @@ export const refreshToken = handleAsyncError(async (req, res) => {
 
     const user = users[0];
 
-    // Generate new tokens (with new refresh token for rotation)
+    // Generate new tokens (rotate refresh token)
     const { accessToken, refreshToken: newRefreshToken } =
       generateTokenAndSetCookie(res, decoded.userId);
 
@@ -278,24 +295,38 @@ export const refreshToken = handleAsyncError(async (req, res) => {
   }
 });
 
+/**
+ * POST /auth/forgot-password
+ * Privacy-friendly: respond 200 regardless of account existence.
+ */
 export const forgotPassword = handleAsyncError(async (req, res) => {
   const { email } = req.body;
+
+  // Shared validation
+  const v = validateForgotPassword({ email });
+  if (!v.ok) throw new AppError(v.message, 400);
+
+  const normalizedEmail = email.trim().toLowerCase();
   let connection;
 
-  try {
-    if (!email) {
-      throw new AppError("Email is required", 400);
-    }
 
+  
+  try {
     connection = await pool.getConnection();
 
     const [users] = await connection.execute(
       "SELECT * FROM users WHERE email = ?",
-      [email]
+      [normalizedEmail]
     );
 
+    // If no user, still return 200 to avoid enumeration
     if (users.length === 0) {
-      throw new AppError("User not found", 404);
+      return sendResponse(
+        res,
+        200,
+        true,
+        "Password reset link sent to your email"
+      );
     }
 
     const user = users[0];
@@ -314,8 +345,8 @@ export const forgotPassword = handleAsyncError(async (req, res) => {
     const resetURL = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
     try {
-      await sendPasswordResetEmail(email, resetURL);
-      console.log(`🔐 Password reset email sent to: ${email}`);
+      await sendPasswordResetEmail(normalizedEmail, resetURL);
+      console.log(`🔐 Password reset email sent to: ${normalizedEmail}`);
     } catch (emailError) {
       console.error("Password reset email failed:", emailError.message);
       throw new AppError("Failed to send reset email", 500);
@@ -332,25 +363,25 @@ export const forgotPassword = handleAsyncError(async (req, res) => {
   }
 });
 
+/**
+ * POST /auth/reset-password/:token
+ */
 export const resetPassword = handleAsyncError(async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
+
+  // Shared validation
+  const v = validateResetPassword({ token, password });
+  if (!v.ok) throw new AppError(v.message, 400);
+
   let connection;
 
   try {
-    if (!password) {
-      throw new AppError("Password is required", 400);
-    }
-
-    if (password.length < 6) {
-      throw new AppError("Password must be at least 6 characters long", 400);
-    }
-
     connection = await pool.getConnection();
 
     const [users] = await connection.execute(
       "SELECT * FROM users WHERE resetPasswordToken = ? AND resetPasswordExpiresAt > NOW()",
-      [token]
+      [token.trim()]
     );
 
     if (users.length === 0) {
@@ -368,7 +399,7 @@ export const resetPassword = handleAsyncError(async (req, res) => {
       [hashedPassword, user.id]
     );
 
-    // Send reset success email (don't fail if email fails)
+    // Send reset success email (non-fatal if it fails)
     try {
       await sendPasswordResetSuccessEmail(user.email);
       console.log(`✅ Password reset success email sent to: ${user.email}`);
@@ -382,6 +413,9 @@ export const resetPassword = handleAsyncError(async (req, res) => {
   }
 });
 
+/**
+ * GET /auth/check-auth
+ */
 export const checkAuth = handleAsyncError(async (req, res) => {
   let connection;
 
