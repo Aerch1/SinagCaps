@@ -4,7 +4,15 @@ import {
   PASSWORD_RESET_REQUEST_TEMPLATE,
   PASSWORD_RESET_SUCCESS_TEMPLATE,
   WELCOME_EMAIL_TEMPLATE,
+  CHANGE_EMAIL_CODE_TEMPLATE, // 👈 new
+  EMAIL_CHANGED_NOTICE_TEMPLATE,
 } from "../config/emailTemplates.js";
+
+const FROM = {
+  name: "Your App Team",
+  address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+};
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@example.com";
 
 export const sendVerificationEmail = async (email, verificationCode) => {
   try {
@@ -115,3 +123,76 @@ export const sendPasswordResetSuccessEmail = async (email) => {
     );
   }
 };
+
+export async function sendChangeEmailCode(toEmail, code) {
+  try {
+    const html = CHANGE_EMAIL_CODE_TEMPLATE.replaceAll(
+      "{code}",
+      code
+    ).replaceAll("{supportEmail}", SUPPORT_EMAIL);
+
+    const info = await transporter.sendMail({
+      from: FROM,
+      to: toEmail,
+      subject: "Confirm your new email address",
+      html,
+    });
+
+    console.log("✅ Change-email code sent:", info.messageId);
+    if (process.env.NODE_ENV === "development" && info.previewURL) {
+      console.log("📧 Preview URL:", info.previewURL);
+    }
+    return { success: true, messageId: info.messageId };
+  } catch (err) {
+    console.error("❌ Error sending change-email code:", err);
+    throw new Error(`Failed to send change-email code: ${err.message}`);
+  }
+}
+
+export async function sendEmailChangedNotice(oldEmail, newEmail) {
+  try {
+    const html = EMAIL_CHANGED_NOTICE_TEMPLATE.replaceAll(
+      "{oldEmail}",
+      oldEmail
+    )
+      .replaceAll("{newEmail}", newEmail)
+      .replaceAll("{supportEmail}", SUPPORT_EMAIL);
+
+    // Notify the previous address (primary), and optionally the new one.
+    const [toOld, toNew] = await Promise.all([
+      transporter.sendMail({
+        from: FROM,
+        to: oldEmail,
+        subject: "Your account email was changed",
+        html,
+      }),
+      transporter.sendMail({
+        from: FROM,
+        to: newEmail,
+        subject: "Your account email is now updated",
+        html, // same body is OK; subjects differ
+      }),
+    ]);
+
+    console.log(
+      "✅ Email-changed notices sent:",
+      toOld.messageId,
+      toNew.messageId
+    );
+    if (process.env.NODE_ENV === "development") {
+      if (toOld.previewURL)
+        console.log("📧 Old-email preview:", toOld.previewURL);
+      if (toNew.previewURL)
+        console.log("📧 New-email preview:", toNew.previewURL);
+    }
+
+    return {
+      success: true,
+      oldMessageId: toOld.messageId,
+      newMessageId: toNew.messageId,
+    };
+  } catch (err) {
+    console.error("❌ Error sending email-changed notice:", err);
+    throw new Error(`Failed to send email-changed notice: ${err.message}`);
+  }
+}

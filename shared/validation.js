@@ -64,3 +64,32 @@ export function validateChangeEmail({ email }) {
     return { ok: false, message: "Please enter a valid email address" };
   return { ok: true };
 }
+
+export function validateProfile({ name, phone, gender, dob, location }) {
+  if (!name?.trim()) return { ok: false, message: "Please enter your full name." };
+  if (!phone?.trim()) return { ok: false, message: "Please enter your phone number." };
+  if (!/^[0-9()+\-.\s]{7,20}$/.test(phone.trim()))
+    return { ok: false, message: "Please enter a valid phone number." };
+
+  const allowed = ["Male", "Female", "Non-binary", "Prefer not to say"];
+  if (!gender || !allowed.includes(gender))
+    return { ok: false, message: "Please select a gender." };
+
+  if (!dob || !/^\d{4}-\d{2}-\d{2}$/.test(dob))
+    return { ok: false, message: "Please select a valid date of birth." };
+
+  // Simple actual-date check (prevents 2024-02-31 etc.)
+  const [y, m, d] = dob.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d)
+    return { ok: false, message: "Please select a valid date of birth." };
+
+  // Optional: basic age sanity (0–120)
+  const today = new Date();
+  const age = today.getFullYear() - y - (today < new Date(today.getFullYear(), m - 1, d) ? 1 : 0);
+  if (age < 0 || age > 120) return { ok: false, message: "Please enter a realistic date of birth." };
+
+  if (!location?.trim()) return { ok: false, message: "Please enter your location." };
+
+  return { ok: true };
+}

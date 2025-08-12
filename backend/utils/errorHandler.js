@@ -13,12 +13,11 @@ export class AppError extends Error {
 export const handleAsyncError = (fn) => {
   return async (req, res, next) => {
     try {
-      const result = await fn(req, res, next);
-      return result;
+      return await fn(req, res, next);
     } catch (error) {
       console.error(`Error in ${fn.name}:`, error);
+      if (res.headersSent) return next(error);
 
-      // Handle different types of errors
       if (error instanceof AppError) {
         return res.status(error.statusCode).json({
           success: false,
@@ -27,30 +26,30 @@ export const handleAsyncError = (fn) => {
         });
       }
 
-      // Database errors
       if (error.code === "ER_DUP_ENTRY") {
+        // optionally inspect error.sqlMessage for column name
         return res.status(400).json({
           success: false,
           message: "Resource already exists",
+          code: "DUPLICATE",
         });
       }
 
-      // JWT errors
       if (error.name === "JsonWebTokenError") {
         return res.status(401).json({
           success: false,
           message: "Invalid token",
+          code: "JWT_INVALID",
         });
       }
-
       if (error.name === "TokenExpiredError") {
         return res.status(401).json({
           success: false,
           message: "Token expired",
+          code: "JWT_EXPIRED",
         });
       }
 
-      // Default server error
       return res.status(500).json({
         success: false,
         message: "Internal server error",

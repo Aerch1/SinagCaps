@@ -115,3 +115,53 @@ export const WELCOME_EMAIL_TEMPLATE = `<!DOCTYPE html>
   </div>
 </body>
 </html>`;
+
+
+export const CHANGE_EMAIL_CODE_TEMPLATE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Confirm your new email</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height:1.6; color:#333; max-width:600px; margin:0 auto; padding:20px;">
+  <div style="background: linear-gradient(to right, #4CAF50, #45a049); padding:20px; text-align:center;">
+    <h1 style="color:#fff; margin:0;">Confirm your new email</h1>
+  </div>
+  <div style="background:#f9f9f9; padding:20px; border-radius:0 0 5px 5px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+    <p>Hello,</p>
+    <p>We received a request to change the email on your account. Enter this 6-digit code to confirm your new email address:</p>
+    <div style="text-align:center; margin:28px 0;">
+      <span style="font-size:32px; font-weight:bold; letter-spacing:6px; color:#4CAF50;">{code}</span>
+    </div>
+    <p>This code expires in <strong>15 minutes</strong>. If you didn’t request this change, please ignore this email or contact us at <a href="mailto:{supportEmail}">{supportEmail}</a>.</p>
+    <p>Best regards,<br/>Your App Team</p>
+  </div>
+  <div style="text-align:center; margin-top:20px; color:#888; font-size:.8em;">
+    <p>This is an automated message; please do not reply.</p>
+  </div>
+</body>
+</html>`;
+
+export const EMAIL_CHANGED_NOTICE_TEMPLATE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Your email was changed</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height:1.6; color:#333; max-width:600px; margin:0 auto; padding:20px;">
+  <div style="background: linear-gradient(to right, #4CAF50, #45a049); padding:20px; text-align:center;">
+    <h1 style="color:#fff; margin:0;">Email address updated</h1>
+  </div>
+  <div style="background:#f9f9f9; padding:20px; border-radius:0 0 5px 5px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+    <p>Hello,</p>
+    <p>This is a confirmation that the email on your account was changed from <strong>{oldEmail}</strong> to <strong>{newEmail}</strong>.</p>
+    <p>If you didn’t authorize this change, please contact support immediately at <a href="mailto:{supportEmail}">{supportEmail}</a>.</p>
+    <p>Best regards,<br/>Your App Team</p>
+  </div>
+  <div style="text-align:center; margin-top:20px; color:#888; font-size:.8em;">
+    <p>This is an automated message; please do not reply.</p>
+  </div>
+</body>
+</html>`;

@@ -12,7 +12,7 @@ const META = [
 
 export default function SettingsPage() {
     const { pathname } = useLocation();
-    const atRoot = pathname === "/settings";
+    // const atRoot = pathname === "/settings";
 
     const header = useMemo(() => {
         const found = META.find(m => m.match.test(pathname));
@@ -29,11 +29,12 @@ export default function SettingsPage() {
                     <main className="min-w-0">
                         {/* Dynamic title block (no borders) */}
                         <div className="mb-8">
-                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{header.title}</h1>
+                            <h1 className="text-2xl sm:text-3xl font-medium text-gray-900">{header.title}</h1>
                             <p className="mt-1 text-sm text-gray-600">{header.desc}</p>
                         </div>
 
-                        {atRoot ? <Navigate to="/settings/security" replace /> : <Outlet />}
+                        {/* {atRoot ? <Navigate to="/settings/profile" replace /> : <Outlet />} */}
+                        <Outlet />
                     </main>
                 </div>
             </div>

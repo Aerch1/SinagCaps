@@ -1,76 +1,107 @@
-"use client"
-import { useState } from "react"
-import { useAuthStore } from "../../store/authStore.js"
-import Input from "../../components/input"
-import { ArrowLeft, Loader, Mail } from 'lucide-react'
-import { Link } from "react-router-dom"
-import ErrorAlert from "../../components/ErrorAlert.jsx"
-import SuccessAlert from "../../components/SuccessAlert.jsx"
+// src/pages/auth/ForgotPasswordPage.jsx
+"use client";
+import { useState } from "react";
+import { useAuthStore } from "../../store/authStore.js";
+import Input from "../../components/input.jsx";
+import { ArrowLeft, Loader, Mail } from "lucide-react";
+import { Link } from "react-router-dom";
+import ErrorAlert from "../../components/ErrorAlert.jsx";
+import SuccessAlert from "../../components/SuccessAlert.jsx";
+import { validateForgotPassword } from "../../../../shared/validation.js";
 
 const ForgotPasswordPage = () => {
-    const [email, setEmail] = useState("")
-    const [isSubmitted, setIsSubmitted] = useState(false)
-    const { isLoading, forgotPassword, error, message, clearError, clearMessage } = useAuthStore()
+    const [email, setEmail] = useState("");
+    const [emailErr, setEmailErr] = useState("");
+    const [isSubmitted, setIsSubmitted] = useState(false);
+
+    const { isLoading, forgotPassword, error, message, clearError, clearMessage } =
+        useAuthStore();
 
     const handleSubmit = async (e) => {
-        e.preventDefault()
-        clearError()
+        e.preventDefault();
 
-        const ok = await forgotPassword(email);   // returns true on success, null on validation fail
-        if (!ok) return;                          // stay on the form, show <ErrorAlert>
+        // client-side check first (uses your shared rules)
+        setEmailErr("");
+        const v = validateForgotPassword({ email });
+        if (!v.ok) {
+            setEmailErr(v.message);
+            return;
+        }
 
+        // server call; server errors still surface in <ErrorAlert />
+        const ok = await forgotPassword(email);
+        if (!ok) return;
         setIsSubmitted(true);
-    }
+    };
 
     return (
-        <div className="max-w-md w-full bg-gray-800 bg-opacity-50 backdrop-filter backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden">
-            <div className="p-8">
-                <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-green-400 to-emerald-500 text-transparent bg-clip-text">
-                    Forgot Password
-                </h2>
+        <div className="min-h-screen bg-[url('/forgot.jpg')] bg-cover bg-center flex items-center justify-center p-2 sm:p-4">
+            <div className="absolute inset-0 bg-black/20"></div>
 
-                {!isSubmitted ? (
-                    // ✅ noValidate disables native bubbles even if inputs have constraints
-                    <form onSubmit={handleSubmit} noValidate>
-                        <p className="text-gray-300 mb-6 text-center">
-                            Enter your email address and we'll send you a link to reset your password.
-                        </p>
+            <div className="max-w-md w-full bg-gray-800/95 backdrop-blur-xl rounded-lg shadow-2xl overflow-hidden">
+                <div className="p-6 sm:p-8">
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-white">
+                        Forgot Password
+                    </h2>
 
-                        <Input
-                            icon={Mail}
-                            type="email"                      // keep email keyboard; native validation is off due to noValidate
-                            placeholder="Email Address"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
+                    {!isSubmitted ? (
+                        <form onSubmit={handleSubmit} noValidate>
+                            <p className="text-gray-300 mb-6 text-center">
+                                Enter your email address and we’ll send you a link to reset your password.
+                            </p>
 
-                        <ErrorAlert error={error} onClose={clearError} />
+                            <Input
+                                icon={Mail}
+                                type="email"
+                                placeholder="Email Address"
+                                value={email}
+                                error={emailErr}
+                                onChange={(e) => setEmail(e.target.value)}
+                                onFocus={() => {
+                                    // clear inline + global error when typing again
+                                    if (emailErr) setEmailErr("");
+                                    if (error) clearError();
+                                }}
+                                autoComplete="email"
+                                // theme override to match your burgundy focus color
+                                className="focus:border-[#710000] focus:ring-2 focus:ring-[#710000]/40"
+                            />
 
-                        <button
-                            className="w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-200"
-                            type="submit"
-                            disabled={isLoading}
-                        >
-                            {isLoading ? <Loader className="size-6 animate-spin mx-auto" /> : "Send Reset Link"}
-                        </button>
-                    </form>
-                ) : (
-                    <div className="text-center">
-                        <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Mail className="h-8 w-8 text-white" />
+                            <ErrorAlert error={error} onClose={clearError} />
+
+                            <button
+                                className="w-full py-3 px-4 bg-gradient-to-r from-[#710000] to-[#500000] text-white font-medium rounded-lg shadow-lg hover:from-[#600000] hover:to-[#400000] focus:outline-none focus:ring-2 focus:ring-[#710000] focus:ring-offset-2 focus:ring-offset-gray-800 transition-all duration-200 disabled:opacity-50"
+                                type="submit"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <Loader className="w-6 h-6 animate-spin mx-auto" />
+                                ) : (
+                                    "Send Reset Link"
+                                )}
+                            </button>
+                        </form>
+                    ) : (
+                        <div className="text-center">
+                            <div className="w-16 h-16 bg-[#710000] rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Mail className="h-8 w-8 text-white" />
+                            </div>
+                            <SuccessAlert message={message} onClose={clearMessage} />
                         </div>
-                        <SuccessAlert message={message} onClose={clearMessage} />
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
 
-            <div className="px-8 py-4 bg-gray-900 bg-opacity-50 flex justify-center">
-                <Link to={"/login"} className="text-sm text-green-400 hover:underline flex items-center">
-                    <ArrowLeft className="h-4 w-4 mr-2" /> Back to Login
-                </Link>
+                <div className="px-6 sm:px-8 py-4 bg-gray-900/60 flex justify-center">
+                    <Link
+                        to="/login"
+                        className="text-sm text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center"
+                    >
+                        <ArrowLeft className="h-4 w-4 mr-2" /> Back to Login
+                    </Link>
+                </div>
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default ForgotPasswordPage
+export default ForgotPasswordPage;

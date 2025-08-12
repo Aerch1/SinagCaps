@@ -6,6 +6,7 @@ import path from "path";
 
 import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.route.js";
+import profileRoutes from "./routes/profile.routes.js";
 
 // Load environment variables first
 dotenv.config();
@@ -27,6 +28,7 @@ app.use(cookieParser()); // Parse incoming cookies
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -51,34 +53,31 @@ if (process.env.NODE_ENV === "production") {
 // Error handling
 app.use((err, req, res, next) => {
   console.error("Global error handler:", err);
-  
+
   // Handle different types of errors
-  if (err.type === 'entity.parse.failed') {
-    return res.status(400).json({ 
-      success: false, 
-      message: "Invalid JSON format" 
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid JSON format",
     });
   }
 
-  if (err.type === 'entity.too.large') {
-    return res.status(413).json({ 
-      success: false, 
-      message: "Request entity too large" 
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({
+      success: false,
+      message: "Request entity too large",
     });
   }
 
-  res.status(500).json({ 
-    success: false, 
+  res.status(500).json({
+    success: false,
     message: "Something went wrong!",
-    ...(process.env.NODE_ENV === 'development' && { 
+    ...(process.env.NODE_ENV === "development" && {
       error: err.message,
-      stack: err.stack 
-    })
+      stack: err.stack,
+    }),
   });
-})
-
-
-
+});
 
 // Start server
 app.listen(PORT, () => {
@@ -89,14 +88,14 @@ app.listen(PORT, () => {
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (err, promise) => {
-  console.error('Unhandled Promise Rejection:', err.message);
+process.on("unhandledRejection", (err, promise) => {
+  console.error("Unhandled Promise Rejection:", err.message);
   // Close server & exit process
   process.exit(1);
 });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err.message);
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err.message);
   process.exit(1);
 });

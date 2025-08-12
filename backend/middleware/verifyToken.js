@@ -1,8 +1,9 @@
+// middleware/verifyToken.js
 import jwt from "jsonwebtoken";
 
 export const verifyToken = (req, res, next) => {
   try {
-    const token = req.cookies.token;
+    const token = req.cookies?.token;
 
     if (!token) {
       return res.status(401).json({
@@ -13,7 +14,7 @@ export const verifyToken = (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (!decoded || !decoded.userId) {
+    if (!decoded?.userId) {
       return res.status(401).json({
         success: false,
         message: "Unauthorized - invalid token",

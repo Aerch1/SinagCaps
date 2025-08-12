@@ -6,7 +6,7 @@ import {
   validateLogin,
   validateResetPassword,
   validateVerifyEmail,
-  validateChangeEmail, // 👈 add this import
+  validateChangeEmail,
 } from "../../../shared/validation.js";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -14,16 +14,15 @@ const AUTH_API_URL = `${API_URL}/auth`;
 
 axios.defaults.withCredentials = true;
 
-// Create the store first so we can reference it in the interceptor
 export const useAuthStore = create((set, get) => ({
   user: null,
   isAuthenticated: false,
   error: null,
   isLoading: false,
-  hasCheckedAuth: false, // 👈 add this
-
   message: null,
+
   isCheckingAuth: true,
+  hasCheckedAuth: false,
 
   clearError: () => set({ error: null }),
   clearMessage: () => set({ message: null }),
@@ -31,6 +30,7 @@ export const useAuthStore = create((set, get) => ({
 
   setError: (error) => {
     set({ error, isLoading: false });
+
     setTimeout(() => {
       if (get().error === error) set({ error: null });
     }, 5000);
@@ -44,102 +44,90 @@ export const useAuthStore = create((set, get) => ({
   },
 
   setUser: (user) => {
-    set({
-      user,
-      isAuthenticated: !!user,
-      isCheckingAuth: false,
-    });
+    set({ user, isAuthenticated: !!user, isCheckingAuth: false });
   },
 
+  // ---------- Auth boot ----------
   checkAuth: async () => {
     if (get().hasCheckedAuth) return get().user;
-
     set({ isCheckingAuth: true, error: null });
-
     try {
-      const response = await axios.get(`${AUTH_API_URL}/check-auth`);
+      const { data } = await axios.get(`${AUTH_API_URL}/check-auth`);
       set({
-        user: response.data.user,
+        user: data.user,
         isAuthenticated: true,
         isCheckingAuth: false,
-        hasCheckedAuth: true, // 👈 mark done
+        hasCheckedAuth: true,
       });
-      return response.data.user;
-    } catch (error) {
+      return data.user;
+    } catch {
       set({
         user: null,
         isAuthenticated: false,
         isCheckingAuth: false,
+        hasCheckedAuth: true,
       });
-      // Don't throw error here to prevent infinite loops
       return null;
     }
   },
 
+  // ---------- Standard flows ----------
   signup: async (email, password, name) => {
     set({ isLoading: true, error: null, message: null });
-
     const v = validateSignup({ email, password, name });
-    if (!v.ok) {
-      get().setError(v.message);
-      return null;
-    }
-
+    if (!v.ok) return get().setError(v.message);
     try {
-      const response = await axios.post(`${AUTH_API_URL}/signup`, {
+      const { data } = await axios.post(`${AUTH_API_URL}/signup`, {
         email: email.trim().toLowerCase(),
         password,
         name: name.trim(),
       });
-
-      set({
-        user: response.data.user,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-
+      set({ isLoading: false, isCheckingAuth: false, hasCheckedAuth: true });
       get().setMessage(
-        "Account created! Please check your email for verification code."
+        data?.message ||
+          "Account created! Please check your email for the verification code."
       );
-      return response.data;
+      return true;
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.message || "Signup failed. Please try again.";
-      get().setError(errorMessage);
+      get().setError(
+        error.response?.data?.message || "Signup failed. Please try again."
+      );
       throw error;
     }
   },
 
   login: async (email, password) => {
     set({ isLoading: true, error: null, message: null });
-
     const v = validateLogin({ email, password });
-    if (!v.ok) {
-      get().setError(v.message);
-      return null;
-    }
+    if (!v.ok) return get().setError(v.message);
 
     try {
-      const response = await axios.post(`${AUTH_API_URL}/login`, {
+      const { data } = await axios.post(`${AUTH_API_URL}/login`, {
         email: email.trim().toLowerCase(),
         password,
       });
 
-      const user = response.data.user;
       set({
         isAuthenticated: true,
-        user,
+        user: data.user,
         error: null,
         isLoading: false,
+        hasCheckedAuth: true,
+        isCheckingAuth: false,
       });
 
       get().setMessage("Welcome back!");
-      return user;
+      return data.user;
     } catch (error) {
-      const errorMessage =
+      const status = error.response?.status;
+      if (status === 403) {
+        get().setError("Please verify your email before logging in.");
+        return null;
+      }
+      get().setError(
         error.response?.data?.message ||
-        "Login failed. Please check your credentials.";
-      get().setError(errorMessage);
+          "Login failed. Please check your credentials."
+      );
       throw error;
     }
   },
@@ -148,104 +136,64 @@ export const useAuthStore = create((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       await axios.post(`${AUTH_API_URL}/logout`);
+    } catch (error) {
+      if (error.response?.status !== 401) console.error("Logout error:", error);
+    } finally {
       set({
         user: null,
         isAuthenticated: false,
         error: null,
         isLoading: false,
+        isCheckingAuth: false,
+        hasCheckedAuth: true,
       });
       get().setMessage("Logged out successfully");
-    } catch (error) {
-      if (error.response?.status !== 401) {
-        console.error("Logout error:", error);
-      }
-      set({
-        user: null,
-        isAuthenticated: false,
-        error: null,
-        isLoading: false,
-      });
     }
   },
 
   verifyEmail: async (code) => {
     set({ isLoading: true, error: null, message: null });
-
     const v = validateVerifyEmail({ code });
-    if (!v.ok) {
-      get().setError(v.message);
-      return null;
-    }
+    if (!v.ok) return get().setError(v.message);
 
     try {
-      const response = await axios.post(`${AUTH_API_URL}/verify-email`, {
+      const { data } = await axios.post(`${AUTH_API_URL}/verify-email`, {
         code: code.trim(),
       });
-
       set({
-        user: response.data.user,
+        user: data.user,
         isAuthenticated: true,
         isLoading: false,
+        hasCheckedAuth: true,
+        isCheckingAuth: false,
       });
-
       get().setMessage("Email verified successfully!");
-      return response.data;
+      return data;
     } catch (error) {
-      const errorMessage =
+      get().setError(
         error.response?.data?.message ||
-        "Verification failed. Please try again.";
-      get().setError(errorMessage);
-      throw error;
-    }
-  },
-
-  // ✅ NEW: changeEmail uses store validation & updates user locally (UI-only)
-  changeEmail: async (email) => {
-    set({ isLoading: true, error: null, message: null });
-
-    const v = validateChangeEmail({ email });
-    if (!v.ok) {
-      get().setError(v.message);
-      return null;
-    }
-
-    try {
-      // If/when you add a backend endpoint, call it here.
-      set({ isLoading: false });
-      get().setMessage(
-        "Email change request saved. We'll verify this new address shortly."
+          "Verification failed. Please try again."
       );
-      return true;
-    } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        "Failed to update email. Please try again.";
-      get().setError(errorMessage);
       throw error;
     }
   },
 
   forgotPassword: async (email) => {
     set({ isLoading: true, error: null, message: null });
-
     const v = validateForgotPassword({ email });
-    if (!v.ok) {
-      get().setError(v.message);
-      return null;
-    }
+    if (!v.ok) return get().setError(v.message);
 
     try {
       await axios.post(`${AUTH_API_URL}/forgot-password`, {
         email: email.trim().toLowerCase(),
       });
-
       get().setMessage("Password reset link sent to your email");
       return true;
     } catch (error) {
-      const msg =
+      get().setError(
         error.response?.data?.message ||
-        "Password reset failed. Please try again.";
-      get().setError(msg);
+          "Password reset failed. Please try again."
+      );
       throw error;
     } finally {
       set({ isLoading: false });
@@ -254,60 +202,203 @@ export const useAuthStore = create((set, get) => ({
 
   resetPassword: async (token, password) => {
     set({ isLoading: true, error: null, message: null });
-
     const v = validateResetPassword({ token, password });
-    if (!v.ok) {
-      get().setError(v.message);
-      return null;
-    }
-
+    if (!v.ok) return get().setError(v.message);
     try {
       await axios.post(`${AUTH_API_URL}/reset-password/${token}`, { password });
       get().setMessage("Password reset successfully! You can now log in.");
       return true;
     } catch (error) {
-      const errorMessage =
+      get().setError(
         error.response?.data?.message ||
-        "Password reset failed. Please try again.";
-      get().setError(errorMessage);
+          "Password reset failed. Please try again."
+      );
       throw error;
     } finally {
       set({ isLoading: false });
     }
   },
-}));
 
-// axios interceptor unchanged
-// authStore.js (interceptor part)
+  // ---------- Headless helpers (no global errors/loading) ----------
+  reauthPassword: async (password) => {
+    if (!password) return { ok: false, message: "Please enter your password" };
+    try {
+      await axios.post(`${AUTH_API_URL}/reauth`, { password });
+      return { ok: true };
+    } catch (err) {
+      const s = err?.response?.status;
+      if (s === 400 || s === 401)
+        return { ok: false, message: "Incorrect password. Please try again." };
+      return { ok: false, message: "Something went wrong. Try again." };
+    }
+  },
+
+  changePassword: async (current, next, logoutOthers = true) => {
+    if (!current)
+      return {
+        ok: false,
+        field: "current",
+        message: "Enter your current password.",
+      };
+    if (!next || next.length < 6)
+      return {
+        ok: false,
+        field: "new",
+        message: "Password must be at least 6 characters.",
+      };
+
+    try {
+      const { data } = await axios.post(`${AUTH_API_URL}/change-password`, {
+        current,
+        next,
+        logoutOthers,
+      });
+
+      // Optionally refresh user in store if backend returns it
+      if (data?.user) {
+        useAuthStore.getState().setUser(data.user);
+      }
+      return { ok: true };
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message || "Failed to change password.";
+      if (status === 400 || status === 401) {
+        if (/current/i.test(msg))
+          return { ok: false, field: "current", message: msg };
+        if (/new/i.test(msg)) return { ok: false, field: "new", message: msg };
+        return { ok: false, message: msg };
+      }
+      return { ok: false, message: "Something went wrong. Try again." };
+    }
+  },
+
+  deleteAccount: async (password) => {
+    if (!password?.trim()) {
+      return {
+        ok: false,
+        field: "password",
+        message: "Please enter your password.",
+      };
+    }
+    try {
+      await axios.post(`${AUTH_API_URL}/delete-account`, { password });
+      // backend clears cookies; clear client state too
+      set({ user: null, isAuthenticated: false });
+      return { ok: true };
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message || "Failed to delete account.";
+      if (status === 400 || status === 401) {
+        return { ok: false, field: "password", message: msg };
+      }
+      return { ok: false, message: "Something went wrong. Try again." };
+    }
+  },
+
+  requestEmailChange: async (email) => {
+    const v = validateChangeEmail({ email });
+    if (!v.ok) return { ok: false, message: v.message };
+    try {
+      await axios.post(`${AUTH_API_URL}/change-email/request`, {
+        email: email.trim().toLowerCase(),
+      });
+      return { ok: true };
+    } catch (err) {
+      return {
+        ok: false,
+        message: err?.response?.data?.message || "Failed to send code.",
+      };
+    }
+  },
+
+  confirmEmailChange: async (email, code) => {
+    const ve = validateChangeEmail({ email });
+    if (!ve.ok) return { ok: false, field: "email", message: ve.message };
+    const vc = validateVerifyEmail({ code });
+    if (!vc.ok) return { ok: false, field: "code", message: vc.message };
+
+    try {
+      const { data } = await axios.post(
+        `${AUTH_API_URL}/change-email/confirm`,
+        {
+          email: email.trim().toLowerCase(),
+          code: code.trim(),
+        }
+      );
+
+      const next =
+        data?.user ??
+        (get().user
+          ? { ...get().user, email: email.trim().toLowerCase() }
+          : null);
+      if (next) set({ user: next, isAuthenticated: true });
+
+      return { ok: true, user: next };
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message;
+      if (status === 400 || status === 401) {
+        if (/code/i.test(msg || ""))
+          return { ok: false, field: "code", message: msg || "Invalid code." };
+        if (/email/i.test(msg || ""))
+          return {
+            ok: false,
+            field: "email",
+            message: msg || "Invalid email.",
+          };
+        return { ok: false, message: msg || "Request failed." };
+      }
+      return { ok: false, message: "Something went wrong. Try again." };
+    }
+  },
+}));
 axios.interceptors.response.use(
   (res) => res,
   async (error) => {
-    const originalRequest = error.config;
+    const { response, config: originalRequest } = error || {};
+    const status = response?.status;
+    const isAuth = useAuthStore.getState().isAuthenticated;
 
-    // try refresh on ANY 401 once, except the refresh endpoint itself
+    // Don’t refresh if:
+    // - not a 401
+    // - we already retried
+    // - it's the refresh call itself
+    // - user is NOT authenticated (public/auth pages)
     if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url.includes("/auth/refresh-token")
+      status !== 401 ||
+      originalRequest?._retry ||
+      originalRequest?.url?.includes("/auth/refresh-token") ||
+      !isAuth
     ) {
-      originalRequest._retry = true;
-      try {
-        await axios.post(`${AUTH_API_URL}/refresh-token`, {}, { withCredentials: true });
-        return axios(originalRequest); // retry original
-      } catch (refreshError) {
-        // clear auth state
-        const store = useAuthStore.getState();
-        store.set({
-          user: null,
-          isAuthenticated: false,
-          error: null,
-          isLoading: false,
-          isCheckingAuth: false,
-        });
-        return Promise.reject(refreshError);
-      }
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    originalRequest._retry = true;
+
+    try {
+      const { data } = await axios.post(
+        `${AUTH_API_URL}/refresh-token`,
+        {},
+        { withCredentials: true }
+      );
+
+      if (data?.user) {
+        useAuthStore.getState().setUser(data.user);
+        useAuthStore.setState({ hasCheckedAuth: true, isCheckingAuth: false });
+      }
+
+      return axios(originalRequest); // retry the original request once
+    } catch (refreshError) {
+      // session is no longer valid — clear it and bubble the original error
+      useAuthStore.setState({
+        user: null,
+        isAuthenticated: false,
+        error: null,
+        isLoading: false,
+        isCheckingAuth: false,
+        hasCheckedAuth: true,
+      });
+      return Promise.reject(error); // keep original endpoint’s message (e.g., "Incorrect password")
+    }
   }
 );

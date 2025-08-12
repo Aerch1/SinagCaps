@@ -56,10 +56,7 @@ function App() {
               <Route
                 path="/verify-email"
                 element={
-                  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-green-900 to-emerald-900 flex items-center justify-center relative overflow-hidden">
-                    <FloatingShape color="bg-green-500" size="w-64 h-64" top="-5%" left="10%" delay={0} />
-                    <FloatingShape color="bg-emerald-500" size="w-48 h-48" top="70%" left="80%" delay={5} />
-                    <FloatingShape color="bg-lime-500" size="w-32 h-32" top="40%" left="-10%" delay={2} />
+                  <div >
                     <EmailVerificationPage />
                   </div>
                 }
@@ -67,10 +64,7 @@ function App() {
               <Route
                 path="/forgot-password"
                 element={
-                  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-green-900 to-emerald-900 flex items-center justify-center relative overflow-hidden">
-                    <FloatingShape color="bg-green-500" size="w-64 h-64" top="-5%" left="10%" delay={0} />
-                    <FloatingShape color="bg-emerald-500" size="w-48 h-48" top="70%" left="80%" delay={5} />
-                    <FloatingShape color="bg-lime-500" size="w-32 h-32" top="40%" left="-10%" delay={2} />
+                  <div  >
                     <ForgotPasswordPage />
                   </div>
                 }
@@ -78,10 +72,7 @@ function App() {
               <Route
                 path="/reset-password/:token"
                 element={
-                  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-green-900 to-emerald-900 flex items-center justify-center relative overflow-hidden">
-                    <FloatingShape color="bg-green-500" size="w-64 h-64" top="-5%" left="10%" delay={0} />
-                    <FloatingShape color="bg-emerald-500" size="w-48 h-48" top="70%" left="80%" delay={5} />
-                    <FloatingShape color="bg-lime-500" size="w-32 h-32" top="40%" left="-10%" delay={2} />
+                  <div >
                     <ResetPasswordPage />
                   </div>
                 }
@@ -96,14 +87,15 @@ function App() {
 
                 {/* 🔒 Protect the whole settings branch */}
                 <Route
-                  path="/settings"
+                  path="/settings/*"
                   element={
                     <ProtectedRoute>
                       <SettingsPage />
                     </ProtectedRoute>
                   }
                 >
-                  <Route index element={<AccountSecurityPanel />} />
+
+                  <Route index element={<Navigate to="profile" replace />} />
                   <Route path="profile" element={<PersonalInfoPanel />} />
                   <Route path="security" element={<AccountSecurityPanel />} />
                   <Route path="appointments" element={<AppointmentsPanel />} />

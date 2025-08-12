@@ -96,14 +96,14 @@ function UserMenu({ user, onLogout, compact = false }) {
                         <div className="my-3 h-px bg-gray-200" />
 
                         <NavLink
-                            to="/profile"
+                            to="settings/profile"
                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
                             <User className="h-4 w-4" /> View Profile
                         </NavLink>
                         <NavLink
-                            to="/settings"
+                            to="/settings/security"
                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
@@ -113,14 +113,14 @@ function UserMenu({ user, onLogout, compact = false }) {
                         <div className="my-3 h-px bg-gray-200" />
 
                         <NavLink
-                            to="/appointments"
+                            to="settings/appointments"
                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
                             <MessageSquare className="h-4 w-4" /> Manage Appointments
                         </NavLink>
                         <NavLink
-                            to="/messages"
+                            to="settings/messages"
                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
@@ -447,7 +447,7 @@ export default function Header({ user, onLogout }) {
                     {user ? (
                         <>
                             <NavLink
-                                to="/profile"
+                                to="/settings/profile"
                                 onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
                                     `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
@@ -457,7 +457,7 @@ export default function Header({ user, onLogout }) {
                                 Profile
                             </NavLink>
                             <NavLink
-                                to="/settings"
+                                to="/settings/security"
                                 onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
                                     `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"

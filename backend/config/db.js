@@ -1,6 +1,6 @@
+// src/config/db.js
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
-
 dotenv.config();
 
 const pool = mysql.createPool({
@@ -19,30 +19,60 @@ export const connectDB = async () => {
     connection = await pool.getConnection();
     console.log(`✅ MySQL Connected: ${process.env.DB_HOST}`);
 
-    // Drop existing table if it exists (for development only)
-
-
-    // Create users table with all required columns
+    // Base table (includes new profile columns for new installs)
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         name VARCHAR(255) NOT NULL,
-        role ENUM('user', 'admin') DEFAULT 'user',
+        role ENUM('user','admin') DEFAULT 'user',
         lastLogin TIMESTAMP NULL,
         isVerified BOOLEAN DEFAULT FALSE,
+
+        -- reset / verify
         resetPasswordToken VARCHAR(255) NULL,
         resetPasswordExpiresAt TIMESTAMP NULL,
         verificationToken VARCHAR(6) NULL,
         verificationTokenExpiresAt TIMESTAMP NULL,
+
+        -- email change workflow
+        pendingEmail VARCHAR(255) NULL,
+        pendingEmailCode VARCHAR(6) NULL,
+        pendingEmailExpiresAt TIMESTAMP NULL,
+
+        -- ✅ profile fields
+        phone VARCHAR(32) NULL,
+        gender VARCHAR(32) NULL,
+        dob DATE NULL,
+        location VARCHAR(255) NULL,
+        avatarUrl VARCHAR(500) NULL,
+
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+        INDEX idx_users_verificationToken (verificationToken),
+        INDEX idx_users_resetPasswordToken (resetPasswordToken),
+        INDEX idx_users_pendingEmail (pendingEmail),
+        INDEX idx_users_pendingEmailCode (pendingEmailCode)
       )
     `);
-    console.log("✅ Users table created successfully");
 
-    // Create default admin user in development
+    // Keep migrations idempotent for existing DBs (MySQL 8+ supports IF NOT EXISTS)
+    await connection.execute(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS pendingEmail VARCHAR(255) NULL,
+        ADD COLUMN IF NOT EXISTS pendingEmailCode VARCHAR(6) NULL,
+        ADD COLUMN IF NOT EXISTS pendingEmailExpiresAt TIMESTAMP NULL,
+        ADD COLUMN IF NOT EXISTS phone VARCHAR(32) NULL,
+        ADD COLUMN IF NOT EXISTS gender VARCHAR(32) NULL,
+        ADD COLUMN IF NOT EXISTS dob DATE NULL,
+        ADD COLUMN IF NOT EXISTS location VARCHAR(255) NULL,
+        ADD COLUMN IF NOT EXISTS avatarUrl VARCHAR(500) NULL
+    `);
+
+    console.log("✅ Users table ensured / updated");
+
     if (process.env.NODE_ENV === "development") {
       const [rows] = await connection.execute(
         "SELECT id FROM users WHERE email = ?",

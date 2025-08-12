@@ -1,45 +1,37 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import { User, Mail, Lock, Trash2, ChevronRight, X } from "lucide-react";
-import Modal from "../../../../components/ui/Modal";
+import { useState } from "react";
+import { User, Mail, Lock, Trash2, ChevronRight } from "lucide-react";
 import { useAuthStore } from "../../../../store/authStore.js";
+import PasswordConfirmModal from "../../../../components/ui/PasswordConfirmModal.jsx";
+import ChangeEmailModal from "../../../../components/ui/ChangeEmailModal.jsx";
+import ResetPasswordModal from "../../../../components/ui/ResetPasswordModal.jsx";
+import DeleteAccountModal from "../../../../components/ui/DeleteAccountModal.jsx";
 
-// Buttons without borders
 function ActionButton({ children, onClick, variant = "default", disabled }) {
     const cls =
         variant === "danger"
-            ? "text-rose-700 bg-rose-50 hover:bg-rose-100"
-            : "text-gray-700 bg-gray-100 hover:bg-gray-200";
+            ? "text-red-700 bg-rose-50 hover:bg-rose-100"
+            : "text-blue-500 bg-gray-200 hover:bg-gray-300 ";
     return (
         <button
             onClick={onClick}
             disabled={disabled}
-            className={`inline-flex items-center rounded-md w-24 justify-center px-3 py-2 text-xs font-semibold uppercase tracking-wide transition disabled:opacity-50 ${cls}`}
+            className={`inline-flex items-center rounded-md w-26 justify-center px-3 py-3 text-xs font-medium uppercase tracking-wide transition disabled:opacity-50 ${cls}`}
         >
             {children}
         </button>
     );
 }
-
-// Each row draws only a bottom border
 function Row({ icon, title, description, action, rightChevron = false }) {
     return (
         <div className="flex items-center justify-between gap-6 px-6 py-6 border-b border-gray-200">
             <div className="flex min-w-0 items-center gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
-                    {icon}
-                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full">{icon}</div>
                 <div className="min-w-0">
                     <div className="text-sm font-medium text-gray-900">{title}</div>
-                    {description ? (
-                        <div className="mt-0.5 text-sm text-gray-600 truncate">
-                            {description}
-                        </div>
-                    ) : null}
+                    {description ? <div className="mt-0.5 text-sm text-gray-600 truncate">{description}</div> : null}
                 </div>
             </div>
-
             <div className="flex items-center gap-3 shrink-0">
                 {action}
                 {rightChevron ? <ChevronRight className="h-5 w-5 text-gray-300" /> : null}
@@ -49,194 +41,187 @@ function Row({ icon, title, description, action, rightChevron = false }) {
 }
 
 export default function AccountSecurityPanel() {
-    const {
-        user,
-        isCheckingAuth,
-        isLoading,
-        error,
-        message,
-        clearError,
-        clearMessage,
-        changeEmail,
-        forgotPassword,
-    } = useAuthStore();
+    const { user, reauthPassword, requestEmailChange, confirmEmailChange, changePassword, deleteAccount } =
+        useAuthStore();
 
+    // password modal (for change-email)
+    const [pwdOpen, setPwdOpen] = useState(false);
+    const [pwdLoading, setPwdLoading] = useState(false);
+    const [pwdError, setPwdError] = useState("");
+
+    // change email modal
     const [emailOpen, setEmailOpen] = useState(false);
-    const [deleteOpen, setDeleteOpen] = useState(false);
-    const [newEmail, setNewEmail] = useState(user?.email || "");
-    const [localNotice, setLocalNotice] = useState("");
+    const [emailLoading, setEmailLoading] = useState(false);
+    const [sendingCode, setSendingCode] = useState(false);
+    const [emailErr, setEmailErr] = useState("");
+    const [codeErr, setCodeErr] = useState("");
 
-    // 🔒 Do NOT call checkAuth here. It should run once at app startup.
+    // reset password modal
+    const [resetOpen, setResetOpen] = useState(false);
+    const [resetBusy, setResetBusy] = useState(false);
+    const [curErr, setCurErr] = useState("");
+    const [newErr, setNewErr] = useState("");
+    const [conErr, setConErr] = useState("");
 
-    useEffect(() => {
-        if (user?.email) setNewEmail(user.email);
-    }, [user?.email]);
+    //delete modal
+    const [delOpen, setDelOpen] = useState(false);
+    const [delBusy, setDelBusy] = useState(false);
 
-    const handleResetPassword = async () => {
-        if (!user?.email) {
-            clearError();
-            clearMessage();
-            setLocalNotice("Your account has no email on file.");
+    // --- change email flow ---
+    const handleConfirmPassword = async (password) => {
+        setPwdLoading(true);
+        setPwdError("");
+        const res = await reauthPassword(password);
+        setPwdLoading(false);
+        if (!res.ok) return setPwdError(res.message);
+        setPwdOpen(false);
+        setEmailOpen(true);
+    };
+    const handleSendCode = async (newEmail) => {
+        setSendingCode(true);
+        setEmailErr("");
+        const res = await requestEmailChange(newEmail);
+        setSendingCode(false);
+        if (!res.ok) setEmailErr(res.message);
+    };
+    const handleConfirmEmail = async ({ email, code }) => {
+        setEmailLoading(true);
+        setEmailErr("");
+        setCodeErr("");
+        const res = await confirmEmailChange(email, code);
+        setEmailLoading(false);
+        if (!res.ok) {
+            if (res.field === "email") setEmailErr(res.message);
+            else setCodeErr(res.message);
             return;
         }
-        setLocalNotice("");
-        try {
-            await forgotPassword(user.email);
-        } catch { }
+        setEmailOpen(false);
     };
 
-    const handleEmailSave = async () => {
-        setLocalNotice("");
-        try {
-            const ok = await changeEmail(newEmail);
-            if (ok) setEmailOpen(false);
-        } catch { }
+    // --- reset password flow ---
+    const handleResetSubmit = async ({ current, next, logoutOthers }) => {
+        // local checks (extra UX safety)
+        setCurErr("");
+        setNewErr("");
+        setConErr("");
+        if (!current) {
+            setCurErr("Enter your current password.");
+            return;
+        }
+        if (next.length < 6) {
+            setNewErr("Password must be at least 6 characters.");
+            return;
+        }
+        // the modal already prevents mismatch, but double-check:
+        // (no field here because modal already guards OK button)
+        setResetBusy(true);
+        const res = await changePassword(current, next, logoutOthers);
+        setResetBusy(false);
+        if (!res.ok) {
+            if (res.field === "current") setCurErr(res.message);
+            else if (res.field === "new") setNewErr(res.message);
+            else setConErr(res.message);
+            return;
+        }
+        setResetOpen(false);
     };
-
-    const handleDelete = () => {
-        setDeleteOpen(false);
-        setLocalNotice("Delete account is not connected yet. Backend hookup coming soon.");
-    };
-
-    // Optional: while the one-time auth check is in progress, render nothing.
-    if (isCheckingAuth) return null;
 
     return (
         <section className="bg-white">
-            <div className="max-w-4xl mx-auto py-10">
-                {/* Alerts from store */}
-                {error ? (
-                    <div className="mx-6 mb-6 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 flex items-start justify-between">
-                        <span>{error}</span>
-                        <button onClick={clearError} className="ml-4 opacity-70 hover:opacity-100">
-                            <X className="h-4 w-4" />
-                        </button>
-                    </div>
-                ) : null}
-                {message ? (
-                    <div className="mx-6 mb-6 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-start justify-between">
-                        <span>{message}</span>
-                        <button onClick={clearMessage} className="ml-4 opacity-70 hover:opacity-100">
-                            <X className="h-4 w-4" />
-                        </button>
-                    </div>
-                ) : null}
-
-                {/* Local notice */}
-                {localNotice ? (
-                    <div className="mx-6 mb-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start justify-between">
-                        <span>{localNotice}</span>
-                        <button onClick={() => setLocalNotice("")} className="ml-4 opacity-70 hover:opacity-100">
-                            <X className="h-4 w-4" />
-                        </button>
-                    </div>
-                ) : null}
-
-                {/* Sections (only border-bottoms) */}
+            <div className="max-w-4xl mx-auto py-2">
                 <div className="overflow-hidden">
-                    {/* Section header (bottom border only) */}
-                    <div className="px-6 py-5 border-b border-gray-200">
-                        <h2 className="text-lg font-semibold text-gray-900">Login methods</h2>
-                        <p className="mt-1 text-sm text-gray-600">
-                            You can log in using your email address, phone number, or a supported third-party account.
-                        </p>
-                    </div>
-
                     <Row
                         icon={<User className="h-5 w-5 text-sky-600" />}
                         title="Login ID"
                         description={user?.name || "—"}
                         action={<ActionButton disabled>Change</ActionButton>}
                     />
-
                     <Row
                         icon={<Mail className="h-5 w-5 text-amber-600" />}
                         title="Email address"
                         description={user?.email || "—"}
-                        action={<ActionButton onClick={() => setEmailOpen(true)} disabled={!user}>Change</ActionButton>}
+                        action={<ActionButton onClick={() => setPwdOpen(true)} disabled={!user}>Change</ActionButton>}
                     />
-
-                    {/* Security center */}
-                    <div className="px-6 py-5 border-b border-gray-200 mt-6">
-                        <h2 className="text-lg font-semibold text-gray-900">Security center</h2>
-                        <p className="mt-1 text-sm text-gray-600">Manage your password and account safety.</p>
-                    </div>
-
                     <Row
                         icon={<Lock className="h-5 w-5 text-amber-600" />}
                         title="Reset password"
-                        description="Send a password reset link to your email."
-                        action={
-                            <ActionButton onClick={handleResetPassword} disabled={isLoading || !user}>
-                                {isLoading ? "Sending…" : "Reset"}
-                            </ActionButton>
-                        }
+                        description="Set a new password for your account."
+                        action={<ActionButton onClick={() => setResetOpen(true)} disabled={!user}>Reset</ActionButton>}
                     />
-
                     <Row
                         icon={<Trash2 className="h-5 w-5 text-rose-600" />}
                         title="Delete account"
                         description="Permanently delete your account and related data."
-                        action={
-                            <ActionButton variant="danger" onClick={() => setDeleteOpen(true)} disabled={!user}>
-                                Delete
-                            </ActionButton>
-                        }
+                        action={<ActionButton variant="danger" onClick={() => setDelOpen(true)} disabled={!user}>Delete</ActionButton>}
                     />
                 </div>
             </div>
 
-            {/* Change Email Modal */}
-            <Modal open={emailOpen} onClose={() => setEmailOpen(false)} title="Change email address">
-                <div className="space-y-4">
-                    <div>
-                        <label className="mb-1 block text-sm text-gray-700">New email</label>
-                        <input
-                            value={newEmail}
-                            onChange={(e) => setNewEmail(e.target.value)}
-                            type="email"
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-secondary/40"
-                            placeholder="you@example.com"
-                        />
-                    </div>
-                    <div className="flex items-center justify-end gap-2">
-                        <button
-                            onClick={() => setEmailOpen(false)}
-                            className="rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleEmailSave}
-                            disabled={isLoading}
-                            className="rounded-md bg-secondary px-3 py-2 text-sm text-white hover:opacity-90 disabled:opacity-50"
-                        >
-                            {isLoading ? "Saving…" : "Save"}
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+            {/* change-email password confirm */}
+            <PasswordConfirmModal
+                open={pwdOpen}
+                email={user?.email}
+                loading={pwdLoading}
+                error={pwdError}
+                onClearError={() => setPwdError("")}
+                onClose={() => {
+                    setPwdOpen(false);
+                    setPwdError("");
+                }}
+                onSubmit={handleConfirmPassword}
+            />
 
-            {/* Delete Account Modal */}
-            <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete account">
-                <p className="text-sm text-gray-700">
-                    This will permanently delete your account and related data. Are you sure you want to continue?
-                </p>
-                <div className="mt-4 flex items-center justify-end gap-2">
-                    <button
-                        onClick={() => setDeleteOpen(false)}
-                        className="rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleDelete}
-                        className="rounded-md bg-rose-600 px-3 py-2 text-sm text-white hover:bg-rose-700"
-                    >
-                        Yes, delete
-                    </button>
-                </div>
-            </Modal>
+            {/* change email */}
+            <ChangeEmailModal
+                open={emailOpen}
+                initialEmail=""
+                sending={sendingCode}
+                loading={emailLoading}
+                emailError={emailErr}
+                codeError={codeErr}
+                onClearEmailError={() => setEmailErr("")}
+                onClearCodeError={() => setCodeErr("")}
+                onClose={() => {
+                    setEmailOpen(false);
+                    setEmailErr("");
+                    setCodeErr("");
+                }}
+                onSendCode={handleSendCode}
+                onSubmit={handleConfirmEmail}
+            />
+
+            {/* reset password */}
+            <ResetPasswordModal
+                open={resetOpen}
+                loading={resetBusy}
+                onClose={() => setResetOpen(false)}
+                onSubmit={async ({ current, next }) => {
+                    setResetBusy(true);
+                    const res = await changePassword(current, next); // no logoutOthers arg
+                    setResetBusy(false);
+                    if (res.ok) setResetOpen(false);
+                    return res;
+                }}
+            />
+
+            <DeleteAccountModal
+                open={delOpen}
+                email={user?.email}
+                loading={delBusy}
+                onClose={() => setDelOpen(false)}
+                onSubmit={async ({ password }) => {
+                    setDelBusy(true);
+                    const res = await deleteAccount(password);
+                    setDelBusy(false);
+                    if (res.ok) {
+                        setDelOpen(false);
+                        // optional: redirect or hard refresh
+                        // window.location.href = "/";
+                    }
+                    return res;
+                }}
+            />
+
         </section>
     );
 }

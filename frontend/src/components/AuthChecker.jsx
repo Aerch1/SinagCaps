@@ -1,17 +1,27 @@
-import { useEffect } from 'react';
-import { useAuthStore } from '../store/authStore';
-import LoadingSpinner from './LoadingSpinner';
+import { useLayoutEffect } from "react";
+import { useAuthStore } from "../store/authStore";
+import LoadingSpinner from "./LoadingSpinner";
 
-const AuthChecker = ({ children }) => {
-    // const { checkAuth, isCheckingAuth } = useAuthStore();
-    const { hasCheckedAuth, checkAuth } = useAuthStore();
+export default function AuthChecker({ children }) {
+    const { hasCheckedAuth, isCheckingAuth, checkAuth } = useAuthStore();
 
-
-    useEffect(() => {
-        if (!hasCheckedAuth) checkAuth();   // 👈 one-shot
+    // Run before paint so the app doesn't flash unauthenticated UI
+    useLayoutEffect(() => {
+        if (!hasCheckedAuth) {
+            checkAuth();
+        }
     }, [hasCheckedAuth, checkAuth]);
 
-    return children;
-};
+    const authReady = hasCheckedAuth && !isCheckingAuth;
 
-export default AuthChecker;
+    if (!authReady) {
+        // Full-screen lightweight splash while bootstrapping auth
+        return (
+            <div className="fixed inset-0 z-[9999] grid place-items-center bg-black/40">
+                <LoadingSpinner fullScreen />
+            </div>
+        );
+    }
+
+    return children;
+}

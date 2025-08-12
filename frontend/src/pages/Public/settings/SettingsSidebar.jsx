@@ -12,10 +12,8 @@ export default function SettingsSidebar() {
     return (
         <aside className=" border-gray-200 border-r p-3 sm:p-4">
             <nav className="space-y-1">
-                <NavLink
-                    to="/settings/profile"
-                    className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
-                >
+                <NavLink to="/settings/profile" className={({ isActive }) => `${base} ${isActive ? active : inactive}`}>
+
                     Personal info
                 </NavLink>
                 <NavLink
