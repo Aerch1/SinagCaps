@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Mail, Lock, Loader } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Input from "../../components/input.jsx";
+import toast from "react-hot-toast";
 import { useAuthStore } from "../../store/authStore.js";
 import ErrorAlert from "../../components/ErrorAlert.jsx";
 import SuccessAlert from "../../components/SuccessAlert.jsx";
@@ -52,6 +53,8 @@ const LoginPage = () => {
     try {
       const user = await login(email, password);
       if (user) navigate(user.role === "admin" ? "/admin" : "/");
+      toast.success("Login Successfully");
+
     } catch {/* server error already handled by store */ }
   };
 

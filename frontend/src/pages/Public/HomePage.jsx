@@ -7,6 +7,7 @@ import InfoBanner from "../../components/InfoBanner"
 import TwoFeatureCards from "../../components/TwoFeatureCards"
 import AppointmentInfo from "../../components/AppointmentInfo"
 import AppointmentQuickLinks from "../../components/AppointmentQuickLinks"
+import RotatingPrayerBanner from "../../components/RotatingPrayerBanner"
 const slides = [
     {
         image: "/hero2.png",
@@ -51,6 +52,7 @@ export default function HomePage() {
             {/* NEW: Full-width, white background, lots of breathing room */}
 
             <AboutSection />
+
             <InfoBanner
                 image="/banner.png" // change if you want
                 title="Don't miss the latest announcements & news"
@@ -62,14 +64,20 @@ export default function HomePage() {
 
 
             {/* Constrained content below */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-                <ChurchBulletin />
 
-
-                {/* other sections… */}
-            </div>
             <TwoFeatureCards />
-
+            <RotatingPrayerBanner
+                messages={[
+                    "Need prayers? We’re here for you.",
+                    "Let us lift you up in prayer.",
+                    "Our parish prays for each other. Share your intentions.",
+                    "Going through something? Let’s pray together.",
+                    "Need a prayer intention?"
+                ]}
+                buttonText="Request a Prayer"
+                to="/prayer-intentions/new"   // your form route
+                intervalMs={6000}
+            />
             <AppointmentInfo
                 image="/service.jpg"
                 title="Book parish services in minutes"
