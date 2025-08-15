@@ -10,6 +10,7 @@ import {
     MessageSquare,
     Menu,
     X,
+    BellRing,
 } from "lucide-react";
 
 function UserMenu({ user, onLogout, compact = false }) {
@@ -117,14 +118,14 @@ function UserMenu({ user, onLogout, compact = false }) {
                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
-                            <MessageSquare className="h-4 w-4" /> Manage Appointments
+                            <MessageSquare className="h-4 w-4" /> My Transaction
                         </NavLink>
                         <NavLink
-                            to="settings/messages"
+                            to="settings/notification"
                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
-                            <MessageSquare className="h-4 w-4" /> Messages
+                            <BellRing className="h-4 w-4" /> Notification
                         </NavLink>
 
                         <div className="my-3 h-px bg-gray-200" />
@@ -240,13 +241,13 @@ export default function Header({ user, onLogout }) {
                             </button>
                             <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md border border-gray-200 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition duration-200 z-20">
                                 <NavLink
-                                    to="/services/one"
+                                    to="/services/generalinfo"
                                     className={({ isActive }) =>
                                         `block px-4 py-2 text-sm transition ${isActive ? "bg-gray-50 text-secondary" : "hover:bg-gray-50 hover:text-secondary"
                                         }`
                                     }
                                 >
-                                    Service 1
+                                    General Information
                                 </NavLink>
                                 <NavLink
                                     to="/services/two"

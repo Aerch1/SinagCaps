@@ -64,7 +64,9 @@ const ResetPasswordPage = () => {
   };
 
   return (
-    <div className="max-w-md w-full bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden">
+        <div className="min-h-screen bg-[url('/forgot.jpg')] bg-cover bg-center flex items-center justify-center p-2 sm:p-4">
+      <div className="absolute inset-0 bg-black/20"></div>
+          <div className="max-w-md w-full bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden">
       <div className="p-8">
         <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-[#710000] to-[#500000] text-transparent bg-clip-text">
           Reset Password
@@ -117,7 +119,11 @@ const ResetPasswordPage = () => {
         </Link>
       </div>
     </div>
+    </div>
+
   );
+  
 };
+
 
 export default ResetPasswordPage;

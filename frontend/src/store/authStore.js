@@ -1,3 +1,4 @@
+// frontend/src/store/auth.js
 import { create } from "zustand";
 import axios from "axios";
 import {
@@ -9,7 +10,7 @@ import {
   validateChangeEmail,
 } from "../../../shared/validation.js";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 const AUTH_API_URL = `${API_URL}/auth`;
 
 axios.defaults.withCredentials = true;
@@ -30,7 +31,6 @@ export const useAuthStore = create((set, get) => ({
 
   setError: (error) => {
     set({ error, isLoading: false });
-
     setTimeout(() => {
       if (get().error === error) set({ error: null });
     }, 5000);
@@ -47,12 +47,22 @@ export const useAuthStore = create((set, get) => ({
     set({ user, isAuthenticated: !!user, isCheckingAuth: false });
   },
 
-  // ---------- Auth boot ----------
+  // ---------- Auth boot: try refresh then check-auth ----------
   checkAuth: async () => {
     if (get().hasCheckedAuth) return get().user;
     set({ isCheckingAuth: true, error: null });
     try {
-      const { data } = await axios.get(`${AUTH_API_URL}/check-auth`);
+      // Try to refresh first (handles expired access token on page reload)
+      await axios.post(
+        `${AUTH_API_URL}/refresh-token`,
+        {},
+        { withCredentials: true }
+      );
+
+      // Then fetch the user
+      const { data } = await axios.get(`${AUTH_API_URL}/check-auth`, {
+        withCredentials: true,
+      });
       set({
         user: data.user,
         isAuthenticated: true,
@@ -219,7 +229,7 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // ---------- Headless helpers (no global errors/loading) ----------
+  // ---------- Headless helpers ----------
   reauthPassword: async (password) => {
     if (!password) return { ok: false, message: "Please enter your password" };
     try {
@@ -254,10 +264,7 @@ export const useAuthStore = create((set, get) => ({
         logoutOthers,
       });
 
-      // Optionally refresh user in store if backend returns it
-      if (data?.user) {
-        useAuthStore.getState().setUser(data.user);
-      }
+      if (data?.user) useAuthStore.getState().setUser(data.user);
       return { ok: true };
     } catch (err) {
       const status = err?.response?.status;
@@ -273,16 +280,14 @@ export const useAuthStore = create((set, get) => ({
   },
 
   deleteAccount: async (password) => {
-    if (!password?.trim()) {
+    if (!password?.trim())
       return {
         ok: false,
         field: "password",
         message: "Please enter your password.",
       };
-    }
     try {
       await axios.post(`${AUTH_API_URL}/delete-account`, { password });
-      // backend clears cookies; clear client state too
       set({ user: null, isAuthenticated: false });
       return { ok: true };
     } catch (err) {
@@ -352,23 +357,29 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 }));
+
+// ---- Interceptor: refresh on 401 (even if isAuthenticated=false) ----
 axios.interceptors.response.use(
   (res) => res,
   async (error) => {
     const { response, config: originalRequest } = error || {};
     const status = response?.status;
-    const isAuth = useAuthStore.getState().isAuthenticated;
+    const url = originalRequest?.url || "";
 
-    // Don’t refresh if:
-    // - not a 401
-    // - we already retried
-    // - it's the refresh call itself
-    // - user is NOT authenticated (public/auth pages)
+    // endpoints that must not trigger refresh
+    const noRefresh = [
+      "/auth/login",
+      "/auth/signup",
+      "/auth/verify-email",
+      "/auth/forgot-password",
+      "/auth/reset-password",
+    ];
+
     if (
       status !== 401 ||
       originalRequest?._retry ||
-      originalRequest?.url?.includes("/auth/refresh-token") ||
-      !isAuth
+      url.includes("/auth/refresh-token") ||
+      noRefresh.some((p) => url.includes(p))
     ) {
       return Promise.reject(error);
     }
@@ -376,20 +387,24 @@ axios.interceptors.response.use(
     originalRequest._retry = true;
 
     try {
-      const { data } = await axios.post(
+      await axios.post(
         `${AUTH_API_URL}/refresh-token`,
         {},
         { withCredentials: true }
       );
 
-      if (data?.user) {
+      // (optional) rehydrate user after refresh
+      try {
+        const { data } = await axios.get(`${AUTH_API_URL}/check-auth`, {
+          withCredentials: true,
+        });
         useAuthStore.getState().setUser(data.user);
         useAuthStore.setState({ hasCheckedAuth: true, isCheckingAuth: false });
-      }
+      } catch {}
 
-      return axios(originalRequest); // retry the original request once
-    } catch (refreshError) {
-      // session is no longer valid — clear it and bubble the original error
+      return axios(originalRequest); // retry once
+    } catch {
+      // session is gone
       useAuthStore.setState({
         user: null,
         isAuthenticated: false,
@@ -398,7 +413,7 @@ axios.interceptors.response.use(
         isCheckingAuth: false,
         hasCheckedAuth: true,
       });
-      return Promise.reject(error); // keep original endpoint’s message (e.g., "Incorrect password")
+      return Promise.reject(error);
     }
   }
 );

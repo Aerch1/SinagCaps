@@ -27,7 +27,8 @@ const PersonalInfoPanel = lazy(() => import("./pages/Public/settings/panels/Pers
 const AccountSecurityPanel = lazy(() => import("./pages/Public/settings/panels/AccountSecurityPanel"));
 const AppointmentsPanel = lazy(() => import("./pages/Public/settings/panels/AppointmentsPanel"));
 const AppointmentDetailPanel = lazy(() => import("./pages/Public/settings/panels/AppointmentDetailPanel"));
-const MessagesPanel = lazy(() => import("./pages/Public/settings/panels/MessagesPanel"));
+const NotificationPanel = lazy(() => import("./pages/Public/settings/panels/NotificationPanel"));
+const GeneralInformation = lazy(() => import("./pages/Public/appointments/GeneralInformation"));
 
 // --- Lazy-loaded Pages (Admin) ---
 const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
@@ -60,6 +61,7 @@ function App() {
                   <Route path="/services" element={<div className="p-8">Services Page</div>} />
                   <Route path="/about" element={<div className="p-8">About Page</div>} />
                   <Route path="/contact" element={<div className="p-8">Contact Page</div>} />
+                  <Route path="services/generalinfo" element={<GeneralInformation />} />
 
                   {/* Settings (protected branch) */}
                   <Route
@@ -76,8 +78,7 @@ function App() {
                     <Route path="appointments" element={<AppointmentsPanel />} />
                     <Route path="appointments/:id" element={<AppointmentDetailPanel />} />
 
-                    <Route path="messages" element={<MessagesPanel />} />
-                    <Route path="messages" element={<MessagesPanel />} />
+                    <Route path="notification" element={<NotificationPanel />} />
                   </Route>
                 </Route>
 
