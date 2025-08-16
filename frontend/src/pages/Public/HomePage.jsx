@@ -62,6 +62,8 @@ export default function HomePage() {
             />
 
 
+            <ChurchBulletin/>
+
 
             {/* Constrained content below */}
 

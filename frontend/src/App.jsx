@@ -30,6 +30,10 @@ const AppointmentDetailPanel = lazy(() => import("./pages/Public/settings/panels
 const NotificationPanel = lazy(() => import("./pages/Public/settings/panels/NotificationPanel"));
 const GeneralInformation = lazy(() => import("./pages/Public/appointments/GeneralInformation"));
 
+
+const AppointmentForm = lazy(() => import("./pages/Public/appointments/AppointmentForm"));
+const AppointmentSuccess = lazy(() => import("./pages/Public/appointments/AppointmentSuccess"));
+
 // --- Lazy-loaded Pages (Admin) ---
 const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
 
@@ -62,6 +66,9 @@ function App() {
                   <Route path="/about" element={<div className="p-8">About Page</div>} />
                   <Route path="/contact" element={<div className="p-8">Contact Page</div>} />
                   <Route path="services/generalinfo" element={<GeneralInformation />} />
+
+                  <Route path="appointments/book" element={<AppointmentForm />} />
+                  <Route path="appointments/success" element={<AppointmentSuccess />} />
 
                   {/* Settings (protected branch) */}
                   <Route
