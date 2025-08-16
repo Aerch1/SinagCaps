@@ -67,7 +67,7 @@ function App() {
                   <Route path="/contact" element={<div className="p-8">Contact Page</div>} />
                   <Route path="services/generalinfo" element={<GeneralInformation />} />
 
-                  <Route path="appointments/book" element={<AppointmentForm />} />
+                  <Route path="services/appointments/book" element={<AppointmentForm />} />
                   <Route path="appointments/success" element={<AppointmentSuccess />} />
 
                   {/* Settings (protected branch) */}

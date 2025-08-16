@@ -15,7 +15,7 @@ export default function AppointmentForm() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  
   const [formData, setFormData] = useState({
     serviceType: "",
     preferredDate: "",

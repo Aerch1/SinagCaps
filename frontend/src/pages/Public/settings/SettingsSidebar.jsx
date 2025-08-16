@@ -10,31 +10,37 @@ export default function SettingsSidebar() {
         "bg-gray-200 px-3 py-3  ";
 
     return (
-        <aside className=" border-gray-200 border-r p-3 sm:p-4">
-            <nav className="space-y-1">
-                <NavLink to="/settings/profile" className={({ isActive }) => `${base} ${isActive ? active : inactive}`}>
+     <aside className=" border-gray-200 border-r p-3 sm:p-4">
+  <nav className="space-y-1">
+    <NavLink
+      to="/settings/profile"
+      className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
+    >
+      Profile
+    </NavLink>
 
-                    Personal info
-                </NavLink>
-                <NavLink
-                    to="/settings/security"
-                    className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
-                >
-                    Account & security
-                </NavLink>
-                <NavLink
-                    to="/settings/appointments"
-                    className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
-                >
-                    My Transaction
-                </NavLink>
-                <NavLink
-                    to="/settings/notification"
-                    className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
-                >
-                    Notification
-                </NavLink>
-            </nav>
-        </aside>
+    <NavLink
+      to="/settings/security"
+      className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
+    >
+      Account & Security
+    </NavLink>
+
+    <NavLink
+      to="/settings/appointments"
+      className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
+    >
+      My Appointments
+    </NavLink>
+
+    <NavLink
+      to="/settings/notification"
+      className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
+    >
+      Notifications
+    </NavLink>
+  </nav>
+</aside>
+
     );
 }

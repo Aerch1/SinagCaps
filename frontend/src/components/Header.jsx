@@ -97,36 +97,39 @@ function UserMenu({ user, onLogout, compact = false }) {
                         <div className="my-3 h-px bg-gray-200" />
 
                         <NavLink
-                            to="settings/profile"
+                            to="/settings/profile"
                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
-                            <User className="h-4 w-4" /> View Profile
+                            <User className="h-4 w-4" /> Profile
                         </NavLink>
+
                         <NavLink
                             to="/settings/security"
                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
-                            <Settings className="h-4 w-4" /> Account Settings
+                            <Settings className="h-4 w-4" /> Account & Security
                         </NavLink>
 
                         <div className="my-3 h-px bg-gray-200" />
 
                         <NavLink
-                            to="settings/appointments"
+                            to="/settings/appointments"
                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
-                            <MessageSquare className="h-4 w-4" /> My Transaction
+                            <MessageSquare className="h-4 w-4" /> My Appointments
                         </NavLink>
+
                         <NavLink
-                            to="settings/notification"
+                            to="/settings/notification"
                             className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
-                            <BellRing className="h-4 w-4" /> Notification
+                            <BellRing className="h-4 w-4" /> Notifications
                         </NavLink>
+
 
                         <div className="my-3 h-px bg-gray-200" />
 
@@ -250,13 +253,13 @@ export default function Header({ user, onLogout }) {
                                     General Information
                                 </NavLink>
                                 <NavLink
-                                    to="/services/two"
+                                    to="/services/appointments/book"
                                     className={({ isActive }) =>
                                         `block px-4 py-2 text-sm transition ${isActive ? "bg-gray-50 text-secondary" : "hover:bg-gray-50 hover:text-secondary"
                                         }`
                                     }
                                 >
-                                    Service 2
+                                   Book Appointment
                                 </NavLink>
                             </div>
                         </div>
@@ -296,7 +299,7 @@ export default function Header({ user, onLogout }) {
                             Contact
                         </NavLink>
                         <NavLink to="/event" className={navLinkClass}>
-                            Event
+                            Events
                         </NavLink>
                     </nav>
 
@@ -366,24 +369,24 @@ export default function Header({ user, onLogout }) {
                     </button>
                     <div className={`${servicesOpen ? "block" : "hidden"} pl-4`}>
                         <NavLink
-                            to="/services/one"
+                            to="/services/generalinfo"
                             onClick={() => setMobileOpen(false)}
                             className={({ isActive }) =>
                                 `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
                                 }`
                             }
                         >
-                            Service 1
+                            General Information
                         </NavLink>
                         <NavLink
-                            to="/services/two"
+                            to="/services/appointments/book"
                             onClick={() => setMobileOpen(false)}
                             className={({ isActive }) =>
                                 `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
                                 }`
                             }
                         >
-                            Service 2
+                           Book Appointment
                         </NavLink>
                     </div>
 
@@ -439,7 +442,7 @@ export default function Header({ user, onLogout }) {
                             }`
                         }
                     >
-                        Event
+                        Events
                     </NavLink>
 
                     <div className="my-3 h-px bg-gray-200" />
@@ -451,8 +454,7 @@ export default function Header({ user, onLogout }) {
                                 to="/settings/profile"
                                 onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
-                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
-                                    }`
+                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"}`
                                 }
                             >
                                 Profile
@@ -461,12 +463,12 @@ export default function Header({ user, onLogout }) {
                                 to="/settings/security"
                                 onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
-                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
-                                    }`
+                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"}`
                                 }
                             >
-                                Account Settings
+                                Account & Security
                             </NavLink>
+
                             <button
                                 onClick={async () => {
                                     try { await onLogout?.(); } finally { setMobileOpen(false); }

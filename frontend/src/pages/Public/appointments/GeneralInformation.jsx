@@ -1,13 +1,29 @@
-// src/pages/Public/appointments/GeneralInformation.jsx
 "use client";
-
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "../../../store/authStore.js"
 import { Link } from "react-router-dom";
 import HeroBanner from "../../../components/HeroBanner";
 
 // Your banner image
 const HERO_IMG = "/forgot.jpg";
 
+
+
 export default function GeneralInformation() {
+
+
+  const navigate = useNavigate();
+  const { isAuthenticated, setMessage } = useAuthStore();
+
+  const goToBooking = (e) => {
+    e.preventDefault();
+    if (isAuthenticated) {
+      navigate("/appointments/book");
+    } else {
+      setMessage("Please log in to book an appointment.");
+      navigate("/login", { replace: true, state: { from: "/appointments/book" } });
+    }
+  };
   return (
     <main className="bg-white">
       {/* full-width hero */}
@@ -15,16 +31,14 @@ export default function GeneralInformation() {
 
       {/* content container */}
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-12 lg:py-8">
-        <section className="overflow-hidden ">
+        <section className="overflow-hidden">
           {/* header (no icon) */}
-          <div className="px-6 py-5 border-b border-gray-200">
-            <div className="text-sm font-medium text-gray-900">
+          <header className="px-6 py-5 border-b border-gray-200">
+            <h2 className="text-sm font-medium text-gray-900">
               GENERAL INFORMATION FOR MAKING A CHURCH APPOINTMENT
-            </div>
-            <div className="text-xs text-gray-600">
-              Please read carefully before booking.
-            </div>
-          </div>
+            </h2>
+            <p className="text-xs text-gray-600">Please read carefully before booking.</p>
+          </header>
 
           {/* body */}
           <div className="px-6 py-6 space-y-6 text-sm leading-6 text-gray-800">
@@ -125,12 +139,13 @@ export default function GeneralInformation() {
 
           {/* footer action */}
           <div className="px-6 pb-8">
-            <Link
-              to="/appointments/book"
-              className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            <button
+              onClick={goToBooking}
+              aria-label="Book a church appointment"
+              className="inline-flex w-full sm:w-auto items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
             >
               Book an appointment
-            </Link>
+            </button>
           </div>
         </section>
       </div>
