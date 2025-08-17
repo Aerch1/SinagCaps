@@ -1,3 +1,4 @@
+
 const FloatingShape = ({ color, size, top, left, delay }) => {
     return (
         <div

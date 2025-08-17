@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore.js"
 import { Link } from "react-router-dom";
 import HeroBanner from "../../../components/HeroBanner";
+import toast from "react-hot-toast";
 
 // Your banner image
 const HERO_IMG = "/forgot.jpg";
@@ -18,10 +19,13 @@ export default function GeneralInformation() {
   const goToBooking = (e) => {
     e.preventDefault();
     if (isAuthenticated) {
-      navigate("/appointments/book");
+      navigate("/services/appointments/book");
     } else {
-      setMessage("Please log in to book an appointment.");
-      navigate("/login", { replace: true, state: { from: "/appointments/book" } });
+      toast.error("Please login your account first.")
+      setTimeout(() => {
+
+        navigate("/login", { replace: true, state: { from: "/services/appointments/book" } });
+      }, 1500);
     }
   };
   return (
