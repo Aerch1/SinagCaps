@@ -1,7 +1,7 @@
 // src/pages/Contact.jsx
 "use client";
 
-import Input from "../../components/input.jsx";
+import Input from "../../components/ui/Input.jsx";
 import HeroBanner from "../../components/HeroBanner";
 import { User, Mail, Phone, Tag, MapPin, ArrowRight } from "lucide-react";
 
@@ -133,7 +133,7 @@ export default function Contact() {
                                 type="submit"
                                 className="inline-flex w-full items-center justify-center rounded-md bg-secondary/90 px-5 py-2.5 text-sm text-white hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-black/40"
                             >
-                                 Submit
+                                Submit
                             </button>
                         </form>
                     </div>

@@ -2,7 +2,7 @@
 "use client";
 import { useState } from "react";
 import { useAuthStore } from "../../store/authStore.js";
-import Input from "../../components/input.jsx";
+import Input from "../../components/ui/Input.jsx";
 import { ArrowLeft, Loader, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import ErrorAlert from "../../components/ErrorAlert.jsx";

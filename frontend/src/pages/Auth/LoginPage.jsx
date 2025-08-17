@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Mail, Lock, Loader } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import Input from "../../components/input.jsx";
+import Input from "../../components/ui/Input.jsx";
 import toast from "react-hot-toast";
 import { useAuthStore } from "../../store/authStore.js";
 import ErrorAlert from "../../components/ErrorAlert.jsx";

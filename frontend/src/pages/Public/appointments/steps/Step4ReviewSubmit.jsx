@@ -1,43 +1,134 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router-dom"
 
 export default function Step4ReviewSubmit({ formData }) {
-    return (
-        <div className="space-y-6">
-            <h3 className="text-lg font-medium">Review Your Appointment Request</h3>
+  const hasValue = (value) => {
+    return value !== null && value !== undefined && value !== "" && value !== "—"
+  }
 
-            <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-                <div>
-                    <h4 className="font-medium mb-2">Service Details</h4>
-                    <p><strong>Service:</strong> {formData.serviceType}</p>
-                    <p><strong>Date:</strong> {formData.preferredDate}</p>
-                    <p><strong>Time:</strong> {formData.preferredTime}</p>
-                </div>
+  const getFilledFields = () => {
+    const fields = []
 
-                <div>
-                    <h4 className="font-medium mb-2">Personal Information</h4>
-                    <p><strong>Name:</strong> {formData.firstName} {formData.lastName}</p>
-                    <p><strong>Email:</strong> {formData.email}</p>
-                    <p><strong>Phone:</strong> {formData.phone}</p>
-                </div>
+    // Service Details
+    if (hasValue(formData.serviceType)) {
+      const serviceMap = {
+        baptism: "Baptism (Binyag)",
+        confirmation: "Confirmation (Kumpil)",
+        marriage: "Wedding (Kasal)",
+        confession: "Confession (Kumpisal)",
+        anointing: "Anointing of the Sick (Pagpapahid sa Maysakit)",
+      }
+      fields.push({ label: "Service Type", value: serviceMap[formData.serviceType] || formData.serviceType })
+    }
 
-                <div>
-                    <h4 className="font-medium mb-2">Additional Details</h4>
-                    <p><strong>Purpose:</strong> {formData.purpose}</p>
-                    <p><strong>Number of People:</strong> {formData.numberOfPeople}</p>
-                    <p><strong>Urgent:</strong> {formData.isUrgent ? "Yes" : "No"}</p>
-                    {formData.additionalNotes && <p><strong>Notes:</strong> {formData.additionalNotes}</p>}
-                </div>
+    if (hasValue(formData.preferredDate)) {
+      const date = new Date(formData.preferredDate)
+      const formattedDate = date.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+      fields.push({ label: "Preferred Date", value: formattedDate })
+    }
 
-                <label className="flex items-start">
-                    <input type="checkbox" checked={formData.agreeToTerms} disabled className="h-4 w-4 mt-1" />
-                    <span className="ml-2 text-sm">
-                        I have read and agree to the&nbsp;
-                        <Link to="/appointments/general-info" className="text-emerald-600 underline">
-                            general information and terms
-                        </Link>
-                    </span>
-                </label>
+    if (hasValue(formData.preferredTime)) {
+      fields.push({ label: "Preferred Time", value: formData.preferredTime })
+    }
+
+    // Personal Information
+    const fullName = `${formData.firstName || ""} ${formData.lastName || ""}`.trim()
+    if (hasValue(fullName)) {
+      fields.push({ label: "Full Name", value: fullName })
+    }
+
+    if (hasValue(formData.email)) {
+      fields.push({ label: "Email Address", value: formData.email })
+    }
+
+    if (hasValue(formData.phone)) {
+      fields.push({ label: "Phone Number", value: formData.phone })
+    }
+
+    if (hasValue(formData.address)) {
+      fields.push({ label: "Address", value: formData.address })
+    }
+
+    // Additional Details
+    if (hasValue(formData.purpose)) {
+      fields.push({ label: "Purpose", value: formData.purpose })
+    }
+
+    if (hasValue(formData.numberOfPeople) && formData.numberOfPeople > 0) {
+      fields.push({ label: "Number of People", value: formData.numberOfPeople })
+    }
+
+    if (formData.isUrgent !== undefined) {
+      fields.push({ label: "Priority", value: formData.isUrgent ? "Urgent" : "Normal" })
+    }
+
+    if (hasValue(formData.additionalNotes)) {
+      fields.push({ label: "Additional Notes", value: formData.additionalNotes })
+    }
+
+    return fields
+  }
+
+  const filledFields = getFilledFields()
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center">
+        <h3 className="text-2xl font-bold text-gray-900 mb-2">Review Your Appointment Request</h3>
+        <p className="text-gray-600">Please review all details before submitting your request</p>
+      </div>
+
+      <div className="border border-gray-200 rounded-lg p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {filledFields.map((field, index) => (
+            <div key={index} className="space-y-2">
+              <p className="text-sm font-medium text-gray-500">{field.label}</p>
+              <p className="text-gray-900 font-medium">{field.value}</p>
             </div>
+          ))}
         </div>
-    );
+
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <p className="text-sm text-gray-600 mb-2">
+            By submitting this appointment request, you confirm that you have read and agree to the parish guidelines
+            and terms of service.
+          </p>
+          <Link
+            to="/services/generalinfo"
+            className="text-sm font-medium text-blue-600 hover:text-blue-700 underline transition-colors"
+          >
+            View General Information & Guidelines
+          </Link>
+        </div>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">Reminders</h4>
+        <ul className="space-y-2 text-sm text-gray-700 mb-6">
+          <li>• Keep your phone and email accessible for our contact.</li>
+          <li>• If you don't hear from us within 48 hours, please call the parish office.</li>
+          <li>• Have all required documents ready for your appointment.</li>
+          <li>• Arrive 15–30 minutes early on your appointment day.</li>
+        </ul>
+
+        <div className="border-t border-blue-200 pt-4">
+          <p className="text-sm font-medium text-gray-900 mb-2">Need immediate assistance?</p>
+          <p className="text-sm text-gray-700">
+            Call the parish office at{" "}
+            <a href="tel:5551234567" className="font-medium text-blue-600 hover:text-blue-700">
+              (555) 123-4567
+            </a>{" "}
+            or email{" "}
+            <a href="mailto:appointments@parish.org" className="font-medium text-blue-600 hover:text-blue-700">
+              appointments@parish.org
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  )
 }

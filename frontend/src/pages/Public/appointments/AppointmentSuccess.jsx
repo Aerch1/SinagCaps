@@ -2,16 +2,13 @@
 "use client";
 
 import { Link } from "react-router-dom";
-import HeroBanner from "../../../components/HeroBanner";
 
 // Your banner image
-const HERO_IMG = "/forgot.jpg";
 
 export default function AppointmentSuccess() {
   return (
     <main className="bg-white">
       {/* full-width hero */}
-      <HeroBanner title="Appointment Request Submitted" imageSrc={HERO_IMG} />
 
       {/* content container */}
       <div className="max-w-4xl mx-auto px-4 lg:px-8 py-12 lg:py-8">

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Loader, Lock, Mail, User } from "lucide-react";
 
-import Input from "../../components/input.jsx";
+import Input from "../../components/ui/Input.jsx";
 import PasswordStrengthMeter from "../../components/PasswordStrengthMeter.jsx";
 import ErrorAlert from "../../components/ErrorAlert.jsx";
 import SuccessAlert from "../../components/SuccessAlert.jsx";

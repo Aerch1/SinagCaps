@@ -2,6 +2,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
 
 
 
@@ -22,6 +23,16 @@ body {
   --font-inter: "Inter", sans-serif;
   --color-primary: #FFD700;   /* Gold */
   --color-secondary: #CA141D; /* Red */
+
+
+    --breakpoint-2xsm: 375px;
+  --breakpoint-xsm: 425px;
+  --breakpoint-3xl: 2000px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
 
 
   --color-dark-100: #1f1f36;

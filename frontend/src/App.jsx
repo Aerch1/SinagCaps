@@ -34,8 +34,13 @@ const NotificationPanel = lazy(() => import("./pages/Public/settings/panels/Noti
 const GeneralInformation = lazy(() => import("./pages/Public/appointments/GeneralInformation"));
 const AppointmentForm = lazy(() => import("./pages/Public/appointments/AppointmentForm"));
 const AppointmentSuccess = lazy(() => import("./pages/Public/appointments/AppointmentSuccess"));
+const AppointmentTerms = lazy(() =>
+  import("./pages/Public/appointments/AppointmentTerms")
+);
+
 
 // --- Lazy-loaded Pages (Admin) ---
+import AdminProviders from "./context/admin/AdminProviders";
 const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
 
 function App() {
@@ -65,8 +70,10 @@ function App() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/services" element={<div className="p-8">Services Page</div>} />
                   <Route path="/about" element={<div className="p-8">About Page</div>} />
-                  <Route path="/contact" element={<div><Contact/></div>} />
+                  <Route path="/contact" element={<div><Contact /></div>} />
                   <Route path="/services/generalinfo" element={<GeneralInformation />} />
+                  <Route path="/services/appointments/terms" element={<AppointmentTerms />} />
+
 
                   {/* Booking: protect so direct URL requires auth before rendering */}
                   <Route
@@ -82,13 +89,13 @@ function App() {
                   <Route path="/appointments/success" element={<AppointmentSuccess />} />
 
                   {/* ---------- Settings (entire branch protected) ---------- */}
-                  <Route
-                    path="/settings/*"
-                    element={
-                      <ProtectedRoute>
-                        <SettingsPage />
-                      </ProtectedRoute>
-                    }
+                    <Route
+                      path="/settings/*"
+                      element={
+                        <ProtectedRoute>
+                          <SettingsPage />
+                        </ProtectedRoute>
+                      }
                   >
                     <Route index element={<Navigate to="profile" replace />} />
                     <Route path="profile" element={<PersonalInfoPanel />} />
@@ -104,17 +111,21 @@ function App() {
                   path="/admin"
                   element={
                     <ProtectedRoute allowedRoles={["admin"]}>
-                      <AdminLayout />
+                      <AdminProviders>
+                        <AdminLayout />
+                      </AdminProviders>
                     </ProtectedRoute>
                   }
                 >
                   <Route index element={<AdminDashboard />} />
                   <Route path="users" element={<div>Users Management</div>} />
                   <Route path="settings" element={<div>Settings</div>} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+
                 </Route>
 
                 {/* ---------- Catch-all ---------- */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<Navigate to="/admin" replace />} />
               </Routes>
             </Suspense>
 
