@@ -1,13 +1,13 @@
-import Hero from "../../components/Hero"
-import PublicAdvisory from "../../components/PublicAdvisory"
-import ChurchBulletin from "../../components/ChurchBulletin"
-import AboutSection from "../../components/AboutSection"
-import InfoBanner from "../../components/InfoBanner"
+import Hero from "../../components/section/Hero"
+import PublicAdvisory from "../../components/section/PublicAdvisory"
+import ChurchBulletin from "../../components/section/ChurchBulletin"
+import AboutSection from "../../components/section/AboutSection"
+import InfoBanner from "../../components/section/InfoBanner"
 // import ServicesStrip from "../../components/ServicesStrip"
-import TwoFeatureCards from "../../components/TwoFeatureCards"
-import AppointmentInfo from "../../components/AppointmentInfo"
-import AppointmentQuickLinks from "../../components/AppointmentQuickLinks"
-import RotatingPrayerBanner from "../../components/RotatingPrayerBanner"
+import TwoFeatureCards from "../../components/section/TwoFeatureCards"
+import AppointmentInfo from "../../components/section/AppointmentInfo"
+import AppointmentQuickLinks from "../../components/section/AppointmentQuickLinks"
+import RotatingPrayerBanner from "../../components/section/RotatingPrayerBanner"
 const slides = [
     {
         image: "/hero2.png",
@@ -62,7 +62,7 @@ export default function HomePage() {
             />
 
 
-            <ChurchBulletin/>
+            <ChurchBulletin />
 
 
             {/* Constrained content below */}

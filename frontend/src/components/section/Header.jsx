@@ -253,13 +253,22 @@ export default function Header({ user, onLogout }) {
                                     General Information
                                 </NavLink>
                                 <NavLink
+                                    to="/services/appointments/terms"
+                                    className={({ isActive }) =>
+                                        `block px-4 py-2 text-sm transition ${isActive ? "bg-gray-50 text-secondary" : "hover:bg-gray-50 hover:text-secondary"
+                                        }`
+                                    }
+                                >
+                                   Schedule Appointment
+                                </NavLink>
+                                 <NavLink
                                     to="/services/appointments/book"
                                     className={({ isActive }) =>
                                         `block px-4 py-2 text-sm transition ${isActive ? "bg-gray-50 text-secondary" : "hover:bg-gray-50 hover:text-secondary"
                                         }`
                                     }
                                 >
-                                   Book Appointment
+                                   Request Document
                                 </NavLink>
                             </div>
                         </div>
@@ -386,7 +395,7 @@ export default function Header({ user, onLogout }) {
                                 }`
                             }
                         >
-                           Book Appointment
+                           Schedule Appointment
                         </NavLink>
                     </div>
 

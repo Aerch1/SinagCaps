@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import toast from "react-hot-toast" // Added toast import
-import HeroBanner from "../../../components/HeroBanner"
+import HeroBanner from "../../../components/section/HeroBanner.jsx"
 import Stepper from "../../../components/ui/Stepper"
 
 // Steps

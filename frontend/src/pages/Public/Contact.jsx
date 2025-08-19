@@ -2,7 +2,7 @@
 "use client";
 
 import Input from "../../components/ui/Input.jsx";
-import HeroBanner from "../../components/HeroBanner";
+import HeroBanner from "../../components/section/HeroBanner.jsx";
 import { User, Mail, Phone, Tag, MapPin, ArrowRight } from "lucide-react";
 
 const HERO_IMG = "/forgot.jpg";

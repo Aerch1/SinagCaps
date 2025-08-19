@@ -6,8 +6,8 @@ import { Link, useNavigate } from "react-router-dom";
 import Input from "../../components/ui/Input.jsx";
 import toast from "react-hot-toast";
 import { useAuthStore } from "../../store/authStore.js";
-import ErrorAlert from "../../components/ErrorAlert.jsx";
-import SuccessAlert from "../../components/SuccessAlert.jsx";
+import ErrorAlert from "../../components/common/ErrorAlert.jsx";
+import SuccessAlert from "../../components/common/SuccessAlert.jsx";
 import { validateLogin } from "../../../../shared/validation.js";
 
 const LoginPage = () => {

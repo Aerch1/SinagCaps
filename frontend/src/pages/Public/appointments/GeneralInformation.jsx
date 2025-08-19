@@ -1,7 +1,7 @@
 "use client";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore.js";
-import HeroBanner from "../../../components/HeroBanner";
+import HeroBanner from "../../../components/section/HeroBanner.jsx";
 import toast from "react-hot-toast";
 
 const HERO_IMG = "/forgot.jpg";
@@ -26,8 +26,8 @@ export default function GeneralInformation() {
   const goToBooking = (e) => {
     e.preventDefault();
     if (isAuthenticated) {
-      
-      setTimeout(() =>navigate("/services/appointments/terms"),1500 )
+
+      setTimeout(() => navigate("/services/appointments/terms"), 1500)
     } else {
       toast.error("Please login your account first.");
       setTimeout(() => {

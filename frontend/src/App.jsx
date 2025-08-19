@@ -1,14 +1,16 @@
-// src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { Toaster } from "react-hot-toast";
 
-// Non-lazy so auth splash & boundary work immediately
-import ErrorBoundary from "./components/ErrorBoundary";
-import AuthChecker from "./components/AuthChecker";
-import LoadingSpinner from "./components/LoadingSpinner";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ErrorBoundary from "./components/common/ErrorBoundary";
+import AuthChecker from "./components/guards/AuthChecker";
+import LoadingSpinner from "./components/common/LoadingSpinner";
 import Contact from "./pages/Public/Contact";
+
+// NEW: guards
+import PublicOnly from "./components/guards/PublicOnly";
+import PublicAuthOnly from "./components/guards/PublicAuthOnly";
+import AdminOnly from "./components/guards/AdminOnly";
 
 // --- Lazy-loaded Layouts ---
 const PublicLayout = lazy(() => import("./layouts/PublicLayout"));
@@ -34,12 +36,9 @@ const NotificationPanel = lazy(() => import("./pages/Public/settings/panels/Noti
 const GeneralInformation = lazy(() => import("./pages/Public/appointments/GeneralInformation"));
 const AppointmentForm = lazy(() => import("./pages/Public/appointments/AppointmentForm"));
 const AppointmentSuccess = lazy(() => import("./pages/Public/appointments/AppointmentSuccess"));
-const AppointmentTerms = lazy(() =>
-  import("./pages/Public/appointments/AppointmentTerms")
-);
+const AppointmentTerms = lazy(() => import("./pages/Public/appointments/AppointmentTerms"));
 
-
-// --- Lazy-loaded Pages (Admin) ---
+// --- Admin ---
 import AdminProviders from "./context/admin/AdminProviders";
 const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
 
@@ -57,45 +56,36 @@ function App() {
               }
             >
               <Routes>
-                {/* ---------- Auth Routes ---------- */}
-                <Route path="/signup" element={<SignUpPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/verify-email" element={<EmailVerificationPage />} />
-                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+                {/* ---------- Auth pages (admins blocked) ---------- */}
+                <Route path="/signup" element={<PublicOnly><SignUpPage /></PublicOnly>} />
+                <Route path="/login" element={<PublicOnly><LoginPage /></PublicOnly>} />
+                <Route path="/verify-email" element={<PublicOnly><EmailVerificationPage /></PublicOnly>} />
+                <Route path="/forgot-password" element={<PublicOnly><ForgotPasswordPage /></PublicOnly>} />
+                <Route path="/reset-password/:token" element={<PublicOnly><ResetPasswordPage /></PublicOnly>} />
 
-                {/* ---------- Public Layout + Public/Protected Children ---------- */}
-                <Route element={<PublicLayout />}>
+                {/* ---------- Public layout (admins blocked) ---------- */}
+                <Route element={<PublicOnly><PublicLayout /></PublicOnly>}>
                   {/* Public pages */}
                   <Route path="/" element={<HomePage />} />
                   <Route path="/services" element={<div className="p-8">Services Page</div>} />
                   <Route path="/about" element={<div className="p-8">About Page</div>} />
-                  <Route path="/contact" element={<div><Contact /></div>} />
+                  <Route path="/contact" element={<Contact />} />
                   <Route path="/services/generalinfo" element={<GeneralInformation />} />
                   <Route path="/services/appointments/terms" element={<AppointmentTerms />} />
 
-
-                  {/* Booking: protect so direct URL requires auth before rendering */}
+                  {/* Public area but requires login (non-admin) */}
                   <Route
                     path="/services/appointments/book"
-                    element={
-                      <ProtectedRoute>
-                        <AppointmentForm />
-                      </ProtectedRoute>
-                    }
+                    element={<PublicAuthOnly><AppointmentForm /></PublicAuthOnly>}
                   />
 
-                  {/* Success page (keep public so redirects can land here) */}
+                  {/* Success page (open) */}
                   <Route path="/appointments/success" element={<AppointmentSuccess />} />
 
-                  {/* ---------- Settings (entire branch protected) ---------- */}
-                    <Route
-                      path="/settings/*"
-                      element={
-                        <ProtectedRoute>
-                          <SettingsPage />
-                        </ProtectedRoute>
-                      }
+                  {/* Settings (entire branch requires login; admins blocked) */}
+                  <Route
+                    path="/settings/*"
+                    element={<PublicAuthOnly><SettingsPage /></PublicAuthOnly>}
                   >
                     <Route index element={<Navigate to="profile" replace />} />
                     <Route path="profile" element={<PersonalInfoPanel />} />
@@ -106,39 +96,33 @@ function App() {
                   </Route>
                 </Route>
 
-                {/* ---------- Admin (protected layout + nested) ---------- */}
+                {/* ---------- Admin (admins only) ---------- */}
                 <Route
                   path="/admin"
                   element={
-                    <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminOnly>
                       <AdminProviders>
                         <AdminLayout />
                       </AdminProviders>
-                    </ProtectedRoute>
+                    </AdminOnly>
                   }
                 >
                   <Route index element={<AdminDashboard />} />
                   <Route path="users" element={<div>Users Management</div>} />
                   <Route path="settings" element={<div>Settings</div>} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-
+                  <Route path="*" element={<Navigate to="/admin" replace />} />
                 </Route>
 
                 {/* ---------- Catch-all ---------- */}
-                <Route path="*" element={<Navigate to="/admin" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
 
-            {/* Toaster outside Suspense so it doesn't remount on route loads */}
             <Toaster
               position="top-right"
               toastOptions={{
                 duration: 4000,
-                style: {
-                  background: "#1f2937",
-                  color: "#fff",
-                  border: "1px solid #374151",
-                },
+                style: { background: "#1f2937", color: "#fff", border: "1px solid #374151" },
                 success: { iconTheme: { primary: "#10b981", secondary: "#fff" } },
                 error: { iconTheme: { primary: "#ef4444", secondary: "#fff" } },
               }}

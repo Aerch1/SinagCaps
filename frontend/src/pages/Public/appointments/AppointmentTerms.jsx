@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore.js";
-import HeroBanner from "../../../components/HeroBanner";
+import HeroBanner from "../../../components/section/HeroBanner.jsx";
 import toast from "react-hot-toast";
 
 const HERO_IMG = "/forgot.jpg";
@@ -72,7 +72,7 @@ export default function AppointmentTerms() {
           <div className="mt-6 space-y-4 text-sm text-gray-800 leading-6">
             <p>
               This appointment and scheduling system allocates slots on a <strong>first-come,
-              first-served</strong> basis. A submitted request is considered pending and will only be
+                first-served</strong> basis. A submitted request is considered pending and will only be
               confirmed after requirements are reviewed and verified by the parish office.
             </p>
 

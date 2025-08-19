@@ -5,8 +5,8 @@ import { useAuthStore } from "../../store/authStore.js";
 import Input from "../../components/ui/Input.jsx";
 import { ArrowLeft, Loader, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
-import ErrorAlert from "../../components/ErrorAlert.jsx";
-import SuccessAlert from "../../components/SuccessAlert.jsx";
+import ErrorAlert from "../../components/common/ErrorAlert.jsx";
+import SuccessAlert from "../../components/common/SuccessAlert.jsx";
 import { validateForgotPassword } from "../../../../shared/validation.js";
 
 const ForgotPasswordPage = () => {

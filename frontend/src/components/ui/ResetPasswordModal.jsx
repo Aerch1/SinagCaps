@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, X, AlertCircle } from "lucide-react";
-import PasswordStrengthMeter from "../PasswordStrengthMeter.jsx";
+import PasswordStrengthMeter from "../common/PasswordStrengthMeter.jsx";
 
 export default function ResetPasswordModal({
   open,

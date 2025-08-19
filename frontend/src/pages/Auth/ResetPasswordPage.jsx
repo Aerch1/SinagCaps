@@ -5,8 +5,8 @@ import { useAuthStore } from "../../store/authStore.js";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import Input from "../../components/ui/Input.jsx";
 import { Lock, Loader, ArrowLeft } from "lucide-react";
-import ErrorAlert from "../../components/ErrorAlert.jsx";
-import SuccessAlert from "../../components/SuccessAlert.jsx";
+import ErrorAlert from "../../components/common/ErrorAlert.jsx";
+import SuccessAlert from "../../components/common/SuccessAlert.jsx";
 import { validateResetPassword } from "../../../../shared/validation.js";
 
 const ResetPasswordPage = () => {

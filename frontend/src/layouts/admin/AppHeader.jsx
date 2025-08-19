@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSidebar } from "../../context/admin/SidebarContext";
-import ThemeToggleButton from "../../components/admin/ThemeToggleButton";
+import ThemeToggleButton from "../../components/ui/ThemeToggleButton";
 
 // If you have these, keep them; otherwise stub or remove:
 // import NotificationDropdown from "../../components/header/NotificationDropdown";

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect } from "react";
-import { useAuthStore } from "../store/authStore";
-import LoadingSpinner from "./LoadingSpinner";
+import { useAuthStore } from "../../store/authStore.js";
+import LoadingSpinner from "../common/LoadingSpinner.jsx";
 
 export default function AuthChecker({ children }) {
     const { hasCheckedAuth, isCheckingAuth, checkAuth } = useAuthStore();

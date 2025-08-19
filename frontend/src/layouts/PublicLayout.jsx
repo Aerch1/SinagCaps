@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
+import Header from "../components/section/Header";
+import Footer from "../components/section/Footer";
 
 export default function PublicLayout() {
   const { user, logout } = useAuthStore();
