@@ -1,0 +1,123 @@
+/* src/styles/public-fullcalendar.css */
+/* Scope everything under .public-calendar so styles don't leak to admin */
+.public-calendar .fc .fc-header-toolbar { display: none; }
+
+/* No internal scrollbars */
+.public-calendar .fc .fc-scroller,
+.public-calendar .fc .fc-daygrid-body-natural {
+  overflow: hidden !important;
+}
+
+/* Weekday header: small, muted, two-letter labels (content handled in dayHeaderContent) */
+.public-calendar .fc .fc-col-header-cell-cushion {
+  font-size: 12px;
+  color: #6b7280; /* gray-500 */
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 6px 0;
+}
+
+/* Remove heavy borders for an airy look */
+.public-calendar .fc .fc-scrollgrid,
+.public-calendar .fc .fc-scrollgrid-section,
+.public-calendar .fc .fc-scrollgrid-section > td,
+.public-calendar .fc .fc-col-header,
+.public-calendar .fc .fc-col-header-cell,
+.public-calendar .fc .fc-daygrid-day,
+.public-calendar .fc-theme-standard td,
+.public-calendar .fc-theme-standard th {
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+}
+
+/* Header: no borders at all */
+.public-calendar .fc .fc-col-header,
+.public-calendar .fc .fc-col-header-cell {
+  border: none !important;
+}
+
+/* Day cells: no borders at all inside */
+.public-calendar .fc .fc-daygrid-day {
+  border: none !important;
+}
+.public-calendar .fc .fc-daygrid-day:last-child {
+  border: none !important;
+}
+
+/* Make the whole day cell a centered flex box */
+.public-calendar .fc .fc-daygrid-day-frame {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* vertical center */
+  align-items: center; /* horizontal center */
+  padding: 0; /* remove extra padding */
+  height: 100%;
+  position: relative; /* ensure ::after dots position correctly */
+}
+
+/* Keep the day-top minimal and centered; no top padding */
+.public-calendar .fc .fc-daygrid-day-top {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  width: 100%;
+}
+
+/* Centered number; no background fill by default */
+.public-calendar .fc .fc-daygrid-day-number {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  padding: 0 6px;
+  color: #111827; /* gray-900 */
+  font-weight: 400;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Remove FullCalendar's built-in today cell fill; keep subtle text color only if desired */
+.public-calendar .fc .fc-daygrid-day.fc-day-today {
+  background: transparent !important;
+}
+.public-calendar .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+  background: #D91C14 !important; /* your secondary brand red */
+  color: #ffffff !important;
+  font-weight: 700; /* slightly stronger for today */
+}
+
+/* Dates that have events: emphasize number */
+.public-calendar .cb-has-events .fc-daygrid-day-number {
+  font-weight: 900;
+  color: var(--color-primary, #FFD700); /* fallback to gold if var missing */
+}
+
+/* Hide event blocks entirely (we only use the dot) */
+.public-calendar .fc .fc-daygrid-event-harness,
+.public-calendar .fc .fc-h-event,
+.public-calendar .fc .fc-event {
+  display: none !important;
+}
+
+/* Other-month days: muted */
+.public-calendar .fc .fc-day-other .fc-daygrid-day-number {
+  color: #9ca3af; /* gray-400 */
+}
+
+/* Little dot indicator for days with events */
+.public-calendar .cb-has-events .fc-daygrid-day-frame::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%) translateY(-400%);
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #475569; /* slate-600 */
+}

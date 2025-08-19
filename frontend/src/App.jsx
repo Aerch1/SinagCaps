@@ -108,7 +108,7 @@ function App() {
                   }
                 >
                   <Route index element={<AdminDashboard />} />
-                  <Route path="users" element={<div>Users Management</div>} />
+                  <Route path="calendar" element={<div>Users Management</div>} />
                   <Route path="settings" element={<div>Settings</div>} />
                   <Route path="*" element={<Navigate to="/admin" replace />} />
                 </Route>

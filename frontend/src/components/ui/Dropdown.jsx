@@ -31,10 +31,15 @@ export default function Dropdown({
             <div className={`relative ${className}`}>
                 <Listbox.Button
                     onClick={onOpen}
-                    className="w-full h-11 rounded-lg border border-gray-300 bg-white px-3 pr-9 text-left text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500"
+                    className="
+            w-full h-11 rounded-lg border border-gray-300 bg-white px-3 pr-9 text-left text-sm text-gray-800
+            focus:outline-none 
+            dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100
+            dark:focus:ring-slate-500/40 dark:focus:border-slate-500
+          "
                 >
                     {value || placeholder}
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-slate-400" />
                 </Listbox.Button>
 
                 <Transition
@@ -43,7 +48,12 @@ export default function Dropdown({
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <Listbox.Options className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm focus:outline-none">
+                    <Listbox.Options
+                        className="
+              absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm focus:outline-none
+              dark:border-slate-700 dark:bg-slate-800
+            "
+                    >
                         {norm.map((opt) => (
                             <Listbox.Option
                                 key={opt.value}
@@ -51,7 +61,9 @@ export default function Dropdown({
                                 className={({ active }) =>
                                     [
                                         "cursor-pointer px-3 py-2 text-sm",
-                                        active ? "bg-blue-50 text-blue-700" : "text-gray-800",
+                                        active
+                                            ? "bg-blue-50 text-blue-700 dark:bg-slate-700 dark:text-slate-50"
+                                            : "text-gray-800 dark:text-slate-100",
                                     ].join(" ")
                                 }
                             >

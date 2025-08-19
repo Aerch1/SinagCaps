@@ -2,9 +2,9 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 
 @import "tailwindcss";
+
+@import "tw-animate-css";
 @custom-variant dark (&:is(.dark *));
-
-
 
 /* Set Outfit as global font */
 body {
@@ -14,8 +14,13 @@ body {
   scroll-behavior: smooth; 
 }
 
+.recharts-wrapper:focus,
+.recharts-surface:focus { outline: none; }
 
-
+/* Extra-safe focus suppression (Safari + mobile) */
+.recharts-wrapper:focus-visible,
+.recharts-surface:focus-visible { outline: none; }
+.recharts-wrapper, .recharts-surface { -webkit-tap-highlight-color: transparent; }
 
 /* Custom theme colors */
 @theme {
@@ -23,7 +28,6 @@ body {
   --font-inter: "Inter", sans-serif;
   --color-primary: #FFD700;   /* Gold */
   --color-secondary: #CA141D; /* Red */
-
 
     --breakpoint-2xsm: 375px;
   --breakpoint-xsm: 425px;
@@ -34,15 +38,32 @@ body {
   --breakpoint-xl: 1280px;
   --breakpoint-2xl: 1536px;
 
+    --color-brand-25: #f2f7ff;
+  --color-brand-50: #ecf3ff;
+  --color-brand-100: #dde9ff;
+  --color-brand-200: #c2d6ff;
+  --color-brand-300: #9cb9ff;
+  --color-brand-400: #7592ff;
+  --color-brand-500: #465fff;
+  --color-brand-600: #3641f5;
+  --color-brand-700: #2a31d8;
+  --color-brand-800: #252dae;
+  --color-brand-900: #262e89;
+  --color-brand-950: #161950;
 
-  --color-dark-100: #1f1f36;
-  --color-dark-200: #141627;
-  --color-dark-300: #101828;
-  --color-dark-400: #2e2c48;
-  --color-gray-100: #7f7e83;
-  --color-gray-200: #eaecf0;
+  --color-gray-25: #fcfcfd;
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f2f4f7;
+  --color-gray-200: #e4e7ec;
+  --color-gray-300: #d0d5dd;
+  --color-gray-400: #98a2b3;
   --color-gray-500: #667085;
+  --color-gray-600: #475467;
   --color-gray-700: #344054;
+  --color-gray-800: #1d2939;
+  --color-gray-900: #101828;
+  --color-gray-950: #0c111d;
+  --color-gray-dark: #1a2231;
 
     --color-light-100: #ecf2ef;
   --color-light-200: #f9fbfc;
@@ -59,6 +80,47 @@ body {
   --color-red-500: #b93815;
   --color-red-50: #fff4ed;
   --color-red-100: #ff543d;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    @apply size-1.5;
+  }
+
+  &::-webkit-scrollbar-track {
+    @apply rounded-full;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    @apply bg-gray-200 rounded-full dark:bg-gray-700;
+  }
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #344054;
 }
 
 /* Floating animation */
@@ -142,7 +204,6 @@ body {
   animation-delay: 0.5s;
 }
 
-
 /* Thin scrollbar with visible thumb, no arrows */
 .scroll-thin {
   /* Firefox */
@@ -176,127 +237,121 @@ body {
   width: 0;
   height: 0;
 }
-/* Hide FullCalendar's built-in toolbar */
-.fc .fc-header-toolbar {
-  display: none;
+
+
+ @theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring); 
 }
 
-/* No internal scrollbars */
-.fc .fc-scroller,
-.fc .fc-daygrid-body-natural {
-  overflow: hidden !important;
+ :root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0); 
 }
 
-/* Weekday header: small, muted, two-letter labels (content handled in dayHeaderContent) */
-.fc .fc-col-header-cell-cushion {
-  font-size: 12px;
-  color: #6b7280; /* gray-500 */
-  text-transform: none;
-  letter-spacing: 0;
-  padding: 6px 0;
+ .dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0); 
 }
 
-/* Remove heavy borders for an airy look; we rely on spacing instead of cell lines */
-.fc .fc-scrollgrid,
-.fc .fc-scrollgrid-section,
-.fc .fc-scrollgrid-section > td,
-.fc .fc-col-header,
-.fc .fc-col-header-cell,
-.fc .fc-daygrid-day,
-.fc-theme-standard td,
-.fc-theme-standard th {
-  border-left: none !important;
-  border-right: none !important;
-  border-top: none !important;
-  border-bottom: none !important;
+ @layer base {
+  * {
+    @apply border-border outline-ring/50; 
+  }
+  body {
+    @apply bg-background text-foreground; 
+  } 
 }
-
-/* Header: no borders at all */
-.fc .fc-col-header,
-.fc .fc-col-header-cell {
-  border: none !important;
-}
-
-/* Day cells: no borders at all inside */
-.fc .fc-daygrid-day {
-  border: none !important;
-}
-.fc .fc-daygrid-day:last-child {
-  border: none !important;
-}
-
-/* Make the whole day cell a centered flex box */
-.fc .fc-daygrid-day-frame {
-  display: flex;
-  flex-direction: column;
-  justify-content: center; /* vertical center */
-  align-items: center; /* horizontal center */
-  padding: 0; /* remove extra padding */
-  height: 100%;
-}
-
-/* Keep the day-top minimal and centered; no top padding */
-.fc .fc-daygrid-day-top {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 0;
-  width: 100%;
-}
-
-/* Centered number; no background fill by default */
-.fc .fc-daygrid-day-number {
-   display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  min-width: 28px;
-  height: 28px;
-  border-radius: 9999px;
-  padding: 0 6px;
-  color: #111827; /* gray-900 */
-  font-weight: 400;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Remove FullCalendar's built-in today cell fill; keep subtle text color only if desired */
-.fc .fc-daygrid-day.fc-day-today {
-  background: transparent !important;
-}
-
-.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
-  background: #D91C14 !important; /* your secondary brand red */
-  color: #ffffff !important;
-  font-weight: 700; /* slightly stronger for today */
-}
-
-.fc .cb-has-events .fc-daygrid-day-number {
-  font-weight: 900;
-  color: var(--color-primary);
-}
-
-/* Hide event blocks entirely (we only use the dot) */
-.fc .fc-daygrid-event-harness,
-.fc .fc-h-event,
-.fc .fc-event {
-  display: none !important;
-  
-}
-
-/* Other-month days: muted */
-.fc .fc-day-other .fc-daygrid-day-number {
-  color: #9ca3af; /* gray-400 */
-}
-
- .cb-has-events .fc-daygrid-day-frame::after {
-   content: "";
-          position: absolute;
-          left: 50%;
-          bottom: 6px;
-          transform: translateX(-50%) translateY(-400%);
-          width: 6px;
-          height: 6px;
-          border-radius: 999px;
-          background: #475569; /* slate-600 */
- }
 

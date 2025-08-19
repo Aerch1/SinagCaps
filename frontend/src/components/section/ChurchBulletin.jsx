@@ -8,6 +8,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import "@/styles/public-fullcalendar.css";
+
 
 // --- Demo data (replace or pass via props) ---
 const demoAnnouncements = [
@@ -114,7 +116,7 @@ export default function ChurchBulletin({
     }
 
     return (
-        <section className="w-full bg-white">
+        <section className="w-full bg-white public-calendar">
             {/* Consistent centered container + vertical padding */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
                 {/* Card shell (kept simple, centered within container) */}
@@ -265,7 +267,7 @@ export default function ChurchBulletin({
                 </div>
             </div>
 
-            
+
         </section>
     );
 }

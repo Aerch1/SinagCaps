@@ -1,118 +1,242 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+// src/layouts/admin/AppHeader.jsx
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+    X as IconClose,
+    Menu as IconMenu,
+    Search as IconSearch,
+    Command as IconCommand,
+    MoreHorizontal as IconMore,
+    User as IconUser,
+    Settings as IconSettings,
+    LogOut as IconLogout,
+    Sun as IconSun,
+    Moon as IconMoon,
+} from "lucide-react";
+
 import { useSidebar } from "../../context/admin/SidebarContext";
 import ThemeToggleButton from "../../components/ui/ThemeToggleButton";
-
-// If you have these, keep them; otherwise stub or remove:
-// import NotificationDropdown from "../../components/header/NotificationDropdown";
-// import UserDropdown from "../../components/header/UserDropdown";
+import { useTheme } from "../../context/admin/ThemeContext";
+import { useAuthStore } from "../../store/authStore";
+import  UserDropdown  from "../../components/admin/header/UserDropdown";
+import  NotificationDropdown  from "../../components/admin/header/NotificationDropdown";
 
 export default function AppHeader() {
-    const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
     const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
+    const { logout } = useAuthStore();
+    const { isDark, toggleTheme } = useTheme();
+    const navigate = useNavigate();
 
-    const handleToggle = () => {
-        if (window.innerWidth >= 1024) toggleSidebar();
-        else toggleMobileSidebar();
-    };
-
-    const toggleApplicationMenu = () => setApplicationMenuOpen((v) => !v);
-
+    const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const panelRef = useRef(null);
     const inputRef = useRef(null);
 
-    // ⌘K / Ctrl+K focus
+    const handleToggleSidebar = useCallback(() => {
+        if (window.innerWidth >= 1024) toggleSidebar();
+        else toggleMobileSidebar();
+    }, [toggleSidebar, toggleMobileSidebar]);
+
+    const toggleApplicationMenu = useCallback(() => {
+        setApplicationMenuOpen((prev) => !prev);
+    }, []);
+
+    const closeApplicationMenu = useCallback(() => {
+        setApplicationMenuOpen(false);
+    }, []);
+
     useEffect(() => {
         const onKey = (e) => {
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
                 e.preventDefault();
                 inputRef.current?.focus();
             }
+            if (e.key === "Escape") setApplicationMenuOpen(false);
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
     }, []);
 
+    useEffect(() => {
+        const onDocClick = (e) => {
+            if (isApplicationMenuOpen && panelRef.current && !panelRef.current.contains(e.target)) {
+                setApplicationMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", onDocClick);
+        return () => document.removeEventListener("mousedown", onDocClick);
+    }, [isApplicationMenuOpen]);
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+        } finally {
+            navigate("/login", { replace: true });
+        }
+    };
+
     return (
-        <header className="sticky top-0 z-50 w-full border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 lg:border-b">
-            <div className="flex grow flex-col items-center justify-between lg:flex-row lg:px-6">
-                <div className="flex w-full items-center justify-between gap-2 border-b border-gray-200 px-3 py-3 dark:border-gray-800 sm:gap-4 lg:justify-normal lg:border-b-0 lg:px-0 lg:py-4">
-                    {/* Sidebar toggle */}
+        <header className="sticky top-0 z-[100] border-b border-gray-300 bg-white/95 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95">
+            {/* Mobile Header */}
+            <div className="flex items-center justify-between px-4 py-3 lg:hidden">
+                <div className="flex items-center gap-3">
                     <button
-                        className="z-50 hidden h-11 w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-500 dark:border-gray-800 dark:text-gray-400 lg:flex"
-                        onClick={handleToggle}
-                        aria-label="Toggle Sidebar"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors duration-200 hover:bg-gray-200 dark:text-slate-400 dark:hover:bg-slate-800"
+                        onClick={handleToggleSidebar}
+                        aria-label="Toggle sidebar"
                     >
-                        {isMobileOpen ? (
-                            // X icon
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" />
-                            </svg>
-                        ) : (
-                            // Hamburger
-                            <svg width="18" height="14" viewBox="0 0 16 12" fill="none">
-                                <path
-                                    d="M1 1h14M1 6h10M1 11h14"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                />
-                            </svg>
-                        )}
+                        {isMobileOpen ? <IconClose size={20} /> : <IconMenu size={20} />}
                     </button>
 
-                    {/* Brand (mobile only) */}
-                    <Link to="/" className="lg:hidden">
-                        <img className="dark:hidden" src="/images/logo/logo.svg" alt="Logo" />
-                        <img className="hidden dark:block" src="/images/logo/logo-dark.svg" alt="Logo" />
+                    {/* Mobile brand (optional) */}
+                    <Link to="/admin" className="flex items-center gap-2">
+                        <img src="/logo.png" alt="logo" className="w-8 h-8 object-contain" />
+                        <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">ADMIN</span>
                     </Link>
+                </div>
 
-                    {/* App menu (mobile) */}
-                    <button
-                        onClick={toggleApplicationMenu}
-                        className="z-50 flex h-10 w-10 items-center justify-center rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 lg:hidden"
-                        aria-label="Open header menu"
+                <button
+                    onClick={toggleApplicationMenu}
+                    aria-expanded={isApplicationMenuOpen}
+                    aria-haspopup="menu"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors duration-200 hover:bg-gray-200 dark:text-slate-400 dark:hover:bg-slate-800"
+                    aria-label="Open menu"
+                >
+                    <IconMore size={20} />
+                </button>
+            </div>
+
+            {/* Mobile Menu */}
+            {isApplicationMenuOpen && (
+                <>
+                    {/* Dim background so panel is visible & blocks clicks behind */}
+                    <div className="fixed inset-0 z-[110]  lg:hidden" onClick={closeApplicationMenu} />
+                    <div
+                        ref={panelRef}
+                        role="dialog"
+                        className="absolute right-4 top-full z-[120] mt-2 w-[min(20rem,90vw)] max-h-[70vh] overflow-y-auto rounded-2xl border border-gray-300 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800 lg:hidden"
                     >
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path
-                                d="M6 12a2 2 0 114 0 2 2 0 01-4 0zm8 0a2 2 0 114 0 2 2 0 01-4 0zM12 12a2 2 0 100-4 2 2 0 000 4z"
-                                fill="currentColor"
-                            />
-                        </svg>
+                        {/* User header */}
+                        <div className="flex items-center gap-3 rounded-xl border-b border-gray-300 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-700">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-white">
+                                <IconUser size={18} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">Admin User</p>
+                                <p className="truncate text-xs text-gray-500 dark:text-slate-400">Administrator</p>
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="space-y-1 p-2">
+                            {/* Theme toggle row with text label */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    toggleTheme();
+                                    closeApplicationMenu();
+                                }}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm text-gray-700 transition-colors duration-200 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                                aria-label={isDark ? "Toggle light mode" : "Toggle dark mode"}
+                            >
+                                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 dark:bg-slate-700">
+                                    {isDark ? (
+                                        <IconSun size={16} className="text-gray-600 dark:text-slate-300" />
+                                    ) : (
+                                        <IconMoon size={16} className="text-gray-600 dark:text-slate-300" />
+                                    )}
+                                </div>
+                                <span className="truncate">{isDark ? "Toggle light mode" : "Toggle dark mode"}</span>
+                            </button>
+
+                            {/* Notifications (mobile modal) */}
+                            <div className="w-full">
+                                <NotificationDropdown isMobile onOpen={closeApplicationMenu} />
+                            </div>
+
+                            {/* Profile */}
+                            <Link
+                                to="/admin/profile"
+                                onClick={closeApplicationMenu}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm text-gray-700 transition-colors duration-200 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                            >
+                                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 dark:bg-slate-700">
+                                    <IconUser size={16} className="text-gray-600 dark:text-slate-400" />
+                                </div>
+                                <span>Profile</span>
+                            </Link>
+
+                            {/* Settings */}
+                            <Link
+                                to="/admin/settings"
+                                onClick={closeApplicationMenu}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm text-gray-700 transition-colors duration-200 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                            >
+                                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 dark:bg-slate-700">
+                                    <IconSettings size={16} className="text-gray-600 dark:text-slate-400" />
+                                </div>
+                                <span>Settings</span>
+                            </Link>
+
+                            {/* Logout */}
+                            <button
+                                onClick={async () => {
+                                    closeApplicationMenu();
+                                    await handleLogout();
+                                }}
+                                className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm text-red-600 transition-colors duration-200 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-600/10"
+                            >
+                                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 dark:bg-red-600/20">
+                                    <IconLogout size={16} className="text-gray-600 dark:text-red-400" />
+                                </div>
+                                <span>Sign Out</span>
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* Desktop Header */}
+            <div className="hidden items-center justify-between px-6 py-4 lg:flex">
+                {/* Left: sidebar toggle + search */}
+                <div className="flex items-center gap-4">
+                    <button
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors duration-200 hover:bg-gray-200 dark:text-slate-400 dark:hover:bg-slate-800"
+                        onClick={handleToggleSidebar}
+                        aria-label="Toggle sidebar"
+                    >
+                        <IconMenu size={20} />
                     </button>
 
-                    {/* Search (desktop) */}
-                    <div className="hidden lg:block">
-                        <form>
-                            <div className="relative">
-                                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2">
-                                    <svg className="fill-gray-500 dark:fill-gray-400" width="20" height="20" viewBox="0 0 20 20">
-                                        <path d="M9.375 1.542A7.833 7.833 0 111.542 9.375 7.833 7.833 0 019.375 1.542zm0 14.163a6.33 6.33 0 100-12.66 6.33 6.33 0 000 12.66zm6.043.713l3.06 3.06-1.06 1.06-3.06-3.06 1.06-1.06z" />
-                                    </svg>
-                                </span>
-                                <input
-                                    ref={inputRef}
-                                    type="text"
-                                    placeholder="Search or type command..."
-                                    className="h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pl-12 pr-14 text-sm text-gray-800 shadow-sm placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 xl:w-[430px]"
-                                />
-                                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg border border-gray-200 bg-gray-50 px-[7px] py-[4.5px] text-xs text-gray-500 dark:border-gray-800 dark:bg-white/5 dark:text-gray-400">
-                                    ⌘ K
-                                </span>
-                            </div>
-                        </form>
+                    <div className="relative">
+                        <IconSearch
+                            size={16}
+                            className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${isSearchFocused ? "text-gray-600 dark:text-slate-300" : "text-gray-500 dark:text-slate-500"
+                                }`}
+                        />
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            placeholder="Search appointments, events..."
+                            className={`h-10 w-80 rounded-lg border bg-gray-100 pl-10 pr-16 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400/12 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-400 ${isSearchFocused ? "border-gray-300 dark:border-gray-600" : "border-gray-300 dark:border-slate-600"
+                                }`}
+                            onFocus={() => setIsSearchFocused(true)}
+                            onBlur={() => setIsSearchFocused(false)}
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <kbd className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400">
+                                <IconCommand size={10} />
+                                K
+                            </kbd>
+                        </div>
                     </div>
                 </div>
 
-                {/* Right-side actions */}
-                <div
-                    className={`${isApplicationMenuOpen ? "flex" : "hidden"
-                        } w-full items-center justify-between gap-4 px-5 py-4 shadow-sm lg:flex lg:justify-end lg:px-0 lg:shadow-none`}
-                >
-                    <div className="flex items-center gap-2">
-                        <ThemeToggleButton />
-                        {/* <NotificationDropdown /> */}
-                    </div>
-                    {/* <UserDropdown /> */}
+                {/* Right: actions */}
+                <div className="flex items-center gap-3">
+                    <ThemeToggleButton />
+                    <NotificationDropdown />
+                    <UserDropdown />
                 </div>
             </div>
         </header>
