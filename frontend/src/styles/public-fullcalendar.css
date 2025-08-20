@@ -1,3 +1,6 @@
+
+@import "tailwindcss";
+
 /* src/styles/public-fullcalendar.css */
 /* Scope everything under .public-calendar so styles don't leak to admin */
 .public-calendar .fc .fc-header-toolbar { display: none; }
@@ -94,7 +97,7 @@
 /* Dates that have events: emphasize number */
 .public-calendar .cb-has-events .fc-daygrid-day-number {
   font-weight: 900;
-  color: var(--color-primary, #FFD700); /* fallback to gold if var missing */
+  color:  #e30a07 /* fallback to gold if var missing */
 }
 
 /* Hide event blocks entirely (we only use the dot) */
@@ -119,5 +122,5 @@
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: #475569; /* slate-600 */
+  background: #e2e509; /* slate-600 */
 }

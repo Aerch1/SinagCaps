@@ -93,6 +93,13 @@ const NotificationDropdown = ({ isMobile = false, onOpen }) => {
           { id: 1, type: "appointment", text: "Appointment booked by John Doe — Aug 22, 10:00 AM (Consultation).", time: "2 min ago", read: false },
           { id: 2, type: "schedule", text: "Today’s schedule: 3 appointments. First at 9:00 AM.", time: "Today, 8:00 AM", read: false },
           { id: 3, type: "event", text: "Event soon: Parish Assembly — Aug 25, 3:00 PM.", time: "in 2 days", read: true },
+          { id: 31, type: "event", text: "Event soon: Parish Assembly — Aug 25, 3:00 PM.", time: "in 2 days", read: true },
+          { id: 32, type: "event", text: "Event soon: Parish Assembly — Aug 25, 3:00 PM.", time: "in 2 days", read: true },
+          { id: 33, type: "event", text: "Event soon: Parish Assembly — Aug 25, 3:00 PM.", time: "in 2 days", read: true },
+          { id: 324, type: "event", text: "Event soon: Parish Assembly — Aug 25, 3:00 PM.", time: "in 2 days", read: true },
+          { id: 343, type: "event", text: "Event soon: Parish Assembly — Aug 25, 3:00 PM.", time: "in 2 days", read: true },
+          { id: 354, type: "event", text: "Event soon: Parish Assembly — Aug 25, 3:00 PM.", time: "in 2 days", read: true },
+          { id: 34, type: "event", text: "Event soon: Parish Assembly — Aug 25, 3:00 PM.", time: "in 2 days", read: true },
           { id: 4, type: "message", text: "Jane Roe: “Can we move my appointment to Friday afternoon?”", time: "10:31 AM", read: false, avatarUrl: "/avatars/jane.png" },
         ].filter((n) => ALLOWED_TYPES.has(n.type));
         if (mounted) setNotifications(mock);
@@ -214,7 +221,7 @@ const NotificationDropdown = ({ isMobile = false, onOpen }) => {
     <div ref={rootRef} className="relative">
       <button
         onClick={toggle}
-        className="relative flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-200 dark:text-slate-400 dark:hover:bg-slate-800"
+        className="relative flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
         aria-label="Notifications"
       >
         <Bell size={20} />
@@ -229,12 +236,12 @@ const NotificationDropdown = ({ isMobile = false, onOpen }) => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-[26rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+        <div className="absolute right-0 mt-2 w-[26rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-gray-300 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
           {/* Close button (no header) */}
 
 
           {/* List */}
-          <div className="max-h-96 overflow-y-auto py-4 px-2">
+          <div className="max-h-96 overflow-y-auto py-4 px-2 custom-scrollbar">
             {loading ? (
               <div className="p-8 pt-2 text-center">
                 <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-red-600" />
@@ -255,7 +262,7 @@ const NotificationDropdown = ({ isMobile = false, onOpen }) => {
           </div>
 
           {/* Footer: See all / Mark all read */}
-          <div className="flex items-center justify-between gap-2 border-t border-gray-200 px-3 py-2 dark:border-slate-700">
+          <div className="flex items-center justify-between gap-2 border-t bg-gray-100/90 border-gray-200 px-3 py-2 dark:border-slate-700">
             <Link
               to="/admin/notifications"
               className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-700"

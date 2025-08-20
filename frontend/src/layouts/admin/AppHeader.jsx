@@ -76,7 +76,7 @@ export default function AppHeader() {
     };
 
     return (
-        <header className="sticky top-0 z-[100] border-b border-gray-300 bg-white/95 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95">
+        <header className="sticky top-0 z-[100] border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95">
             {/* Mobile Header */}
             <div className="flex items-center justify-between px-4 py-3 lg:hidden">
                 <div className="flex items-center gap-3">

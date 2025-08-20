@@ -40,6 +40,7 @@ const AppointmentTerms = lazy(() => import("./pages/Public/appointments/Appointm
 
 // --- Admin ---
 import AdminProviders from "./context/admin/AdminProviders";
+import CalendarPage from "./pages/Admin/CalendarPage";
 const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
 
 function App() {
@@ -108,7 +109,7 @@ function App() {
                   }
                 >
                   <Route index element={<AdminDashboard />} />
-                  <Route path="calendar" element={<div>Users Management</div>} />
+                  <Route path="calendar" element={<CalendarPage />} />
                   <Route path="settings" element={<div>Settings</div>} />
                   <Route path="*" element={<Navigate to="/admin" replace />} />
                 </Route>

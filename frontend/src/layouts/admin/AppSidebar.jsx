@@ -28,20 +28,20 @@ const sections = [
     key: "main",
     title: "Menu",
     items: [
-      { name: "Dashboard", path: "/admin", icon: <LayoutDashboard size={20} />, key: "dashboard" },
-      { name: "Calendar", path: "/admin/calendar", icon: <CalendarDays size={20} />, key: "calendar" },
-      { name: "Appointments", path: "/admin/appointments", icon: <ClipboardList size={20} />, key: "appointments" },
-      { name: "Events", path: "/admin/events", icon: <Calendar size={20} />, key: "events" },
-      { name: "Messages", path: "/admin/messages", icon: <MessageCircle size={20} />, key: "messages" },
-      { name: "Announcement", path: "/admin/announcement", icon: <Megaphone size={20} />, key: "announcement" },
+      { name: "Dashboard", path: "/admin", icon: <LayoutDashboard size={18} />, key: "dashboard" },
+      { name: "Calendar", path: "/admin/calendar", icon: <CalendarDays size={18} />, key: "calendar" },
+      { name: "Appointments", path: "/admin/appointments", icon: <ClipboardList size={18} />, key: "appointments" },
+      { name: "Events", path: "/admin/events", icon: <Calendar size={18} />, key: "events" },
+      { name: "Messages", path: "/admin/messages", icon: <MessageCircle size={18} />, key: "messages" },
+      { name: "Announcement", path: "/admin/announcement", icon: <Megaphone size={18} />, key: "announcement" },
     ],
   },
   {
     key: "management",
     title: "Management",
     items: [
-      { name: "Schedule Availability", path: "/admin/schedule", icon: <Clock size={20} />, key: "schedule" },
-      { name: "Content Management", path: "/admin/content", icon: <FileText size={20} />, key: "content" },
+      { name: "Schedule Availability", path: "/admin/schedule", icon: <Clock size={18} />, key: "schedule" },
+      { name: "Content Management", path: "/admin/content", icon: <FileText size={18} />, key: "content" },
       // add more management items here...
     ],
   },
@@ -49,20 +49,20 @@ const sections = [
     key: "others",
     title: "Others",
     items: [
-      { name: "Profile", path: "/admin/profile", icon: <Users size={20} />, key: "profile" },
-      { name: "Settings", path: "/admin/settings", icon: <Settings size={20} />, key: "settings" },
+      { name: "Profile", path: "/admin/profile", icon: <Users size={18} />, key: "profile" },
+      { name: "Settings", path: "/admin/settings", icon: <Settings size={18} />, key: "settings" },
       // Logout is an action, not a route
-      { name: "Logout", icon: <LogOut size={20} />, isLogout: true, key: "logout" },
+      { name: "Logout", icon: <LogOut size={18} />, isLogout: true, key: "logout" },
     ],
   },
 ];
 
 /** Theme classes (red active theme) */
 const baseItem =
-  "group relative flex items-center w-full gap-3 px-3 py-3 font-medium rounded-lg text-sm transition-all duration-200";
+  "group relative flex items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200";
 const justify = (full) => (full ? "justify-start" : "lg:justify-center");
 const inactiveItem =
-  "text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100";
+  "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100";
 const activeItem =
   "bg-red-50 text-red-600 dark:bg-red-600/10 dark:text-red-400";
 const iconInactive =
@@ -195,7 +195,7 @@ export default function AppSidebar() {
         </div>
 
         {/* Scrollable nav area */}
-        <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${showFullSidebar ? "custom-scrollbar": "scrollbar-hide"} px-5 pb-6 pt-4 lg:pt-0`}>
+        <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${showFullSidebar ? "custom-scrollbar": "scrollbar-hide"} px-4 pb-6 pt-4 lg:pt-0`}>
           <nav className="flex flex-col gap-6">
             {sections.map((section) => (
               <SectionBlock
