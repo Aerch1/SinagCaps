@@ -1,7 +1,7 @@
 // src/pages/Public/appointments/steps/Step1Service.jsx
 "use client"
 
-import Dropdown from "../../../../components/ui/Dropdown"
+import LightSelect from "../../../../components/ui/LightSelect"
 
 export default function Step1Service({ formData, setFormData }) {
   const SERVICES = [
@@ -62,10 +62,10 @@ export default function Step1Service({ formData, setFormData }) {
               )}
             </div>
 
-            <Dropdown
-              value={selectedServiceLabel}
-              onChange={onServiceChange}
-              options={serviceOptions}
+            <LightSelect
+              value={selectedServiceLabel}                 // e.g., "baptism"
+              onChange={onServiceChange}              // receives the selected value string
+              options={serviceOptions}                // ["Baptism","Wedding"] OR [{value:"baptism",label:"Baptism"}, ...]
               placeholder="Select a service"
             />
           </div>

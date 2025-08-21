@@ -1,11 +1,17 @@
 "use client";
-export default function Modal({ open, onClose, title, children }) {
+export default function Modal({ open, onClose, title, children, className = "" }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="relative w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
-        <h3 className="mb-3 text-base font-semibold text-gray-900">{title}</h3>
+    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/40 p-4">
+      <div
+        className={`relative w-full rounded-xl  bg-white p-5  shadow-xl ${className}`}
+      >
+        {title ? (
+          <h3 className="mb-3 text-base font-semibold text-gray-900">{title}</h3>
+        ) : null}
+
         {children}
+
         <button
           onClick={onClose}
           aria-label="Close"

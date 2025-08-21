@@ -1,22 +1,45 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Card from "../../components/common/Card"
-import Calendar from "../../components/common/Calendar"
-import Dropdown from "../../components/ui/Dropdown1"
-import { CalendarIcon, Plus } from "lucide-react"
+import { useState } from "react";
+import Card from "../../components/common/Card";
+import Calendar from "../../components/common/Calendar";
+import Dropdown from "../../components/ui/Dropdown1";
+import TodaySchedule from "../../components/common/TodaySchedule";
+import UpcomingEvents from "../../components/common/UpcomingEvents";
+import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal"; // ← add
+import { Plus } from "lucide-react";
 
 export default function CalendarPage() {
-    const [viewFilter, setViewFilter] = useState("Month")
-    const viewOptions = ["Week", "Month"]
+    const [viewFilter, setViewFilter] = useState("Month");
+    const viewOptions = ["Week", "Month"];
+
+    // Appointments shown on calendar + TodaySchedule
+    const [appointments, setAppointments] = useState([]);
+
+    // Independent upcoming events (fiesta, holy week, etc.)
+    const [events, setEvents] = useState([]);
+
+    // ViewAppointmentModal (page-level) for clicks coming from TodaySchedule
+    const [viewOpen, setViewOpen] = useState(false);
+    const [viewAppt, setViewAppt] = useState(null);
+
+    const handleTodayItemClick = (appt) => {
+        setViewAppt(appt);
+        setViewOpen(true);
+    };
+
+    // Same shape as your calendar’s fetchAvailableTimes (HH:mm strings)
+    const fetchAvailableTimes = async () => mockGenerateTimes("08:00", "17:30", 30);
 
     return (
         <div className="space-y-4 md:space-y-6 calendar-page-container">
-            {/* Header Section - Title Only */}
+            {/* Header */}
             <div className="flex flex-col gap-3 md:gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">Calendar</h1>
-                    <p className="text-xs md:text-sm text-gray-500 dark:text-slate-400 mt-1">Manage appointments and schedules</p>
+                    <p className="text-xs md:text-sm text-gray-500 dark:text-slate-400 mt-1">
+                        Manage appointments and schedules
+                    </p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -34,32 +57,61 @@ export default function CalendarPage() {
                 </div>
             </div>
 
-            {/* Stats Cards Grid */}
+            {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
                 <Card />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-2">
-                <div className="lg:col-span-10">
-                    <Calendar />
+            {/* Calendar + Right Column */}
+            <div className="grid md:grid-cols-[1fr_320px] gap-4 md:gap-4">
+                {/* Calendar */}
+                <div>
+                    <Calendar
+                        appointments={appointments}
+                        onAppointmentsChange={setAppointments}
+                    />
                 </div>
 
-                <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-8 h-8 bg-green-50 dark:bg-green-600/10 rounded-lg flex items-center justify-center">
-                            <CalendarIcon className="w-4 h-4 text-green-600 dark:text-green-400" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Today's Schedule</h3>
-                    </div>
-
-                    <div className="text-center py-8">
-                        <CalendarIcon className="w-8 h-8 text-gray-400 dark:text-slate-500 mx-auto mb-3" />
-                        <p className="text-sm text-gray-500 dark:text-slate-400">
-                            Today's schedule component will be implemented here
-                        </p>
-                    </div>
+                {/* Right column: two scrollable halves */}
+                <div className="grid gap-4 md:grid-rows-2">
+                    <TodaySchedule
+                        appointments={appointments}
+                        onItemClick={handleTodayItemClick}   // ← open modal from list
+                        className="h-[50vh]"
+                    />
+                    <UpcomingEvents
+                        events={events}
+                        onItemClick={(evt) => console.log("Clicked Upcoming:", evt)}
+                        className="h-[50vh]"
+                    />
                 </div>
             </div>
+
+            {/* ViewAppointmentModal for TodaySchedule clicks */}
+            <ViewAppointmentModal
+                isOpen={viewOpen}
+                onClose={() => setViewOpen(false)}
+                appointment={viewAppt}
+                onUpdate={(updated) => {
+                    setAppointments(prev => prev.map(a => (a.id === updated.id ? { ...a, ...updated } : a)));
+                    setViewOpen(false);
+                }}
+                fetchAvailableTimes={fetchAvailableTimes}
+            />
         </div>
-    )
+    );
+}
+
+/* local helper (HH:mm list) */
+function mockGenerateTimes(startHHmm = "08:00", endHHmm = "17:30", everyMin = 30) {
+    const [sh, sm] = startHHmm.split(":").map(Number);
+    const [eh, em] = endHHmm.split(":").map(Number);
+    const out = [];
+    let h = sh, m = sm;
+    while (h < eh || (h === eh && m <= em)) {
+        out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+        m += everyMin;
+        while (m >= 60) { m -= 60; h += 1; }
+    }
+    return out;
 }

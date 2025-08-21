@@ -6,6 +6,7 @@ import ErrorBoundary from "./components/common/ErrorBoundary";
 import AuthChecker from "./components/guards/AuthChecker";
 import LoadingSpinner from "./components/common/LoadingSpinner";
 import Contact from "./pages/Public/Contact";
+import Events from "./pages/Public/Events";
 
 // NEW: guards
 import PublicOnly from "./components/guards/PublicOnly";
@@ -42,6 +43,12 @@ const AppointmentTerms = lazy(() => import("./pages/Public/appointments/Appointm
 import AdminProviders from "./context/admin/AdminProviders";
 import CalendarPage from "./pages/Admin/CalendarPage";
 const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
+const AdminAppointmentsPage = lazy(() => import("./pages/Admin/AppointmentsPage"));
+const ContentManagement = lazy(() => import("./pages/Admin/ContentManagement"))
+const ReportsPage = lazy(() => import("./pages/Admin/ReportsPage"))
+const ManageAvailability = lazy(() => import("./pages/Admin/ManageAvailability"))
+const Profile = lazy(() => import("./pages/Admin/Profile"))
+
 
 function App() {
   return (
@@ -71,6 +78,7 @@ function App() {
                   <Route path="/services" element={<div className="p-8">Services Page</div>} />
                   <Route path="/about" element={<div className="p-8">About Page</div>} />
                   <Route path="/contact" element={<Contact />} />
+                  <Route path="/event" element={<Events />} />
                   <Route path="/services/generalinfo" element={<GeneralInformation />} />
                   <Route path="/services/appointments/terms" element={<AppointmentTerms />} />
 
@@ -111,6 +119,12 @@ function App() {
                   <Route index element={<AdminDashboard />} />
                   <Route path="calendar" element={<CalendarPage />} />
                   <Route path="settings" element={<div>Settings</div>} />
+                  <Route path="appointments" element={<AdminAppointmentsPage />} />
+                  <Route path="content" element={<ContentManagement />} />
+                  <Route path="report" element={<ReportsPage />} />
+                  <Route path="schedule" element={<ManageAvailability />} />
+                  <Route path="profile" element={<Profile />} />
+
                   <Route path="*" element={<Navigate to="/admin" replace />} />
                 </Route>
 

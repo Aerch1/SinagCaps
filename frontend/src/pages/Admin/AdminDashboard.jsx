@@ -1,15 +1,18 @@
 // src/pages/Admin/AdminDashboard.jsx
+"use client";
+
 import { useState, useMemo, useCallback } from "react";
 import KpiCard from "../../components/common/KpiCard";
 import Dropdown from "../../components/ui/Dropdown";
 import ServiceAreaChart from "../../components/common/ServiceAreaChart";
-import ServiceBarChart from "../../components/common/ServiceBarChart ";
+import ServiceBarChart from "../../components/common/ServiceBarChart "; // ← fixed import
 import DataTable from "../../components/common/DataTable";
+import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal";
 
-// Helper to shape a numeric array into {label,value} points for the chart
+/* ---------------- helpers ---------------- */
+
 const series = (arr) => arr.map((v, i) => ({ label: `P${i + 1}`, value: v }));
 
-// Mock KPI dataset per period
 const mockKpiData = {
     Week: [
         { id: "total", title: "Total Appointments", current: 0, previous: 0, trend: series([1, 0, 0, 0, 0, 0, 0]) },
@@ -31,20 +34,134 @@ const mockKpiData = {
     ],
 };
 
+// local date helpers
+function ymd(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+}
+function ymdOffset(days = 0) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + days);
+    return ymd(d);
+}
 
-const rows = [
-    { id: 1, name: "Latif L.", email: "latif@email.com", serviceType: "Wedding", status: "success", date: "2023-10-12", time: "10:30" },
-    { id: 2, name: "Sherina P.", email: "sherina@email.com", serviceType: "Counseling", status: "pending", date: "2023-10-12", time: "09:56" },
-    { id: 3, name: "Mykhailo M.", email: "mm@email.com", serviceType: "Baptism", status: "success", date: "2023-10-12", time: "18:27" },
-    { id: 4, name: "Latif L.", email: "latif@email.com", serviceType: "Funeral", status: "failed", date: "2023-10-12", time: "02:30" },
-    { id: 8, name: "Latif L.", email: "latif@email.com", serviceType: "Funeral", status: "failed", date: "2023-10-12", time: "02:30" },
+// build local Date objects for modal meta
+function buildStartEnd(dateISO, hhmm) {
+    if (!dateISO) return { start: undefined, end: undefined };
+    const [y, m, d] = dateISO.split("-").map(Number);
+    if (!hhmm) {
+        const start = new Date(y, m - 1, d, 0, 0, 0, 0);
+        const end = new Date(y, m - 1, d + 1, 0, 0, 0, 0);
+        return { start, end };
+    }
+    const [hh, mm] = hhmm.split(":").map(Number);
+    const start = new Date(y, m - 1, d, hh, mm, 0, 0);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    return { start, end };
+}
 
+// reschedule suggestions
+function mockGenerateTimes(startHHmm = "08:00", endHHmm = "17:30", everyMin = 30) {
+    const [sh, sm] = startHHmm.split(":").map(Number);
+    const [eh, em] = endHHmm.split(":").map(Number);
+    const out = []; let h = sh, m = sm;
+    while (h < eh || (h === eh && m <= em)) {
+        out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+        m += everyMin; while (m >= 60) { m -= 60; h += 1; }
+    }
+    return out;
+}
+const fetchAvailableTimes = async () => mockGenerateTimes("08:00", "17:30", 30);
 
-];
+/* --------- seed data (recent dates so they pass "Last 7 days") --------- */
+const SEED = [
+    {
+        id: 1,
+        clientName: "Latif L.",
+        email: "latif@email.com",
+        phone: "+63 900 111 2222",
+        address: "123 Street, City",
+        serviceType: "Wedding",
+        status: "success",
+        date: ymdOffset(-1),
+        time: "10:30",
+        allDay: false,
+        purpose: "Wedding interview",
+        notes: "Bring certificates.",
+    },
+    {
+        id: 2,
+        clientName: "Sherina P.",
+        email: "sherina@email.com",
+        phone: "",
+        address: "",
+        serviceType: "Counseling",
+        status: "pending",
+        date: ymdOffset(-2),
+        time: "09:56",
+        allDay: false,
+        purpose: "",
+        notes: "",
+    },
+    {
+        id: 3,
+        clientName: "Mykhailo M.",
+        email: "mm@email.com",
+        phone: "",
+        address: "",
+        serviceType: "Baptism",
+        status: "success",
+        date: ymdOffset(-3),
+        time: "18:27",
+        allDay: false,
+        purpose: "",
+        notes: "",
+    },
+    {
+        id: 4,
+        clientName: "Latif L.",
+        email: "latif@email.com",
+        phone: "",
+        address: "",
+        serviceType: "Funeral",
+        status: "failed",
+        date: ymdOffset(-4),
+        time: "02:30",
+        allDay: false,
+        purpose: "",
+        notes: "",
+    },
+    {
+        id: 8,
+        clientName: "Latif L.",
+        email: "latif@email.com",
+        phone: "",
+        address: "",
+        serviceType: "Funeral",
+        status: "failed",
+        date: ymdOffset(-5),
+        time: "15:20",
+        allDay: false,
+        purpose: "",
+        notes: "",
+    },
+].map((a) => ({ ...a, ...buildStartEnd(a.date, a.time) }));
+
+/* ================== Component ================== */
 
 export default function AdminDashboard() {
     const periodOptions = ["Week", "Month", "Year"];
     const [filter, setFilter] = useState("Month");
+
+    // full dataset (keep here so modal can display everything)
+    const [appointments, setAppointments] = useState(SEED);
+
+    // modal state
+    const [viewOpen, setViewOpen] = useState(false);
+    const [viewAppt, setViewAppt] = useState(null);
 
     const calcChange = useCallback((current, previous) => {
         if (!previous) return 0;
@@ -61,6 +178,37 @@ export default function AdminDashboard() {
             data: k.trend,
         }));
     }, [filter, calcChange]);
+
+    // minimal rows for the table
+    const tableRows = useMemo(
+        () =>
+            appointments.map((a) => ({
+                id: a.id,
+                name: a.clientName,
+                email: a.email,
+                serviceType: a.serviceType,
+                status: a.status,
+                date: a.date,
+                time: a.allDay ? "" : a.time,
+            })),
+        [appointments]
+    );
+
+    // open modal with the FULL record
+    const handleView = useCallback(
+        (row) => {
+            const full = appointments.find((a) => a.id === row.id) || null;
+            setViewAppt(full);
+            setViewOpen(!!full);
+        },
+        [appointments]
+    );
+
+    // when modal edits/approves/reschedules/etc
+    const handleUpdate = useCallback((updated) => {
+        setAppointments((prev) => prev.map((a) => (a.id === updated.id ? { ...a, ...updated } : a)));
+        setViewOpen(false);
+    }, []);
 
     return (
         <div className="space-y-4 md:space-y-6">
@@ -84,7 +232,7 @@ export default function AdminDashboard() {
                 />
             </div>
 
-            {/* KPI Grid (4 cards) */}
+            {/* KPI Grid */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 lg:gap-6 xl:grid-cols-4">
                 {kpis.map((kpi) => (
                     <KpiCard
@@ -97,9 +245,8 @@ export default function AdminDashboard() {
                 ))}
             </div>
 
-            {/* Analytics row (12-col layout) */}
+            {/* Analytics row */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
-                {/* Area Chart - 8 columns */}
                 <div className="lg:col-span-8">
                     <ServiceAreaChart filter={filter} />
                 </div>
@@ -109,14 +256,23 @@ export default function AdminDashboard() {
 
                 <div className="lg:col-span-12">
                     <DataTable
-                        rows={rows}
-                        manageHref="/admin/appointments" // link for the "full" icon
-                        onView={(r) => console.log("view", r)}
+                        rows={tableRows}
+                        manageHref="/admin/appointments?status=all" // will show on dashboard only
+                        onView={handleView}                           // ← opens ViewAppointmentModal
                         onEdit={(r) => console.log("edit", r)}
                         onDelete={(r) => console.log("delete", r)}
                     />
                 </div>
             </div>
+
+            {/* View details modal */}
+            <ViewAppointmentModal
+                isOpen={viewOpen}
+                onClose={() => setViewOpen(false)}
+                appointment={viewAppt}
+                onUpdate={handleUpdate}
+                fetchAvailableTimes={fetchAvailableTimes}
+            />
         </div>
     );
 }
