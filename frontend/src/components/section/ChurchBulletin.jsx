@@ -137,10 +137,10 @@ export default function ChurchBulletin({
                             {/* Left: Calendar */}
                             <div className="lg:col-span-4">
                                 <div
-                                    className={`min-h-0 ${PANEL_H} border border-gray-200 rounded-lg overflow-hidden flex flex-col`}
+                                    className={`min-h-0 ${PANEL_H} border  border-gray-200 rounded-lg overflow-hidden flex flex-col`}
                                 >
                                     {/* Compact header with chevrons + centered month label */}
-                                    <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                                    <div className="px-4 py-3 border-b  border-gray-200 flex items-center justify-between">
                                         <button
                                             type="button"
                                             onClick={handlePrev}

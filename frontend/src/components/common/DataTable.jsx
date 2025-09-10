@@ -33,12 +33,12 @@ import {
 const statusClass = (s) => {
     const v = String(s || "").toLowerCase()
     if (["success", "completed", "approved", "confirmed"].includes(v))
-        return "bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full px-3 py-1 text-xs font-medium dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30"
+        return "bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase rounded-full w-20 px-3 py-1 text-xs font-medium dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30"
     if (["failed", "canceled", "cancelled", "rejected"].includes(v))
-        return "bg-red-50 text-red-600 border border-red-200 rounded-full px-3 py-1 text-xs font-medium dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30"
+        return "bg-red-50 text-red-600 border border-red-200 rounded-full uppercase  px-3 py-1 w-20  text-xs font-medium dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30"
     if (["pending", "scheduled", "in process"].includes(v))
-        return "bg-amber-50 text-amber-600 border border-amber-200 rounded-full px-3 py-1 text-xs font-medium dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30"
-    return "bg-gray-50 text-gray-600 border border-gray-200 rounded-full px-3 py-1 text-xs font-medium dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/30"
+        return "bg-amber-50 text-amber-600 border border-amber-200 rounded-full uppercase px-3 w-20 py-1 text-xs font-medium dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30"
+    return "bg-gray-50 text-gray-600 border border-gray-200 rounded-full px-3 uppercase py-1   text-xs w-20 font-medium dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/30"
 }
 
 const toDateObj = (row) => {
@@ -218,12 +218,15 @@ export default function DataTable({
 
     // neutral gray button base (no rings/outlines)
     const btnNeutral =
-        "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900/10 dark:text-gray-300 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-0"
-
+        "border border-gray-200 bg-white  text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900/10 dark:text-gray-300 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-0"
     return (
-        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+        <div className="  rounded-lg border border-gray-200 bg-white p-4 md:p-6 dark:border-slate-700 dark:bg-slate-800">
             {/* Header */}
+
+
             <div className="border-b border-gray-100 dark:border-gray-800 p-6">
+
+
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     {/* Left: period + range pill */}
                     <div className="flex items-center gap-3">
@@ -289,6 +292,7 @@ export default function DataTable({
                                 className="w-64 max-h-80 overflow-y-auto bg-white border border-gray-200 shadow-lg dark:bg-gray-800 dark:border-gray-700"
                             >
                                 <DropdownMenuLabel className="text-gray-700 dark:text-gray-200">Service Type</DropdownMenuLabel>
+
                                 {serviceOptions.length ? (
                                     serviceOptions.map((s) => (
                                         <DropdownMenuCheckboxItem
@@ -298,6 +302,7 @@ export default function DataTable({
                                             className="text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
                                         >
                                             {s}
+                                            
                                         </DropdownMenuCheckboxItem>
                                     ))
                                 ) : (
@@ -354,7 +359,7 @@ export default function DataTable({
             <div className="overflow-x-auto">
                 <Table>
                     <TableHeader>
-                        <TableRow className="border-gray-100 hover:bg-transparent dark:border-gray-800">
+                        <TableRow className="border-gray-200 hover:bg-transparent  dark:border-gray-600">
                             <TableHead className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                                 ID
                             </TableHead>
@@ -393,7 +398,7 @@ export default function DataTable({
 
                     <TableBody>
                         {paged.length === 0 ? (
-                            <TableRow className="border-gray-100 dark:border-gray-800">
+                            <TableRow className="border-gray-200 dark:border-gray-700">
                                 <TableCell colSpan={7} className="px-6 py-16 text-center">
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center dark:bg-gray-800">
@@ -408,7 +413,7 @@ export default function DataTable({
                             paged.map((r, idx) => (
                                 <TableRow
                                     key={`${r.id ?? "row"}-${startIndex + idx}`}
-                                    className="border-gray-100 hover:bg-gray-50/50 transition-colors dark:border-gray-800 dark:hover:bg-gray-800/50"
+                                    className="border-gray-100 hover:bg-gray-50/50 transition-colors dark:border-gray-700 dark:hover:bg-gray-800/50"
                                 >
                                     <TableCell className="px-6 py-4">
                                         <span className="text-sm font-mono text-gray-500 dark:text-gray-400">#{r.id ?? "—"}</span>

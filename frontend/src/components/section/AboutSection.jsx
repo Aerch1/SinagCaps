@@ -29,7 +29,7 @@ export default function AboutSection() {
                             <a
                                 href="/about"
                                 className="inline-flex items-center rounded-full px-5 py-2.5 text-white font-medium
-                           bg-[#710000] hover:bg-[#600000] focus:outline-none focus:ring-2
+                           bg-secondary hover:bg-secondary/90 focus:outline-none focus:ring-2
                            focus:ring-[#710000]/50 transition"
                             >
                                 Learn More

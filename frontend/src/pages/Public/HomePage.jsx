@@ -68,7 +68,8 @@ export default function HomePage() {
             {/* Constrained content below */}
 
             <TwoFeatureCards />
-            <RotatingPrayerBanner
+             {/*
+             <RotatingPrayerBanner
                 messages={[
                     "Need prayers? We’re here for you.",
                     "Let us lift you up in prayer.",
@@ -80,6 +81,8 @@ export default function HomePage() {
                 to="/prayer-intentions/new"   // your form route
                 intervalMs={6000}
             />
+             
+             */}
             <AppointmentInfo
                 image="/service.jpg"
                 title="Book parish services in minutes"

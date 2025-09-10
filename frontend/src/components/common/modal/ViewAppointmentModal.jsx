@@ -9,18 +9,7 @@ import {
 import DatePopover from "../../ui/DatePopover";
 import TimePopover from "../../ui/TimePopover";
 
-/**
- * Props:
- * - isOpen: boolean
- * - onClose: () => void
- * - appointment: {
- *     id, title, clientName, email, phone, address,
- *     serviceType, status, date, time, allDay, purpose, notes,
- *     start, end, cancelReason?
- *   }
- * - onUpdate: (updatedAppointment) => void
- * - fetchAvailableTimes?: (dateISO, serviceType) => Promise<string[]> // "HH:mm"
- */
+
 export default function ViewAppointmentModal({
     isOpen,
     onClose,
@@ -150,7 +139,7 @@ export default function ViewAppointmentModal({
                 className="
           fixed right-4 top-4 z-[999]
           w-full max-w-2xl h-[90vh]
-          rounded-xl overflow-hidden
+          rounded-xl overflow-auto scroll-thin
           bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700
           shadow-xl flex flex-col
         "

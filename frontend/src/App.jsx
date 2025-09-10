@@ -42,12 +42,15 @@ const AppointmentTerms = lazy(() => import("./pages/Public/appointments/Appointm
 // --- Admin ---
 import AdminProviders from "./context/admin/AdminProviders";
 import CalendarPage from "./pages/Admin/CalendarPage";
+import { LucideAxe } from "lucide-react";
 const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
 const AdminAppointmentsPage = lazy(() => import("./pages/Admin/AppointmentsPage"));
 const ContentManagement = lazy(() => import("./pages/Admin/ContentManagement"))
 const ReportsPage = lazy(() => import("./pages/Admin/ReportsPage"))
 const ManageAvailability = lazy(() => import("./pages/Admin/ManageAvailability"))
 const Profile = lazy(() => import("./pages/Admin/Profile"))
+const UserManagement = lazy(() => import("./pages/Admin/UserManagementaPage"))
+const MessagesPage = lazy(() => import("./pages/Admin/MessagesPage"))
 
 
 function App() {
@@ -124,6 +127,8 @@ function App() {
                   <Route path="report" element={<ReportsPage />} />
                   <Route path="schedule" element={<ManageAvailability />} />
                   <Route path="profile" element={<Profile />} />
+                  <Route path="users" element={<UserManagement />} />
+                  <Route path="messages" element={<MessagesPage />} />
 
                   <Route path="*" element={<Navigate to="/admin" replace />} />
                 </Route>

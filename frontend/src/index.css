@@ -2,9 +2,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 
 @import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
 
 @import "tw-animate-css";
-@custom-variant dark (&:is(.dark *));
+
 
 /* Set Outfit as global font */
 body {
@@ -14,15 +15,6 @@ body {
   scroll-behavior: smooth; 
 }
 
-.recharts-wrapper:focus,
-.recharts-surface:focus { outline: none; }
-
-/* Extra-safe focus suppression (Safari + mobile) */
-.recharts-wrapper:focus-visible,
-.recharts-surface:focus-visible { outline: none; }
-.recharts-wrapper, .recharts-surface { -webkit-tap-highlight-color: transparent; }
-
-/* Custom theme colors */
 @theme {
   --font-Roboto: "Roboto", sans-serif;
   --font-inter: "Inter", sans-serif;
@@ -299,6 +291,10 @@ body {
   /* DO NOT set height here; height is controlled by the React prop */
 }
 
+.dark .admin-calendar .fc .fc-col-header{
+  color: rgb(241 245 249);
+  font-weight: 400px;
+} 
 /* Keep harness width-friendly only */
 .admin-calendar .fc-view-harness {
   width: 100% !important;
@@ -331,3 +327,15 @@ body {
 .admin-calendar .fc-view-harness {
   transition: width 0.3s ease-in-out;
 }
+
+
+
+.recharts-wrapper:focus,
+.recharts-surface:focus { outline: none; }
+
+/* Extra-safe focus suppression (Safari + mobile) */
+.recharts-wrapper:focus-visible,
+.recharts-surface:focus-visible { outline: none; }
+.recharts-wrapper, .recharts-surface { -webkit-tap-highlight-color: transparent; }
+
+/* Custom theme colors */

@@ -302,7 +302,7 @@ export default function CreateAppointmentForm({
         </button>
         <button
           type="submit"
-          className="rounded-lg bg-slate-900 px-4 py-2 text-white transition hover:bg-black/90 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+          className="rounded-lg bg-secondary px-4 py-2 text-white transition hover:bg-secondary/90 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
           disabled={isSubmitting}
         >
           {isSubmitting ? "Saving…" : "Save Appointment"}

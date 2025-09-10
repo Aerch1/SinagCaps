@@ -22,9 +22,9 @@ export default function CreateAppointmentModal({
     };
 
     return (
-        <Modal open={isOpen} onClose={onClose} title="Create Appointment" className="max-w-3xl">
+        <Modal open={isOpen} onClose={onClose} title="Create Appointment" className="max-w-3xl  dark:bg-slate-800 ">
             <div
-                className="max-h-[90vh] overflow-y-auto p-2 custom-scrollbar dark:scrollbar-thumb-slate-600"
+                className="max-h-[90vh]  overflow-y-auto p-2 custom-scrollbar dark:scrollbar-thumb-slate-600"
             >
                 <div className="w-[700px] max-w-full"> {/* wider form */}
                     <CreateAppointmentForm

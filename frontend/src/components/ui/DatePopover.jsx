@@ -42,7 +42,7 @@ export default function DatePopover({
                         variant="outline"
                         disabled={disabled}
                         className={[
-                            "w-full justify-start text-left font-normal",
+                            "w-full justify-start text-left dark:bg-slate-700 dark:text-gray-300 font-normal",
                             disabled ? "opacity-60 cursor-not-allowed" : "",
                             error ? "border-red-500" : "",
                             buttonClassName,

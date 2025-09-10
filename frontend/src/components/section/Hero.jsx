@@ -107,7 +107,7 @@ export default function Hero({
                                                                 key={idx}
                                                                 to={btn.to}
                                                                 className="inline-flex shrink-0 items-center justify-center px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium text-white text-sm sm:text-base
-                           bg-secondary hover:opacity-90 shadow-lg focus:outline-none focus:ring-2 focus:ring-[#710000] focus:ring-offset-2 focus:ring-offset-black/40
+                           bg-secondary hover:opacity-90 shadow-lg focus:outline-none focus:ring-1 focus:ring-[#710000] focus:ring-offset-2 focus:ring-offset-black/40
                            transition-all duration-200"
                                                             >
                                                                 {btn.label}

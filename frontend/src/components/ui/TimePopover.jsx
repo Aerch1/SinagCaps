@@ -40,7 +40,7 @@ export default function TimePopover({
     return (
         <div className="w-full">
             {label && (
-                <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+                <label className="block text-sm font-medium  text-gray-900 dark:text-gray-100 mb-2">
                     {label}
                 </label>
             )}
@@ -52,7 +52,7 @@ export default function TimePopover({
                         variant="outline"
                         disabled={disabled}
                         className={[
-                            "w-full justify-start text-left font-normal",
+                            "w-full justify-start dark:bg-slate-700  text-left font-normal",
                             disabled ? "opacity-60 cursor-not-allowed" : "",
                             error ? "border-red-500" : "",
                             buttonClassName,
@@ -66,7 +66,7 @@ export default function TimePopover({
                     align="start"
                     side="bottom"
                     sideOffset={6}
-                    className="z-[1000] w-[340px] p-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-md rounded-md"
+                    className="z-[9999] w-[340px] p-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-md rounded-md"
                 >
                     {/* Available times (from backend availability; displayed 12h, keep 24h internally) */}
                     <div className="mb-3">

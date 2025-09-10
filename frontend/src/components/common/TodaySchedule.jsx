@@ -38,7 +38,7 @@ export default function TodaySchedule({ appointments = [], date = new Date(), on
                                 <button
                                     type="button"
                                     onClick={() => onItemClick?.(e)}
-                                    className="w-full text-left py-3 border-b hover:bg-gray-50 dark:hover:bg-slate-700/40 rounded-md px-2 transition"
+                                    className="w-full text-left py-3 border-b hover:bg-gray-50 dark:hover:bg-slate-700/40 dark:border-gray-600 px-2 transition"
                                 >
                                     <div className="grid grid-cols-[64px_5px_1fr] items-start gap-3">
                                         {/* Time (first column) */}

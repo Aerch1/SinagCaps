@@ -30,10 +30,8 @@ const sections = [
       { name: "Dashboard", path: "/admin", icon: <LayoutDashboard size={18} />, key: "dashboard" },
       { name: "Calendar", path: "/admin/calendar", icon: <CalendarDays size={18} />, key: "calendar" },
 
-      // Appointments with dropdown (query-param driven)
       {
         name: "Appointments",
-        // default route for compact click
         path: "/admin/appointments?status=all",
         icon: <ClipboardList size={18} />,
         key: "appointments",
@@ -45,7 +43,7 @@ const sections = [
         ],
       },
 
-      { name: "Documents", path: "/admin/documents", icon: <Calendar size={18} />, key: "events" },
+      { name: "Documents", path: "/admin/documents", icon: <Calendar size={18} />, key: "documents" },
       { name: "Messages", path: "/admin/messages", icon: <MessageCircle size={18} />, key: "messages" },
     ],
   },
@@ -53,10 +51,10 @@ const sections = [
     key: "management",
     title: "Management",
     items: [
+      { name: "User Management", path: "/admin/users", icon: <Users size={18} />, key: "user-management" }, // 👈 NEW
       { name: "Schedule Availability", path: "/admin/schedule", icon: <Clock size={18} />, key: "schedule" },
       { name: "Content Management", path: "/admin/content", icon: <FileText size={18} />, key: "content" },
       { name: "Reports", path: "/admin/report", icon: <FileText size={18} />, key: "report" },
-
     ],
   },
   {
