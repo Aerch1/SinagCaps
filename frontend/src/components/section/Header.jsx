@@ -12,6 +12,8 @@ import {
     X,
     BellRing,
 } from "lucide-react";
+import { motion,AnimatePresence } from "framer-motion"
+
 
 function UserMenu({ user, onLogout, compact = false }) {
     const [open, setOpen] = useState(false);
@@ -216,8 +218,12 @@ export default function Header({ user, onLogout }) {
     return (
         <header className="bg-white border-b border-gray-200 shadow-sm">
             {/* Top bar */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between py-4">
+            <motion.div
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+            >                <div className="flex items-center justify-between py-4">
                     {/* Logo */}
                     <Link to="/" className="flex items-center space-x-3">
                         <img
@@ -259,16 +265,16 @@ export default function Header({ user, onLogout }) {
                                         }`
                                     }
                                 >
-                                   Schedule Appointment
+                                    Schedule Appointment
                                 </NavLink>
-                                 <NavLink
+                                <NavLink
                                     to="/services/appointments/book"
                                     className={({ isActive }) =>
                                         `block px-4 py-2 text-sm transition ${isActive ? "bg-gray-50 text-secondary" : "hover:bg-gray-50 hover:text-secondary"
                                         }`
                                     }
                                 >
-                                   Request Document
+                                    Request Document
                                 </NavLink>
                             </div>
                         </div>
@@ -344,172 +350,181 @@ export default function Header({ user, onLogout }) {
                         {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
                     </button>
                 </div>
-            </div>
+            </motion.div>
+
+
 
             {/* Mobile panel (full-width, no rounded corners) */}
-            <div
-                id="mobile-nav"
-                className={`lg:hidden border-t border-gray-200 bg-white transition-[max-height,opacity] duration-200 overflow-hidden ${mobileOpen ? "max-h-[80vh] opacity-100" : "max-h-0 opacity-0"
-                    }`}
-            >
-                <nav className="px-4 py-4">
-                    {/* Primary links */}
-                    <NavLink
-                        to="/"
-                        end
-                        onClick={() => setMobileOpen(false)}
-                        className={({ isActive }) =>
-                            `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
-                            }`
-                        }
+            <AnimatePresence>
+                {mobileOpen && (
+                    <motion.div
+                        id="mobile-nav"
+                        className="lg:hidden border-t border-gray-200 bg-white"
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.25, ease: "easeOut" }}
                     >
-                        Home
-                    </NavLink>
-
-                    {/* Services accordion */}
-                    <button
-                        type="button"
-                        onClick={() => setServicesOpen((o) => !o)}
-                        className="flex w-full items-center justify-between px-2 py-2 text-base text-gray-700 hover:text-secondary"
-                        aria-expanded={servicesOpen}
-                    >
-                        <span>Services</span>
-                        <ChevronDown className={`h-5 w-5 transition ${servicesOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    <div className={`${servicesOpen ? "block" : "hidden"} pl-4`}>
-                        <NavLink
-                            to="/services/generalinfo"
-                            onClick={() => setMobileOpen(false)}
-                            className={({ isActive }) =>
-                                `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
-                                }`
-                            }
-                        >
-                            General Information
-                        </NavLink>
-                        <NavLink
-                            to="/services/appointments/book"
-                            onClick={() => setMobileOpen(false)}
-                            className={({ isActive }) =>
-                                `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
-                                }`
-                            }
-                        >
-                           Schedule Appointment
-                        </NavLink>
-                    </div>
-
-                    {/* About accordion */}
-                    <button
-                        type="button"
-                        onClick={() => setAboutOpen((o) => !o)}
-                        className="flex w-full items-center justify-between px-2 py-2 text-base text-gray-700 hover:text-secondary"
-                        aria-expanded={aboutOpen}
-                    >
-                        <span>About</span>
-                        <ChevronDown className={`h-5 w-5 transition ${aboutOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    <div className={`${aboutOpen ? "block" : "hidden"} pl-4`}>
-                        <NavLink
-                            to="/about/mission"
-                            onClick={() => setMobileOpen(false)}
-                            className={({ isActive }) =>
-                                `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
-                                }`
-                            }
-                        >
-                            Our Mission
-                        </NavLink>
-                        <NavLink
-                            to="/about/team"
-                            onClick={() => setMobileOpen(false)}
-                            className={({ isActive }) =>
-                                `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
-                                }`
-                            }
-                        >
-                            Our Team
-                        </NavLink>
-                    </div>
-
-                    {/* Other links */}
-                    <NavLink
-                        to="/contact"
-                        onClick={() => setMobileOpen(false)}
-                        className={({ isActive }) =>
-                            `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
-                            }`
-                        }
-                    >
-                        Contact
-                    </NavLink>
-                    <NavLink
-                        to="/event"
-                        onClick={() => setMobileOpen(false)}
-                        className={({ isActive }) =>
-                            `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
-                            }`
-                        }
-                    >
-                        Events
-                    </NavLink>
-
-                    <div className="my-3 h-px bg-gray-200" />
-
-                    {/* Auth area (mobile) */}
-                    {user ? (
-                        <>
+                        <nav className="px-4 py-4">
+                            {/* Primary links */}
                             <NavLink
-                                to="/settings/profile"
-                                onClick={() => setMobileOpen(false)}
-                                className={({ isActive }) =>
-                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"}`
-                                }
-                            >
-                                Profile
-                            </NavLink>
-                            <NavLink
-                                to="/settings/security"
-                                onClick={() => setMobileOpen(false)}
-                                className={({ isActive }) =>
-                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"}`
-                                }
-                            >
-                                Account & Security
-                            </NavLink>
-
-                            <button
-                                onClick={async () => {
-                                    try { await onLogout?.(); } finally { setMobileOpen(false); }
-                                }}
-                                className="block w-full text-left px-2 py-2 text-base text-red-600 hover:bg-red-50"
-                            >
-                                Log Out
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <NavLink
-                                to="/login"
+                                to="/"
+                                end
                                 onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
                                     `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
                                     }`
                                 }
                             >
-                                Login
+                                Home
+                            </NavLink>
+
+                            {/* Services accordion */}
+                            <button
+                                type="button"
+                                onClick={() => setServicesOpen((o) => !o)}
+                                className="flex w-full items-center justify-between px-2 py-2 text-base text-gray-700 hover:text-secondary"
+                                aria-expanded={servicesOpen}
+                            >
+                                <span>Services</span>
+                                <ChevronDown className={`h-5 w-5 transition ${servicesOpen ? "rotate-180" : ""}`} />
+                            </button>
+                            <div className={`${servicesOpen ? "block" : "hidden"} pl-4`}>
+                                <NavLink
+                                    to="/services/generalinfo"
+                                    onClick={() => setMobileOpen(false)}
+                                    className={({ isActive }) =>
+                                        `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                        }`
+                                    }
+                                >
+                                    General Information
+                                </NavLink>
+                                <NavLink
+                                    to="/services/appointments/book"
+                                    onClick={() => setMobileOpen(false)}
+                                    className={({ isActive }) =>
+                                        `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                        }`
+                                    }
+                                >
+                                    Schedule Appointment
+                                </NavLink>
+                            </div>
+
+                            {/* About accordion */}
+                            <button
+                                type="button"
+                                onClick={() => setAboutOpen((o) => !o)}
+                                className="flex w-full items-center justify-between px-2 py-2 text-base text-gray-700 hover:text-secondary"
+                                aria-expanded={aboutOpen}
+                            >
+                                <span>About</span>
+                                <ChevronDown className={`h-5 w-5 transition ${aboutOpen ? "rotate-180" : ""}`} />
+                            </button>
+                            <div className={`${aboutOpen ? "block" : "hidden"} pl-4`}>
+                                <NavLink
+                                    to="/about/mission"
+                                    onClick={() => setMobileOpen(false)}
+                                    className={({ isActive }) =>
+                                        `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                        }`
+                                    }
+                                >
+                                    Our Mission
+                                </NavLink>
+                                <NavLink
+                                    to="/about/team"
+                                    onClick={() => setMobileOpen(false)}
+                                    className={({ isActive }) =>
+                                        `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                        }`
+                                    }
+                                >
+                                    Our Team
+                                </NavLink>
+                            </div>
+
+                            {/* Other links */}
+                            <NavLink
+                                to="/contact"
+                                onClick={() => setMobileOpen(false)}
+                                className={({ isActive }) =>
+                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                    }`
+                                }
+                            >
+                                Contact
                             </NavLink>
                             <NavLink
-                                to="/signup"
+                                to="/event"
                                 onClick={() => setMobileOpen(false)}
-                                className="block px-2 py-2 text-base text-white bg-secondary rounded-md text-center mt-2"
+                                className={({ isActive }) =>
+                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                    }`
+                                }
                             >
-                                Sign Up
+                                Events
                             </NavLink>
-                        </>
-                    )}
-                </nav>
-            </div>
+
+                            <div className="my-3 h-px bg-gray-200" />
+
+                            {/* Auth area (mobile) */}
+                            {user ? (
+                                <>
+                                    <NavLink
+                                        to="/settings/profile"
+                                        onClick={() => setMobileOpen(false)}
+                                        className={({ isActive }) =>
+                                            `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"}`
+                                        }
+                                    >
+                                        Profile
+                                    </NavLink>
+                                    <NavLink
+                                        to="/settings/security"
+                                        onClick={() => setMobileOpen(false)}
+                                        className={({ isActive }) =>
+                                            `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"}`
+                                        }
+                                    >
+                                        Account & Security
+                                    </NavLink>
+
+                                    <button
+                                        onClick={async () => {
+                                            try { await onLogout?.(); } finally { setMobileOpen(false); }
+                                        }}
+                                        className="block w-full text-left px-2 py-2 text-base text-red-600 hover:bg-red-50"
+                                    >
+                                        Log Out
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <NavLink
+                                        to="/login"
+                                        onClick={() => setMobileOpen(false)}
+                                        className={({ isActive }) =>
+                                            `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                            }`
+                                        }
+                                    >
+                                        Login
+                                    </NavLink>
+                                    <NavLink
+                                        to="/signup"
+                                        onClick={() => setMobileOpen(false)}
+                                        className="block px-2 py-2 text-base text-white bg-secondary rounded-md text-center mt-2"
+                                    >
+                                        Sign Up
+                                    </NavLink>
+                                </>
+                            )}
+                        </nav>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </header>
     );
 }

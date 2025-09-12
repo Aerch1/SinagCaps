@@ -1,13 +1,15 @@
 export default function AboutSection() {
     return (
         <section className="w-full bg-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
                 <div className="grid lg:grid-cols-2 gap-8 items-center justify-items-center">
                     <div className="rounded-xl overflow-hidden shadow-sm w-full max-w-[640px]">
                         <img
                             src="/church.jpg"
                             alt="Our Lady of Peace and Good Voyage Parish"
                             className="w-full h-full object-cover"
+                            loading="lazy"
+                            decoding="async"
                         />
                     </div>
 
@@ -19,10 +21,12 @@ export default function AboutSection() {
                             Our Lady of Peace and Good Voyage Parish
                         </h2>
                         <p className="mt-4 text-gray-600 leading-relaxed">
-                            We are a welcoming Catholic community rooted in prayer, service, and the Sacraments…
+                            We are a welcoming Catholic community rooted in prayer, service, and the Sacraments.
                         </p>
-                        <p className="mt-3 text-gray-600 leading-relaxed">
-                            As one parish family, we walk together in faith—supporting one another…
+                        <p className="mt-3 text-gray-600 leading-relaxed line-clamp-3">
+                            Guided by faith, we journey together as one parish family. We celebrate the Eucharist,
+                            foster fellowship, and serve those in need. Our mission is to grow in holiness and
+                            share the love of Christ with the world.
                         </p>
 
                         <div className="mt-6">
@@ -30,7 +34,7 @@ export default function AboutSection() {
                                 href="/about"
                                 className="inline-flex items-center rounded-full px-5 py-2.5 text-white font-medium
                            bg-secondary hover:bg-secondary/90 focus:outline-none focus:ring-2
-                           focus:ring-[#710000]/50 transition"
+                           focus:ring-[#710000]/50 transition-colors duration-200"
                             >
                                 Learn More
                             </a>
@@ -39,5 +43,5 @@ export default function AboutSection() {
                 </div>
             </div>
         </section>
-    );
+    )
 }

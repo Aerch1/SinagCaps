@@ -1,4 +1,3 @@
-// src/pages/auth/ResetPasswordPage.jsx
 "use client";
 import { useState, useEffect } from "react";
 import { useAuthStore } from "../../store/authStore.js";
@@ -35,7 +34,6 @@ const ResetPasswordPage = () => {
   const runClientValidation = () => {
     const errs = { password: "", confirm: "" };
 
-    // single source of truth for length/etc
     const v = validateResetPassword({ token, password });
     if (!v.ok) errs.password = v.message;
 
@@ -56,23 +54,30 @@ const ResetPasswordPage = () => {
     if (errs.password || errs.confirm) return;
 
     try {
-      await resetPassword(token, password); // server errors surface via ErrorAlert
+      await resetPassword(token, password);
       setTimeout(() => navigate("/login"), 1500);
     } catch {
-      /* no-op: ErrorAlert shows server messages */
+      /* handled by ErrorAlert */
     }
   };
 
   return (
-    <div className="min-h-screen bg-[url('/forgot.jpg')] bg-cover bg-center flex items-center justify-center p-2 sm:p-4">
-      <div className="absolute inset-0 bg-black/20"></div>
-      <div className="max-w-md w-full bg-gray-800/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden">
-        <div className="p-8">
-          <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-[#710000] to-[#500000] text-transparent bg-clip-text">
-            Reset Password
-          </h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-6 sm:p-8">
+        <div className="flex justify-center mb-6">
+          <img
+            src="/logo.png"
+            alt="OLOPGV Logo"
+            className="w-14 h-14 sm:w-16 sm:h-16"
+          />
+        </div>
 
-          <form onSubmit={handleSubmit} noValidate>
+        <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-gray-900">
+          Reset Password
+        </h2>
+
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="mb-4">
             <Input
               icon={Lock}
               type="password"
@@ -80,12 +85,16 @@ const ResetPasswordPage = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onFocus={() => {
-                if (fieldErr.password) setFieldErr((p) => ({ ...p, password: "" }));
+                if (fieldErr.password)
+                  setFieldErr((p) => ({ ...p, password: "" }));
                 clearError();
               }}
               error={fieldErr.password}
               autoComplete="new-password"
             />
+          </div>
+
+          <div className="mb-4">
             <Input
               icon={Lock}
               type="password"
@@ -93,37 +102,43 @@ const ResetPasswordPage = () => {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               onFocus={() => {
-                if (fieldErr.confirm) setFieldErr((p) => ({ ...p, confirm: "" }));
+                if (fieldErr.confirm)
+                  setFieldErr((p) => ({ ...p, confirm: "" }));
                 clearError();
               }}
               error={fieldErr.confirm}
               autoComplete="new-password"
             />
+          </div>
 
-            <ErrorAlert error={error} onClose={clearError} />
-            <SuccessAlert message={message} onClose={clearMessage} />
+          <ErrorAlert error={error} onClose={clearError} />
+          <SuccessAlert message={message} onClose={clearMessage} />
 
-            <button
-              className="w-full py-3 px-4 bg-gradient-to-r from-[#710000] to-[#500000] text-white font-medium rounded-lg shadow-lg hover:from-[#600000] hover:to-[#400000] focus:outline-none focus:ring-2 focus:ring-[#710000] focus:ring-offset-2 focus:ring-offset-gray-800 transition-all duration-200 disabled:opacity-50"
-              type="submit"
-              disabled={isLoading}
-            >
-              {isLoading ? <Loader className="w-6 h-6 animate-spin mx-auto" /> : "Set New Password"}
-            </button>
-          </form>
-        </div>
+          <button
+            className="w-full py-3 px-4 bg-secondary text-white font-medium rounded-lg shadow-md 
+                       hover:bg-secondary/90 transition-all duration-200 disabled:opacity-50"
+            type="submit"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader className="w-6 h-6 animate-spin mx-auto" />
+            ) : (
+              "Set New Password"
+            )}
+          </button>
+        </form>
 
-        <div className="px-8 py-4 bg-gray-900/50 flex justify-center">
-          <Link to="/login" className="text-sm text-blue-400 hover:text-blue-300 hover:underline flex items-center">
+        <div className="mt-6 text-center">
+          <Link
+            to="/login"
+            className="text-sm text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center"
+          >
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Login
           </Link>
         </div>
       </div>
     </div>
-
   );
-
 };
-
 
 export default ResetPasswordPage;

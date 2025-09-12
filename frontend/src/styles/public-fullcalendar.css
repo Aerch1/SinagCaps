@@ -39,6 +39,9 @@
 .public-calendar .fc .fc-col-header,
 .public-calendar .fc .fc-col-header-cell {
   border: none !important;
+  background-color: #ffffff;
+  padding: 6px 0;
+  
 }
 
 /* Day cells: no borders at all inside */

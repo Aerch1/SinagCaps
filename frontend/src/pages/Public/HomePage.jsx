@@ -3,11 +3,12 @@ import PublicAdvisory from "../../components/section/PublicAdvisory"
 import ChurchBulletin from "../../components/section/ChurchBulletin"
 import AboutSection from "../../components/section/AboutSection"
 import InfoBanner from "../../components/section/InfoBanner"
-// import ServicesStrip from "../../components/ServicesStrip"
 import TwoFeatureCards from "../../components/section/TwoFeatureCards"
-import AppointmentInfo from "../../components/section/AppointmentInfo"
 import AppointmentQuickLinks from "../../components/section/AppointmentQuickLinks"
-import RotatingPrayerBanner from "../../components/section/RotatingPrayerBanner"
+import ChurchUpdates from "../../components/section/ChurchUpdates"
+
+// ✅ Animation wrapper
+import FadeInWhenVisible from "../../components/common/FadeInWhenVisible"
 const slides = [
     {
         image: "/hero2.png",
@@ -41,63 +42,40 @@ const slides = [
 export default function HomePage() {
     return (
         <>
-            {/* Full-width sections */}
+            {/* Hero - maybe no animation, since it’s already full width */}
             <Hero slides={slides} />
-            <PublicAdvisory
-                variant="announcement"
-                message="Church offices will be closed this Friday for facility maintenance. Services proceed as scheduled."
-                ctas={[{ label: "View Details", to: "/announcements" }]}
-            />
 
-            {/* NEW: Full-width, white background, lots of breathing room */}
+            <FadeInWhenVisible>
+                <PublicAdvisory
+                    variant="announcement"
+                    message="Church offices will be closed this Friday for facility maintenance. Services proceed as scheduled."
+                    ctas={[{ label: "View Details", to: "/announcements" }]}
+                />
+            </FadeInWhenVisible>
 
-            <AboutSection />
+            <FadeInWhenVisible>
+                <ChurchBulletin />
+            </FadeInWhenVisible>
 
-            <InfoBanner
-                image="/banner.png" // change if you want
-                title="Don't miss the latest announcements & news"
-                description="Check our Announcements page for parish updates, liturgical schedules, and upcoming events."
-                ctaLabel="FIND OUT MORE"
-                ctaTo="/announcements"
-            />
+            <FadeInWhenVisible>
+                <AboutSection />
+            </FadeInWhenVisible>
 
+            <FadeInWhenVisible>
+                <InfoBanner />
+            </FadeInWhenVisible>
 
-            <ChurchBulletin />
+            <FadeInWhenVisible>
+                <ChurchUpdates />
+            </FadeInWhenVisible>
 
+            <FadeInWhenVisible>
+                <TwoFeatureCards />
+            </FadeInWhenVisible>
 
-            {/* Constrained content below */}
-
-            <TwoFeatureCards />
-             {/*
-             <RotatingPrayerBanner
-                messages={[
-                    "Need prayers? We’re here for you.",
-                    "Let us lift you up in prayer.",
-                    "Our parish prays for each other. Share your intentions.",
-                    "Going through something? Let’s pray together.",
-                    "Need a prayer intention?"
-                ]}
-                buttonText="Request a Prayer"
-                to="/prayer-intentions/new"   // your form route
-                intervalMs={6000}
-            />
-             
-             */}
-            <AppointmentInfo
-                image="/service.jpg"
-                title="Book parish services in minutes"
-                description="Choose a service, pick a time, and receive confirmation by email."
-                bullets={[
-                    "Confession & spiritual direction",
-                    "Baptism prep & documentation",
-                    "Sacramental records & requests",
-                ]}
-            />
-
-            <AppointmentQuickLinks />
-
-            {/* <ServicesStrip /> */}
-
+            <FadeInWhenVisible>
+                <AppointmentQuickLinks />
+            </FadeInWhenVisible>
         </>
-    );
+    )
 }
