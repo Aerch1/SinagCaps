@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
+
 import Header from "../components/section/Header";
 import Footer from "../components/section/Footer";
 

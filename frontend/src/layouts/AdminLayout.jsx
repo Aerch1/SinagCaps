@@ -21,28 +21,28 @@ function useIsMobile() {
 }
 
 export default function AdminLayout() {
-  const { isDark } = useTheme();
+  const { theme, isDark } = useTheme();
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
 
   const onDashboard = !!useMatch({ path: "/admin", end: true });
-  const isMobile = useIsMobile(); // check if screen < 1024px
+  const isMobile = useIsMobile();
 
   return (
-      <div className="min-h-screen xl:flex bg-gray-50 dark:bg-gray-900">
-        <AppSidebar />
-        <Backdrop />
+    <div className="min-h-screen xl:flex bg-gray-50 dark:bg-gray-900">
+      <AppSidebar />
+      <Backdrop />
 
-        <div
-          className={`flex-1 transition-all duration-300 ease-in-out ${isExpanded || isHovered ? "lg:ml-[260px]" : "lg:ml-[80px]"
-            } ${isMobileOpen ? "ml-0" : ""}`}
-        >
-          {/* Always show header on mobile, but only show on /admin for desktop */}
-          {(isMobile || onDashboard) && <AppHeader />}
+      <div
+        className={`flex-1 transition-all duration-300 ease-in-out ${isExpanded || isHovered ? "lg:ml-[260px]" : "lg:ml-[80px]"
+          } ${isMobileOpen ? "ml-0" : ""}`}
+      >
+        {/* Always show header on mobile, but only show on /admin for desktop */}
+        {(isMobile || onDashboard) && <AppHeader />}
 
-          <div className="mx-auto max-w-(--breakpoint-2xl) p-4 md:p-6">
-            <Outlet />
-          </div>
+        <div className="mx-auto max-w-(--breakpoint-2xl) p-4 md:p-6">
+          <Outlet />
         </div>
       </div>
+    </div>
   );
 }
