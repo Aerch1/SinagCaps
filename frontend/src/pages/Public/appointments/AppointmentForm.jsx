@@ -165,7 +165,7 @@ export default function AppointmentForm() {
     <main className="bg-gray-50 min-h-screen">
       <HeroBanner title="Book an Appointment" imageSrc={HERO_IMG} />
 
-      <div className="max-w-4xl mx-auto px-4 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8">
         <div className="mb-8">
           <Stepper steps={steps} currentStep={currentStep} />
         </div>

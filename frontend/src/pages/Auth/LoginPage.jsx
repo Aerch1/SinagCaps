@@ -1,4 +1,3 @@
-// src/pages/auth/LoginPage.jsx
 "use client";
 import { useState, useEffect } from "react";
 import { Mail, Lock, Loader } from "lucide-react";
@@ -13,7 +12,6 @@ import { validateLogin } from "../../../../shared/validation.js";
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [fieldErr, setFieldErr] = useState({ email: "", password: "" });
 
   const navigate = useNavigate();
@@ -30,7 +28,6 @@ const LoginPage = () => {
 
   const runClientValidation = () => {
     const errs = { email: "", password: "" };
-
     if (!email.trim()) errs.email = "Email is required";
     if (!password.trim()) errs.password = "Password is required";
 
@@ -57,7 +54,7 @@ const LoginPage = () => {
       if (user) navigate(user.role === "admin" ? "/admin" : "/");
       toast.success("Login Successfully");
     } catch {
-      /* handled by store */
+      // handled by store
     }
   };
 
@@ -128,7 +125,7 @@ const LoginPage = () => {
         {/* Footer */}
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
           <p className="text-sm text-gray-600 text-center">
-            Don&apos;t have an account?{" "}
+            Don't have an account?{" "}
             <Link
               to="/signup"
               className="text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors duration-200"

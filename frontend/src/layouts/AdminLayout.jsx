@@ -1,6 +1,5 @@
 // src/layouts/AdminLayout.jsx
 import { Outlet, useMatch } from "react-router-dom";
-import { useTheme } from "../context/admin/ThemeContext";
 import { useSidebar } from "../context/admin/SidebarContext";
 import AppHeader from "./admin/AppHeader";
 import AppSidebar from "./admin/AppSidebar";
@@ -21,7 +20,6 @@ function useIsMobile() {
 }
 
 export default function AdminLayout() {
-  const { theme, isDark } = useTheme();
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
 
   const onDashboard = !!useMatch({ path: "/admin", end: true });

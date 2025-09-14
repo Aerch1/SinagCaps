@@ -233,6 +233,19 @@ body {
   width: 0;
   height: 0;
 }
+/* Autofill reset but keep focus styles */
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0px 1000px white inset !important;
+  -webkit-text-fill-color: #111827 !important; /* Tailwind text-gray-900 */
+}
+
+/* On focus, keep your Tailwind ring styles */
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px white inset, 0 0 0 2px rgba(59, 130, 246, 0.6) !important; 
+  /* same as focus:ring-2 focus:ring-blue-500/60 */
+  -webkit-text-fill-color: #111827 !important;
+}
+
 
 
 /* =========================

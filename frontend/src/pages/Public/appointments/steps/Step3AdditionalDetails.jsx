@@ -1,30 +1,17 @@
-"use client";
+// src/pages/Public/appointments/steps/Step3ContactAndDetails.jsx
+"use client"
 
-import BaptismForm from "../../../../forms/BaptismForm.jsx";
-import DefaultForm from "../../../../forms/DefaultForm.jsx";
+import formRegistry from "../../../../forms"
 
-/**
- * Thin wrapper: picks the correct form by serviceType and
- * passes the validator hook up via registerValidator.
- */
 export default function Step3ContactAndDetails({ formData, setFormData, registerValidator }) {
-    const isBaptism = formData.serviceType === "baptism";
-
-    if (isBaptism) {
-        return (
-            <BaptismForm
-                formData={formData}
-                setFormData={setFormData}
-                registerValidator={registerValidator}
-            />
-        );
-    }
+    const { serviceType } = formData
+    const FormComponent = formRegistry[serviceType] || formRegistry["default"]
 
     return (
-        <DefaultForm
+        <FormComponent
             formData={formData}
             setFormData={setFormData}
             registerValidator={registerValidator}
         />
-    );
+    )
 }

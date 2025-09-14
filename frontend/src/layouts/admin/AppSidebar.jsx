@@ -29,7 +29,6 @@ const sections = [
     items: [
       { name: "Dashboard", path: "/admin", icon: <LayoutDashboard size={18} />, key: "dashboard" },
       { name: "Calendar", path: "/admin/calendar", icon: <CalendarDays size={18} />, key: "calendar" },
-
       {
         name: "Appointments",
         path: "/admin/appointments?status=all",
@@ -42,7 +41,6 @@ const sections = [
           { name: "Completed", path: "/admin/appointments?status=completed", status: "completed", key: "appointments-completed" },
         ],
       },
-
       { name: "Documents", path: "/admin/documents", icon: <Calendar size={18} />, key: "documents" },
       { name: "Messages", path: "/admin/messages", icon: <MessageCircle size={18} />, key: "messages" },
     ],
@@ -51,7 +49,7 @@ const sections = [
     key: "management",
     title: "Management",
     items: [
-      { name: "User Management", path: "/admin/users", icon: <Users size={18} />, key: "user-management" }, // 👈 NEW
+      { name: "User Management", path: "/admin/users", icon: <Users size={18} />, key: "user-management" },
       { name: "Schedule Availability", path: "/admin/schedule", icon: <Clock size={18} />, key: "schedule" },
       { name: "Content Management", path: "/admin/content", icon: <FileText size={18} />, key: "content" },
       { name: "Reports", path: "/admin/report", icon: <FileText size={18} />, key: "report" },
@@ -68,18 +66,13 @@ const sections = [
   },
 ];
 
-/** Theme classes (red active theme) */
-const baseItem =
-  "group relative flex items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200";
+/** Theme classes */
+const baseItem = "group relative flex items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200";
 const justify = (full) => (full ? "justify-start" : "lg:justify-center");
-const inactiveItem =
-  "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100";
-const activeItem =
-  "bg-red-50 text-red-600 dark:bg-red-600/10 dark:text-red-400";
-const iconInactive =
-  "text-gray-500 group-hover:text-gray-700 dark:text-slate-400 dark:group-hover:text-slate-300";
-const iconActive =
-  "text-red-600 dark:text-red-400";
+const inactiveItem = "text-gray-600 hover:bg-gray-100 hover:text-gray-900";
+const activeItem = "bg-red-50 text-red-600";
+const iconInactive = "text-gray-500 group-hover:text-gray-700";
+const iconActive = "text-red-600";
 
 /* ---------- Route helpers ---------- */
 function useRouteInfo() {
@@ -138,33 +131,23 @@ const SidebarMenuItem = React.memo(function SidebarMenuItem({
 });
 
 /** Collapsible parent with children (no bullet dot) */
-function CollapsibleMenuItem({
-  nav,
-  showFullSidebar,
-  onAfterClick,
-}) {
+function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
   const navigate = useNavigate();
   const { pathname, status } = useRouteInfo();
   const hasChildren = Array.isArray(nav.children) && nav.children.length > 0;
 
   const onAppointmentsPage = pathname === "/admin/appointments";
   const childActive =
-    hasChildren &&
-    onAppointmentsPage &&
-    nav.children.some((c) => (c.status || "") === status);
+    hasChildren && onAppointmentsPage && nav.children.some((c) => (c.status || "") === status);
 
   const parentActive = onAppointmentsPage || childActive;
-
   const [open, setOpen] = useState(childActive);
   useEffect(() => {
     setOpen(childActive);
   }, [childActive]);
 
-  // Only allow dropdown when expanded; in compact just navigate
   const canDropdown = showFullSidebar && hasChildren;
-
-  const parentClass = `${baseItem} ${justify(showFullSidebar)} ${parentActive ? activeItem : inactiveItem
-    }`;
+  const parentClass = `${baseItem} ${justify(showFullSidebar)} ${parentActive ? activeItem : inactiveItem}`;
   const iconClassName = `flex-shrink-0 ${parentActive ? iconActive : iconInactive}`;
 
   return (
@@ -186,35 +169,25 @@ function CollapsibleMenuItem({
         {showFullSidebar && (
           <>
             <span className="flex-1 text-left whitespace-nowrap">{nav.name}</span>
-            {hasChildren && (
-              <ChevronDown
-                className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""} ${parentActive ? "text-red-600 dark:text-red-400" : "text-gray-500"
-                  }`}
-              />
-            )}
+            {hasChildren && <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""} text-gray-500`} />}
           </>
         )}
       </button>
 
-      {/* Children (smooth collapse, no bullet) */}
       {canDropdown && (
         <div
           id={`submenu-${nav.key}`}
-          className={`grid transition-all duration-300 ease-in-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-            }`}
+          className={`grid transition-all duration-300 ease-in-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
         >
-          <div className="overflow-hidden ">
-            <ul className="mt-1 ml-6 flex flex-col gap-1 border-l p-2 ">
+          <div className="overflow-hidden">
+            <ul className="mt-1 ml-6 flex flex-col gap-1 border-l p-2">
               {nav.children.map((child) => {
                 const active = onAppointmentsPage && status === child.status;
                 return (
                   <li key={child.key}>
                     <Link
                       to={child.path}
-                      className={`block rounded-md px-2 py-1.5 text-sm transition-all duration-200  ${active
-                        ? "bg-red-50 text-red-600 dark:bg-red-600/10 dark:text-red-400"
-                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-                        }`}
+                      className={`block rounded-md px-2 py-1.5 text-sm transition-all duration-200 ${active ? activeItem : inactiveItem}`}
                       onClick={onAfterClick}
                     >
                       {child.name}
@@ -233,37 +206,23 @@ function CollapsibleMenuItem({
 /** Section block */
 const SectionBlock = ({ title, items, showFullSidebar, renderItem }) => (
   <div>
-    <h2
-      className={`mb-3 text-xs uppercase leading-5 text-gray-600 dark:text-slate-500 flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"
-        }`}
-    >
+    <h2 className={`mb-3 text-xs uppercase leading-5 text-gray-600 flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"}`}>
       {showFullSidebar ? title : <MoreHorizontal className="w-5 h-5" />}
     </h2>
-    <ul className="flex flex-col gap-2">
-      {items.map((it) => renderItem(it))}
-    </ul>
+    <ul className="flex flex-col gap-2">{items.map((it) => renderItem(it))}</ul>
   </div>
 );
 
 export default function AppSidebar() {
-  const {
-    isExpanded,
-    isMobileOpen,
-    isHovered,
-    setIsHovered,
-    toggleMobileSidebar,
-  } = useSidebar();
-
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } = useSidebar();
   const { logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
 
   const showFullSidebar = isExpanded || isHovered || isMobileOpen;
 
-  // Active check for leaf items (path only)
   const isActive = useCallback(
     (path) => {
-      // Leaf items use plain paths; ignore query if present
       const targetPath = String(path || "").split("?")[0];
       return location.pathname === targetPath;
     },
@@ -278,7 +237,6 @@ export default function AppSidebar() {
     }
   };
 
-  // close drawer on mobile after any click
   const onAfterClick = () => {
     if (window.innerWidth < 1024 && isMobileOpen && typeof toggleMobileSidebar === "function") {
       toggleMobileSidebar();
@@ -287,7 +245,7 @@ export default function AppSidebar() {
 
   return (
     <aside
-      className={`fixed top-0 h-screen mt-16 lg:mt-0 bg-white border-r border-gray-200 dark:bg-slate-900 dark:border-slate-700 z-[99] transition-all duration-300 ease-in-out overflow-hidden
+      className={`fixed top-0 h-screen mt-16 lg:mt-0 bg-white border-r border-gray-200 z-[99] transition-all duration-300 ease-in-out overflow-hidden
         ${showFullSidebar ? "w-[260px]" : "w-[80px]"}
         ${isMobileOpen ? "left-0" : "-left-[290px] lg:left-0"}`}
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
@@ -303,8 +261,8 @@ export default function AppSidebar() {
                   <img src="/logo.png" alt="logo" className="w-10 h-10 object-contain" />
                 </div>
                 <div className="flex flex-col">
-                  <h1 className="font-semibold text-lg text-slate-900 dark:text-slate-100">ADMIN</h1>
-                  <p className="text-xs text-gray-500 dark:text-slate-400 whitespace-nowrap">Management Panel</p>
+                  <h1 className="font-semibold text-lg text-slate-900">ADMIN</h1>
+                  <p className="text-xs text-gray-500 whitespace-nowrap">Management Panel</p>
                 </div>
               </div>
             ) : (
@@ -326,25 +284,9 @@ export default function AppSidebar() {
                 showFullSidebar={showFullSidebar}
                 renderItem={(nav) => {
                   if (nav.children?.length) {
-                    return (
-                      <CollapsibleMenuItem
-                        key={nav.key}
-                        nav={nav}
-                        showFullSidebar={showFullSidebar}
-                        onAfterClick={onAfterClick}
-                      />
-                    );
+                    return <CollapsibleMenuItem key={nav.key} nav={nav} showFullSidebar={showFullSidebar} onAfterClick={onAfterClick} />;
                   }
-                  return (
-                    <SidebarMenuItem
-                      key={nav.key}
-                      nav={nav}
-                      isActive={isActive}
-                      showFullSidebar={showFullSidebar}
-                      onLogout={onLogout}
-                      onAfterClick={onAfterClick}
-                    />
-                  );
+                  return <SidebarMenuItem key={nav.key} nav={nav} isActive={isActive} showFullSidebar={showFullSidebar} onLogout={onLogout} onAfterClick={onAfterClick} />;
                 }}
               />
             ))}

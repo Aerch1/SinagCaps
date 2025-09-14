@@ -5,363 +5,355 @@ import { useForm, Controller, useFieldArray } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { parseISO, format } from "date-fns"
-import { User, Mail, Phone, MapPin, Info } from "lucide-react"
+import { User, Mail, Phone, MapPin, Info, Plus, Trash2, Locate, House } from "lucide-react"
 
 import Input from "../components/ui/Input.jsx"
 import Dropdown from "../components/ui/Dropdown1.jsx"
-
-/* ---------------------- ZOD SCHEMA ---------------------- */
+import DateInput from "../components/ui/DateInput.jsx"/* ---------------------- ZOD SCHEMA ---------------------- */
 const SponsorSchema = z.object({
-  role: z.enum(["Ninong", "Ninang"], { required_error: "Role is required" }),
-  name: z.string().min(1, "Name is required"),
-  address: z.string().min(1, "Address is required"),
+    role: z.enum(["Ninong", "Ninang"], { required_error: "Role is required" }),
+    name: z.string().min(1, "Name is required"),
+    address: z.string().min(1, "Address is required"),
 })
 
-const BaptismSchema = z.object({
-  childFullName: z.string().min(1, "Child's name is required"),
-  childDob: z.string().min(1, "Date of birth is required"),
-  childBirthplace: z.string().min(1, "Birthplace is required"),
-  fatherName: z.string().min(1, "Father’s name is required"),
-  motherMaidenName: z.string().min(1, "Mother’s maiden name is required"),
-  parentsMarriageType: z.enum(["church", "civil", "unmarried"], {
-    required_error: "Please select a marriage status",
-  }),
-  phone: z.string().min(1, "Phone is required"),
-  email: z.string().email("Invalid email address"),
-  address: z.string().min(1, "Address is required"),
-  sponsors: z.array(SponsorSchema).min(2, "At least 2 sponsors required"),
+export const BaptismSchema = z.object({
+    childFullName: z.string().min(1, "Child's name is required"),
+    childDob: z.string().min(1, "Date of birth is required"),
+    childBirthplace: z.string().min(1, "Birthplace is required"),
+    fatherName: z.string().min(1, "Father's name is required"),
+    motherMaidenName: z.string().min(1, "Mother's maiden name is required"),
+    parentsMarriageType: z.enum(["church", "civil", "unmarried"], {
+        required_error: "Please select a marriage status",
+    }),
+    phone: z.string().min(1, "Phone is required"),
+    email: z.string().email("Invalid email address"),
+    address: z.string().min(1, "Address is required"),
+    sponsors: z.array(SponsorSchema).min(2, "At least 2 sponsors required"),
 })
 
-const Req = () => <span className="text-red-500 ml-0.5">*</span>
+/* ---------------------- HELPERS ---------------------- */
+const RequiredIndicator = () => <span className="text-red-500 ml-1">*</span>
+
 const FieldError = ({ error }) =>
-  error ? <p className="mt-1 text-xs text-red-500">{error.message}</p> : null
+    error ? (
+        <p className="mt-1 text-xs text-red-500">{error.message}</p>
+    ) : null
+
+const SectionHeader = ({ title, description }) => (
+    <div className="pb-3 border-b border-gray-100">
+        <h4 className="text-sm font-medium text-gray-900">{title}</h4>
+        {description && <p className="text-xs text-gray-600 mt-1">{description}</p>}
+    </div>
+)
 
 /* ---------------------- COMPONENT ---------------------- */
-export default function BaptismForm({ defaultValues, onSubmit }) {
-  const [showSponsorTip, setShowSponsorTip] = useState(false)
+export default function BaptismForm({ formData, setFormData, registerValidator }) {
+    const [showSponsorTip, setShowSponsorTip] = useState(false)
 
-  const {
-    control,
-    handleSubmit,
-    register,
-    formState: { errors },
-  } = useForm({
-    resolver: zodResolver(BaptismSchema),
-    defaultValues: defaultValues || {
-      childFullName: "",
-      childDob: "",
-      childBirthplace: "",
-      fatherName: "",
-      motherMaidenName: "",
-      parentsMarriageType: "",
-      phone: "",
-      email: "",
-      address: "",
-      sponsors: [
-        { role: "Ninong", name: "", address: "" },
-        { role: "Ninang", name: "", address: "" },
-      ],
-    },
-  })
+    const {
+        control,
+        register,
+        getValues,
+        formState: { errors },
+    } = useForm({
+        resolver: zodResolver(BaptismSchema),
+        defaultValues: {
+            childFullName: formData.childFullName || "",
+            childDob: formData.childDob || "",
+            childBirthplace: formData.childBirthplace || "",
+            fatherName: formData.fatherName || "",
+            motherMaidenName: formData.motherMaidenName || "",
+            parentsMarriageType: formData.parentsMarriageType || "",
+            phone: formData.phone || "",
+            email: formData.email || "",
+            address: formData.address || "",
+            sponsors: formData.sponsors || [
+                { role: "Ninong", name: "", address: "" },
+                { role: "Ninang", name: "", address: "" },
+            ],
+        },
+    })
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "sponsors",
-  })
+    const { fields, append, remove } = useFieldArray({ control, name: "sponsors" })
 
-  const scheduleLabel = useMemo(() => {
-    if (!defaultValues?.preferredDate) return ""
-    try {
-      const d = parseISO(defaultValues.preferredDate)
-      const dateStr = format(d, "EEE, MMM d, yyyy")
-      return defaultValues.preferredTime
-        ? `${dateStr} • ${defaultValues.preferredTime}`
-        : dateStr
-    } catch {
-      return defaultValues.preferredDate
+    // Sync with parent
+    const syncValues = () => {
+        const values = getValues()
+        setFormData((prev) => ({ ...prev, ...values }))
     }
-  }, [defaultValues])
 
-  return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="space-y-10"
-      aria-labelledby="baptism-form"
-    >
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h3 className="text-lg font-medium">Baptism Details (Binyag)</h3>
-        {scheduleLabel ? (
-          <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-800">
-            Selected schedule: {scheduleLabel}
-          </span>
-        ) : null}
-      </div>
+    useEffect(() => {
+        if (!registerValidator) return
+        const validator = () => {
+            const values = getValues()
+            const result = BaptismSchema.safeParse(values)
+            if (!result.success) return false
+            syncValues()
+            return true
+        }
+        registerValidator(3, validator)
+    }, [registerValidator, getValues])
 
-      {/* ---------------- Child info ---------------- */}
-      <section className="space-y-6">
-        <h4 className="text-sm font-semibold text-gray-900">Child Information</h4>
+    const scheduleLabel = useMemo(() => {
+        if (!formData.preferredDate) return ""
+        try {
+            const d = parseISO(formData.preferredDate)
+            const dateStr = format(d, "EEE, MMM d, yyyy")
+            return formData.preferredTime ? `${dateStr} • ${formData.preferredTime}` : dateStr
+        } catch {
+            return formData.preferredDate
+        }
+    }, [formData.preferredDate, formData.preferredTime])
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-xs font-medium mb-1">
-              Pangalan ng Bibinyagan (Child&apos;s Full Name) <Req />
-            </label>
-            <Input
-              icon={User}
-              variant="light"
-              placeholder="Juan Dela Cruz"
-              autoComplete="name"
-              {...register("childFullName")}
-            />
-            <FieldError error={errors.childFullName} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-1">
-              Petsa ng Kapanganakan (Date of Birth) <Req />
-            </label>
-            <Input
-              type="date"
-              variant="light"
-              max={new Date().toISOString().slice(0, 10)}
-              {...register("childDob")}
-            />
-            <FieldError error={errors.childDob} />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium mb-1">
-              Lugar ng Kapanganakan (Place of Birth) <Req />
-            </label>
-            <Input
-              icon={MapPin}
-              variant="light"
-              placeholder="City / Hospital / Address"
-              {...register("childBirthplace")}
-            />
-            <FieldError error={errors.childBirthplace} />
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------- Parents ---------------- */}
-      <section className="space-y-6 border-t border-gray-200 pt-6">
-        <h4 className="text-sm font-semibold text-gray-900">Parents</h4>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-xs font-medium mb-1">
-              Pangalan ng Ama (Father&apos;s Name) <Req />
-            </label>
-            <Input
-              icon={User}
-              variant="light"
-              placeholder="Full Name"
-              autoComplete="name"
-              {...register("fatherName")}
-            />
-            <FieldError error={errors.fatherName} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-1">
-              Pangalan ng Ina (noong dalaga) / Mother&apos;s Maiden Name <Req />
-            </label>
-            <Input
-              icon={User}
-              variant="light"
-              placeholder="Full Maiden Name"
-              autoComplete="name"
-              {...register("motherMaidenName")}
-            />
-            <FieldError error={errors.motherMaidenName} />
-          </div>
-        </div>
-
-        <div className="pt-2">
-          <p className="text-sm font-medium mb-2">
-            Katayuan ng Magulang (Parents’ Marriage Status) <Req />
-          </p>
-          <div className="flex flex-wrap gap-6">
-            {[
-              { v: "church", label: "Simbahan (Church)" },
-              { v: "civil", label: "Civil" },
-              { v: "unmarried", label: "Hindi Kasal (Not Married)" },
-            ].map((opt) => (
-              <label
-                key={opt.v}
-                className="inline-flex items-center gap-2 text-sm"
-              >
-                <input
-                  type="radio"
-                  value={opt.v}
-                  {...register("parentsMarriageType")}
-                  className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                />
-                {opt.label}
-              </label>
-            ))}
-          </div>
-          <FieldError error={errors.parentsMarriageType} />
-        </div>
-      </section>
-
-      {/* ---------------- Contact & Address ---------------- */}
-      <section className="space-y-6 border-t border-gray-200 pt-6">
-        <h4 className="text-sm font-semibold text-gray-900">Contact & Address</h4>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-xs font-medium mb-1">
-              Contact No. <Req />
-            </label>
-            <Input
-              icon={Phone}
-              variant="light"
-              type="tel"
-              placeholder="09XXXXXXXXX"
-              autoComplete="tel"
-              {...register("phone")}
-            />
-            <FieldError error={errors.phone} />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-1">
-              Email <Req />
-            </label>
-            <Input
-              icon={Mail}
-              variant="light"
-              type="email"
-              placeholder="name@email.com"
-              autoComplete="email"
-              {...register("email")}
-            />
-            <FieldError error={errors.email} />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium mb-1">
-            Tirahan / Address <Req />
-          </label>
-          <textarea
-            rows={3}
-            placeholder="Complete Address"
-            {...register("address")}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 resize-none"
-          />
-          <FieldError error={errors.address} />
-        </div>
-      </section>
-
-      {/* ---------------- Sponsors ---------------- */}
-      <section className="space-y-6 border-t border-gray-200 pt-6">
-        <div className="flex items-center gap-2">
-          <h4 className="text-sm font-semibold text-gray-900">
-            Sponsors (Ninong/Ninang, 16 years old pataas) <Req />
-          </h4>
-          <div
-            className="relative inline-flex"
-            onMouseEnter={() => setShowSponsorTip(true)}
-            onMouseLeave={() => setShowSponsorTip(false)}
-          >
-            <button
-              type="button"
-              onClick={() => setShowSponsorTip((s) => !s)}
-              className="p-1 rounded-full text-gray-500 hover:text-gray-700"
-            >
-              <Info className="h-4 w-4" />
-            </button>
-            {showSponsorTip && (
-              <div className="absolute z-50 mt-2 w-64 rounded-md border border-gray-200 bg-white p-3 text-xs text-gray-700 shadow-md">
-                Two sponsors (1 Ninong + 1 Ninang) are included. Adding more
-                sponsors may have an additional fee and is subject to parish
-                approval.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          {fields.map((field, idx) => (
-            <div
-              key={field.id}
-              className="grid grid-cols-1 md:grid-cols-12 gap-6 md:items-center"
-            >
-              <div className="md:col-span-3">
-                <label className="block text-xs font-medium mb-1">
-                  Role <Req />
-                </label>
-                <Controller
-                  control={control}
-                  name={`sponsors.${idx}.role`}
-                  render={({ field }) => (
-                    <Dropdown
-                      value={field.value}
-                      onChange={field.onChange}
-                      options={["Ninong", "Ninang"]}
-                      placeholder="Select role"
-                      variant="light"
-                      className="w-32 " // ✅ fixed width
-                    />
-                  )}
-                />
-                <FieldError error={errors.sponsors?.[idx]?.role} />
-              </div>
-
-              <div className="md:col-span-4">
-                <label className="block text-xs font-medium mb-1">
-                  Name <Req />
-                </label>
-                <Input
-                  icon={User}
-                  variant="light"
-                  placeholder="Full Name"
-                  {...register(`sponsors.${idx}.name`)}
-                />
-                <FieldError error={errors.sponsors?.[idx]?.name} />
-              </div>
-
-              <div className="md:col-span-4">
-                <label className="block text-xs font-medium mb-1">
-                  Address <Req />
-                </label>
-                <Input
-                  icon={MapPin}
-                  variant="light"
-                  placeholder="Address"
-                  {...register(`sponsors.${idx}.address`)}
-                />
-                <FieldError error={errors.sponsors?.[idx]?.address} />
-              </div>
-
-              <div className="md:col-span-1 flex  md:justify-end">
-                <button
-                  type="button"
-                  onClick={() => remove(idx)}
-                  className="px-3  h-11 mt-3 text-xs rounded-md text-gray-600 hover:text-red-600"
-                >
-                  Remove
-                </button>
-              </div>
+    return (
+        <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
+                <h3 className="text-base font-medium">Baptism Application</h3>
+                {scheduleLabel && (
+                    <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-800">
+                        Selected schedule: {scheduleLabel}
+                    </span>
+                )}
             </div>
-          ))}
 
-          <button
-            type="button"
-            onClick={() =>
-              append({ role: "Ninong", name: "", address: "" })
-            }
-            className="px-4 py-2 text-sm rounded-md text-gray-700 hover:bg-gray-50 border border-gray-300"
-          >
-            + Add Sponsor
-          </button>
+            <form className="space-y-6" onChange={syncValues} noValidate>
+                {/* Child Info */}
+                <section className="bg-white rounded-2xl border p-6 space-y-6">
+                    <SectionHeader title="Child Information" description="Impormasyon ng Bibinyagan" />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                        <div className="md:col-span-2">
+                            <label className="block text-xs font-medium text-gray-900 mb-1">
+                                Child&apos;s Full Name <RequiredIndicator />
+                            </label>
+                            <Input icon={User} placeholder="Juan Dela Cruz" {...register("childFullName")} />
+                            <FieldError error={errors.childFullName} />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium text-gray-900 mb-1">
+                                Date of Birth <RequiredIndicator />
+                            </label>
+                            <DateInput
+                                control={control}
+                                name="childDob"
+                                placeholder="Select date"
+                                error={errors.childDob}
+                                onDateChange={syncValues}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium text-gray-900 mb-1">
+                                Place of Birth <RequiredIndicator />
+                            </label>
+                            <Input icon={MapPin} placeholder="City / Hospital / Address" {...register("childBirthplace")} />
+                            <FieldError error={errors.childBirthplace} />
+                        </div>
+                    </div>
+                </section>
+
+                {/* Parents Info */}
+                <section className="bg-white rounded-2xl border p-6 space-y-6">
+                    <SectionHeader title="Parents Information" description="Impormasyon ng mga Magulang" />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                        <div>
+                            <label className="block text-xs font-medium text-gray-900 mb-1">
+                                Father&apos;s Full Name <RequiredIndicator />
+                            </label>
+                            <Input icon={User} placeholder="Father's complete name" {...register("fatherName")} />
+                            <FieldError error={errors.fatherName} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-900 mb-1">
+                                Mother&apos;s Maiden Name <RequiredIndicator />
+                            </label>
+                            <Input icon={User} placeholder="Mother's complete maiden name" {...register("motherMaidenName")} />
+                            <FieldError error={errors.motherMaidenName} />
+                        </div>
+                    </div>
+
+                    <div>
+                        <p className="text-xs font-medium mb-2">Parents’ Marriage Status <RequiredIndicator /></p>
+                        <div className="flex flex-wrap gap-6">
+                            {[
+                                { v: "church", label: "Church Wedding" },
+                                { v: "civil", label: "Civil Wedding" },
+                                { v: "unmarried", label: "Not Married" },
+                            ].map((opt) => (
+                                <label key={opt.v} className="inline-flex items-center gap-2 text-xs">
+                                    <input
+                                        type="radio"
+                                        value={opt.v}
+                                        {...register("parentsMarriageType")}
+                                        className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                    />
+                                    {opt.label}
+                                </label>
+                            ))}
+                        </div>
+                        <FieldError error={errors.parentsMarriageType} />
+                    </div>
+                </section>
+
+                {/* Contact */}
+                <section className="bg-white rounded-2xl border p-6 space-y-6">
+                    <SectionHeader title="Contact & Address" description="Impormasyon sa Pakikipag-ugnayan" />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                        <div>
+                            <label className="block text-xs font-medium text-gray-900 mb-1">
+                                Contact No. <RequiredIndicator />
+                            </label>
+                            <Input icon={Phone} type="tel" placeholder="09XXXXXXXXX" {...register("phone")} />
+                            <FieldError error={errors.phone} />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-900 mb-1">
+                                Email <RequiredIndicator />
+                            </label>
+                            <Input icon={Mail} type="email" placeholder="name@email.com" {...register("email")} />
+                            <FieldError error={errors.email} />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-medium text-gray-900 mb-1">
+                            Complete Address <RequiredIndicator />
+                        </label>
+                        <Input
+                            icon={House}
+                            placeholder="House No., Street, Barangay, City"
+                            {...register("address")}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 "
+                        />
+                        <FieldError error={errors.address} />
+                    </div>
+                </section>
+
+                {/* Sponsors */}
+                {/* ---------------- Sponsors Section ---------------- */}
+                <section className="bg-white rounded-2xl border border-gray-100 p-8">
+                    <div className="flex items-start justify-between mb-6">
+                        <div>
+                            <div className="flex items-center gap-3 mb-2">
+                                <h4 className="text-sm font-medium text-gray-900">
+                                    Sponsors (Ninong/Ninang) <RequiredIndicator />
+                                </h4>
+                                <div
+                                    className="relative"
+                                    onMouseEnter={() => setShowSponsorTip(true)}
+                                    onMouseLeave={() => setShowSponsorTip(false)}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSponsorTip((s) => !s)}
+                                        className="p-1.5 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
+                                    >
+                                        <Info className="h-4 w-4" />
+                                    </button>
+                                    {showSponsorTip && (
+                                        <div className="absolute z-50 left-full ml-2 top-0 w-80 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 shadow-lg">
+                                            <p className="font-medium text-gray-900 mb-2">Sponsor Requirements:</p>
+                                            <ul className="list-disc list-inside space-y-1 text-gray-600">
+                                                <li>Must be at least 16 years old</li>
+                                                <li>Two sponsors minimum (1 Ninong + 1 Ninang)</li>
+                                                <li>Additional sponsors may incur extra fees</li>
+                                                <li>Subject to parish approval</li>
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <p className="text-xs text-gray-600">16 taong gulang pataas</p>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => append({ role: "Ninong", name: "", address: "" })}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Add Sponsor
+                        </button>
+                    </div>
+
+                    <div className="space-y-6">
+                        {fields.map((field, idx) => (
+                            <div key={field.id} className="relative  rounded-xl border border-gray-200 p-6">
+                                <div className="absolute top-4 right-4">
+                                    {fields.length > 2 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => remove(idx)}
+                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                            title="Remove sponsor"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {/* Role */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-900 mb-2">
+                                            Role <RequiredIndicator />
+                                        </label>
+                                        <Controller
+                                            control={control}
+                                            name={`sponsors.${idx}.role`}
+                                            render={({ field }) => (
+                                                <Dropdown
+                                                    value={field.value}
+                                                    onChange={field.onChange}
+                                                    options={["Ninong", "Ninang"]}
+                                                    placeholder="Select role"
+                                                    className="h-12"
+                                                />
+                                            )}
+                                        />
+                                        <FieldError error={errors?.sponsors?.[idx]?.role} />
+                                    </div>
+
+                                    {/* Full Name */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-900 mb-2">
+                                            Full Name <RequiredIndicator />
+                                        </label>
+                                        <Input
+                                            icon={User}
+                                            placeholder="Complete name"
+                                            {...register(`sponsors.${idx}.name`)}
+                                            className="h-12 text-base"
+                                        />
+                                        <FieldError error={errors?.sponsors?.[idx]?.name} />
+                                    </div>
+
+                                    {/* Address as Input (instead of textarea) */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-900 mb-2">
+                                            Address <RequiredIndicator />
+                                        </label>
+                                        <Input
+                                            icon={MapPin}
+                                            placeholder="Complete address"
+                                            {...register(`sponsors.${idx}.address`)}
+                                            className="h-12 text-base"
+                                        />
+                                        <FieldError error={errors?.sponsors?.[idx]?.address} />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <FieldError error={errors.sponsors} />
+                </section>
+
+            </form>
         </div>
-      </section>
-
-   
-    </form>
-  )
+    )
 }
