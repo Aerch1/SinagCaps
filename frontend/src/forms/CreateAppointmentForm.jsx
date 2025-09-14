@@ -44,13 +44,7 @@ const AppointmentSchema = z
     }
   });
 
-/**
- * Props:
- *  - defaultDate?: "yyyy-MM-dd"
- *  - onSubmit: (payload) => void/Promise
- *  - onCancel?: () => void
- *  - fetchAvailableTimes?: (dateISO, serviceType) => Promise<string[]> // "HH:mm"
- */
+
 export default function CreateAppointmentForm({
   defaultDate = "",
   onSubmit,

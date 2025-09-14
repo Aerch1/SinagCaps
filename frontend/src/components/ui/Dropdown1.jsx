@@ -1,34 +1,65 @@
-// your Dropdown wrapper
 "use client";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
 
-const Dropdown = ({ value, onChange, options = [], placeholder = "Select option...", className = "" }) => {
+import { useState, useRef, useEffect } from "react";
+import { ChevronDown } from "lucide-react";
+
+export default function Dropdown({
+    value,
+    onChange,
+    options = [],
+    placeholder = "Select…",
+    className = "",
+    width = "w-40",
+}) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    // close dropdown if clicked outside
+    useEffect(() => {
+        const handler = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) {
+                setOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
     return (
-        <Select value={value} onValueChange={onChange}>
-            <SelectTrigger className={`h-11 rounded-lg border bg-white hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-300  dark:bg-slate-700 ${className}`}>
-                <SelectValue placeholder={placeholder} />
-            </SelectTrigger>
-
-            {/* Force bg + border + shadow and keep it above the modal */}
-            <SelectContent
-                position="popper"
-                side="bottom"
-                sideOffset={6}
-                className="z-[1000] bg-white text-gray-800 dark:bg-slate-800 dark:text-slate-100 border border-gray-200 dark:border-slate-700 shadow-md rounded-md"
+        <div className={`relative ${width} ${className}`} ref={ref}>
+            {/* Button */}
+            <button
+                type="button"
+                onClick={() => setOpen((prev) => !prev)}
+                className="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
-                {options.map((option) => (
-                    <SelectItem
-                        key={option}
-                        value={option}
-                        className="text-sm hover:bg-gray-100 dark:hover:bg-slate-700"
-                    >
-                        {option}
-                    </SelectItem>
-                ))}
-            </SelectContent>
+                {value || placeholder}
+                <ChevronDown className="ml-2 h-4 w-4 text-gray-500 dark:text-gray-400" />
+            </button>
 
-        </Select>
+            {/* Dropdown menu */}
+            {open && (
+                <div
+                    className="absolute right-0 z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg  dark:border-gray-700 dark:bg-gray-800"
+                >
+                    {options.map((opt, i) => (
+                        <div key={opt}>
+                            <button
+                                onClick={() => {
+                                    onChange(opt);
+                                    setOpen(false);
+                                }}
+                                className={`block w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700 ${value === opt ? "font-semibold" : ""
+                                    }`}
+                            >
+                                {opt}
+                            </button>
+
+                          
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
     );
-};
-
-export default Dropdown;
+}

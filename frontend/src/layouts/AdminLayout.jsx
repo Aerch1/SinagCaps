@@ -28,7 +28,6 @@ export default function AdminLayout() {
   const isMobile = useIsMobile(); // check if screen < 1024px
 
   return (
-    <div className={isDark ? "dark" : ""}>
       <div className="min-h-screen xl:flex bg-gray-50 dark:bg-gray-900">
         <AppSidebar />
         <Backdrop />
@@ -45,6 +44,5 @@ export default function AdminLayout() {
           </div>
         </div>
       </div>
-    </div>
   );
 }

@@ -1,7 +1,7 @@
 // src/pages/Public/appointments/steps/Step1Service.jsx
 "use client"
 
-import LightSelect from "../../../../components/ui/LightSelect"
+import Dropdown from "../../../../components/ui/Dropdown1"
 
 export default function Step1Service({ formData, setFormData }) {
   const SERVICES = [
@@ -27,7 +27,8 @@ export default function Step1Service({ formData, setFormData }) {
 
   // show pretty label in the dropdown; store the id in state
   const serviceOptions = SERVICES.map((s) => s.label)
-  const selectedServiceLabel = SERVICES.find((s) => s.id === formData.serviceType)?.label || ""
+  const selectedServiceLabel =
+    SERVICES.find((s) => s.id === formData.serviceType)?.label || ""
 
   const onServiceChange = (label) => {
     const picked = SERVICES.find((s) => s.label === label)
@@ -62,16 +63,18 @@ export default function Step1Service({ formData, setFormData }) {
               )}
             </div>
 
-            <LightSelect
-              value={selectedServiceLabel}                 // e.g., "baptism"
-              onChange={onServiceChange}              // receives the selected value string
-              options={serviceOptions}                // ["Baptism","Wedding"] OR [{value:"baptism",label:"Baptism"}, ...]
+            <Dropdown
+              value={selectedServiceLabel}
+              onChange={onServiceChange}
+              options={serviceOptions}
               placeholder="Select a service"
+              className="w-full"
+              variant="light"   // 👈 force light mode for Public side
             />
           </div>
         </div>
 
-        {/* RIGHT: dynamic info (no schedule picker, just info) */}
+        {/* RIGHT: dynamic info */}
         <div className="md:col-span-6">
           <div className="rounded-md bg-gray-50 p-5">
             <h4 className="text-sm font-semibold text-gray-900">

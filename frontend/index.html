@@ -1,30 +1,23 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <script>
-  (() => {
-    const storageKey = "adminTheme";
-    const stored = localStorage.getItem(storageKey);
-
-    const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const shouldDark = stored === "dark" || (!stored && systemDark);
-
-    if (shouldDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  })();
-</script>
-
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Our Lady of Peace and Good Voyage Parish</title>
+
+    <script>
+      // Preload theme before React mounts
+      const theme = localStorage.getItem("theme") || "light";
+      if (theme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    </script>
   </head>
-  <body >
+  <body>
     <div id="root"></div>
-    
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -208,28 +208,7 @@ export default function AppHeader() {
                         <IconMenu size={20} />
                     </button>
 
-                    <div className="relative">
-                        <IconSearch
-                            size={16}
-                            className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${isSearchFocused ? "text-gray-600 dark:text-slate-300" : "text-gray-500 dark:text-slate-500"
-                                }`}
-                        />
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            placeholder="Search appointments, events..."
-                            className={`h-10 w-80 rounded-lg border bg-gray-100 pl-10 pr-16 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400/12 dark:bg-slate-800 dark:text-slate-100 dark:placeholder-slate-400 ${isSearchFocused ? "border-gray-300 dark:border-gray-600" : "border-gray-300 dark:border-slate-600"
-                                }`}
-                            onFocus={() => setIsSearchFocused(true)}
-                            onBlur={() => setIsSearchFocused(false)}
-                        />
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <kbd className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400">
-                                <IconCommand size={10} />
-                                K
-                            </kbd>
-                        </div>
-                    </div>
+                 
                 </div>
 
                 {/* Right: actions */}

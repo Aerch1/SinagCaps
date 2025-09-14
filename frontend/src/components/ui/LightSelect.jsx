@@ -48,7 +48,7 @@ export default function LightSelect({
                     className,
                 ].join(" ")}
             >
-                <SelectValue placeholder={placeholder} />
+                <SelectValue placeholder={placeholder}  />
             </SelectTrigger>
 
             <SelectContent
