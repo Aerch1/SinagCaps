@@ -1,6 +1,8 @@
+// src/components/ChurchUpdates.jsx
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 
 const UPDATES = [
     {
@@ -37,6 +39,20 @@ const UPDATES = [
     },
 ];
 
+// Framer Motion variants
+const container = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: { staggerChildren: 0.2, ease: "easeOut" },
+    },
+};
+
+const item = {
+    hidden: { opacity: 0, y: 30 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+};
+
 export default function ChurchUpdates({ updates = UPDATES }) {
     return (
         <section className="w-full bg-white">
@@ -49,54 +65,61 @@ export default function ChurchUpdates({ updates = UPDATES }) {
                     <Button
                         variant="outline"
                         asChild
-                        className="border-secondary text-secondary "
+                        className="border-secondary text-secondary"
                     >
                         <Link to="/updates">View All Updates</Link>
                     </Button>
-
                 </div>
 
-                {/* Grid of Updates (only 3 cards) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {/* Animated Grid */}
+                <motion.div
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
+                    variants={container}
+                    initial="hidden"
+                    whileInView="show"
+                    viewport={{ once: true, amount: 0.2 }}
+                >
                     {updates.slice(0, 3).map(({ title, date, description, image, to }, i) => (
-                        <Card
-                            key={i}
-                            className="overflow-hidden rounded-xl border py-0 border-gray-200 shadow-sm 
-                            hover:shadow-md hover:scale-[1.02] transition-transform duration-300 
-                            flex flex-col"
-                        >
-                            {/* Uniform Image Height (flush top, no padding) */}
-                            <div className="w-full h-60">
-                                <img
-                                    src={image}
-                                    alt={title}
-                                    className="h-full w-full object-cover"
-                                />
-                            </div>
-
-                            {/* Content */}
-                            <CardContent className="flex flex-col flex-1 p-5">
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-semibold">{title}</h3>
-                                    <p className="text-sm text-gray-500 mt-1">{date}</p>
-                                    <p className="text-sm text-gray-700 mt-3 line-clamp-3">
-                                        {description}
-                                    </p>
+                        <motion.div key={i} variants={item}>
+                            <Card
+                                className="overflow-hidden rounded-xl border py-0 border-gray-200 shadow-sm 
+                           hover:shadow-md hover:scale-[1.02] transition-transform duration-300 
+                           flex flex-col"
+                            >
+                                {/* ✅ Lazy-loaded Image */}
+                                <div className="w-full h-60">
+                                    <img
+                                        src={image}
+                                        alt={title}
+                                        loading="lazy"
+                                        decoding="async"
+                                        className="h-full w-full object-cover"
+                                    />
                                 </div>
 
-                                {/* Full Width Outline Button */}
-                                <Button
-                                    asChild
-                                    variant="outline"
-                                    className="mt-6 w-full justify-center border-secondary text-secondary "
-                                >
-                                    <Link to={to}>Read More</Link>
-                                </Button>
+                                {/* Content */}
+                                <CardContent className="flex flex-col flex-1 p-5">
+                                    <div className="flex-1">
+                                        <h3 className="text-lg font-semibold">{title}</h3>
+                                        <p className="text-sm text-gray-500 mt-1">{date}</p>
+                                        <p className="text-sm text-gray-700 mt-3 line-clamp-3">
+                                            {description}
+                                        </p>
+                                    </div>
 
-                            </CardContent>
-                        </Card>
+                                    {/* Full Width Outline Button */}
+                                    <Button
+                                        asChild
+                                        variant="outline"
+                                        className="mt-6 w-full justify-center border-secondary text-secondary"
+                                    >
+                                        <Link to={to}>Read More</Link>
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
                     ))}
-                </div>
+                </motion.div>
             </div>
         </section>
     );

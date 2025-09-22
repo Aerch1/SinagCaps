@@ -1,557 +1,553 @@
-// src/components/common/DataTable.jsx
-"use client"
+"use client";
 
-import React, { useMemo, useState, useCallback } from "react"
-import { Link, useLocation } from "react-router-dom"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import React, { useState, useEffect, useRef } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuCheckboxItem,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+    getAppointments,
+    filterAppointments,
+    exportAppointments,
+} from "../../api/appointments.js";
 import {
-    Filter,
     Search,
     Maximize2,
-    MoreHorizontal,
-    ChevronsUpDown,
-    ChevronLeft,
-    ChevronRight,
-    ChevronDown,
-    Calendar as CalendarIcon,
     FileDown,
-} from "lucide-react"
+    X,
+    Eye,
+    CheckCircle,
+    Trash2,
+    ChevronsUpDown,
+} from "lucide-react";
+import FilterDropdown from "../ui/FilterDropdown.jsx";
 
-/* ---------------- utils ---------------- */
-
+/* ----------- Status badge classes ----------- */
 const statusClass = (s) => {
-    const v = String(s || "").toLowerCase()
-    if (["success", "completed", "approved", "confirmed"].includes(v))
-        return "bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase rounded-full w-20 px-3 py-1 text-xs font-medium dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30"
-    if (["failed", "canceled", "cancelled", "rejected"].includes(v))
-        return "bg-red-50 text-red-600 border border-red-200 rounded-full uppercase  px-3 py-1 w-20  text-xs font-medium dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30"
-    if (["pending", "scheduled", "in process"].includes(v))
-        return "bg-amber-50 text-amber-600 border border-amber-200 rounded-full uppercase px-3 w-20 py-1 text-xs font-medium dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30"
-    return "bg-gray-50 text-gray-600 border border-gray-200 rounded-full px-3 uppercase py-1   text-xs w-20 font-medium dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/30"
-}
+    const v = String(s || "").toLowerCase();
 
-const toDateObj = (row) => {
-    const d = new Date(row?.date || "")
-    return isNaN(d) ? null : d
-}
+    // Pick ONE: fixed width (exactly aligned) or min width (can grow)
+    // Fixed width (perfect column alignment):
+    const BASE = "inline-flex items-center justify-center whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium w-28 text-center";
 
-const fmtDate = (isoYmd) => {
-    if (!isoYmd) return ""
-    const d = new Date(isoYmd)
-    return isNaN(d)
-        ? isoYmd
-        : new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(d)
-}
 
-const fmtTime = (hhmm) => {
-    if (!hhmm) return ""
-    const d = new Date(`1970-01-01T${hhmm}`)
-    return isNaN(d)
-        ? hhmm
-        : new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(d)
-}
+    if (v === "approved")
+        return `${BASE} bg-emerald-50 text-emerald-700 border-emerald-200`;
+    if (v === "completed")
+        return `${BASE} bg-blue-50 text-blue-700 border-blue-200`;
+    if (v === "pending")
+        return `${BASE} bg-amber-50 text-amber-700 border-amber-200`;
+    if (["cancelled", "canceled", "failed"].includes(v))
+        return `${BASE} bg-red-50 text-red-700 border-red-200`;
+    return `${BASE} bg-gray-50 text-gray-600 border-gray-200`;
+};
 
-const pageList = (page, total) => {
-    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-    const items = new Set([1, 2, total - 1, total, page - 1, page, page + 1])
-    return [...items].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b)
-}
-
-/* ---------- period helpers ---------- */
-
-const PERIODS = ["Last 7 days", "This Month", "This Year"];
-
-function startEndForPeriod(period, today = new Date()) {
-    // strip time from "today"
-    const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-    switch (period) {
-        case "Last 7 days": {
-            const start = new Date(t);
-            start.setDate(t.getDate() - 6);
-            const end = new Date(t.getFullYear(), t.getMonth(), t.getDate(), 23, 59, 59, 999);
-            return { start, end };
+/* ----------- Time format (MySQL TIME -> readable) ----------- */
+const formatDate = (v) => {
+    if (!v) return "";
+    if (typeof v === "string") {
+        // "YYYY-MM-DD" => display nice
+        const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (m) {
+            const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+            return d.toLocaleDateString("en-PH", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                timeZone: "Asia/Manila",
+            });
         }
-
-        case "This Month": {
-            const start = new Date(t.getFullYear(), t.getMonth(), 1);
-            const end = new Date(t.getFullYear(), t.getMonth() + 1, 0, 23, 59, 59, 999); // end of month (EOD)
-            return { start, end };
+        // ISO string
+        const d = new Date(v);
+        if (!isNaN(d)) {
+            return d.toLocaleDateString("en-PH", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                timeZone: "Asia/Manila",
+            });
         }
-
-        case "This Year": {
-            const start = new Date(t.getFullYear(), 0, 1);
-            const end = new Date(t.getFullYear(), 11, 31, 23, 59, 59, 999); // Dec 31 (EOD)
-            return { start, end };
-        }
-
-        default:
-            return { start: null, end: null };
+        return v; // fallback as-is
     }
-}
+    if (v instanceof Date && !isNaN(v)) {
+        return v.toLocaleDateString("en-PH", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            timeZone: "Asia/Manila",
+        });
+    }
+    return String(v);
+};
 
-function fmtRangeLabel(range) {
-    const { start, end } = range
-    if (!start || !end) return "All time"
-    const sameYear = start.getFullYear() === end.getFullYear()
-    const sameMonth = sameYear && start.getMonth() === end.getMonth()
-    const f = (d, withYear = false) =>
-        new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "short", ...(withYear ? { year: "numeric" } : {}) }).format(d)
-    return sameMonth ? `${f(start)} – ${f(end)}` : `${f(start, true)} – ${f(end, true)}`
-}
+// Accepts "HH:mm" or "HH:mm:ss" or Date
+const formatTime = (v) => {
+    if (!v) return "";
+    if (typeof v === "string") {
+        // 12h format like '03:00 PM'
+        const m12 = v.match(/^(\d{1,2}):(\d{2})\s*([AP]M)$/i);
+        if (m12) {
+            let hh = Number(m12[1]);
+            const mm = Number(m12[2]);
+            const ap = m12[3].toUpperCase();
+            if (ap === "PM" && hh < 12) hh += 12;
+            if (ap === "AM" && hh === 12) hh = 0;
+            const d = new Date();
+            d.setHours(hh, mm, 0, 0);
+            return d.toLocaleTimeString("en-PH", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+                timeZone: "Asia/Manila",
+            });
+        }
+        // 24h 'HH:mm' or 'HH:mm:ss'
+        const m24 = v.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+        if (m24) {
+            const d = new Date();
+            d.setHours(Number(m24[1]), Number(m24[2]), Number(m24[3] || 0), 0);
+            return d.toLocaleTimeString("en-PH", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+                timeZone: "Asia/Manila",
+            });
+        }
+        // ISO fallback
+        const d = new Date(v);
+        if (!isNaN(d)) {
+            return d.toLocaleTimeString("en-PH", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+                timeZone: "Asia/Manila",
+            });
+        }
+        return v;
+    }
+    if (v instanceof Date && !isNaN(v)) {
+        return v.toLocaleTimeString("en-PH", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Manila",
+        });
+    }
+    return String(v);
+};
+/* ----------- Helpers for "Show" range ---------- */
 
-/* --------------- component --------------- */
+
+const pad = (n) => String(n).padStart(2, "0");
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+const computeRange = (key) => {
+    const today = new Date();
+    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (key === "7d") {
+        const s = new Date(end); s.setDate(s.getDate() - 6);
+        return { startDate: ymd(s), endDate: ymd(end) };
+    }
+    if (key === "month") {
+        const s = new Date(end.getFullYear(), end.getMonth(), 1);
+        const e = new Date(end.getFullYear(), end.getMonth() + 1, 0);
+        return { startDate: ymd(s), endDate: ymd(e) };
+    }
+    if (key === "year") {
+        const s = new Date(end.getFullYear(), 0, 1);
+        const e = new Date(end.getFullYear(), 11, 31);
+        return { startDate: ymd(s), endDate: ymd(e) };
+    }
+    return { startDate: null, endDate: null };
+};
+
+
+
+const monthName = (d) =>
+    d.toLocaleString("en-US", { month: "long" });
+const fmtRangeLabel = (s, e) => {
+    if (!s || !e) return "All";
+    const sd = new Date(s), ed = new Date(e);
+    // Same month/year -> "September 1–30, 2025"
+    if (sd.getFullYear() === ed.getFullYear() && sd.getMonth() === ed.getMonth()) {
+        return `${monthName(sd)} ${sd.getDate()}–${ed.getDate()}, ${sd.getFullYear()}`;
+    }
+    // Same year diff months -> "Sep 28 – Oct 4, 2025"
+    if (sd.getFullYear() === ed.getFullYear()) {
+        const sm = sd.toLocaleString("en-US", { month: "short" });
+        const em = ed.toLocaleString("en-US", { month: "short" });
+        return `${sm} ${sd.getDate()}–${em} ${ed.getDate()}, ${sd.getFullYear()}`;
+    }
+    // Diff years -> "Dec 30, 2025 – Jan 5, 2026"
+    const sFull = sd.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const eFull = ed.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return `${sFull} – ${eFull}`;
+};
+
 
 export default function DataTable({
-    rows = [],
     manageHref = "/admin/appointments",
     initialPageSize = 5,
+    activeTab = "all",
     onView,
-    onEdit,
+    onApprove,
     onDelete,
 }) {
-    const location = useLocation()
-    const onDashboard = /^\/admin\/?$/.test(location.pathname)
+    const location = useLocation();
+    const onDashboard = /^\/admin\/?$/.test(location.pathname);
+    const containerRef = useRef(null);
+    const headerRef = useRef(null); // for "Show" dropdown outside-click handling
 
-    // Period
-    const [period, setPeriod] = useState("Last 7 days")
-    const range = useMemo(() => startEndForPeriod(period), [period])
-    const rangeLabel = useMemo(() => fmtRangeLabel(range), [range])
-    const [periodOpen, setPeriodOpen] = useState(false)
+    const [rows, setRows] = useState([]);
+    const [searchInput, setSearchInput] = useState("");
+    const [query, setQuery] = useState("");
 
-    // top controls
-    const [query, setQuery] = useState("")
-    const [selectedServices, setSelectedServices] = useState(new Set())
-    const [selectedStatuses, setSelectedStatuses] = useState(new Set())
+    // split dropdown filters
+    const [selectedServices, setSelectedServices] = useState([]);
+    const [selectedStatuses, setSelectedStatuses] = useState([]);
+    const [serviceOptions, setServiceOptions] = useState([]);
+    const [statusOptions, setStatusOptions] = useState([]);
+
 
     // sorting
-    const [sort, setSort] = useState({ key: null, dir: "asc" })
+    const [sort, setSort] = useState({ key: null, dir: null });
 
     // pagination
-    const [pageSize, setPageSize] = useState(initialPageSize)
-    const [page, setPage] = useState(1)
+    const [page, setPage] = useState(1);
+    const [pageSize] = useState(initialPageSize);
+    const [totalPages, setTotalPages] = useState(1);
+    const [total, setTotal] = useState(0);
 
-    // options
-    const serviceOptions = useMemo(
-        () => Array.from(new Set(rows.map((r) => r.serviceType).filter(Boolean))).sort(),
-        [rows],
-    )
-    const statusOptions = useMemo(
-        () => Array.from(new Set(rows.map((r) => r.status).filter(Boolean))).sort(),
-        [rows],
-    )
+    // "Show" preset range
+    const [showRangeKey, setShowRangeKey] = useState("all"); // all | 7d | month | year
+    const [{ startDate, endDate }, setRange] = useState({ startDate: null, endDate: null });
 
-    // filter + search + sort + period date filter
-    const filtered = useMemo(() => {
-        let data = rows
-        if (range.start && range.end) {
-            data = data.filter((r) => {
-                const d = toDateObj(r)
-                return d && d >= range.start && d <= range.end
-            })
-        }
-        if (query.trim()) {
-            const q = query.toLowerCase()
-            data = data.filter((r) => (r.name || "").toLowerCase().includes(q) || (r.email || "").toLowerCase().includes(q))
-        }
-        if (selectedServices.size) data = data.filter((r) => selectedServices.has(r.serviceType))
-        if (selectedStatuses.size) data = data.filter((r) => selectedStatuses.has(r.status))
+    /* ---------- Sync active tab ---------- */
+    useEffect(() => {
+        if (activeTab === "all") setSelectedStatuses([]);
+        else setSelectedStatuses([activeTab]);
+        setPage(1);
+    }, [activeTab]);
 
-        if (sort.key === "date") {
-            data = [...data].sort((a, b) => {
-                const da = toDateObj(a) || new Date(0)
-                const db = toDateObj(b) || new Date(0)
-                return sort.dir === "asc" ? da - db : db - da
-            })
-        } else if (sort.key === "time") {
-            const toTime = (t) => {
-                const d = new Date(`1970-01-01T${t || "00:00"}`)
-                return isNaN(d) ? 0 : d.getTime()
+    /* ---------- Apply range on change ---------- */
+    useEffect(() => {
+        setRange(computeRange(showRangeKey));
+        setPage(1);
+    }, [showRangeKey]);
+
+    /* ---------- Fetch data ---------- */
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const hasFilters =
+                    query || selectedServices.length || selectedStatuses.length || sort.key || startDate || endDate;
+
+                let res;
+                if (hasFilters) {
+                    const payload = {
+                        page,
+                        pageSize,
+                        query,
+                        status: selectedStatuses,
+                        serviceType: selectedServices,
+                        sortBy: sort.key,
+                        sortDir: sort.dir,
+                    };
+                    if (startDate && endDate) {
+                        payload.startDate = startDate;
+                        payload.endDate = endDate;
+                    }
+                    res = await filterAppointments(payload);
+                } else {
+                    res = await getAppointments({ page, pageSize });
+                }
+
+                setRows(res.data || []);
+                setTotalPages(res.totalPages || 1);
+                setTotal(res.total || 0);
+                setServiceOptions(res.meta?.serviceTypes || []);
+                setStatusOptions(res.meta?.statuses || []);
+            } catch (err) {
+                console.error("❌ fetch error:", err);
+                setRows([]);
             }
-            data = [...data].sort((a, b) => (sort.dir === "asc" ? toTime(a.time) - toTime(b.time) : toTime(b.time) - toTime(a.time)))
-        }
+        };
+        load();
+    }, [page, pageSize, query, selectedServices, selectedStatuses, sort, startDate, endDate]);
 
-        return data
-    }, [rows, range, query, selectedServices, selectedStatuses, sort])
+    /* ---------- Debounce search ---------- */
+    useEffect(() => {
+        const delay = setTimeout(() => {
+            setQuery(searchInput);
+            setPage(1);
+        }, 300);
+        return () => clearTimeout(delay);
+    }, [searchInput]);
 
-    // pagination slice
-    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-    const safePage = Math.min(page, totalPages)
-    const startIndex = (safePage - 1) * pageSize
-    const paged = useMemo(() => filtered.slice(startIndex, startIndex + pageSize), [filtered, startIndex, pageSize])
+    /* ---------- Sorting (ID & Client only) ---------- */
+    const cycleSort = (key) => {
+        setSort((prev) =>
+            prev.key === key
+                ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } // toggle
+                : { key, dir: "asc" }                               // new column -> asc
+        );
+    };
 
-    const toggleSort = (key) => setSort((s) => (s.key !== key ? { key, dir: "asc" } : { key, dir: s.dir === "asc" ? "desc" : "asc" }))
+    const renderSortHeader = (label, key) => {
+        const isActive = sort.key === key;
+        const dir = isActive ? sort.dir : null;
 
-    const toggleService = (value) =>
-        setSelectedServices((prev) => { const n = new Set(prev); n.has(value) ? n.delete(value) : n.add(value); setPage(1); return n })
+        return (
+            <th
+                className="px-6 py-4 text-left  text-sm font-semibold cursor-pointer select-none"
+                aria-sort={isActive ? (dir === "asc" ? "ascending" : "descending") : "none"}
+                onClick={() => cycleSort(key)}
+            >
+                <span className="inline-flex  items-center gap-1">
+                    {label}
+                    {/* same icon always; just tint when active */}
+                    <ChevronsUpDown className={`h-4 w-4 ${isActive ? "text-gray-600" : "text-gray-400"}`} />
+                    {/* a11y-only hint of direction */}
+                    {isActive && (
+                        <span className="sr-only ">{dir === "asc" ? "ascending" : "descending"}</span>
+                    )}
+                </span>
+            </th>
+        );
+    };
 
-    const toggleStatus = (value) =>
-        setSelectedStatuses((prev) => { const n = new Set(prev); n.has(value) ? n.delete(value) : n.add(value); setPage(1); return n })
 
-    const clearFilters = () => { setSelectedServices(new Set()); setSelectedStatuses(new Set()); setPage(1) }
+    /* ---------- Pagination helpers ---------- */
+    const pages = [];
+    if (totalPages <= 7) for (let i = 1; i <= totalPages; i++) pages.push(i);
+    else if (page <= 4) pages.push(1, 2, 3, 4, 5, "…", totalPages);
+    else if (page >= totalPages - 3) pages.push(1, "…", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+    else pages.push(1, "…", page - 1, page, page + 1, "…", totalPages);
 
-    // export (filtered data)
-    const handleExport = useCallback(() => {
-        const data = filtered
-        const headers = ["id", "name", "email", "serviceType", "status", "date", "time"]
-        const rowsCsv = data.map((r) => headers.map((h) => `"${String(r[h] ?? "").replace(/"/g, '""')}"`).join(","))
-        const csv = [headers.join(","), ...rowsCsv].join("\n")
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = "appointments.csv"
-        a.click()
-        URL.revokeObjectURL(url)
-    }, [filtered])
-
-    // neutral gray button base (no rings/outlines)
-    const btnNeutral =
-        "border border-gray-200 bg-white  text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900/10 dark:text-gray-300 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-0"
     return (
-        <div className="  rounded-lg border border-gray-200 bg-white p-4 md:p-6 dark:border-slate-700 dark:bg-slate-800">
-            {/* Header */}
-
-
-            <div className="border-b border-gray-100 dark:border-gray-800 p-6">
-
-
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    {/* Left: period + range pill */}
-                    <div className="flex items-center gap-3">
-                        <DropdownMenu onOpenChange={setPeriodOpen}>
-                            <DropdownMenuTrigger asChild>
-                                <Button size="sm" className={`gap-2 ${btnNeutral}`}>
-                                    <span className="text-sm">{period}</span>
-                                    <ChevronDown
-                                        className={`h-4 w-4 transition-transform ${periodOpen ? "rotate-180" : ""}`}
-                                        aria-hidden="true"
-                                    />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                                className="w-48 bg-white border border-gray-200 shadow-lg dark:bg-gray-800 dark:border-gray-700"
-                                align="start"
-                            >
-                                <DropdownMenuLabel className="text-xs text-gray-500 dark:text-gray-400">Time Period</DropdownMenuLabel>
-                                <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-700" />
-                                {PERIODS.map((p) => (
-                                    <DropdownMenuItem
-                                        key={p}
-                                        onClick={() => { setPeriod(p); setPage(1) }}
-                                        className="text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
-                                    >
-                                        {p}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        {/* Range pill */}
-                        <div className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300">
-                            <CalendarIcon className="h-3.5 w-3.5" />
-                            <span>{rangeLabel}</span>
+        <div ref={containerRef} className="flex flex-col gap-5">
+            {/* ===== Section 1: Filters ===== */}
+            <div className="rounded-lg border border-gray-200 bg-white shadow-sm p-6">
+                <div className="grid grid-cols-12 gap-4 items-end">
+                    {/* Search (8/12) */}
+                    <div className="col-span-12 md:col-span-6">
+                        <div className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                            What are you looking for?
                         </div>
-                    </div>
-
-                    {/* Right: Search / Filter / Export / Manage */}
-                    <div className="flex flex-wrap items-center gap-3">
-                        {/* Search (no ring) */}
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                             <input
-                                value={query}
-                                onChange={(e) => { setQuery(e.target.value); setPage(1) }}
-                                placeholder="Search clients..."
-                                className="h-9 w-64 rounded-lg border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400
-                           focus:outline-none focus:ring-0 focus:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                placeholder="Search name, email, id…"
+                                className="h-10 w-full rounded-lg border border-gray-200 pl-10 pr-10 text-sm focus:outline-1 outline-gray-300"
                             />
+                            {query && (
+                                <button
+                                    onClick={() => { setSearchInput(""); setQuery(""); setPage(1); }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Category (2/12) */}
+                    <div className="col-span-6 md:col-span-2">
+                        <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Category</div>
+                        <FilterDropdown
+                            mode="service"
+                            selectionMode="multi"
+                            serviceOptions={serviceOptions}
+                            selectedServices={selectedServices}
+                            onChange={({ services }) => { setSelectedServices(services); setPage(1); }}
+                            onClear={() => { setSelectedServices([]); setPage(1); }}
+                        />
+                    </div>
+
+                    {/* Status (1/12) */}
+                    <div className="col-span-4 md:col-span-2">
+                        <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Status</div>
+                        <FilterDropdown
+                            mode="status"
+                            selectionMode="multi"
+                            statusOptions={statusOptions}
+                            selectedStatuses={selectedStatuses}
+                            onChange={({ statuses }) => { setSelectedStatuses(statuses); setPage(1); }}
+                            onClear={() => { setSelectedStatuses([]); setPage(1); }}
+                        />
+                    </div>
+
+                    {/* Search button (1/12) */}
+                    <div className="col-span-2 md:col-span-2 flex">
+                        <button
+                            onClick={() => { setQuery(searchInput); setPage(1); }}
+                            className="h-10 px-4 w-full rounded-lg border bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                        >
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* ===== Section 2: Table with header controls ===== */}
+            <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-x-auto">
+                {/* Top controls bar */}
+                <div
+                    ref={headerRef}
+                    className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3"
+                >
+                    <div className="text-sm font-semibold text-gray-800">Appointment Transactions</div>
+
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Show</span>
+                            <div className="min-w-[220px]">
+                                <FilterDropdown
+                                    mode="range"
+                                    selectionMode="single"
+                                    // dynamic button text here:
+                                    displayLabel={fmtRangeLabel(startDate, endDate)}
+                                    options={[
+                                        { value: "all", label: "All" },
+                                        { value: "7d", label: "Last 7 days" },
+                                        { value: "month", label: "This month" },
+                                        { value: "year", label: "This year" },
+                                    ]}
+                                    value={showRangeKey}
+                                    onValueChange={setShowRangeKey}
+                                />
+                            </div>
                         </div>
 
-                        {/* Filter (no count badge) */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button size="sm" className={`gap-2 ${btnNeutral}`}>
-                                    <Filter className="h-4 w-4" />
-                                    Filter
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                                align="end"
-                                className="w-64 max-h-80 overflow-y-auto bg-white border border-gray-200 shadow-lg dark:bg-gray-800 dark:border-gray-700"
-                            >
-                                <DropdownMenuLabel className="text-gray-700 dark:text-gray-200">Service Type</DropdownMenuLabel>
-
-                                {serviceOptions.length ? (
-                                    serviceOptions.map((s) => (
-                                        <DropdownMenuCheckboxItem
-                                            key={s}
-                                            checked={selectedServices.has(s)}
-                                            onCheckedChange={() => toggleService(s)}
-                                            className="text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
-                                        >
-                                            {s}
-                                            
-                                        </DropdownMenuCheckboxItem>
-                                    ))
-                                ) : (
-                                    <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No services</div>
-                                )}
-                                <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-700" />
-                                <DropdownMenuLabel className="text-gray-700 dark:text-gray-200">Status</DropdownMenuLabel>
-                                {statusOptions.length ? (
-                                    statusOptions.map((s) => (
-                                        <DropdownMenuCheckboxItem
-                                            key={s}
-                                            checked={selectedStatuses.has(s)}
-                                            onCheckedChange={() => toggleStatus(s)}
-                                            className="text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
-                                        >
-                                            {s}
-                                        </DropdownMenuCheckboxItem>
-                                    ))
-                                ) : (
-                                    <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No statuses</div>
-                                )}
-                                {(selectedServices.size + selectedStatuses.size) > 0 && (
-                                    <>
-                                        <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-700" />
-                                        <DropdownMenuItem
-                                            onClick={clearFilters}
-                                            className="text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
-                                        >
-                                            Clear all filters
-                                        </DropdownMenuItem>
-                                    </>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-
-                        <Button size="sm" onClick={handleExport} className={`gap-2 ${btnNeutral}`}>
-                            <FileDown className="h-4 w-4" />
+                        <button
+                            onClick={exportAppointments}
+                            className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2"
+                        >
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
                             Export
-                        </Button>
+                        </button>
 
                         {onDashboard && (
                             <Link to={manageHref}>
-                                <Button size="sm" className={`gap-2 ${btnNeutral}`}>
-                                    <Maximize2 className="h-4 w-4" />
+                                <button className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2">
+                                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M8 3H5a2 2 0 0 0-2 2v3m0 4v5a2 2 0 0 0 2 2h3m4 0h5a2 2 0 0 0 2-2v-5m0-4V5a2 2 0 0 0-2-2h-5" /></svg>
                                     Manage
-                                </Button>
+                                </button>
                             </Link>
                         )}
                     </div>
                 </div>
-            </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="border-gray-200 hover:bg-transparent  dark:border-gray-600">
-                            <TableHead className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                                ID
-                            </TableHead>
-                            <TableHead className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                                Client
-                            </TableHead>
-                            <TableHead className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                                Service
-                            </TableHead>
-                            <TableHead className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                                Status
-                            </TableHead>
-                            <TableHead
-                                className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                onClick={() => toggleSort("date")}
-                            >
-                                <span className="inline-flex items-center gap-1">
-                                    Date
-                                    <ChevronsUpDown className="h-3 w-3" />
-                                </span>
-                            </TableHead>
-                            <TableHead
-                                className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                onClick={() => toggleSort("time")}
-                            >
-                                <span className="inline-flex items-center gap-1">
-                                    Time
-                                    <ChevronsUpDown className="h-3 w-3" />
-                                </span>
-                            </TableHead>
-                            <TableHead className="px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider text-right dark:text-gray-400">
-                                Actions
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
 
-                    <TableBody>
-                        {paged.length === 0 ? (
-                            <TableRow className="border-gray-200 dark:border-gray-700">
-                                <TableCell colSpan={7} className="px-6 py-16 text-center">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center dark:bg-gray-800">
-                                            <Search className="h-5 w-5 text-gray-400" />
-                                        </div>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400">No appointments found</p>
-                                        <p className="text-xs text-gray-400 dark:text-gray-500">Try adjusting your search or filters</p>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            paged.map((r, idx) => (
-                                <TableRow
-                                    key={`${r.id ?? "row"}-${startIndex + idx}`}
-                                    className="border-gray-100 hover:bg-gray-50/50 transition-colors dark:border-gray-700 dark:hover:bg-gray-800/50"
-                                >
-                                    <TableCell className="px-6 py-4">
-                                        <span className="text-sm font-mono text-gray-500 dark:text-gray-400">#{r.id ?? "—"}</span>
-                                    </TableCell>
+                {/* Table */}
+                <table className="min-w-full border-collapse table-fixed">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            
+                          {renderSortHeader("ID", "id")}
+                            {renderSortHeader("Client", "name")}
+                            <th className="px-6 py-4 text-left text-sm font-semibold">Contact</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold">Service</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold">Date</th>
+                            <th className="px-6 py-4 text-left text-sm font-semibold">Time</th>
+                            <th className="px-6 py-4 text-right text-sm font-semibold">Actions</th>
+                        </tr>
+                    </thead>
 
-                                    <TableCell className="px-6 py-4">
-                                        <div className="space-y-1">
-                                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{r.name || "—"}</div>
-                                            <div className="text-xs text-gray-500 dark:text-gray-400">{r.email || "—"}</div>
-                                        </div>
-                                    </TableCell>
+                    <tbody>
+                        {rows.map((r) => (
+                            <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50 select-text">
+                                <td className="px-6 py-4 font-mono text-gray-500">#{r.id}</td>
+                                <td className="px-6 py-4">
+                                    <div className="text-sm font-medium">{r.name}</div>
+                                    <div className="text-xs text-gray-500">{r.email}</div>
+                                </td>
+                                <td className="px-6 py-4">{r.contactNumber || "—"}</td>
+                                <td className="px-6 py-4">{r.serviceType}</td>
+                                <td className="px-6 py-4">
+                                    <span className={statusClass(r.status)}>{r.status}</span>
+                                </td>
+                                <td className="px-6 py-4">{formatDate(r.date)}</td>
+                                <td className="px-6 py-4">{formatTime(r.time)}</td>
 
-                                    <TableCell className="px-6 py-4">
-                                        <span className="text-sm text-gray-700 dark:text-gray-300">{r.serviceType || "—"}</span>
-                                    </TableCell>
+                                {/* ✅ Actions: real buttons (no placeholders) */}
+                                <td className="px-6 py-4 text-right">
+                                    <div className="inline-flex items-center gap-1.5">
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-gray-100"
+                                            title="View details"
+                                            onClick={() => onView?.(r)}
+                                        >
+                                            <Eye className="h-4 w-4" />
+                                        </button>
 
-                                    <TableCell className="px-6 py-4">
-                                        <Badge className={statusClass(r.status)}>{r.status || "—"}</Badge>
-                                    </TableCell>
-
-                                    <TableCell className="px-6 py-4">
-                                        <span className="text-sm text-gray-700 dark:text-gray-300">{fmtDate(r.date) || "—"}</span>
-                                    </TableCell>
-
-                                    <TableCell className="px-6 py-4">
-                                        <span className="text-sm text-gray-700 dark:text-gray-300">{fmtTime(r.time) || "—"}</span>
-                                    </TableCell>
-
-                                    <TableCell className="px-6 py-4 text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-0"
-                                                >
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent
-                                                align="end"
-                                                className="w-48 bg-white border border-gray-200 shadow-lg dark:bg-gray-800 dark:border-gray-700"
+                                        {!(r.status === "approved" || r.status === "completed") && (
+                                            <button
+                                                type="button"
+                                                className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-gray-100 text-emerald-600"
+                                                title="Mark as Approved"
+                                                onClick={() => onApprove?.(r)}
                                             >
-                                                <DropdownMenuItem onClick={() => onView?.(r)} className="text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700">
-                                                    View details
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => onEdit?.(r)} className="text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700">
-                                                    Edit appointment
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-700" />
-                                                <DropdownMenuItem className="text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" onClick={() => onDelete?.(r)}>
-                                                    Delete appointment
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+                                                <CheckCircle className="h-4 w-4" />
+                                            </button>
+                                        )}
 
-            {/* Footer (no “Showing X–Y of Z”) */}
-            <div className="border-t border-gray-100 px-6 py-4 dark:border-gray-800">
-                <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-600 dark:text-gray-400">Rows per page:</span>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button size="sm" className={`h-8 w-12 ${btnNeutral}`}>
-                                    {pageSize}
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                                align="start"
-                                className="bg-white border border-gray-200 shadow-lg dark:bg-gray-800 dark:border-gray-700"
+                                        <button
+                                            type="button"
+                                            className="inline-flex items-center justify-center h-9 w-9 rounded-md hover:bg-gray-100 text-red-600"
+                                            title="Delete appointment"
+                                            onClick={() => onDelete?.(r)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+
+
+                {/* Footer / Pagination */}
+                {total > 0 && (
+                    <div className="border-t px-6 py-6 flex justify-between items-center">
+                        <div className="text-sm text-gray-600">
+                            Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} results
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                disabled={page <= 1}
+                                className="h-9 w-9 rounded-md border bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
                             >
-                                {[5, 10, 20, 50].map((n) => (
-                                    <DropdownMenuItem
-                                        key={n}
-                                        onClick={() => { setPageSize(n); setPage(1) }}
-                                        className="text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                                ‹
+                            </button>
+                            {pages.map((n, i) =>
+                                n === "…" ? (
+                                    <span key={`dots-${i}`} className="h-9 w-9 flex items-center justify-center">…</span>
+                                ) : (
+                                    <button
+                                        key={`page-${n}`}
+                                        onClick={() => setPage(n)}
+                                        className={`h-9 w-9 rounded-md border text-sm ${n === page ? "bg-blue-600 text-white" : "bg-white hover:bg-gray-50"
+                                            }`}
                                     >
                                         {n}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-
-                    {/* Pagination */}
-                    <div className="flex items-center gap-1">
-                        <Button
-                            size="sm"
-                            className={`gap-1 ${btnNeutral} disabled:opacity-50`}
-                            disabled={safePage <= 1}
-                            onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                            Previous
-                        </Button>
-
-                        <div className="flex items-center gap-1">
-                            {pageList(safePage, totalPages).map((n, i, arr) => {
-                                const prev = arr[i - 1]
-                                const needsDots = prev && n - prev > 1
-                                const isActive = n === safePage
-                                return (
-                                    <React.Fragment key={n}>
-                                        {needsDots && <span className="px-2 text-gray-400 dark:text-gray-500">…</span>}
-                                        <Button
-                                            size="sm"
-                                            className={`h-8 w-8 p-0 ${isActive
-                                                ? "bg-gray-900 text-white hover:bg-black focus:outline-none focus-visible:ring-0"
-                                                : btnNeutral
-                                                }`}
-                                            onClick={() => setPage(n)}
-                                        >
-                                            {n}
-                                        </Button>
-                                    </React.Fragment>
+                                    </button>
                                 )
-                            })}
+                            )}
+                            <button
+                                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={page >= totalPages}
+                                className="h-9 w-9 rounded-md border bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                ›
+                            </button>
                         </div>
-
-                        <Button
-                            size="sm"
-                            className={`gap-1 ${btnNeutral} disabled:opacity-50`}
-                            disabled={safePage >= totalPages}
-                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        >
-                            Next
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
                     </div>
-                </div>
+                )}
             </div>
-        </div>
-    )
+        </div >
+    );
 }

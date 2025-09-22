@@ -54,7 +54,11 @@ const MessagesPage = lazy(() => import("./pages/Admin/MessagesPage"))
 
 
 function App() {
+  
+  
   return (
+
+    
     <ErrorBoundary>
       <Router>
         <AuthChecker>

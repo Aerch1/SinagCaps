@@ -51,15 +51,15 @@ const serviceColors = {
 const AreaTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-            <p className="mb-2 text-sm font-medium text-slate-900 dark:text-slate-100">{label}</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg ">
+            <p className="mb-2 text-sm font-medium text-slate-900 ">{label}</p>
             {payload.map((entry, i) => (
                 <div key={`${entry.dataKey}-${i}`} className="flex items-center gap-2 text-xs">
                     <span
                         className="inline-block h-3 w-3 rounded-full"
                         style={{ backgroundColor: entry.color }}
                     />
-                    <span className="text-gray-600 dark:text-slate-400">
+                    <span className="text-gray-600 ">
                         {entry.dataKey === "TotalEvents" ? "Total Events" : "Total Appointments"}: {entry.value}
                     </span>
                 </div>
@@ -74,13 +74,13 @@ const ServiceAreaChart = ({ filter }) => {
     }, [filter]);
 
     return (
-        <div className="h-full rounded-lg border border-gray-200 bg-white p-4 md:p-6 dark:border-slate-700 dark:bg-slate-800">
+        <div className="h-full rounded-lg border border-gray-200 bg-white p-4 md:p-6 ">
             {/* Header */}
             <div className="mb-4 md:mb-6">
-                <h3 className="text-base md:text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <h3 className="text-base md:text-lg font-semibold text-slate-900 ">
                     Service Overview
                 </h3>
-                <p className="mt-1 text-xs md:text-sm text-gray-500 dark:text-slate-400">
+                <p className="mt-1 text-xs md:text-sm text-gray-500 ">
                     Events and appointments distribution
                 </p>
             </div>
@@ -103,7 +103,7 @@ const ServiceAreaChart = ({ filter }) => {
                             </linearGradient>
                         </defs>
 
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="" />
                         <XAxis
                             dataKey="name"
                             axisLine={false}

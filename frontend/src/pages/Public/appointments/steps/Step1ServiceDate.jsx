@@ -69,7 +69,6 @@ export default function Step1Service({ formData, setFormData }) {
               options={serviceOptions}
               placeholder="Select a service"
               className="w-full"
-              variant="light"   // 👈 force light mode for Public side
             />
           </div>
         </div>

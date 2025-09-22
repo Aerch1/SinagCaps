@@ -138,22 +138,22 @@ export default function CalendarComponent({
     };
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6 relative">
+        <div className="bg-white  rounded-lg border border-gray-200 p-6 relative">
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <button onClick={() => calendarRef.current?.getApi().prev()} className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                        <button onClick={() => calendarRef.current?.getApi().prev()} className="p-2 text-gray-600  hover:bg-gray-100 rounded-lg">
                             <ChevronLeft className="w-5 h-5" />
                         </button>
-                        <button onClick={() => calendarRef.current?.getApi().next()} className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                        <button onClick={() => calendarRef.current?.getApi().next()} className="p-2 text-gray-600  hover:bg-gray-100  rounded-lg">
                             <ChevronRight className="w-5 h-5" />
                         </button>
-                        <button onClick={() => calendarRef.current?.getApi().today()} className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600">
+                        <button onClick={() => calendarRef.current?.getApi().today()} className="px-3 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 ">
                             Today
                         </button>
                     </div>
-                    <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    <h2 className="text-lg font-semibold text-slate-900 ">
                         {calendarRef.current ? calendarRef.current.getApi().view.title : "Calendar"}
                     </h2>
                 </div>
@@ -163,7 +163,7 @@ export default function CalendarComponent({
                     <div className="relative">
                         <button
                             onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
-                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700  bg-gray-100  rounded-lg  "
                         >
                             <Filter className="w-4 h-4" />
                             {selectedService}
@@ -172,14 +172,14 @@ export default function CalendarComponent({
                         {isServiceDropdownOpen && (
                             <>
                                 <div className="fixed inset-0 z-10" onClick={() => setIsServiceDropdownOpen(false)} />
-                                <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 py-1">
+                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
                                     {serviceTypes.map((s) => (
                                         <button
                                             key={s}
                                             onClick={() => { setSelectedService(s); setIsServiceDropdownOpen(false); }}
                                             className={`w-full text-left px-3 py-2 text-sm ${selectedService === s
-                                                ? "bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400"
-                                                : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                                ? "bg-blue-50  text-red-600 "
+                                                : "text-gray-700  hover:bg-gray-50 "
                                                 }`}
                                         >
                                             {s}
@@ -196,7 +196,7 @@ export default function CalendarComponent({
                             <button
                                 key={opt.value}
                                 onClick={() => { setCurrentView(opt.value); calendarRef.current?.getApi().changeView(opt.value); }}
-                                className={`px-3 py-2 text-sm font-medium rounded-lg ${currentView === opt.value ? "bg-red-600 text-white" : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className={`px-3 py-2 text-sm font-medium rounded-lg ${currentView === opt.value ? "bg-red-600 text-white" : "text-gray-600  hover:bg-gray-100 "
                                     }`}
                             >
                                 {opt.label}

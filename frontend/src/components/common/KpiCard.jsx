@@ -13,15 +13,15 @@ export default function KpiCard({ title, value, change = 0, data = [] }) {
   const gradientId = `kpi-grad-${useId()}`;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200 hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="mb-3 text-sm font-medium text-gray-600 dark:text-slate-400">
+    <div className="rounded-lg border border-gray-200 bg-white p-5 transition-all duration-200 hover:shadow-sm">
+      <h3 className="mb-3 text-sm font-medium text-gray-600 ">
         {title}
       </h3>
 
       <div className="flex items-center justify-between gap-4">
         {/* Value + delta */}
         <div className="flex flex-col gap-2">
-          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+          <div className="text-2xl font-bold text-slate-900 ">
             {formatNumber(value)}
           </div>
 
@@ -50,7 +50,7 @@ export default function KpiCard({ title, value, change = 0, data = [] }) {
 
         {/* Sparkline */}
         {Array.isArray(data) && data.length > 0 && (
-          <div className="h-12 w-24 overflow-hidden rounded-md md:h-14 md:w-28">
+          <div className="h-12 w-24 overflow-hidden rounded-md md:h-14 ml-2.5 md:w-28">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data}>
                 <defs>

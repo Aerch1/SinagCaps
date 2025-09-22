@@ -36,8 +36,8 @@ export default function CalendarPage() {
             {/* Header */}
             <div className="flex flex-col gap-3 md:gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">Calendar</h1>
-                    <p className="text-xs md:text-sm text-gray-500 dark:text-slate-400 mt-1">
+                    <h1 className="text-xl md:text-2xl font-bold text-slate-900">Calendar</h1>
+                    <p className="text-xs md:text-sm text-gray-500 mt-1">
                         Manage appointments and schedules
                     </p>
                 </div>
@@ -50,7 +50,7 @@ export default function CalendarPage() {
                         placeholder="Select view…"
                         className="w-32"
                     />
-                    <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200">
+                    <button className="inline-flex items-center gap-2 px-4 py-2 bg-secondary text-white text-sm font-medium rounded-lg transition-colors duration-200">
                         <Plus size={16} />
                         New Appointment
                     </button>

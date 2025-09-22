@@ -68,7 +68,7 @@ const UserDropdown = ({ user: propUser }) => {
         <div className="relative" ref={rootRef}>
             <button
                 onClick={() => setIsOpen((v) => !v)}
-                className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors duration-200"
+                className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg hover:bg-gray-100 transition-colors duration-200"
                 aria-haspopup="menu"
                 aria-expanded={isOpen}
             >
@@ -85,17 +85,17 @@ const UserDropdown = ({ user: propUser }) => {
                 )}
 
                 <div className="hidden lg:flex lg:flex-col lg:items-start">
-                    <span className="text-gray-700 dark:text-gray-300 font-medium">
+                    <span className="text-gray-700  font-medium">
                         {currentUser.name}
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-gray-500 ">
                         {currentUser.role || "Administrator"}
                     </span>
                 </div>
 
                 <ChevronDown
                     size={16}
-                    className={`hidden lg:inline text-gray-500 dark:text-gray-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
+                    className={`hidden lg:inline text-gray-500 transition-transform duration-200 ${isOpen ? "rotate-180" : ""
                         }`}
                 />
             </button>
@@ -103,10 +103,10 @@ const UserDropdown = ({ user: propUser }) => {
             {isOpen && (
                 <div
                     role="menu"
-                    className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 z-50"
+                    className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-lg border border-gray-200  z-50"
                 >
                     {/* User Info Header */}
-                    <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/[0.03]">
+                    <div className="flex items-center gap-3 p-4 border-b border-gray-200  bg-gray-50 ">
                         {currentUser.avatar ? (
                             <img
                                 src={currentUser.avatar}
@@ -119,13 +119,13 @@ const UserDropdown = ({ user: propUser }) => {
                             </div>
                         )}
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                            <p className="text-sm font-medium text-gray-900 truncate">
                                 {currentUser.name}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            <p className="text-xs text-gray-500 truncate">
                                 {currentUser.email}
                             </p>
-                            <p className="text-xs text-red-600 dark:text-red-400 font-medium">
+                            <p className="text-xs text-red-600  font-medium">
                                 {currentUser.role || "Administrator"}
                             </p>
                         </div>
@@ -138,17 +138,17 @@ const UserDropdown = ({ user: propUser }) => {
                                 key={item.path}
                                 to={item.path}
                                 role="menuitem"
-                                className="flex items-center gap-3 px-3 py-3 text-sm text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 transition-colors duration-200 group"
+                                className="flex items-center gap-3 px-3 py-3 text-sm text-gray-700  rounded-lg hover:bg-gray-50 transition-colors duration-200 group"
                             >
-                                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center group-hover:bg-red-50 dark:group-hover:bg-red-600/10 transition-colors">
+                                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-red-50 transition-colors">
                                     <item.icon
                                         size={16}
-                                        className="text-gray-600 dark:text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400"
+                                        className="text-gray-600  group-hover:text-red-600 dark:group-hover:text-red-400"
                                     />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="font-medium">{item.label}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    <p className="text-xs text-gray-500 ">
                                         {item.description}
                                     </p>
                                 </div>
@@ -157,17 +157,17 @@ const UserDropdown = ({ user: propUser }) => {
                     </div>
 
                     {/* Logout */}
-                    <div className="p-2 border-t border-gray-200 dark:border-gray-800">
+                    <div className="p-2 border-t border-gray-200 ">
                         <button
                             onClick={handleLogout}
-                            className="flex items-center gap-3 w-full px-3 py-3 text-sm text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/12 transition-colors duration-200 group"
+                            className="flex items-center gap-3 w-full px-3 py-3 text-sm text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 group"
                         >
-                            <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gray-100 dark:bg-red-500/20 flex items-center justify-center group-hover:bg-red-200 dark:group-hover:bg-red-500/30 transition-colors">
-                                <LogOut size={16} className="text-red-600 dark:text-red-400" />
+                            <div className="flex-shrink-0 w-8 h-8 rounded-lg   flex items-center justify-center   transition-colors">
+                                <LogOut size={16} className="text-red-600 " />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="font-medium">Sign Out</p>
-                                <p className="text-xs text-red-500 dark:text-red-400">
+                                <p className="text-xs text-red-500 ">
                                     Sign out of your account
                                 </p>
                             </div>

@@ -119,7 +119,7 @@ export default function BaptismForm({ formData, setFormData, registerValidator }
 
             <form className="space-y-6" onChange={syncValues} noValidate>
                 {/* Child Info */}
-                <section className="bg-white rounded-2xl border p-6 space-y-6">
+                <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
                     <SectionHeader title="Child Information" description="Impormasyon ng Bibinyagan" />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
@@ -155,7 +155,7 @@ export default function BaptismForm({ formData, setFormData, registerValidator }
                 </section>
 
                 {/* Parents Info */}
-                <section className="bg-white rounded-2xl border p-6 space-y-6">
+                <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
                     <SectionHeader title="Parents Information" description="Impormasyon ng mga Magulang" />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
@@ -176,30 +176,36 @@ export default function BaptismForm({ formData, setFormData, registerValidator }
                     </div>
 
                     <div>
-                        <p className="text-xs font-medium mb-2">Parents’ Marriage Status <RequiredIndicator /></p>
-                        <div className="flex flex-wrap gap-6">
+                        <p className="text-xs font-medium mb-2">
+                            Parents’ Marriage Status <RequiredIndicator />
+                        </p>
+                        <div className="flex flex-wrap gap-4">
                             {[
                                 { v: "church", label: "Church Wedding" },
                                 { v: "civil", label: "Civil Wedding" },
                                 { v: "unmarried", label: "Not Married" },
                             ].map((opt) => (
-                                <label key={opt.v} className="inline-flex items-center gap-2 text-xs">
+                                <label
+                                    key={opt.v}
+                                    className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 cursor-pointer transition hover:border-blue-400 hover:bg-blue-50"
+                                >
                                     <input
                                         type="radio"
                                         value={opt.v}
                                         {...register("parentsMarriageType")}
-                                        className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                                     />
-                                    {opt.label}
+                                    <span className="text-sm text-gray-700">{opt.label}</span>
                                 </label>
                             ))}
                         </div>
                         <FieldError error={errors.parentsMarriageType} />
                     </div>
+
                 </section>
 
                 {/* Contact */}
-                <section className="bg-white rounded-2xl border p-6 space-y-6">
+                <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
                     <SectionHeader title="Contact & Address" description="Impormasyon sa Pakikipag-ugnayan" />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
@@ -235,7 +241,7 @@ export default function BaptismForm({ formData, setFormData, registerValidator }
 
                 {/* Sponsors */}
                 {/* ---------------- Sponsors Section ---------------- */}
-                <section className="bg-white rounded-2xl border border-gray-100 p-8">
+                <section className="bg-white rounded-2xl border border-gray-100 p-6 ">
                     <div className="flex items-start justify-between mb-6">
                         <div>
                             <div className="flex items-center gap-3 mb-2">

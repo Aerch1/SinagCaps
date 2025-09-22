@@ -29,19 +29,14 @@ export const useAuthStore = create((set, get) => ({
   clearMessage: () => set({ message: null }),
   clearAll: () => set({ error: null, message: null }),
 
-  setError: (error) => {
-    set({ error, isLoading: false });
-    setTimeout(() => {
-      if (get().error === error) set({ error: null });
-    }, 5000);
-  },
+setError: (error) => {
+  set({ error, isLoading: false });
+},
 
-  setMessage: (message) => {
-    set({ message, isLoading: false });
-    setTimeout(() => {
-      if (get().message === message) set({ message: null });
-    }, 5000);
-  },
+setMessage: (message) => {
+  set({ message, isLoading: false });
+},
+
 
   setUser: (user) => {
     set({ user, isAuthenticated: !!user, isCheckingAuth: false });

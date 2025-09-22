@@ -2,7 +2,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 
 @import "tailwindcss";
-@custom-variant dark (&:is(.dark *));
 
 @import "tw-animate-css";
 
@@ -45,19 +44,7 @@ body {
   --color-brand-900: #262e89;
   --color-brand-950: #161950;
 
-  --color-gray-25: #fcfcfd;
-  --color-gray-50: #f9fafb;
-  --color-gray-100: #f2f4f7;
-  --color-gray-200: #e4e7ec;
-  --color-gray-300: #d0d5dd;
-  --color-gray-400: #98a2b3;
-  --color-gray-500: #667085;
-  --color-gray-600: #475467;
-  --color-gray-700: #344054;
-  --color-gray-800: #1d2939;
-  --color-gray-900: #101828;
-  --color-gray-950: #0c111d;
-  --color-gray-dark: #1a2231;
+
 
     --color-light-100: #ecf2ef;
   --color-light-200: #f9fbfc;
@@ -109,13 +96,11 @@ body {
   }
 
   &::-webkit-scrollbar-thumb {
-    @apply bg-gray-200 rounded-full dark:bg-gray-700;
+    @apply bg-gray-200 rounded-full ;
   }
 }
 
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #344054;
-}
+
 
 
 
@@ -262,33 +247,6 @@ input:-webkit-autofill:focus {
   --fc-today-bg-color: rgb(239 246 255);
 }
 
-.dark .fullcalendar-container .fc {
-  --fc-border-color: rgb(51 65 85);
-  --fc-button-text-color: rgb(148 163 184);
-  --fc-button-bg-color: transparent;
-  --fc-button-border-color: rgb(51 65 85);
-  --fc-button-hover-bg-color: rgb(30 41 59);
-  --fc-button-active-bg-color: rgb(59 130 246);
-  --fc-button-active-border-color: rgb(59 130 246);
-  --fc-today-bg-color: rgb(30 58 138 / 0.1);
-}
-
-.dark .fc-theme-standard td,
-.dark .fc-theme-standard th {
-  border-color: rgb(51 65 85);
-}
-
-.dark .fc-col-header-cell {
-  background-color: rgb(30 41 59);
-}
-
-.dark .fc-daygrid-day-number {
-  color: rgb(148 163 184);
-}
-
-.dark .fc-toolbar-title {
-  color: rgb(241 245 249);
-}
 
 /* =========================
    Admin Calendar: layout-only
@@ -306,10 +264,6 @@ input:-webkit-autofill:focus {
   /* DO NOT set height here; height is controlled by the React prop */
 }
 
-.dark .admin-calendar .fc .fc-col-header{
-  color: rgb(241 245 249);
-  font-weight: 400px;
-} 
 /* Keep harness width-friendly only */
 .admin-calendar .fc-view-harness {
   width: 100% !important;
