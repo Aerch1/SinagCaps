@@ -16,21 +16,18 @@ export default function TimePopover({
     disabled = false,
     error,
     buttonClassName = "",
-    step = 60,                // seconds for <input type="time"> granularity (60 = 1 min, 300 = 5 min)
+    step = 60,                // seconds for <input type="time">
 }) {
     const [open, setOpen] = useState(false);
 
-    // Button label: show 12h if we have a value
     const timeLabel = value ? to12(value) : "Pick a time";
 
     const onQuickPick = (t) => {
-        // t is "HH:mm" (internal)
         onChange?.(t);
         setOpen(false);
     };
 
     const onCustomChange = (e) => {
-        // e.target.value is "HH:mm" (always 24h)
         const raw = e.target.value || "";
         if (!raw || TIME_24H.test(raw)) {
             onChange?.(raw);
@@ -40,7 +37,7 @@ export default function TimePopover({
     return (
         <div className="w-full">
             {label && (
-                <label className="block text-sm font-medium  text-gray-900 dark:text-gray-100 mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                     {label}
                 </label>
             )}
@@ -52,7 +49,7 @@ export default function TimePopover({
                         variant="outline"
                         disabled={disabled}
                         className={[
-                            "w-full justify-start dark:bg-slate-700  text-left font-normal",
+                            "w-full justify-start text-left font-normal bg-white",
                             disabled ? "opacity-60 cursor-not-allowed" : "",
                             error ? "border-red-500" : "",
                             buttonClassName,
@@ -66,13 +63,13 @@ export default function TimePopover({
                     align="start"
                     side="bottom"
                     sideOffset={6}
-                    className="z-[9999] w-[340px] p-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-md rounded-md"
+                    className="z-[9999] w-[340px] p-3 bg-white border border-gray-200 shadow-md rounded-md"
                 >
-                    {/* Available times (from backend availability; displayed 12h, keep 24h internally) */}
+                    {/* Available times */}
                     <div className="mb-3">
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Available times</span>
-                            {loading && <span className="text-xs text-gray-500 dark:text-slate-400">Loading…</span>}
+                            <span className="text-sm font-medium text-gray-900">Available times</span>
+                            {loading && <span className="text-xs text-gray-500">Loading…</span>}
                         </div>
 
                         {suggestions?.length ? (
@@ -86,7 +83,7 @@ export default function TimePopover({
                                             "px-3 py-1.5 rounded-md border text-sm transition",
                                             t === (value || "")
                                                 ? "bg-blue-600 text-white border-blue-600"
-                                                : "bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600",
+                                                : "bg-white text-slate-700 border-gray-300 hover:bg-gray-50",
                                         ].join(" ")}
                                     >
                                         {to12(t)}
@@ -94,13 +91,13 @@ export default function TimePopover({
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-sm text-gray-500 dark:text-slate-400">No availability for the selected date.</p>
+                            <p className="text-sm text-gray-500">No availability for the selected date.</p>
                         )}
                     </div>
 
-                    {/* Custom time (single input, AM/PM UI where the browser locale supports it) */}
+                    {/* Custom time */}
                     <div className="mt-2">
-                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
                             Or enter custom time
                         </label>
 
@@ -112,9 +109,9 @@ export default function TimePopover({
                                 onChange={onCustomChange}
                                 className={[
                                     "flex-1 px-3 py-2 border rounded-lg",
-                                    "bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100",
+                                    "bg-white text-gray-900",
                                     "focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                                    error ? "border-red-500" : "border-gray-300 dark:border-slate-600",
+                                    error ? "border-red-500" : "border-gray-300",
                                 ].join(" ")}
                             />
                             <Button type="button" onClick={() => setOpen(false)} className="shrink-0">

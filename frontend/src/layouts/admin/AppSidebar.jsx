@@ -38,9 +38,12 @@ const sections = [
           { name: "All Appointments", path: "/admin/appointments?status=all", status: "all", key: "appointments-all" },
           { name: "Pending", path: "/admin/appointments?status=pending", status: "pending", key: "appointments-pending" },
           { name: "Approved", path: "/admin/appointments?status=approved", status: "approved", key: "appointments-approved" },
+          { name: "In Progress", path: "/admin/appointments?status=in_progress", status: "in_progress", key: "appointments-in-progress" },
           { name: "Completed", path: "/admin/appointments?status=completed", status: "completed", key: "appointments-completed" },
+          { name: "Cancelled", path: "/admin/appointments?status=cancelled", status: "cancelled", key: "appointments-cancelled" },
         ],
       },
+
       { name: "Documents", path: "/admin/documents", icon: <Calendar size={18} />, key: "documents" },
       { name: "Messages", path: "/admin/messages", icon: <MessageCircle size={18} />, key: "messages" },
     ],

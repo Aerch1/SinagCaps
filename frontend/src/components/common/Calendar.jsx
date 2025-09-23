@@ -10,18 +10,15 @@ import CreateAppointmentModal from "@/components/common/modal/CreateAppointmentM
 import ViewAppointmentModal from "@/components/common/modal/ViewAppointmentModal";
 import { useSidebar } from "@/context/admin/SidebarContext";
 
-const serviceTypes = ["All Services", "Wedding", "Baptism", "Counseling", "Confirmation", "Funeral"];
-
-const viewOptions = [
+/* ---------- constants ---------- */
+const SERVICE_TYPES = ["All Services", "Wedding", "Baptism", "Counseling", "Confirmation", "Funeral"];
+const VIEW_OPTIONS = [
     { value: "dayGridMonth", label: "Month" },
     { value: "timeGridWeek", label: "Week" },
     { value: "timeGridDay", label: "Day" },
 ];
 
-export default function CalendarComponent({
-    appointments: externalAppointments,
-    onAppointmentsChange,
-}) {
+export default function CalendarComponent({ appointments: externalAppointments, onAppointmentsChange }) {
     const [currentView, setCurrentView] = useState("dayGridMonth");
     const [selectedService, setSelectedService] = useState("All Services");
     const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
@@ -43,7 +40,10 @@ export default function CalendarComponent({
         if (!calendarRef.current) return;
         const api = calendarRef.current.getApi();
         const t = setTimeout(() => {
-            try { api.updateSize(); api.render(); } catch { }
+            try {
+                api.updateSize();
+                api.render();
+            } catch { }
         }, 100);
         return () => clearTimeout(t);
     }, [isExpanded, isHovered]);
@@ -54,7 +54,10 @@ export default function CalendarComponent({
             const api = calendarRef.current.getApi();
             clearTimeout(calendarRef.current.resizeTimer);
             calendarRef.current.resizeTimer = setTimeout(() => {
-                try { api.updateSize(); api.render(); } catch { }
+                try {
+                    api.updateSize();
+                    api.render();
+                } catch { }
             }, 150);
         };
         let ro;
@@ -72,34 +75,37 @@ export default function CalendarComponent({
 
     /* ---------- data ---------- */
     const filteredAppointments = useMemo(
-        () => (selectedService === "All Services"
-            ? appointments
-            : appointments.filter(a => a.serviceType === selectedService)),
+        () =>
+            selectedService === "All Services"
+                ? appointments
+                : appointments.filter((a) => a.serviceType === selectedService),
         [appointments, selectedService]
     );
 
     const handleDateClick = useCallback((arg) => {
-        setSelectedDate(arg.date); // prefill date for create
+        setSelectedDate(arg.date);
         setIsCreateOpen(true);
     }, []);
 
-    // Map FullCalendar event -> our appointment shape for the view modal
     const handleEventClick = useCallback((clickInfo) => {
         const evt = clickInfo.event;
         const ext = evt.extendedProps || {};
         const start = evt.start || null;
         const end = evt.end || null;
 
-        const dateISO = start ? toDateISO(start) : (ext.date || "");
-        const time24 = start ? toHHmm(start) : (ext.time || null);
+        const dateISO = start ? toDateISO(start) : ext.date || "";
+        const time24 = start ? toHHmm(start) : ext.time || null;
 
         const appt = {
             id: evt.id,
             title: evt.title,
-            start: start || ext.start,   // keep as Date
-            end: end || ext.end,         // keep as Date
+            start,
+            end,
             date: dateISO,
             time: ext.allDay ? null : time24,
+            serviceType: ext.serviceType,
+            status: ext.status,
+            clientName: ext.clientName,
             backgroundColor: evt.backgroundColor,
             borderColor: evt.borderColor,
             ...ext,
@@ -108,52 +114,57 @@ export default function CalendarComponent({
         setViewOpen(true);
     }, []);
 
-    const handleSaveAppointment = useCallback((data) => {
-        const id = `TXN-${String(appointments.length + 1).padStart(3, "0")}`;
-        const color = getServiceColor(data.serviceType);
-        setAppointments(prev => ([
-            ...prev,
-            {
-                id,
-                title: `${data.serviceType} - ${data.clientName}`,
-                clientName: data.clientName,
-                serviceType: data.serviceType,
-                status: data.status,
-                date: data.date,
-                time: data.time,                 // "HH:mm" or null
-                purpose: data.purpose,
-                notes: data.notes,
-                allDay: !!data.allDay,
-                start: data.start,               // ISO string
-                end: data.end,                   // ISO string
-                backgroundColor: color,
-                borderColor: color,
-            },
-        ]));
-    }, [appointments.length, setAppointments]);
+    const handleSaveAppointment = useCallback(
+        (data) => {
+            if (!data.serviceType) {
+                console.warn("⚠ Missing serviceType in saved appointment:", data);
+                return;
+            }
+            const id = `TXN-${String(appointments.length + 1).padStart(3, "0")}`;
+            const color = getServiceColor(data.serviceType);
+            setAppointments((prev) => [
+                ...prev,
+                {
+                    id,
+                    title: `${data.serviceType} - ${data.clientName}`,
+                    clientName: data.clientName,
+                    serviceType: data.serviceType,
+                    status: data.status,
+                    date: data.date,
+                    time: data.time,
+                    notes: data.notes,
+                    allDay: !!data.allDay,
+                    start: data.start || data.date,
+                    end: data.end || data.date,
+                    backgroundColor: color,
+                    borderColor: color,
+                },
+            ]);
+        },
+        [appointments.length, setAppointments]
+    );
 
     const fetchAvailableTimes = async () => {
-        // mock backend availability (returns "HH:mm")
         return mockGenerateTimes("08:00", "17:30", 30);
     };
 
     return (
-        <div className="bg-white  rounded-lg border border-gray-200 p-6 relative">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 relative">
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <button onClick={() => calendarRef.current?.getApi().prev()} className="p-2 text-gray-600  hover:bg-gray-100 rounded-lg">
+                        <button onClick={() => calendarRef.current?.getApi().prev()} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
                             <ChevronLeft className="w-5 h-5" />
                         </button>
-                        <button onClick={() => calendarRef.current?.getApi().next()} className="p-2 text-gray-600  hover:bg-gray-100  rounded-lg">
+                        <button onClick={() => calendarRef.current?.getApi().next()} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
                             <ChevronRight className="w-5 h-5" />
                         </button>
-                        <button onClick={() => calendarRef.current?.getApi().today()} className="px-3 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 ">
+                        <button onClick={() => calendarRef.current?.getApi().today()} className="px-3 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
                             Today
                         </button>
                     </div>
-                    <h2 className="text-lg font-semibold text-slate-900 ">
+                    <h2 className="text-lg font-semibold text-slate-900">
                         {calendarRef.current ? calendarRef.current.getApi().view.title : "Calendar"}
                     </h2>
                 </div>
@@ -163,7 +174,7 @@ export default function CalendarComponent({
                     <div className="relative">
                         <button
                             onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
-                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700  bg-gray-100  rounded-lg  "
+                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg"
                         >
                             <Filter className="w-4 h-4" />
                             {selectedService}
@@ -173,13 +184,14 @@ export default function CalendarComponent({
                             <>
                                 <div className="fixed inset-0 z-10" onClick={() => setIsServiceDropdownOpen(false)} />
                                 <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
-                                    {serviceTypes.map((s) => (
+                                    {SERVICE_TYPES.map((s) => (
                                         <button
                                             key={s}
-                                            onClick={() => { setSelectedService(s); setIsServiceDropdownOpen(false); }}
-                                            className={`w-full text-left px-3 py-2 text-sm ${selectedService === s
-                                                ? "bg-blue-50  text-red-600 "
-                                                : "text-gray-700  hover:bg-gray-50 "
+                                            onClick={() => {
+                                                setSelectedService(s);
+                                                setIsServiceDropdownOpen(false);
+                                            }}
+                                            className={`w-full text-left px-3 py-2 text-sm ${selectedService === s ? "bg-blue-50 text-red-600" : "text-gray-700 hover:bg-gray-50"
                                                 }`}
                                         >
                                             {s}
@@ -192,11 +204,14 @@ export default function CalendarComponent({
 
                     {/* View Controls */}
                     <div className="flex items-center gap-1">
-                        {viewOptions.map((opt) => (
+                        {VIEW_OPTIONS.map((opt) => (
                             <button
                                 key={opt.value}
-                                onClick={() => { setCurrentView(opt.value); calendarRef.current?.getApi().changeView(opt.value); }}
-                                className={`px-3 py-2 text-sm font-medium rounded-lg ${currentView === opt.value ? "bg-red-600 text-white" : "text-gray-600  hover:bg-gray-100 "
+                                onClick={() => {
+                                    setCurrentView(opt.value);
+                                    calendarRef.current?.getApi().changeView(opt.value);
+                                }}
+                                className={`px-3 py-2 text-sm font-medium rounded-lg ${currentView === opt.value ? "bg-red-600 text-white" : "text-gray-600 hover:bg-gray-100"
                                     }`}
                             >
                                 {opt.label}
@@ -219,33 +234,14 @@ export default function CalendarComponent({
                     editable
                     droppable
                     height="600px"
-                    dayMaxEvents={false}
-                    moreLinkClick="popover"
-                    eventDisplay="block"
-                    dayHeaderFormat={{ weekday: "short" }}
                     slotMinTime="08:00:00"
                     slotMaxTime="18:00:00"
                     allDaySlot={false}
                     timeZone="local"
                     eventTimeFormat={{ hour: "2-digit", minute: "2-digit", meridiem: false }}
                     eventClassNames="cursor-pointer hover:opacity-80 transition-opacity duration-200"
-                    selectMirror
-                    dayMaxEventRows={false}
                     weekends
                     nowIndicator
-                    businessHours={{ daysOfWeek: [0, 1, 2, 3, 4, 5, 6], startTime: "08:00", endTime: "18:00" }}
-                    eventMinHeight={30}
-                    eventShortHeight={30}
-                    expandRows
-                    viewDidMount={() => {
-                        setTimeout(() => {
-                            try {
-                                const api = calendarRef.current?.getApi();
-                                api?.updateSize();
-                                api?.render();
-                            } catch { }
-                        }, 50);
-                    }}
                 />
             </div>
 
@@ -264,7 +260,7 @@ export default function CalendarComponent({
                 onClose={() => setViewOpen(false)}
                 appointment={viewAppt}
                 onUpdate={(updated) => {
-                    setAppointments(prev => prev.map(a => (a.id === updated.id ? { ...a, ...updated } : a)));
+                    setAppointments((prev) => prev.map((a) => (a.id === updated.id ? { ...a, ...updated } : a)));
                     setViewOpen(false);
                 }}
                 fetchAvailableTimes={fetchAvailableTimes}
@@ -272,8 +268,11 @@ export default function CalendarComponent({
 
             {/* Floating Create */}
             <button
-                onClick={() => { setSelectedDate(null); setIsCreateOpen(true); }}
-                className="fixed bottom-6 right-6 w-14 h-14 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center z-40 group"
+                onClick={() => {
+                    setSelectedDate(null);
+                    setIsCreateOpen(true);
+                }}
+                className="fixed bottom-6 right-6 w-14 h-14 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg flex items-center justify-center z-40 group"
                 title="Create Appointment"
             >
                 <Plus className="w-6 h-6 group-hover:scale-110 transition-transform" />
@@ -284,21 +283,37 @@ export default function CalendarComponent({
 
 /* ---------- helpers ---------- */
 function getServiceColor(serviceType) {
-    const colors = { Wedding: "#dc2626", Baptism: "#2563eb", Counseling: "#d97706", Confirmation: "#059669", Funeral: "#7c3aed" };
+    const colors = {
+        Wedding: "#dc2626",
+        Baptism: "#2563eb",
+        Counseling: "#d97706",
+        Confirmation: "#059669",
+        Funeral: "#7c3aed",
+    };
     return colors[serviceType] || "#6b7280";
 }
 function mockGenerateTimes(startHHmm = "08:00", endHHmm = "17:30", everyMin = 30) {
     const [sh, sm] = startHHmm.split(":").map(Number);
     const [eh, em] = endHHmm.split(":").map(Number);
     const out = [];
-    let h = sh, m = sm;
+    let h = sh,
+        m = sm;
     while (h < eh || (h === eh && m <= em)) {
         out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
         m += everyMin;
-        while (m >= 60) { m -= 60; h += 1; }
+        if (m >= 60) {
+            m -= 60;
+            h++;
+        }
     }
     return out;
 }
-function pad2(n) { return String(n).padStart(2, "0"); }
-function toDateISO(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
-function toHHmm(d) { return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
+function pad2(n) {
+    return String(n).padStart(2, "0");
+}
+function toDateISO(d) {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+function toHHmm(d) {
+    return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}

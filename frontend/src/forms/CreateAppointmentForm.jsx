@@ -7,44 +7,71 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Dropdown from "../components/ui/Dropdown1";
 import DatePopover from "../components/ui/DatePopover";
 import TimePopover from "../components/ui/TimePopover";
+import { formatStatusLabel } from "../lib/utils.js";
 
-/* constants */
+/* ---------------- Constants ---------------- */
 const SERVICE_TYPES = ["Wedding", "Baptism", "Counseling", "Confirmation", "Funeral"];
-const STATUS_OPTIONS = ["Pending", "In Process", "Confirmed", "Completed", "Cancelled"];
 
-/* Zod schema (24h time) */
+// ✅ DB-safe values + user-friendly labels
+const STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
 const YYYYMMDD = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_24H = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
+/* ---------------- Zod Schema ---------------- */
 const AppointmentSchema = z
   .object({
     clientName: z.string().min(1, "Client name is required").max(120),
     email: z.string().email("Enter a valid email").optional().or(z.literal("")),
-    phone: z.string().optional().or(z.literal(""))
-      .refine(v => !v || /^[\d+\-\s()]{6,}$/.test(v), { message: "Enter a valid phone number" }),
+    phone: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine((v) => !v || /^[\d+\-\s()]{6,}$/.test(v), {
+        message: "Enter a valid phone number",
+      }),
     address: z.string().optional().or(z.literal("")),
-    serviceType: z.enum(SERVICE_TYPES, { errorMap: () => ({ message: "Select a service type" }) }),
-    status: z.enum(STATUS_OPTIONS).default("Pending"),
-    date: z.string().regex(YYYYMMDD, "Pick a valid date").optional().or(z.literal("")),
+    serviceType: z.enum(SERVICE_TYPES, {
+      errorMap: () => ({ message: "Select a service type" }),
+    }),
+    status: z.enum(STATUS_OPTIONS.map((o) => o.value)).default("pending"),
+    date: z.string().regex(YYYYMMDD, "Pick a valid date"),
     allDay: z.boolean().default(false),
     time: z.string().optional().or(z.literal("")),
-    purpose: z.string().optional().or(z.literal("")),
     notes: z.string().optional().or(z.literal("")),
   })
   .superRefine((val, ctx) => {
     if (!val.date || !YYYYMMDD.test(val.date)) {
-      ctx.addIssue({ path: ["date"], code: z.ZodIssueCode.custom, message: "Appointment date is required" });
+      ctx.addIssue({
+        path: ["date"],
+        code: z.ZodIssueCode.custom,
+        message: "Appointment date is required",
+      });
     }
     if (!val.allDay) {
       if (!val.time || !val.time.trim()) {
-        ctx.addIssue({ path: ["time"], code: z.ZodIssueCode.custom, message: "Preferred time is required" });
+        ctx.addIssue({
+          path: ["time"],
+          code: z.ZodIssueCode.custom,
+          message: "Preferred time is required",
+        });
       } else if (!TIME_24H.test(val.time)) {
-        ctx.addIssue({ path: ["time"], code: z.ZodIssueCode.custom, message: "Use format HH:mm (24-hour)" });
+        ctx.addIssue({
+          path: ["time"],
+          code: z.ZodIssueCode.custom,
+          message: "Use format HH:mm (24-hour)",
+        });
       }
     }
   });
 
-
+/* ---------------- Component ---------------- */
 export default function CreateAppointmentForm({
   defaultDate = "",
   onSubmit,
@@ -65,11 +92,10 @@ export default function CreateAppointmentForm({
       phone: "",
       address: "",
       serviceType: SERVICE_TYPES[0],
-      status: "Pending",
+      status: "pending",
       date: defaultDate,
       allDay: false,
       time: "",
-      purpose: "",
       notes: "",
     },
   });
@@ -81,6 +107,7 @@ export default function CreateAppointmentForm({
   const [suggestions, setSuggestions] = useState([]);
   const [loadingTimes, setLoadingTimes] = useState(false);
 
+  /* Fetch available times */
   useEffect(() => {
     let active = true;
     (async () => {
@@ -90,9 +117,10 @@ export default function CreateAppointmentForm({
       }
       setLoadingTimes(true);
       try {
-        const times = typeof fetchAvailableTimes === "function"
-          ? await fetchAvailableTimes(dateISO, serviceType)
-          : mockGenerateTimes("08:00", "17:30", 30);
+        const times =
+          typeof fetchAvailableTimes === "function"
+            ? await fetchAvailableTimes(dateISO, serviceType)
+            : mockGenerateTimes("08:00", "17:30", 30);
         if (active) setSuggestions(Array.isArray(times) ? times : []);
       } catch {
         if (active) setSuggestions([]);
@@ -100,34 +128,36 @@ export default function CreateAppointmentForm({
         if (active) setLoadingTimes(false);
       }
     })();
-    return () => { active = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateISO, serviceType, allDay]);
+    return () => {
+      active = false;
+    };
+  }, [dateISO, serviceType, allDay, fetchAvailableTimes]);
 
-  const onLocalSubmit = async (data) => {
-    const { start, end } = buildStartEnd(data.date, data.allDay ? null : data.time, data.allDay);
-    await onSubmit?.({
+  /* Pass validated form data up to Modal */
+  const handleFormSubmit = (data) => {
+    onSubmit?.({
       clientName: data.clientName.trim(),
-      email: (data.email || "").trim(),
-      phone: (data.phone || "").trim(),
-      address: (data.address || "").trim(),
+      email: data.email.trim(),
+      phone: data.phone.trim(),
+      address: data.address.trim(),
       serviceType: data.serviceType,
-      status: data.status,
+      status: data.status, // ✅ always DB-safe value
       date: data.date,
       time: data.allDay ? null : data.time,
       allDay: !!data.allDay,
-      purpose: (data.purpose || "").trim(),
-      notes: (data.notes || "").trim(),
-      start,
-      end,
+      notes: data.notes.trim(),
+      start: data.date,
+      end: data.date,
     });
   };
 
   return (
-    <form onSubmit={handleSubmit(onLocalSubmit)} className="space-y-8 " aria-labelledby="create-appointment-title">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8">
       {/* Personal Information */}
-      <section >
-        <h3 className="mb-4 text-sm font-semibold text-slate-900 dark:text-slate-100">Personal Information</h3>
+      <section>
+        <h3 className="mb-4 text-sm font-semibold text-slate-900">
+          Personal Information
+        </h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium">Client Name</label>
@@ -135,22 +165,25 @@ export default function CreateAppointmentForm({
               type="text"
               {...register("clientName")}
               placeholder="Enter full name"
-              className={`w-full rounded-lg border px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 ${errors.clientName ? "border-red-500" : "border-gray-300"
+              className={`w-full rounded-lg border px-3 py-2 ${errors.clientName ? "border-red-500" : "border-gray-300"
                 }`}
             />
-            {errors.clientName && <p className="mt-1 text-sm text-red-500">{errors.clientName.message}</p>}
+            {errors.clientName && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.clientName.message}
+              </p>
+            )}
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Email (for notifications)</label>
+            <label className="mb-2 block text-sm font-medium">Email</label>
             <input
               type="email"
               {...register("email")}
               placeholder="client@example.com"
-              className={`w-full rounded-lg border px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 ${errors.email ? "border-red-500" : "border-gray-300"
+              className={`w-full rounded-lg border px-3 py-2 ${errors.email ? "border-red-500" : "border-gray-300"
                 }`}
             />
-            {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>}
           </div>
 
           <div>
@@ -159,10 +192,9 @@ export default function CreateAppointmentForm({
               type="tel"
               {...register("phone")}
               placeholder="+63 9xx xxx xxxx"
-              className={`w-full rounded-lg border px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100 ${errors.phone ? "border-red-500" : "border-gray-300"
+              className={`w-full rounded-lg border px-3 py-2 ${errors.phone ? "border-red-500" : "border-gray-300"
                 }`}
             />
-            {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone.message}</p>}
           </div>
 
           <div className="md:col-span-2">
@@ -171,7 +203,7 @@ export default function CreateAppointmentForm({
               type="text"
               {...register("address")}
               placeholder="Street / Barangay / City / Province"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2"
             />
           </div>
         </div>
@@ -179,9 +211,11 @@ export default function CreateAppointmentForm({
 
       {/* Appointment Details */}
       <section>
-        <h3 className="mb-4 text-sm font-semibold text-slate-900 dark:text-slate-100">Appointment Details</h3>
-
+        <h3 className="mb-4 text-sm font-semibold text-slate-900">
+          Appointment Details
+        </h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* Service Type */}
           <div>
             <label className="mb-2 block text-sm font-medium">Service Type</label>
             <Controller
@@ -192,14 +226,18 @@ export default function CreateAppointmentForm({
                   value={field.value}
                   onChange={field.onChange}
                   options={SERVICE_TYPES}
-                  placeholder="Select service type..."
                   className="w-full"
                 />
               )}
             />
-            {errors.serviceType && <p className="mt-1 text-sm text-red-500">{errors.serviceType.message}</p>}
+            {errors.serviceType && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.serviceType.message}
+              </p>
+            )}
           </div>
 
+          {/* Status */}
           <div>
             <label className="mb-2 block text-sm font-medium">Status</label>
             <Controller
@@ -210,7 +248,7 @@ export default function CreateAppointmentForm({
                   value={field.value}
                   onChange={field.onChange}
                   options={STATUS_OPTIONS}
-                  placeholder="Select status..."
+                  formatter={formatStatusLabel} // 👈 UI shows label, DB keeps value
                   className="w-full"
                 />
               )}
@@ -225,11 +263,14 @@ export default function CreateAppointmentForm({
               control={control}
               name="date"
               render={({ field }) => (
-                <DatePopover value={field.value} onChange={field.onChange} error={errors.date?.message} />
+                <DatePopover
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={errors.date?.message}
+                />
               )}
             />
           </div>
-
           <div className="md:col-span-6">
             <Controller
               control={control}
@@ -255,7 +296,11 @@ export default function CreateAppointmentForm({
               control={control}
               name="allDay"
               render={({ field }) => (
-                <input type="checkbox" {...field} className="h-4 w-4 rounded border-gray-300 dark:border-slate-600" />
+                <input
+                  type="checkbox"
+                  {...field}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
               )}
             />
             All-day
@@ -263,25 +308,16 @@ export default function CreateAppointmentForm({
         </div>
       </section>
 
-      {/* Purpose */}
+      {/* Notes */}
       <section>
-        <h3 className="mb-4 text-sm font-semibold text-slate-900 dark:text-slate-100">Purpose</h3>
-        <input
-          type="text"
-          {...register("purpose")}
-          placeholder="Short purpose of appointment"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100"
-        />
-      </section>
-
-      {/* Additional Notes */}
-      <section>
-        <h3 className="mb-4 text-sm font-semibold text-slate-900 dark:text-slate-100">Additional Notes</h3>
+        <h3 className="mb-4 text-sm font-semibold text-slate-900">
+          Additional Notes
+        </h3>
         <textarea
           rows={4}
           {...register("notes")}
-          placeholder="Any extra details for the staff…"
-          className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-100"
+          placeholder="Internal notes (optional)…"
+          className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2"
         />
       </section>
 
@@ -290,56 +326,36 @@ export default function CreateAppointmentForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-4 py-2 text-slate-700 transition hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-700"
+          className="rounded-lg px-4 py-2 text-slate-700 transition hover:bg-gray-100"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="rounded-lg bg-secondary px-4 py-2 text-white transition hover:bg-secondary/90 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+          className="rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700"
           disabled={isSubmitting}
         >
           {isSubmitting ? "Saving…" : "Save Appointment"}
         </button>
       </div>
-
     </form>
   );
 }
 
-/* helpers */
+/* Helpers */
 function mockGenerateTimes(startHHmm = "08:00", endHHmm = "17:30", everyMin = 30) {
   const [sh, sm] = startHHmm.split(":").map(Number);
   const [eh, em] = endHHmm.split(":").map(Number);
   const out = [];
-  let h = sh, m = sm;
+  let h = sh,
+    m = sm;
   while (h < eh || (h === eh && m <= em)) {
     out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
     m += everyMin;
-    while (m >= 60) { m -= 60; h += 1; }
+    while (m >= 60) {
+      m -= 60;
+      h += 1;
+    }
   }
   return out;
-}
-function buildStartEnd(dateISO, hhmmOrNull, allDay) {
-  const [y, m, d] = dateISO.split("-").map(Number);
-
-  if (allDay || !hhmmOrNull) {
-    // All-day events should use date-only and an exclusive end (next day)
-    const start = new Date(y, m - 1, d, 0, 0, 0, 0);        // local midnight
-    const end = new Date(y, m - 1, d + 1, 0, 0, 0, 0);    // next day (exclusive)
-    return { start, end };
-  }
-
-  const [hh, mm] = hhmmOrNull.split(":").map(Number);
-  const start = new Date(y, m - 1, d, hh, mm, 0, 0);        // local time
-  const end = new Date(y, m - 1, d, hh + 1, mm, 0, 0);    // +60 minutes
-  return { start, end };
-}
-
-function addMinutes(hhmm, add) {
-  const [h, m] = hhmm.split(":").map(Number);
-  const total = h * 60 + m + add;
-  const nh = Math.floor((((total % 1440) + 1440) % 1440) / 60);
-  const nm = ((total % 60) + 60) % 60;
-  return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
 }

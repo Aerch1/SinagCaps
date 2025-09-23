@@ -42,19 +42,7 @@ export default function CalendarPage() {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <Dropdown
-                        value={viewFilter}
-                        onChange={setViewFilter}
-                        options={viewOptions}
-                        placeholder="Select view…"
-                        className="w-32"
-                    />
-                    <button className="inline-flex items-center gap-2 px-4 py-2 bg-secondary text-white text-sm font-medium rounded-lg transition-colors duration-200">
-                        <Plus size={16} />
-                        New Appointment
-                    </button>
-                </div>
+              
             </div>
 
             {/* Stats */}

@@ -24,6 +24,7 @@ export default function FilterDropdown({
     options = [],                // [{ value, label }]
     value,
     onValueChange,
+    labelFormatter,
 }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
@@ -79,9 +80,10 @@ export default function FilterDropdown({
                 onClick={() => setOpen((p) => !p)}
                 className="flex w-full items-center justify-between rounded-md border text-nowrap border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
-                <span className="flex items-center gap-2">
+                <span className="flex items-center gap-2 md:text-sm text-xs ">
                     <Filter className="h-4 w-4 text-gray-500" />
                     {computedLabel}
+
                 </span>
                 <svg
                     className={`h-4 w-4 text-gray-500 transition-transform ${open ? "rotate-180" : ""}`}
@@ -94,43 +96,55 @@ export default function FilterDropdown({
             {/* UNMOUNT when closed => prevents click-through to table */}
             {open && (
                 <div
-                    className="absolute z-50 mt-1 w-72 right-0 rounded-md border border-gray-200 bg-white shadow-lg p-2 "
+                    className={`
+      absolute z-50 mt-1 
+      bg-white border border-gray-200 rounded-md shadow-lg p-2
+      w-screen max-w-xs left-0 right-0 mx-auto
+      md:w-72 md:right-0 md:left-auto md:mx-0
+    `}
                     role="menu"
                 >
-                    <div className="max-h-64 overflow-y-auto text-sm">
+                    <div className="max-h-[70vh] overflow-y-auto text-sm">
                         {mode === "service" && selectionMode === "multi" && (
                             serviceOptions.length ? (
                                 serviceOptions.map((opt) => (
-                                    <label key={opt} className="flex items-center gap-2 px-4 py-2 cursor-pointer  hover:bg-gray-50 ">
+                                    <label
+                                        key={opt}
+                                        className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50"
+                                    >
                                         <input
                                             type="checkbox"
                                             checked={selectedServices.includes(opt)}
                                             onChange={() => toggleService(opt)}
-                                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                            className="h-5 w-5 text-blue-600 border-gray-300 rounded"
                                         />
-                                        {opt}
+                                        <span className="text-sm">{labelFormatter ? labelFormatter(opt) : opt}</span>
                                     </label>
                                 ))
                             ) : (
-                                <div className="px-4 py-2 text-gray-500">No services</div>
+                                <div className="px-4 py-3 text-gray-500">No services</div>
                             )
                         )}
+
 
                         {mode === "status" && selectionMode === "multi" && (
                             statusOptions.length ? (
                                 statusOptions.map((opt) => (
-                                    <label key={opt} className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-gray-50">
+                                    <label
+                                        key={opt}
+                                        className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50"
+                                    >
                                         <input
                                             type="checkbox"
                                             checked={selectedStatuses.includes(opt)}
                                             onChange={() => toggleStatus(opt)}
-                                            className="h-4 w-4 text-blue-600  border-gray-300 rounded"
+                                            className="h-5 w-5 text-blue-600 border-gray-300 rounded"
                                         />
-                                        {opt}
+                                        <span className="text-sm md:text-base">{labelFormatter ? labelFormatter(opt) : opt}</span>
                                     </label>
                                 ))
                             ) : (
-                                <div className="px-4 py-2 text-gray-500">No status</div>
+                                <div className="px-4 py-3 text-gray-500">No status</div>
                             )
                         )}
 
@@ -142,22 +156,27 @@ export default function FilterDropdown({
                                             <button
                                                 type="button"
                                                 onClick={() => pickSingle(o.value)}
-                                                className={`w-full text-left px-4 py-2 rounded  hover:bg-gray-50 ${value === o.value ? "font-medium" : ""}`}
+                                                className={`w-full text-left px-4 py-3 rounded hover:bg-gray-50 ${value === o.value ? "font-medium" : ""
+                                                    }`}
                                             >
-                                                {o.label} 
+                                                {o.label}
                                             </button>
                                         </li>
                                     ))}
                                 </ul>
                             ) : (
-                                <div className="px-4 py-2 text-gray-500">No options</div>
+                                <div className="px-4 py-3 text-gray-500">No options</div>
                             )
                         )}
                     </div>
 
+
                     {(mode === "service" || mode === "status") && selectionMode === "multi" && (
                         <div className="flex justify-between border-t border-gray-200 px-3 py-2">
-                            <button className="text-sm text-gray-600 hover:text-gray-800" onClick={() => onClear?.()}>
+                            <button
+                                className="text-sm text-gray-600 hover:text-gray-800"
+                                onClick={() => onClear?.()}
+                            >
                                 Clear
                             </button>
                         </div>

@@ -124,7 +124,7 @@ export default function Contact() {
                                     rows={6}
                                     placeholder="Your Message here"
                                     aria-label="Message"
-                                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500"
+                                    className="w-full px-3 py-2 rounded-lg  border border-gray-300 text-sm shadow-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500"
                                     required
                                 />
                             </div>

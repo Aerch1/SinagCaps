@@ -13,6 +13,7 @@ function stringToDate(iso) {
     const d = parse(iso, "yyyy-MM-dd", new Date());
     return isValid(d) ? d : undefined;
 }
+
 function dateToISO(d) {
     return d ? format(d, "yyyy-MM-dd") : "";
 }
@@ -30,7 +31,7 @@ export default function DatePopover({
     return (
         <div className="w-full">
             {label && (
-                <label className="block text-sm  font-medium text-gray-900 dark:text-gray-100 mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                     {label}
                 </label>
             )}
@@ -42,7 +43,7 @@ export default function DatePopover({
                         variant="outline"
                         disabled={disabled}
                         className={[
-                            "w-full justify-start text-left dark:bg-slate-700 dark:text-gray-300 font-normal",
+                            "w-full justify-start text-left font-normal bg-white text-gray-900",
                             disabled ? "opacity-60 cursor-not-allowed" : "",
                             error ? "border-red-500" : "",
                             buttonClassName,
@@ -57,7 +58,7 @@ export default function DatePopover({
                     align="start"
                     side="bottom"
                     sideOffset={6}
-                    className="z-[1000] p-0 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-md rounded-md"
+                    className="z-[1000] p-0 bg-white border border-gray-200 shadow-md rounded-md"
                 >
                     <Calendar
                         mode="single"

@@ -3,34 +3,51 @@
 import { format } from "date-fns";
 import Modal from "../../ui/Modal";
 import CreateAppointmentForm from "../../../forms/CreateAppointmentForm";
+import axios from "axios";
+import toast from "react-hot-toast";
 
-/**
- * UI shell only: owns open/close visuals and hosts the form.
- */
 export default function CreateAppointmentModal({
     isOpen,
     onClose,
-    onSave,
+    onSave, // optional refresh callback
     selectedDate,
     fetchAvailableTimes,
 }) {
     const defaultDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
 
-    const handleSubmit = async (data) => {
-        await onSave?.(data);
-        onClose(); // auto-close after save
+    const handleFormSubmit = async (formData) => {
+        try {
+            const payload = {
+                name: formData.clientName,
+                email: formData.email,
+                contactNumber: formData.phone,
+                serviceType: formData.serviceType,
+                date: formData.date,
+                time: formData.time,
+                status: formData.status,
+                notes: formData.notes,
+                details: {}, // will remain empty; details managed separately
+            };
+
+            await axios.post("/api/admin/appointments", payload, { withCredentials: true });
+
+            toast.success("Appointment created");
+            onSave?.();
+            onClose();
+        } catch (err) {
+            console.error("❌ create appointment failed:", err);
+            toast.error("Failed to create appointment");
+        }
     };
 
     return (
-        <Modal open={isOpen} onClose={onClose} title="Create Appointment" className="max-w-3xl  dark:bg-slate-800 ">
-            <div
-                className="max-h-[90vh]  overflow-y-auto p-2 custom-scrollbar dark:scrollbar-thumb-slate-600"
-            >
-                <div className="w-[700px] max-w-full"> {/* wider form */}
+        <Modal open={isOpen} onClose={onClose} title="Create Appointment" className="max-w-5xl">
+            <div className="max-h-[85vh] overflow-y-auto custom-scrollbar">
+                <div className="max-w-full px-2">
                     <CreateAppointmentForm
                         defaultDate={defaultDate}
-                        onSubmit={handleSubmit}
-                        onCancel={onClose}         
+                        onSubmit={handleFormSubmit}
+                        onCancel={onClose}
                         fetchAvailableTimes={fetchAvailableTimes}
                     />
                 </div>
