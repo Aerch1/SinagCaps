@@ -14,7 +14,7 @@ import {
   deleteDateOverride,
   // (optional) legacy single-writer if you still want it
   // updateWeeklyAvailability,
-} from "../controllers/availability.controller.js";
+} from "../controllers/admin/availability.controller.js";
 
 const router = Router();
 

@@ -1,9 +1,9 @@
-import pool from "../config/db.js";
+import pool from "../../config/db.js";
 import {
   AppError,
   handleAsyncError,
   sendResponse,
-} from "../utils/errorHandler.js";
+} from "../../utils/errorHandler.js";
 
 /* Utilities */
 const pad2 = (n) => String(n).padStart(2, "0");

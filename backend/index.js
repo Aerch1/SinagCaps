@@ -9,7 +9,9 @@ import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.route.js";
 import profileRoutes from "./routes/profile.routes.js";
 import availabilityRoutes from "./routes/availability.routes.js";
-import adminAppointmentsRoutes from "./routes/adminAppointments.routes.js";
+import adminRoutes from "./routes/admin.appointments.routes.js";
+import publicRoutes from "./routes/public.routes.js";
+
 // Load env first
 dotenv.config();
 
@@ -38,7 +40,8 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/availability", availabilityRoutes);
-app.use("/api/admin/appointments", adminAppointmentsRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/public", publicRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
