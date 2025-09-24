@@ -42,20 +42,22 @@ export const connectDB = async () => {
 async function ensureSchema(conn) {
   const isDev = process.env.NODE_ENV === "development";
 
-  // 🔹 Drop detail tables in dev so schema updates apply cleanly
-  if (isDev) {
-    await conn.execute("SET FOREIGN_KEY_CHECKS = 0");
-    await conn.execute("DROP TABLE IF EXISTS baptism_details");
-    await conn.execute("DROP TABLE IF EXISTS wedding_details");
-    await conn.execute("DROP TABLE IF EXISTS funeral_details");
-    await conn.execute("DROP TABLE IF EXISTS counseling_details");
-    await conn.execute("DROP TABLE IF EXISTS confirmation_details");
-    await conn.execute("DROP TABLE IF EXISTS document_request_details");
-    await conn.execute("DROP TABLE IF EXISTS appointments");
-    await conn.execute("SET FOREIGN_KEY_CHECKS = 1");
-  }
+  // if (isDev) {
+  //   await conn.execute("SET FOREIGN_KEY_CHECKS = 0");
+  //   await conn.execute("DROP TABLE IF EXISTS baptism_details");
+  //   await conn.execute("DROP TABLE IF EXISTS appointments");
+  //   await conn.execute("DROP TABLE IF EXISTS custom_dates");
+  //   await conn.execute("DROP TABLE IF EXISTS weekly_rules");
+  //   await conn.execute("DROP TABLE IF EXISTS church_hours");
+  //   await conn.execute("DROP TABLE IF EXISTS services");
+  //   await conn.execute("DROP TABLE IF EXISTS change_email_requests");
+  //   await conn.execute("DROP TABLE IF EXISTS password_resets");
+  //   await conn.execute("DROP TABLE IF EXISTS email_verification_tokens");
+  //   await conn.execute("DROP TABLE IF EXISTS users");
+  //   await conn.execute("SET FOREIGN_KEY_CHECKS = 1");
+  // }
 
-  // Users
+  // 🔹 Users
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS users (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -75,98 +77,131 @@ async function ensureSchema(conn) {
     )
   `);
 
-  // Appointments
+  // 🔹 Email verification tokens
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS appointments (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NULL,
-      name VARCHAR(255) NOT NULL,
-      email VARCHAR(255) NOT NULL,
-      contactNumber VARCHAR(32),
-      serviceType ENUM('Baptism','Wedding','Funeral','Counseling','Confirmation','Document Request') NOT NULL,
-      date DATE NOT NULL,
-      time VARCHAR(20) NOT NULL,
-      party_size INT NOT NULL DEFAULT 1,
-      status ENUM('pending','approved','in_progress','completed','cancelled','failed') DEFAULT 'pending',
-      notes TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-      INDEX idx_service (serviceType, date, time, status)
+    CREATE TABLE IF NOT EXISTS email_verification_tokens (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      token CHAR(6) NOT NULL,
+      purpose ENUM('signup','change_email') NOT NULL DEFAULT 'signup',
+      sent_to_email VARCHAR(255) NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      consumed_at TIMESTAMP NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_evt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      INDEX (user_id, consumed_at, expires_at),
+      INDEX (token),
+      INDEX (purpose)
     )
   `);
 
-  // Baptism details
+  // 🔹 Password resets
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS baptism_details (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      appointment_id INT NOT NULL,
-      childFullName VARCHAR(255),
-      childDob DATE,
-      childBirthplace VARCHAR(255),
-      fatherName VARCHAR(255),
-      motherMaidenName VARCHAR(255),
-      parentsMarriageType ENUM('church','civil','unmarried'),
-      sponsors JSON,
-      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      token VARCHAR(64) NOT NULL UNIQUE,
+      expires_at TIMESTAMP NOT NULL,
+      consumed_at TIMESTAMP NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_pr_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      INDEX (user_id, expires_at, consumed_at)
     )
   `);
 
-  // Wedding details
+  // 🔹 Change email requests
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS wedding_details (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      appointment_id INT NOT NULL,
-      marriageLicense VARCHAR(255),
-      baptismCertificates JSON,
-      seminarAttendance BOOLEAN DEFAULT FALSE,
-      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+    CREATE TABLE IF NOT EXISTS change_email_requests (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      new_email VARCHAR(255) NOT NULL,
+      code CHAR(6) NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      consumed_at TIMESTAMP NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_cer_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE KEY uniq_user_newemail (user_id, new_email),
+      INDEX (user_id, expires_at, consumed_at),
+      INDEX (code)
     )
   `);
 
-  // Funeral details
-  await conn.execute(`
-    CREATE TABLE IF NOT EXISTS funeral_details (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      appointment_id INT NOT NULL,
-      deathCertificate VARCHAR(255),
-      parishClearance VARCHAR(255),
-      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
-    )
-  `);
+  await conn.execute(
+    `CREATE TABLE IF NOT EXISTS services (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,              -- "Baptism", "Wedding", etc.
+  description TEXT,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);`
+  );
 
-  // Counseling details
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS counseling_details (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      appointment_id INT NOT NULL,
-      counselorName VARCHAR(255),
-      topics JSON,
-      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
-    )
-  `);
+    CREATE TABLE IF NOT EXISTS church_hours (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  day_of_week TINYINT NOT NULL,            -- 0=Sunday, 6=Saturday
+  open_time TIME NOT NULL,
+  close_time TIME NOT NULL,
+  UNIQUE KEY uniq_day (day_of_week)
+);
+    
+    `);
 
-  // Confirmation details
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS confirmation_details (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      appointment_id INT NOT NULL,
-      sponsorName VARCHAR(255),
-      baptismalCert VARCHAR(255),
-      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
-    )
-  `);
+  
+  CREATE TABLE IF NOT EXISTS weekly_rules (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  service_id INT NOT NULL,
+  weekday TINYINT NOT NULL,                -- 0=Sunday, 6=Saturday
+  time TIME NOT NULL,
+  slots INT NOT NULL,
+  FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+  UNIQUE KEY uniq_rule (service_id, weekday, time)
+);`);
 
-  // Document request details
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS document_request_details (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      appointment_id INT NOT NULL,
-      documentType VARCHAR(255),
-      purpose TEXT,
-      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
-    )
-  `);
+  CREATE TABLE IF NOT EXISTS custom_dates (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  service_id INT NOT NULL,
+  date DATE NOT NULL,
+  status ENUM('available','blocked') DEFAULT 'available',
+  time TIME NULL,                          -- NULL = full-day override
+  slots INT NULL,
+  FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+  UNIQUE KEY uniq_custom (service_id, date, time)
+);`);
+
+  await conn.execute(`CREATE TABLE IF NOT EXISTS appointments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NULL,
+  service_id INT NOT NULL,                 -- 🔗 Linked to services
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  contactNumber VARCHAR(32),
+  date DATE NOT NULL,
+  time TIME NOT NULL,
+  party_size INT NOT NULL DEFAULT 1,
+  status ENUM('pending','approved','in_progress','completed','cancelled','failed') DEFAULT 'pending',
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_appt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_appt_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+  INDEX idx_service (service_id, date, time, status)
+);`);
+
+  await conn.execute(`CREATE TABLE IF NOT EXISTS baptism_details (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  appointment_id INT NOT NULL,
+  childFullName VARCHAR(255),
+  childDob DATE,
+  childBirthplace VARCHAR(255),
+  fatherName VARCHAR(255),
+  motherMaidenName VARCHAR(255),
+  parentsMarriageType ENUM('church','civil','unmarried'),
+  sponsors JSON,
+  FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+);`);
 }
 
 /* ----------------------------------------
@@ -184,22 +219,6 @@ async function seedDemoData(conn) {
       "INSERT INTO users (name, email, password, role, isVerified) VALUES (?, ?, ?, ?, ?)",
       ["Admin User", "admin@example.com", hashed, "admin", true]
     );
+    console.log("✅ Default admin created: admin@example.com / admin123");
   }
-
-  // Seed sample appointment
-  const [appt] = await conn.execute(
-    `INSERT INTO appointments (name, email, contactNumber, serviceType, date, time, party_size, status)
-     VALUES ('Shawn Robertson', 'shawn@example.com', '0917-123-4567', 'Baptism', '2025-09-20', '09:00 AM', 3, 'approved'),
-     ('Shawn Robertson', 'shawn@example.com', '0917-123-4567', 'Baptism', '2025-09-20', '09:00 AM', 3, 'cancelled'),
-     ('Shawn Robertson', 'shawn@example.com', '0917-123-4567', 'Baptism', '2025-09-20', '09:00 AM', 3, 'pending'),
-     ('Shawn Robertson', 'shawn@example.com', '0917-123-4567', 'Baptism', '2025-09-20', '09:00 AM', 3, 'completed'),
-     ('Shawn Robertson', 'shawn@example.com', '0917-123-4567', 'Baptism', '2025-09-20', '09:00 AM', 3, 'in_progress')`
-  );
-
-  const appointmentId = appt.insertId;
-  await conn.execute(
-    `INSERT INTO baptism_details (appointment_id, childFullName, fatherName, motherMaidenName, parentsMarriageType, sponsors)
-     VALUES (?, 'Baby Robertson', 'John Robertson', 'Jane Doe', 'church', JSON_ARRAY('Godparent A','Godparent B'))`,
-    [appointmentId]
-  );
 }

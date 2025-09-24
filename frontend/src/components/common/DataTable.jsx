@@ -1,6 +1,7 @@
+// src/components/admin/DataTable.jsx
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
     getAppointments,
@@ -14,20 +15,19 @@ import {
     Eye,
     Trash2,
     ChevronsUpDown,
-    ClipboardList, // ✅ process icon
+    ClipboardList,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-
 import FilterDropdown from "../ui/FilterDropdown.jsx";
 import ProcessModal from "./ProcessModal.jsx";
 
-// ✅ helpers moved to lib/utils
 import {
     statusClass,
     formatDate,
     formatTime,
     computeRange,
-    fmtRangeLabel, formatStatusLabel
+    fmtRangeLabel,
+    formatStatusLabel,
 } from "../../lib/utils.js";
 
 export default function DataTable({
@@ -35,26 +35,23 @@ export default function DataTable({
     initialPageSize = 5,
     activeTab = "all",
     onView,
-    onDelete, // cancel
+    onDelete,
 }) {
     const location = useLocation();
     const onDashboard = /^\/admin\/?$/.test(location.pathname);
-    const containerRef = useRef(null);
 
     const [rows, setRows] = useState([]);
     const [searchInput, setSearchInput] = useState("");
     const [query, setQuery] = useState("");
 
     // filters
-    const [selectedServices, setSelectedServices] = useState([]);
+    const [selectedServiceIds, setSelectedServiceIds] = useState([]);
     const [selectedStatuses, setSelectedStatuses] = useState([]);
     const [serviceOptions, setServiceOptions] = useState([]);
     const [statusOptions, setStatusOptions] = useState([]);
 
-    // sorting
+    // sorting & pagination
     const [sort, setSort] = useState({ key: null, dir: null });
-
-    // pagination
     const [page, setPage] = useState(1);
     const [pageSize] = useState(initialPageSize);
     const [totalPages, setTotalPages] = useState(1);
@@ -62,39 +59,31 @@ export default function DataTable({
 
     // ranges
     const [showRangeKey, setShowRangeKey] = useState("all");
-    const [{ startDate, endDate }, setRange] = useState({
-        startDate: null,
-        endDate: null,
-    });
+    const [{ startDate, endDate }, setRange] = useState({ startDate: null, endDate: null });
 
     const [processingRow, setProcessingRow] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    /* ---------- Sync active tab ---------- */
+    /* --- Sync active tab --- */
     useEffect(() => {
-        if (activeTab === "all") setSelectedStatuses([]);
-        else setSelectedStatuses([activeTab]);
+        setSelectedStatuses(activeTab === "all" ? [] : [activeTab]);
         setPage(1);
     }, [activeTab]);
 
-    /* ---------- Apply range on change ---------- */
+    /* --- Apply range --- */
     useEffect(() => {
         setRange(computeRange(showRangeKey));
         setPage(1);
     }, [showRangeKey]);
 
-    /* ---------- Fetch data ---------- */
+    /* --- Fetch data --- */
     useEffect(() => {
         const load = async () => {
             try {
                 setLoading(true);
+
                 const hasFilters =
-                    query ||
-                    selectedServices.length ||
-                    selectedStatuses.length ||
-                    sort.key ||
-                    startDate ||
-                    endDate;
+                    query || selectedServiceIds.length || selectedStatuses.length || sort.key || startDate || endDate;
 
                 let res;
                 if (hasFilters) {
@@ -103,7 +92,7 @@ export default function DataTable({
                         pageSize,
                         query,
                         status: selectedStatuses,
-                        serviceType: selectedServices,
+                        serviceIds: selectedServiceIds,
                         sortBy: sort.key,
                         sortDir: sort.dir,
                     };
@@ -119,8 +108,15 @@ export default function DataTable({
                 setRows(res.data || []);
                 setTotalPages(res.totalPages || 1);
                 setTotal(res.total || 0);
-                setServiceOptions(res.meta?.serviceTypes || []);
-                setStatusOptions(res.meta?.statuses || []);
+
+                // meta
+                setServiceOptions((res.meta?.services || []).map((s) => ({ value: s.id, label: s.name })));
+                setStatusOptions(
+                    (res.meta?.statuses || []).map((s) => ({
+                        value: s,
+                        label: formatStatusLabel(s),
+                    }))
+                );
             } catch (err) {
                 console.error("❌ fetch error:", err);
                 setRows([]);
@@ -129,9 +125,9 @@ export default function DataTable({
             }
         };
         load();
-    }, [page, pageSize, query, selectedServices, selectedStatuses, sort, startDate, endDate]);
+    }, [page, pageSize, query, selectedServiceIds, selectedStatuses, sort, startDate, endDate]);
 
-    /* ---------- Debounce search ---------- */
+    /* --- Debounce search --- */
     useEffect(() => {
         const delay = setTimeout(() => {
             setQuery(searchInput);
@@ -140,23 +136,14 @@ export default function DataTable({
         return () => clearTimeout(delay);
     }, [searchInput]);
 
-    /* ---------- Animations ---------- */
-    const rowVariants = {
-        hidden: { opacity: 0, y: 10 },
-        visible: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -10 },
-    };
-
-    /* ---------- Sorting (ID only to match original UI) ---------- */
+    /* --- Sorting --- */
     const cycleSort = (key) => {
         setSort((prev) =>
-            prev.key === key
-                ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
-                : { key, dir: "asc" }
+            prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }
         );
     };
 
-    /* === Actions by status (Process • View • Cancel) === */
+    /* --- Actions --- */
     const renderActions = (r) => {
         const locked = ["completed", "cancelled", "canceled"].includes(
             String(r.status).toLowerCase()
@@ -174,7 +161,7 @@ export default function DataTable({
                     <ClipboardList className="h-4 w-4" />
                 </button>
 
-                {/* View (always enabled) */}
+                {/* View */}
                 <button
                     className="h-9 w-9 rounded-md hover:bg-gray-100 flex items-center justify-center"
                     onClick={() => onView?.(r)}
@@ -197,27 +184,20 @@ export default function DataTable({
         );
     };
 
-    /* ---------- Pagination helpers ---------- */
+    /* --- Pagination numbers --- */
     const pages = [];
     if (totalPages <= 7) for (let i = 1; i <= totalPages; i++) pages.push(i);
     else if (page <= 4) pages.push(1, 2, 3, 4, 5, "…", totalPages);
     else if (page >= totalPages - 3)
-        pages.push(
-            1,
-            "…",
-            totalPages - 4,
-            totalPages - 3,
-            totalPages - 2,
-            totalPages - 1,
-            totalPages
-        );
+        pages.push(1, "…", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
     else pages.push(1, "…", page - 1, page, page + 1, "…", totalPages);
 
     return (
-        <div ref={containerRef} className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6">
             {/* ===== Section 1: Filters ===== */}
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm p-6">
                 <div className="grid grid-cols-12 gap-4 items-end">
+                    {/* Search */}
                     <div className="col-span-12 md:col-span-6">
                         <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">
                             What are you looking for?
@@ -228,7 +208,7 @@ export default function DataTable({
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
                                 placeholder="Search name, email, id…"
-                                className="h-10 w-full rounded-lg border border-gray-300 pl-10 pr-10 text-sm focus:outline-none focus:placeholder-gray-500 "
+                                className="h-10 w-full rounded-lg border border-gray-300 pl-10 pr-10 text-sm"
                             />
                             {query && (
                                 <button
@@ -246,6 +226,7 @@ export default function DataTable({
                         </div>
                     </div>
 
+                    {/* Service filter */}
                     <div className="col-span-6 md:col-span-2">
                         <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">
                             Category
@@ -253,19 +234,16 @@ export default function DataTable({
                         <FilterDropdown
                             mode="service"
                             selectionMode="multi"
-                            serviceOptions={serviceOptions}
-                            selectedServices={selectedServices}
-                            onChange={({ services }) => {
-                                setSelectedServices(services);
-                                setPage(1);
-                            }}
-                            onClear={() => {
-                                setSelectedServices([]);
+                            options={serviceOptions}
+                            values={selectedServiceIds}
+                            onChange={(vals) => {
+                                setSelectedServiceIds(vals);
                                 setPage(1);
                             }}
                         />
                     </div>
 
+                    {/* Status filter */}
                     <div className="col-span-6 md:col-span-2">
                         <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">
                             Status
@@ -273,22 +251,16 @@ export default function DataTable({
                         <FilterDropdown
                             mode="status"
                             selectionMode="multi"
-                            statusOptions={statusOptions} // keep raw values
-                            selectedStatuses={selectedStatuses}
-                            labelFormatter={formatStatusLabel} // 👈 pass formatter prop
-                            onChange={({ statuses }) => {
-                                setSelectedStatuses(statuses);
-                                setPage(1);
-                            }}
-                            onClear={() => {
-                                setSelectedStatuses([]);
+                            options={statusOptions}
+                            values={selectedStatuses}
+                            onChange={(vals) => {
+                                setSelectedStatuses(vals);
                                 setPage(1);
                             }}
                         />
-
-
                     </div>
 
+                    {/* Search button */}
                     <div className="col-span-12 md:col-span-2 flex">
                         <button
                             onClick={() => {
@@ -348,69 +320,51 @@ export default function DataTable({
                 </div>
 
                 {/* Table */}
-                <table className="min-w-full border-collapse text-sm">
+                <table className="min-w-full text-sm">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th
-                                onClick={() => cycleSort("id")}
-                                className="px-6 py-2 text-left text-sm font-medium cursor-pointer select-none"
-                            >
+                            <th onClick={() => cycleSort("id")} className="px-6 py-2 text-left cursor-pointer">
                                 ID <ChevronsUpDown className="inline h-3 w-3 ml-1" />
                             </th>
-                            <th className="px-6 py-2 text-left text-sm font-medium">Client</th>
-                            <th className="px-6 py-2 text-left text-sm font-medium">Contact</th>
-                            <th className="px-6 py-2 text-left text-sm font-medium">Service</th>
-                            <th className="px-6 py-2 text-left text-sm font-medium">Status</th>
-                            <th className="px-6 py-2 text-left text-sm font-medium">Date</th>
-                            <th className="px-6 py-2 text-left text-sm font-medium">Time</th>
-                            <th className="px-6 py-2 text-right text-sm font-medium">Actions</th>
+                            <th className="px-6 py-2 text-left">Client</th>
+                            <th className="px-6 py-2 text-left">Contact</th>
+                            <th className="px-6 py-2 text-left">Service</th>
+                            <th className="px-6 py-2 text-left">Status</th>
+                            <th className="px-6 py-2 text-left">Date</th>
+                            <th className="px-6 py-2 text-left">Time</th>
+                            <th className="px-6 py-2 text-right">Actions</th>
                         </tr>
                     </thead>
-
-                    {/* ✅ Proper tbody wrapper fixes hydration */}
                     <tbody>
                         <AnimatePresence>
                             {loading ? (
-                                <motion.tr
-                                    key="loading"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                >
-                                    <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
-                                        Loading appointments…
-                                    </td>
-                                </motion.tr>
+                                <tr>
+                                    <td colSpan={8} className="text-center py-4">Loading…</td>
+                                </tr>
                             ) : rows.length === 0 ? (
-                                <motion.tr
-                                    key="empty"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                >
-                                    <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
-                                        No results found.
-                                    </td>
-                                </motion.tr>
+                                <tr>
+                                    <td colSpan={8} className="text-center py-4">No results.</td>
+                                </tr>
                             ) : (
                                 rows.map((r) => (
                                     <motion.tr
                                         key={r.id}
-                                        variants={rowVariants}
-                                        initial="hidden"
-                                        animate="visible"
-                                        exit="exit"
-                                        className="border-b border-gray-100  hover:bg-gray-50"
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        className="border-b hover:bg-gray-50"
                                     >
                                         <td className="px-6 py-2 font-mono text-xs text-gray-500">#{r.id}</td>
-                                        <td className="px-6 py-4">
+                                        <td className="px-6 py-2">
                                             <div className="font-medium">{r.name}</div>
                                             <div className="text-xs text-gray-500">{r.email}</div>
                                         </td>
                                         <td className="px-6 py-2">{r.contactNumber || "—"}</td>
-                                        <td className="px-6 py-2">{r.serviceType}</td>
+                                        <td className="px-6 py-2">{r.serviceName}</td>
                                         <td className="px-6 py-2">
-                                            <span className={statusClass(r.status)}>{formatStatusLabel(r.status)}</span>
+                                            <span className={statusClass(r.status)}>
+                                                {formatStatusLabel(r.status)}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-2">{formatDate(r.date)}</td>
                                         <td className="px-6 py-2">{formatTime(r.time)}</td>
@@ -422,27 +376,11 @@ export default function DataTable({
                     </tbody>
                 </table>
 
-                {/* Process Modal */}
-                {processingRow && (
-                    <ProcessModal
-                        appointment={processingRow}
-                        onClose={() => setProcessingRow(null)}
-                        onSave={(data) => {
-                            console.log("Save processing:", data);
-                            setProcessingRow(null);
-                        }}
-                        onComplete={(data) => {
-                            console.log("Mark completed:", data);
-                            setProcessingRow(null);
-                        }}
-                    />
-                )}
-
-                {/* Footer / Pagination */}
+                {/* Pagination */}
                 {total > 0 && (
-                    <div className="border-t px-6 py-6 flex justify-between items-center">
+                    <div className="border-t px-6 py-4 flex justify-between items-center">
                         <div className="text-sm text-gray-600">
-                            Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} results
+                            Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total}
                         </div>
                         <div className="flex gap-2">
                             <button
@@ -454,9 +392,7 @@ export default function DataTable({
                             </button>
                             {pages.map((n, i) =>
                                 n === "…" ? (
-                                    <span key={`dots-${i}`} className="h-9 w-9 flex items-center justify-center">
-                                        …
-                                    </span>
+                                    <span key={`dots-${i}`} className="h-9 w-9 flex items-center justify-center">…</span>
                                 ) : (
                                     <button
                                         key={`page-${n}`}
@@ -479,6 +415,16 @@ export default function DataTable({
                     </div>
                 )}
             </div>
+
+            {/* Process Modal */}
+            {processingRow && (
+                <ProcessModal
+                    appointment={processingRow}
+                    onClose={() => setProcessingRow(null)}
+                    onSave={() => setProcessingRow(null)}
+                    onComplete={() => setProcessingRow(null)}
+                />
+            )}
         </div>
     );
 }

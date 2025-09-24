@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../../context/admin/SidebarContext.jsx";
@@ -9,7 +11,6 @@ import {
   ClipboardList,
   Calendar,
   MessageCircle,
-  Megaphone,
   Users,
   Settings,
   LogOut,
@@ -43,7 +44,6 @@ const sections = [
           { name: "Cancelled", path: "/admin/appointments?status=cancelled", status: "cancelled", key: "appointments-cancelled" },
         ],
       },
-
       { name: "Documents", path: "/admin/documents", icon: <Calendar size={18} />, key: "documents" },
       { name: "Messages", path: "/admin/messages", icon: <MessageCircle size={18} />, key: "messages" },
     ],
@@ -70,7 +70,8 @@ const sections = [
 ];
 
 /** Theme classes */
-const baseItem = "group relative flex items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200";
+const baseItem =
+  "group relative flex items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200";
 const justify = (full) => (full ? "justify-start" : "lg:justify-center");
 const inactiveItem = "text-gray-600 hover:bg-gray-100 hover:text-gray-900";
 const activeItem = "bg-red-50 text-red-600";
@@ -96,7 +97,8 @@ const SidebarMenuItem = React.memo(function SidebarMenuItem({
   onAfterClick,
 }) {
   const active = !nav.isLogout && nav.path ? isActive(nav.path) : false;
-  const linkClassName = `${baseItem} ${justify(showFullSidebar)} ${active ? activeItem : inactiveItem}`;
+  const linkClassName = `${baseItem} ${justify(showFullSidebar)} ${active ? activeItem : inactiveItem
+    }`;
   const iconClassName = `flex-shrink-0 ${active ? iconActive : iconInactive}`;
 
   if (nav.isLogout) {
@@ -112,7 +114,9 @@ const SidebarMenuItem = React.memo(function SidebarMenuItem({
           aria-label="Logout"
         >
           <span className={iconClassName}>{nav.icon}</span>
-          {showFullSidebar && <span className="whitespace-nowrap">{nav.name}</span>}
+          {showFullSidebar && (
+            <span className="whitespace-nowrap text-sm">{nav.name}</span>
+          )}
         </button>
       </li>
     );
@@ -127,13 +131,15 @@ const SidebarMenuItem = React.memo(function SidebarMenuItem({
         aria-current={active ? "page" : undefined}
       >
         <span className={iconClassName}>{nav.icon}</span>
-        {showFullSidebar && <span className="whitespace-nowrap">{nav.name}</span>}
+        {showFullSidebar && (
+          <span className="whitespace-nowrap text-sm">{nav.name}</span>
+        )}
       </Link>
     </li>
   );
 });
 
-/** Collapsible parent with children (no bullet dot) */
+/** Collapsible parent with children */
 function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
   const navigate = useNavigate();
   const { pathname, status } = useRouteInfo();
@@ -141,7 +147,9 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
 
   const onAppointmentsPage = pathname === "/admin/appointments";
   const childActive =
-    hasChildren && onAppointmentsPage && nav.children.some((c) => (c.status || "") === status);
+    hasChildren &&
+    onAppointmentsPage &&
+    nav.children.some((c) => (c.status || "") === status);
 
   const parentActive = onAppointmentsPage || childActive;
   const [open, setOpen] = useState(childActive);
@@ -150,8 +158,10 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
   }, [childActive]);
 
   const canDropdown = showFullSidebar && hasChildren;
-  const parentClass = `${baseItem} ${justify(showFullSidebar)} ${parentActive ? activeItem : inactiveItem}`;
-  const iconClassName = `flex-shrink-0 ${parentActive ? iconActive : iconInactive}`;
+  const parentClass = `${baseItem} ${justify(showFullSidebar)} ${parentActive ? activeItem : inactiveItem
+    }`;
+  const iconClassName = `flex-shrink-0 ${parentActive ? iconActive : iconInactive
+    }`;
 
   return (
     <li className="relative">
@@ -171,8 +181,15 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
         <span className={iconClassName}>{nav.icon}</span>
         {showFullSidebar && (
           <>
-            <span className="flex-1 text-left whitespace-nowrap">{nav.name}</span>
-            {hasChildren && <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""} text-gray-500`} />}
+            <span className="flex-1 text-left whitespace-nowrap text-sm">
+              {nav.name}
+            </span>
+            {hasChildren && (
+              <ChevronDown
+                className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""
+                  } text-gray-500`}
+              />
+            )}
           </>
         )}
       </button>
@@ -180,7 +197,8 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
       {canDropdown && (
         <div
           id={`submenu-${nav.key}`}
-          className={`grid transition-all duration-300 ease-in-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+          className={`grid transition-all duration-300 ease-in-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+            }`}
         >
           <div className="overflow-hidden">
             <ul className="mt-1 ml-6 flex flex-col gap-1 border-l p-2">
@@ -190,7 +208,8 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
                   <li key={child.key}>
                     <Link
                       to={child.path}
-                      className={`block rounded-md px-2 py-1.5 text-sm transition-all duration-200 ${active ? activeItem : inactiveItem}`}
+                      className={`block rounded-md px-2 py-1.5 text-sm transition-all duration-200 ${active ? activeItem : inactiveItem
+                        }`}
                       onClick={onAfterClick}
                     >
                       {child.name}
@@ -209,7 +228,10 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
 /** Section block */
 const SectionBlock = ({ title, items, showFullSidebar, renderItem }) => (
   <div>
-    <h2 className={`mb-3 text-xs uppercase leading-5 text-gray-600 flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"}`}>
+    <h2
+      className={`mb-3 text-sm font-medium text-gray-700 flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"
+        }`}
+    >
       {showFullSidebar ? title : <MoreHorizontal className="w-5 h-5" />}
     </h2>
     <ul className="flex flex-col gap-2">{items.map((it) => renderItem(it))}</ul>
@@ -217,7 +239,8 @@ const SectionBlock = ({ title, items, showFullSidebar, renderItem }) => (
 );
 
 export default function AppSidebar() {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } = useSidebar();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } =
+    useSidebar();
   const { logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
@@ -241,7 +264,11 @@ export default function AppSidebar() {
   };
 
   const onAfterClick = () => {
-    if (window.innerWidth < 1024 && isMobileOpen && typeof toggleMobileSidebar === "function") {
+    if (
+      window.innerWidth < 1024 &&
+      isMobileOpen &&
+      typeof toggleMobileSidebar === "function"
+    ) {
       toggleMobileSidebar();
     }
   };
@@ -256,28 +283,46 @@ export default function AppSidebar() {
     >
       <div className="flex h-full flex-col">
         {/* Logo / brand */}
-        <div className={`flex-none py-6 px-5 hidden lg:flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"}`}>
+        <div
+          className={`flex-none py-6 px-5 hidden lg:flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"
+            }`}
+        >
           <Link to="/admin" className="flex items-center gap-3">
             {showFullSidebar ? (
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-                  <img src="/logo.png" alt="logo" className="w-10 h-10 object-contain" />
+                  <img
+                    src="/logo.png"
+                    alt="logo"
+                    className="w-10 h-10 object-contain"
+                  />
                 </div>
                 <div className="flex flex-col">
-                  <h1 className="font-semibold text-lg text-slate-900">ADMIN</h1>
-                  <p className="text-xs text-gray-500 whitespace-nowrap">Management Panel</p>
+                  <h1 className="font-semibold text-lg text-slate-900">
+                    ADMIN
+                  </h1>
+                  <p className="text-sm text-gray-500 whitespace-nowrap">
+                    Management Panel
+                  </p>
                 </div>
               </div>
             ) : (
               <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-                <img src="/logo.png" alt="logo" className="w-10 h-10 object-contain" />
+                <img
+                  src="/logo.png"
+                  alt="logo"
+                  className="w-10 h-10 object-contain"
+                />
               </div>
             )}
           </Link>
         </div>
 
         {/* Scrollable nav area */}
-        <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${showFullSidebar ? "custom-scrollbar" : "scrollbar-hide"} px-4 pb-6 pt-4 lg:pt-0`}>
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${showFullSidebar ? "custom-scrollbar" : "scrollbar-hide"
+            } px-4 pb-6 pt-4 lg:pt-0`}
+        >
           <nav className="flex flex-col gap-6">
             {sections.map((section) => (
               <SectionBlock
@@ -287,9 +332,25 @@ export default function AppSidebar() {
                 showFullSidebar={showFullSidebar}
                 renderItem={(nav) => {
                   if (nav.children?.length) {
-                    return <CollapsibleMenuItem key={nav.key} nav={nav} showFullSidebar={showFullSidebar} onAfterClick={onAfterClick} />;
+                    return (
+                      <CollapsibleMenuItem
+                        key={nav.key}
+                        nav={nav}
+                        showFullSidebar={showFullSidebar}
+                        onAfterClick={onAfterClick}
+                      />
+                    );
                   }
-                  return <SidebarMenuItem key={nav.key} nav={nav} isActive={isActive} showFullSidebar={showFullSidebar} onLogout={onLogout} onAfterClick={onAfterClick} />;
+                  return (
+                    <SidebarMenuItem
+                      key={nav.key}
+                      nav={nav}
+                      isActive={isActive}
+                      showFullSidebar={showFullSidebar}
+                      onLogout={onLogout}
+                      onAfterClick={onAfterClick}
+                    />
+                  );
                 }}
               />
             ))}

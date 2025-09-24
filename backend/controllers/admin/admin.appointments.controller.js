@@ -2,22 +2,12 @@
 import { Parser } from "json2csv";
 import pool from "../../config/db.js";
 
-const SERVICE_TYPES = [
-  "Baptism",
-  "Wedding",
-  "Funeral",
-  "Counseling",
-  "Confirmation",
-  "Document Request",
-];
-
 const STATUSES = [
   "pending",
   "approved",
   "in_progress",
   "completed",
   "cancelled",
-
 ];
 
 /* ---------------- GET /api/admin/appointments ---------------- */
@@ -35,21 +25,21 @@ export const getAppointments = async (req, res) => {
 
     const [rows] = await pool.query(
       `SELECT 
-         id, name, email, contactNumber, serviceType, status,
-         DATE_FORMAT(date, '%Y-%m-%d') AS date,
-         time, notes
-       FROM appointments
-       ORDER BY date DESC, time DESC
+         a.id, a.name, a.email, a.contactNumber, 
+         s.name AS serviceName,
+         a.status,
+         DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
+         a.time, a.notes
+       FROM appointments a
+       JOIN services s ON a.service_id = s.id
+       ORDER BY a.date DESC, a.time DESC
        LIMIT ? OFFSET ?`,
       [pageSize, offset]
     );
 
-    // 🔹 Add meta (serviceType + statuses)
+    // ✅ Pull service list from services table
     const [serviceRows] = await pool.query(
-      `SELECT DISTINCT serviceType FROM appointments ORDER BY serviceType ASC`
-    );
-    const [statusRows] = await pool.query(
-      `SELECT DISTINCT status FROM appointments ORDER BY status ASC`
+      `SELECT id, name FROM services WHERE active = TRUE ORDER BY name ASC`
     );
 
     res.json({
@@ -57,8 +47,8 @@ export const getAppointments = async (req, res) => {
       total,
       totalPages,
       meta: {
-        serviceTypes: SERVICE_TYPES, // ✅ always show all
-        statuses: STATUSES, // ✅ always show all
+        services: serviceRows,
+        statuses: STATUSES,
       },
     });
   } catch (err) {
@@ -75,7 +65,7 @@ export const filterAppointments = async (req, res) => {
       pageSize = 10,
       query = "",
       status = [],
-      serviceType = [],
+      serviceIds = [], // ✅ now use service_id
       date,
       startDate,
       endDate,
@@ -92,8 +82,8 @@ export const filterAppointments = async (req, res) => {
       const q = `%${String(query).toLowerCase()}%`;
       const isNumeric = /^\d+$/.test(String(query));
       where.push(
-        `(LOWER(name) LIKE ? OR LOWER(email) LIKE ? OR CAST(id AS CHAR) LIKE ?${
-          isNumeric ? ` OR id = ?)` : `)`
+        `(LOWER(a.name) LIKE ? OR LOWER(a.email) LIKE ? OR CAST(a.id AS CHAR) LIKE ?${
+          isNumeric ? ` OR a.id = ?)` : `)`
         }`
       );
       values.push(q, q, q);
@@ -102,22 +92,22 @@ export const filterAppointments = async (req, res) => {
 
     // 🔹 Status filter
     if (status.length) {
-      where.push(`status IN (${status.map(() => "?").join(",")})`);
+      where.push(`a.status IN (${status.map(() => "?").join(",")})`);
       values.push(...status);
     }
 
-    // 🔹 ServiceType filter
-    if (serviceType.length) {
-      where.push(`serviceType IN (${serviceType.map(() => "?").join(",")})`);
-      values.push(...serviceType);
+    // 🔹 Service filter
+    if (serviceIds.length) {
+      where.push(`a.service_id IN (${serviceIds.map(() => "?").join(",")})`);
+      values.push(...serviceIds);
     }
 
     // 🔹 Date filter
     if (startDate && endDate) {
-      where.push(`DATE(date) BETWEEN ? AND ?`);
+      where.push(`DATE(a.date) BETWEEN ? AND ?`);
       values.push(startDate, endDate);
     } else if (date) {
-      where.push(`DATE(date) = ?`);
+      where.push(`DATE(a.date) = ?`);
       values.push(date);
     }
 
@@ -127,21 +117,27 @@ export const filterAppointments = async (req, res) => {
     let orderSQL = "";
     if (sortBy && sortDir) {
       const SORTABLE = new Set(["id", "name", "date", "status"]);
-      const safeKey = SORTABLE.has(sortBy) ? sortBy : "id";
+      const safeKey = SORTABLE.has(sortBy) ? sortBy : "a.id";
       const safeDir = String(sortDir).toLowerCase() === "desc" ? "DESC" : "ASC";
       orderSQL = `ORDER BY ${safeKey} ${safeDir}`;
     } else {
-      orderSQL = `ORDER BY date DESC, time DESC`;
+      orderSQL = `ORDER BY a.date DESC, a.time DESC`;
     }
 
     // 🔹 Queries
-    const sqlCount = `SELECT COUNT(*) as total FROM appointments ${whereSQL}`;
+    const sqlCount = `SELECT COUNT(*) as total 
+                      FROM appointments a 
+                      ${whereSQL}`;
+
     const sqlRows = `
       SELECT 
-        id, name, email, contactNumber, serviceType, status,
-        DATE_FORMAT(date, '%Y-%m-%d') AS date,
-        time, notes
-      FROM appointments
+        a.id, a.name, a.email, a.contactNumber,
+        s.name AS serviceName,
+        a.status,
+        DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
+        a.time, a.notes
+      FROM appointments a
+      JOIN services s ON a.service_id = s.id
       ${whereSQL}
       ${orderSQL}
       LIMIT ? OFFSET ?`;
@@ -152,12 +148,8 @@ export const filterAppointments = async (req, res) => {
 
     const [rows] = await pool.query(sqlRows, [...values, pageSize, offset]);
 
-    // 🔹 Add meta (same as getAppointments)
     const [serviceRows] = await pool.query(
-      `SELECT DISTINCT serviceType FROM appointments ORDER BY serviceType ASC`
-    );
-    const [statusRows] = await pool.query(
-      `SELECT DISTINCT status FROM appointments ORDER BY status ASC`
+      `SELECT id, name FROM services WHERE active = TRUE ORDER BY name ASC`
     );
 
     res.json({
@@ -165,7 +157,7 @@ export const filterAppointments = async (req, res) => {
       total,
       totalPages,
       meta: {
-        serviceTypes: SERVICE_TYPES, // ✅ always full list
+        services: serviceRows,
         statuses: STATUSES,
       },
     });
@@ -183,7 +175,7 @@ export const createAppointmentAdmin = async (req, res) => {
       name,
       email,
       contactNumber,
-      serviceType,
+      service_id,
       date,
       time,
       party_size = 1,
@@ -191,7 +183,7 @@ export const createAppointmentAdmin = async (req, res) => {
       notes = "",
     } = req.body;
 
-    if (!name || !email || !serviceType || !date || !time) {
+    if (!name || !email || !service_id || !date || !time) {
       return res
         .status(400)
         .json({ success: false, message: "Missing required fields" });
@@ -201,14 +193,14 @@ export const createAppointmentAdmin = async (req, res) => {
 
     const [result] = await conn.query(
       `INSERT INTO appointments 
-         (user_id, name, email, contactNumber, serviceType, date, time, party_size, status, notes)
+         (user_id, name, email, contactNumber, service_id, date, time, party_size, status, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.userId || null,
         name,
         email,
         contactNumber || null,
-        serviceType,
+        service_id,
         date,
         time,
         party_size,
@@ -273,9 +265,11 @@ export const getAppointmentById = async (req, res) => {
 
     const [rows] = await pool.query(
       `SELECT 
-         a.id, a.name, a.email, a.contactNumber, 
-         a.serviceType, a.status, a.date, a.time, a.notes
+         a.id, a.name, a.email, a.contactNumber,
+         s.name AS serviceName,
+         a.status, a.date, a.time, a.notes
        FROM appointments a
+       JOIN services s ON a.service_id = s.id
        WHERE a.id = ?`,
       [id]
     );
@@ -300,11 +294,14 @@ export const exportAppointments = async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT 
-         id, name, email, contactNumber, serviceType, status,
-         DATE_FORMAT(date, '%Y-%m-%d') AS date,
-         time
-       FROM appointments
-       ORDER BY date ASC, time ASC`
+         a.id, a.name, a.email, a.contactNumber,
+         s.name AS serviceName,
+         a.status,
+         DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
+         a.time
+       FROM appointments a
+       JOIN services s ON a.service_id = s.id
+       ORDER BY a.date ASC, a.time ASC`
     );
 
     const parser = new Parser({
@@ -313,7 +310,7 @@ export const exportAppointments = async (req, res) => {
         "name",
         "email",
         "contactNumber",
-        "serviceType",
+        "serviceName",
         "status",
         "date",
         "time",

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
-import { formatStatusLabel } from "../../lib/utils"; // adjust path as needed
 
 export default function Dropdown({
     value,
@@ -11,9 +11,10 @@ export default function Dropdown({
     placeholder = "Select…",
     className = "",
     width = "w-40",
-    formatter, // optional: custom label formatter
+    formatter,
 }) {
     const [open, setOpen] = useState(false);
+    const [position, setPosition] = useState(null);
     const ref = useRef(null);
 
     // close dropdown if clicked outside
@@ -23,11 +24,23 @@ export default function Dropdown({
                 setOpen(false);
             }
         };
-        document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
+        document.addEventListener("click", handler);
+        return () => document.removeEventListener("click", handler);
     }, []);
 
-    // normalize options → always { value, label }
+    // calculate position for portal dropdown
+    useEffect(() => {
+        if (open && ref.current) {
+            const rect = ref.current.getBoundingClientRect();
+            setPosition({
+                top: rect.bottom + window.scrollY,
+                left: rect.left + window.scrollX,
+                width: rect.width,
+            });
+        }
+    }, [open]);
+
+    // normalize options
     const normalized = options.map((opt) =>
         typeof opt === "string"
             ? { value: opt, label: formatter ? formatter(opt) : opt }
@@ -51,24 +64,36 @@ export default function Dropdown({
                 <ChevronDown className="ml-2 h-4 w-4 text-gray-500" />
             </button>
 
-            {/* Dropdown menu */}
-            {open && (
-                <div className="absolute right-0 z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg">
-                    {normalized.map((opt) => (
-                        <button
-                            key={opt.value}
-                            onClick={() => {
-                                onChange(opt.value);
-                                setOpen(false);
-                            }}
-                            className={`block w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 ${value === opt.value ? "font-semibold" : ""
-                                }`}
-                        >
-                            {opt.label}
-                        </button>
-                    ))}
-                </div>
-            )}
+            {/* Dropdown menu in portal */}
+            {open &&
+                position &&
+                createPortal(
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: position.top,
+                            left: position.left,
+                            width: position.width,
+                            zIndex: 9999,
+                        }}
+                        className="max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg"
+                    >
+                        {normalized.map((opt) => (
+                            <button
+                                key={opt.value}
+                                onClick={() => {
+                                    onChange(opt.value);
+                                    setOpen(false);
+                                }}
+                                className={`block w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-100 ${value === opt.value ? "font-medium" : ""
+                                    }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 }

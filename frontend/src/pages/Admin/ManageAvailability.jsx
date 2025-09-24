@@ -1,447 +1,445 @@
-// src/pages/Admin/ManageAvailabilitySimple.jsx
+// src/components/common/availability/ManageAvailability.jsx
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
-  ADMIN_AVAILABILITY,
-  daysInMonth,
-  firstDayOfWeek,
-  lastDayOfWeek,
-  monthKey,
-  pad2,
-} from "@/utils";
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+    Calendar,
+    ChevronLeft,
+    ChevronRight,
+    Settings,
+    Clock,
+    CheckCircle2,
+    XCircle,
+    AlertCircle,
+} from "lucide-react";
 
-/* ───────── helpers (12-hour time, sorting, preview) ───────── */
+import {
+    formatDate,
+    getDaysInMonth,
+    getFirstDayOfMonth,
+} from "@/utils/availabilityUtils";
 
-const WEEKDAYS = [
-  { i: 1, label: "Monday" },
-  { i: 2, label: "Tuesday" },
-  { i: 3, label: "Wednesday" },
-  { i: 4, label: "Thursday" },
-  { i: 5, label: "Friday" },
-  { i: 6, label: "Saturday" },
-  { i: 0, label: "Sunday" },
-];
+import WeeklyRulesPanel from "@/components/common/availability/WeeklyRulesPanel";
+import CustomDatesPanel from "@/components/common/availability/CustomDatesPanel";
+import CustomDateModal from "@/components/common/availability/CustomDateModal";
+import ServiceManagement from "@/components/common/availability/ServiceManagement";
+import Dropdown from "@/components/ui/Dropdown1"; // ✅ use your custom dropdown
 
-const SERVICES = Object.keys(ADMIN_AVAILABILITY || {});
+export default function ManageAvailability() {
+    const [topTab, setTopTab] = useState("availability");
+    const [services, setServices] = useState([]);
+    const [selectedService, setSelectedService] = useState(null);
+    const [activeTab, setActiveTab] = useState("weekly");
+    const [viewDate, setViewDate] = useState(new Date());
 
-const generate12hOptions = (start24 = "06:00", end24 = "20:00", everyMin = 30) => {
-  const to24 = (s) => s.split(":").map(Number);
-  const [sh, sm] = to24(start24);
-  const [eh, em] = to24(end24);
-  const out = [];
-  let h = sh, m = sm;
-  while (h < eh || (h === eh && m <= em)) {
-    out.push(to12h(h, m));
-    m += everyMin;
-    while (m >= 60) { m -= 60; h += 1; }
-  }
-  return out;
-};
-const TIME_OPTS = generate12hOptions("06:00", "20:00", 30);
+    const [weeklyRules, setWeeklyRules] = useState({});
+    const [customDates, setCustomDates] = useState({});
+    const [blockedWeekdays, setBlockedWeekdays] = useState({});
 
-function to12h(h, m) {
-  const ap = h >= 12 ? "PM" : "AM";
-  let hh = h % 12;
-  if (hh === 0) hh = 12;
-  return `${String(hh).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ap}`;
-}
-function parse12h(s) {
-  const m = String(s || "").trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!m) return null;
-  let hh = Number(m[1]);
-  const mm = Number(m[2]);
-  const ap = m[3].toUpperCase();
-  if (hh === 12) hh = 0;
-  const H = ap === "PM" ? hh + 12 : hh;
-  return { H, M: mm };
-}
-function minOf12h(s) {
-  const p = parse12h(s);
-  if (!p) return Number.MAX_SAFE_INTEGER;
-  return p.H * 60 + p.M;
-}
-const timeSort = (a, b) => minOf12h(a) - minOf12h(b);
+    const [showCustomModal, setShowCustomModal] = useState(false);
+    const [selectedDate, setSelectedDate] = useState(null);
 
-/* preview calendar coloring */
-function buildMonthPreview(weekly, blockedSet, y, m) {
-  const key = monthKey(y, m);
-  const dim = daysInMonth(y, m);
-  const days = [];
-  for (let d = 1; d <= dim; d++) {
-    const date = new Date(y, m, d);
-    const dow = date.getDay();
-    const iso = `${key}-${pad2(d)}`;
+    // 🔹 Fetch services from backend (only active ones for dropdown)
+    useEffect(() => {
+        const fetchServices = async () => {
+            try {
+                const res = await fetch("/api/admin/services");
+                const data = await res.json();
+                if (data.success) {
+                    const activeServices = data.services.filter((s) => s.active);
+                    setServices(activeServices);
+                    if (activeServices.length > 0) setSelectedService(activeServices[0]);
+                }
+            } catch (err) {
+                console.error("❌ fetch services error:", err);
+            }
+        };
+        fetchServices();
+    }, []);
 
-    if (blockedSet.has(dow)) { days.push({ date: iso, status: "blocked" }); continue; }
+    // --- 📌 Unified Calendar Merge ---
+    const calendarData = useMemo(() => {
+        const year = viewDate.getFullYear();
+        const month = viewDate.getMonth();
+        const dim = getDaysInMonth(year, month);
+        const first = getFirstDayOfMonth(year, month);
+        const days = [];
 
-    const rows = weekly[dow] || [];
-    if (!rows.length) { days.push({ date: iso, status: "neutral" }); continue; }
+        for (let i = 0; i < first; i++) days.push({ isEmpty: true });
 
-    const anySlots = rows.some((e) => (Number(e.slots) || 0) > 0);
-    days.push({ date: iso, status: anySlots ? "available" : "unavailable" });
-  }
-  return { month: key, days };
-}
+        for (let d = 1; d <= dim; d++) {
+            const date = new Date(year, month, d);
+            const iso = formatDate(date);
+            const dow = date.getDay();
 
-/* ───────── page ───────── */
+            let status = "neutral";
+            let times = [];
+            let conflict = false;
 
-export default function ManageAvailabilitySimple() {
-  // pick first configured service; you can add a selector later if needed
-  const [service] = useState(SERVICES[0]);
+            const weekly = weeklyRules[dow] || [];
+            const custom = customDates[iso];
 
-  const seed = ADMIN_AVAILABILITY[service] || {};
-  const initWeekly = () => {
-    const map = {};
-    for (const dow of Object.keys(seed.weekdays || {})) {
-      map[dow] = (seed.weekdays[dow] || []).map((t) => ({
-        time: t,
-        slots:
-          (seed.timeCapacity && typeof seed.timeCapacity[t] === "number"
-            ? seed.timeCapacity[t]
-            : seed.defaultSlotsPerTime || 0),
-      }));
-    }
-    return map;
-  };
+            if (custom) {
+                if (custom.status === "blocked") {
+                    status = "blocked";
+                } else {
+                    const merged = [...weekly, ...(custom.times || [])];
+                    const deduped = merged.reduce((acc, slot) => {
+                        acc[slot.time] = slot;
+                        return acc;
+                    }, {});
+                    times = Object.values(deduped).sort(
+                        (a, b) =>
+                            new Date(`1970-01-01 ${a.time}`) -
+                            new Date(`1970-01-01 ${b.time}`)
+                    );
 
-  // weekly config: { [dow]: [{time, slots}] }
-  const [weekly, setWeekly] = useState(initWeekly);
-  // blocked days (toggle off)
-  const [blockedDays, setBlockedDays] = useState(() => {
-    const s = new Set();
-    for (const d of WEEKDAYS.map((x) => x.i)) {
-      const has = (seed.weekdays || {})[d]?.length > 0;
-      if (!has) s.add(d); // off if there’s no schedule
-    }
-    return s;
-  });
+                    status = times.length > 0 ? "available" : "available";
+                    if (blockedWeekdays[dow]) conflict = true;
+                }
+            } else if (blockedWeekdays[dow]) {
+                status = "blocked";
+            } else if (weekly.length > 0) {
+                times = weekly;
+                status = "available";
+            }
 
-  // add / remove
-  const addOne = (dow, time, slots) => {
-    if (!time) return;
-    const entry = { time, slots: Math.max(0, Number(slots) || 0) };
-    setWeekly((prev) => {
-      const copy = { ...prev };
-      const list = [...(copy[dow] || [])];
-      const idx = list.findIndex((e) => e.time === time);
-      if (idx === -1) list.push(entry);
-      else list[idx] = entry;
-      list.sort((a, b) => timeSort(a.time, b.time));
-      copy[dow] = list;
-      return copy;
-    });
-  };
-  const removeOne = (dow, time) =>
-    setWeekly((prev) => {
-      const copy = { ...prev };
-      copy[dow] = (copy[dow] || []).filter((e) => e.time !== time);
-      return copy;
-    });
+            days.push({ day: d, date: iso, status, times, conflict, isEmpty: false });
+        }
 
-  const toggleDay = (dow) =>
-    setBlockedDays((prev) => {
-      const s = new Set(prev);
-      if (s.has(dow)) s.delete(dow);
-      else s.add(dow);
-      return s;
-    });
+        return days;
+    }, [viewDate, weeklyRules, customDates, blockedWeekdays]);
 
-  // draft inputs per day
-  const [draftByDay, setDraftByDay] = useState(() =>
-    Object.fromEntries(WEEKDAYS.map(({ i }) => [i, { time: "", slots: "" }]))
-  );
-  const setDraftFor = (dow, patch) =>
-    setDraftByDay((p) => ({ ...p, [dow]: { ...p[dow], ...patch } }));
+    // --- 📌 Summary counts ---
+    const summary = useMemo(() => {
+        const blockedDays = Object.values(blockedWeekdays).filter(Boolean).length;
+        const customCount = Object.keys(customDates).length;
 
-  // preview month
-  const today = new Date();
-  const [viewY, setViewY] = useState(today.getFullYear());
-  const [viewM, setViewM] = useState(today.getMonth());
-  const preview = useMemo(
-    () => buildMonthPreview(weekly, blockedDays, viewY, viewM),
-    [weekly, blockedDays, viewY, viewM]
-  );
+        const totalSlots = calendarData.reduce((sum, day) => {
+            if (day.isEmpty || !day.times) return sum;
+            return sum + day.times.reduce((s, t) => s + t.slots, 0);
+        }, 0);
 
-  // save into ADMIN_AVAILABILITY shape
-  const handleSave = () => {
-    const weekdays = {};
-    const timeCapacity = {};
-    for (const dow of WEEKDAYS.map((x) => x.i)) {
-      if (blockedDays.has(dow)) { weekdays[dow] = []; continue; }
-      const list = weekly[dow] || [];
-      weekdays[dow] = list.map((e) => e.time);
-      list.forEach((e) => (timeCapacity[e.time] = Math.max(0, Number(e.slots) || 0)));
-    }
-    ADMIN_AVAILABILITY[service] = {
-      ...(ADMIN_AVAILABILITY[service] || {}),
-      weekdays,
-      timeCapacity,
-      defaultSlotsPerTime: 0,
+        const activeDays = calendarData.filter(
+            (d) => !d.isEmpty && d.status === "available"
+        ).length;
+
+        return { activeDays, blockedDays, customCount, totalSlots };
+    }, [calendarData, blockedWeekdays, customDates]);
+
+    // --- 📌 Calendar nav ---
+    const handlePrevMonth = () =>
+        setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+    const handleNextMonth = () =>
+        setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+    const handleDayClick = (day) => {
+        if (!day.isEmpty && day.date) {
+            setSelectedDate(day.date);
+            setShowCustomModal(true);
+        }
     };
-    alert("Availability saved.");
-  };
 
-  return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Page title — matches your other pages */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
-          Manage Availability
-        </h1>
-        <p className="mt-1 text-xs md:text-sm text-gray-500 dark:text-slate-400">
-          Define weekly appointment times and available slots. Toggle a day to block it entirely.
-        </p>
-      </div>
+    const getStatusIcon = (status) => {
+        switch (status) {
+            case "available":
+                return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+            case "unavailable":
+                return <Clock className="h-4 w-4 text-amber-600" />;
+            case "blocked":
+                return <XCircle className="h-4 w-4 text-red-600" />;
+            default:
+                return <AlertCircle className="h-4 w-4 text-gray-400" />;
+        }
+    };
 
-      {/* Two containers: left (weekly editor) • right (calendar) */}
-      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-12">
-        {/* Left: Weekly Availability */}
-        <div className="lg:col-span-7">
-          <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-            <h2 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">
-              Weekly Availability
-            </h2>
+    const getCellClasses = (status, isEmpty = false) => {
+        if (isEmpty) return "bg-gray-50/30";
+        const base =
+            "border transition-all duration-200 hover:shadow-sm cursor-pointer rounded-lg";
+        switch (status) {
+            case "available":
+                return `${base} bg-emerald-50 hover:bg-emerald-100 border-emerald-200`;
+            case "unavailable":
+                return `${base} bg-amber-50 hover:bg-amber-100 border-amber-200`;
+            case "blocked":
+                return `${base} bg-red-50 hover:bg-red-100 border-red-200`;
+            default:
+                return `${base} bg-white hover:bg-gray-50 border-gray-200`;
+        }
+    };
 
-            <div className="divide-y divide-gray-100 dark:divide-gray-700">
-              {WEEKDAYS.map(({ i: dow, label }) => {
-                const disabled = blockedDays.has(dow);
-                const row = weekly[dow] || [];
-                const draft = draftByDay[dow] || { time: "", slots: "" };
-
-                return (
-                  <div key={dow} className="py-3">
-                    <div className="grid grid-cols-[auto,1fr] items-start gap-4 sm:grid-cols-[auto,1fr,auto]">
-                      {/* Toggle + label */}
-                      <div className="flex items-center gap-3">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={!disabled}
-                            onChange={() => toggleDay(dow)}
-                            className="peer sr-only"
-                          />
-                          <div className="h-5 w-9 rounded-full bg-gray-200 peer-checked:bg-gray-900 transition-colors"></div>
-                          <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all peer-checked:translate-x-4"></div>
-                        </label>
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {label}
-                        </div>
-                        {disabled && (
-                          <span className="ml-2 rounded-md border border-gray-200 px-2 py-0.5 text-[11px] text-gray-600 dark:border-gray-600 dark:text-gray-300">
-                            Blocked
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Chips */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        {!row.length && !disabled && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            No times yet
-                          </span>
-                        )}
-                        {row.map((e) => (
-                          <span
-                            key={e.time}
-                            className="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                          >
-                            <span className="font-medium">{e.time}</span>
-                            <span className="text-gray-400">•</span>
-                            <span>{e.slots} slots</span>
-                            {!disabled && (
-                              <button
-                                onClick={() => removeOne(dow, e.time)}
-                                className="rounded p-0.5 text-gray-500 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-600"
-                                title="Remove"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* Add time/slots */}
-                      <div className="sm:justify-self-end">
-                        <div className="flex items-center gap-2">
-                          <select
-                            disabled={disabled}
-                            value={draft.time}
-                            onChange={(e) => setDraftFor(dow, { time: e.target.value })}
-                            className="h-8 w-36 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-900 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                          >
-                            <option value="">Time…</option>
-                            {TIME_OPTS.map((t) => (
-                              <option key={`${dow}-${t}`} value={t}>
-                                {t}
-                              </option>
-                            ))}
-                          </select>
-
-                          <input
-                            disabled={disabled}
-                            type="number"
-                            min={0}
-                            inputMode="numeric"
-                            placeholder="Slots"
-                            value={draft.slots}
-                            onChange={(e) => setDraftFor(dow, { slots: e.target.value })}
-                            className="h-8 w-20 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-900 focus:outline-none focus:ring-0 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                          />
-
-                          <button
-                            disabled={disabled || !draft.time}
-                            onClick={() => {
-                              addOne(dow, draft.time, draft.slots);
-                              setDraftFor(dow, { time: "", slots: "" });
-                            }}
-                            className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            Add
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-6">
-              <button
-                onClick={handleSave}
-                className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Calendar Preview */}
-        <div className="lg:col-span-5">
-          <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700">
-              <div className="flex items-center gap-2">
-                <button
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:hover:bg-gray-700"
-                  onClick={() => {
-                    const d = new Date(viewY, viewM, 1);
-                    d.setMonth(d.getMonth() - 1);
-                    setViewY(d.getFullYear());
-                    setViewM(d.getMonth());
-                  }}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {new Date(viewY, viewM, 1).toLocaleDateString(undefined, {
-                    month: "long",
-                    year: "numeric",
-                  })}
+    return (
+        <div className="mx-auto space-y-4 md:space-y-6">
+            {/* Header */}
+            <div className="flex flex-col gap-3 md:gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 className="text-xl md:text-2xl font-bold text-slate-900">
+                        Service Availability Management
+                    </h1>
+                    <p className="mt-1 text-xs md:text-sm text-gray-500">
+                        Configure schedules, manage time slots, and set custom availability
+                        rules
+                    </p>
                 </div>
-                <button
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 hover:bg-gray-50 focus:outline-none dark:border-gray-600 dark:hover:bg-gray-700"
-                  onClick={() => {
-                    const d = new Date(viewY, viewM, 1);
-                    d.setMonth(d.getMonth() + 1);
-                    setViewY(d.getFullYear());
-                    setViewM(d.getMonth());
-                  }}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="hidden text-[11px] text-gray-600 dark:text-gray-300 sm:flex sm:items-center sm:gap-3">
-                <LegendDot cls="bg-emerald-500/80" label="available" />
-                <LegendDot cls="bg-amber-500/80" label="unavailable" />
-                <LegendDot cls="bg-red-500/80" label="blocked" />
-                <LegendDot cls="bg-gray-300 dark:bg-gray-600" label="neutral" />
-              </div>
             </div>
 
-            <MonthGrid y={viewY} m={viewM} payload={preview} />
-
-            <div className="border-t border-gray-100 p-3 text-[11px] text-gray-600 dark:border-gray-700 dark:text-gray-300 sm:hidden">
-              <LegendDot cls="bg-emerald-500/80" label="available" />
-              <LegendDot cls="bg-amber-500/80" label="unavailable" />
-              <LegendDot cls="bg-red-500/80" label="blocked" />
-              <LegendDot cls="bg-gray-300 dark:bg-gray-600" label="neutral" />
+            {/* Top Tabs */}
+            <div className="border-b border-gray-200">
+                <nav className="flex space-x-6">
+                    {[
+                        { id: "availability", label: "Availability Calendar", icon: Calendar },
+                        { id: "services", label: "Service Management", icon: Settings },
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setTopTab(tab.id)}
+                            className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 ${topTab === tab.id
+                                    ? "border-blue-500 text-blue-600"
+                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                }`}
+                        >
+                            <tab.icon className="h-4 w-4" />
+                            {tab.label}
+                        </button>
+                    ))}
+                </nav>
             </div>
-          </div>
+
+            {topTab === "services" ? (
+                <ServiceManagement />
+            ) : (
+                <div className="space-y-4 md:space-y-6">
+                    {/* Service Selector */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                                    Select Service
+                                </h3>
+                                <p className="text-sm text-gray-600">
+                                    Choose a service to configure its availability
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Dropdown
+                                    value={selectedService?.id ?? ""}
+                                    onChange={(id) => {
+                                        const svc = services.find((s) => s.id === id);
+                                        setSelectedService(svc || null);
+                                    }}
+                                    options={services.map((svc) => ({
+                                        value: svc.id,
+                                        label: svc.name,
+                                    }))}
+                                    placeholder="Select service..."
+                                    width="w-52"
+                                />
+                            </div>
+                        </div>
+
+                        {/* 📌 Summary */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-gray-600">
+                            <div className="bg-gray-50 rounded-lg px-3 py-2">
+                                <span className="font-medium text-gray-900">
+                                    {summary.activeDays}
+                                </span>{" "}
+                                days with availability
+                            </div>
+                            <div className="bg-gray-50 rounded-lg px-3 py-2">
+                                <span className="font-medium text-gray-900">
+                                    {summary.blockedDays}
+                                </span>{" "}
+                                weekdays blocked
+                            </div>
+                            <div className="bg-gray-50 rounded-lg px-3 py-2">
+                                <span className="font-medium text-gray-900">
+                                    {summary.customCount}
+                                </span>{" "}
+                                custom dates
+                            </div>
+                            <div className="bg-gray-50 rounded-lg px-3 py-2">
+                                <span className="font-medium text-gray-900">
+                                    {summary.totalSlots}
+                                </span>{" "}
+                                total slots this month
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Panels + Calendar */}
+                    {selectedService && (
+                        <div className="grid grid-cols-2 xl:grid-cols-6 gap-4 md:gap-6">
+                            {/* Panel (wider) */}
+                            <div className="xl:col-span-2">
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                                    <div className="border-b border-gray-200 flex">
+                                        <button
+                                            onClick={() => setActiveTab("weekly")}
+                                            className={`flex-1 px-3 md:px-4 py-3 text-sm font-medium border-b-2 ${activeTab === "weekly"
+                                                    ? "border-blue-500 text-blue-600"
+                                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                                }`}
+                                        >
+                                            Weekly Rules
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveTab("custom")}
+                                            className={`flex-1 px-3 md:px-4 py-3 text-sm font-medium border-b-2 ${activeTab === "custom"
+                                                    ? "border-blue-500 text-blue-600"
+                                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                                }`}
+                                        >
+                                            Custom Dates
+                                        </button>
+                                    </div>
+                                    <div className="p-4 md:p-4">
+                                        {activeTab === "weekly" ? (
+                                            <WeeklyRulesPanel
+                                                weeklyRules={weeklyRules}
+                                                setWeeklyRules={setWeeklyRules}
+                                                blockedWeekdays={blockedWeekdays}
+                                                setBlockedWeekdays={setBlockedWeekdays}
+                                                customDates={customDates}
+                                            />
+                                        ) : (
+                                            <CustomDatesPanel
+                                                customDates={customDates}
+                                                setCustomDates={setCustomDates}
+                                                setSelectedDate={setSelectedDate}
+                                                setShowCustomModal={setShowCustomModal}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Calendar */}
+                            <div className="xl:col-span-4">
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                                    <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-200">
+                                        <h2 className="text-lg font-semibold text-gray-900">
+                                            {selectedService.name} Schedule
+                                        </h2>
+                                        <div className="flex items-center bg-white rounded-lg border border-gray-200">
+                                            <button
+                                                onClick={handlePrevMonth}
+                                                className="p-2 hover:bg-gray-50 rounded-l-lg"
+                                            >
+                                                <ChevronLeft className="h-4 w-4 text-gray-600" />
+                                            </button>
+                                            <div className="px-4 py-2 text-sm font-medium text-gray-900 min-w-[140px] text-center border-x border-gray-200">
+                                                {viewDate.toLocaleDateString("en-US", {
+                                                    month: "long",
+                                                    year: "numeric",
+                                                })}
+                                            </div>
+                                            <button
+                                                onClick={handleNextMonth}
+                                                className="p-2 hover:bg-gray-50 rounded-r-lg"
+                                            >
+                                                <ChevronRight className="h-4 w-4 text-gray-600" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Calendar days */}
+                                    <div className="p-4 md:p-6">
+                                        <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2">
+                                            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                                                (d) => (
+                                                    <div
+                                                        key={d}
+                                                        className="text-center text-xs md:text-sm font-medium text-gray-500"
+                                                    >
+                                                        {d}
+                                                    </div>
+                                                )
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-7 gap-1 md:gap-2">
+                                            {calendarData.map((cell, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    onClick={() => handleDayClick(cell)}
+                                                    className={`min-h-[4.5rem] md:min-h-[5.5rem] p-2 ${getCellClasses(
+                                                        cell.status,
+                                                        cell.isEmpty
+                                                    )}`}
+                                                >
+                                                    {!cell.isEmpty && (
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <span className="text-xs md:text-sm font-medium text-gray-900">
+                                                                    {cell.day}
+                                                                </span>
+                                                                {getStatusIcon(cell.status)}
+                                                            </div>
+                                                            <div className="text-xs space-y-1">
+                                                                {cell.times.map((slot, i) => (
+                                                                    <div
+                                                                        key={`${slot.time}-${i}`}
+                                                                        className="text-gray-800 font-medium text-center py-0.5"
+                                                                    >
+                                                                        {slot.time} ({slot.slots})
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                            {cell.conflict && (
+                                                                <div className="text-[10px] text-red-600 mt-1">
+                                                                    ⚠ Weekly Blocked
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Legend */}
+                                    <div className="border-t border-gray-200 p-4 md:p-6">
+                                        <div className="grid grid-cols-3 gap-3 md:gap-4">
+                                            <LegendItem
+                                                icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                                                label="Available"
+                                            />
+                                            <LegendItem
+                                                icon={<XCircle className="h-4 w-4 text-red-600" />}
+                                                label="Blocked"
+                                            />
+                                            <LegendItem
+                                                icon={<AlertCircle className="h-4 w-4 text-gray-400" />}
+                                                label="No Schedule"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Modal */}
+            {showCustomModal && (
+                <CustomDateModal
+                    selectedDate={selectedDate}
+                    customDates={customDates}
+                    setCustomDates={setCustomDates}
+                    blockedWeekdays={blockedWeekdays}
+                    onClose={() => setShowCustomModal(false)}
+                />
+            )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-/* ───────── small UI parts ───────── */
-
-function LegendDot({ cls, label }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={`h-2.5 w-2.5 rounded-sm ${cls}`}></span>
-      {label}
-    </span>
-  );
-}
-
-function MonthGrid({ y, m, payload }) {
-  const dim = daysInMonth(y, m);
-  const lead = firstDayOfWeek(y, m);
-  const trail = 6 - lastDayOfWeek(y, m);
-
-  const statusMap = new Map(payload.days.map((d) => [d.date, d.status]));
-  const cells = [];
-  for (let i = 0; i < lead; i++) cells.push(<Cell key={`l-${i}`} />);
-  for (let d = 1; d <= dim; d++) {
-    const iso = `${monthKey(y, m)}-${pad2(d)}`;
-    cells.push(<Cell key={iso} d={d} status={statusMap.get(iso)} />);
-  }
-  for (let i = 0; i < trail; i++) cells.push(<Cell key={`t-${i}`} />);
-
-  const rows = [];
-  for (let i = 0; i < cells.length; i += 7) {
-    rows.push(
-      <div key={`r-${i}`} className="grid grid-cols-7">
-        {cells.slice(i, i + 7)}
-      </div>
     );
-  }
-
-  return (
-    <div className="p-3">
-      <div className="grid grid-cols-7 gap-0.5 px-1 pb-2">
-        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-          <div
-            key={d}
-            className="text-center text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400"
-          >
-            {d}
-          </div>
-        ))}
-      </div>
-      <div className="space-y-0.5">{rows}</div>
-    </div>
-  );
 }
 
-function Cell({ d, status }) {
-  const tone =
-    status === "available"
-      ? "bg-emerald-500/80 text-white"
-      : status === "unavailable"
-      ? "bg-amber-500/80 text-white"
-      : status === "blocked"
-      ? "bg-red-500/80 text-white"
-      : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300";
-  return (
-    <div className={`m-0.5 flex h-12 items-center justify-center rounded-md ${tone}`}>
-      <span className="text-sm">{d ?? ""}</span>
-    </div>
-  );
+function LegendItem({ icon, label }) {
+    return (
+        <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-gray-100">
+            <div className="w-6 h-6 flex items-center justify-center">{icon}</div>
+            <div className="text-sm font-medium text-gray-900">{label}</div>
+        </div>
+    );
 }
