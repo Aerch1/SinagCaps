@@ -4,15 +4,13 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import axios from "axios";
 import Dropdown from "../components/ui/Dropdown1";
 import DatePopover from "../components/ui/DatePopover";
 import TimePopover from "../components/ui/TimePopover";
 import { formatStatusLabel } from "../lib/utils.js";
 
-/* ---------------- Constants ---------------- */
-const SERVICE_TYPES = ["Wedding", "Baptism", "Counseling", "Confirmation", "Funeral"];
-
-// ✅ DB-safe values + user-friendly labels
+/* ---------------- Status Options ---------------- */
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
@@ -21,6 +19,7 @@ const STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
+/* ---------------- Regex ---------------- */
 const YYYYMMDD = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_24H = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -37,9 +36,7 @@ const AppointmentSchema = z
         message: "Enter a valid phone number",
       }),
     address: z.string().optional().or(z.literal("")),
-    serviceType: z.enum(SERVICE_TYPES, {
-      errorMap: () => ({ message: "Select a service type" }),
-    }),
+    service_id: z.string().min(1, "Select a service"),
     status: z.enum(STATUS_OPTIONS.map((o) => o.value)).default("pending"),
     date: z.string().regex(YYYYMMDD, "Pick a valid date"),
     allDay: z.boolean().default(false),
@@ -91,7 +88,7 @@ export default function CreateAppointmentForm({
       email: "",
       phone: "",
       address: "",
-      serviceType: SERVICE_TYPES[0],
+      service_id: "",
       status: "pending",
       date: defaultDate,
       allDay: false,
@@ -102,10 +99,23 @@ export default function CreateAppointmentForm({
 
   const allDay = useWatch({ control, name: "allDay" });
   const dateISO = useWatch({ control, name: "date" });
-  const serviceType = useWatch({ control, name: "serviceType" });
+  const service_id = useWatch({ control, name: "service_id" });
 
+  const [services, setServices] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [loadingTimes, setLoadingTimes] = useState(false);
+
+  /* Fetch services for dropdown */
+  useEffect(() => {
+    axios
+      .get("/api/admin/services")
+      .then((res) => {
+        if (res.data.success) {
+          setServices(res.data.services || []);
+        }
+      })
+      .catch((err) => console.error("❌ fetch services failed:", err));
+  }, []);
 
   /* Fetch available times */
   useEffect(() => {
@@ -119,7 +129,7 @@ export default function CreateAppointmentForm({
       try {
         const times =
           typeof fetchAvailableTimes === "function"
-            ? await fetchAvailableTimes(dateISO, serviceType)
+            ? await fetchAvailableTimes(dateISO, service_id)
             : mockGenerateTimes("08:00", "17:30", 30);
         if (active) setSuggestions(Array.isArray(times) ? times : []);
       } catch {
@@ -131,23 +141,21 @@ export default function CreateAppointmentForm({
     return () => {
       active = false;
     };
-  }, [dateISO, serviceType, allDay, fetchAvailableTimes]);
+  }, [dateISO, service_id, allDay, fetchAvailableTimes]);
 
-  /* Pass validated form data up to Modal */
+  /* Pass validated form data up */
   const handleFormSubmit = (data) => {
     onSubmit?.({
-      clientName: data.clientName.trim(),
+      name: data.clientName.trim(),
       email: data.email.trim(),
-      phone: data.phone.trim(),
+      contactNumber: data.phone.trim(),
       address: data.address.trim(),
-      serviceType: data.serviceType,
-      status: data.status, // ✅ always DB-safe value
+      service_id: Number(data.service_id),
+      status: data.status,
       date: data.date,
       time: data.allDay ? null : data.time,
       allDay: !!data.allDay,
       notes: data.notes.trim(),
-      start: data.date,
-      end: data.date,
     });
   };
 
@@ -215,24 +223,27 @@ export default function CreateAppointmentForm({
           Appointment Details
         </h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {/* Service Type */}
+          {/* Service */}
           <div>
-            <label className="mb-2 block text-sm font-medium">Service Type</label>
+            <label className="mb-2 block text-sm font-medium">Service</label>
             <Controller
               control={control}
-              name="serviceType"
+              name="service_id"
               render={({ field }) => (
                 <Dropdown
                   value={field.value}
                   onChange={field.onChange}
-                  options={SERVICE_TYPES}
+                  options={services.map((s) => ({
+                    value: String(s.id),
+                    label: s.name,
+                  }))}
                   className="w-full"
                 />
               )}
             />
-            {errors.serviceType && (
+            {errors.service_id && (
               <p className="mt-1 text-sm text-red-500">
-                {errors.serviceType.message}
+                {errors.service_id.message}
               </p>
             )}
           </div>
@@ -248,7 +259,7 @@ export default function CreateAppointmentForm({
                   value={field.value}
                   onChange={field.onChange}
                   options={STATUS_OPTIONS}
-                  formatter={formatStatusLabel} // 👈 UI shows label, DB keeps value
+                  formatter={formatStatusLabel}
                   className="w-full"
                 />
               )}

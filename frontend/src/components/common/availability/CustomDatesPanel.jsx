@@ -36,7 +36,7 @@ export default function CustomDatesPanel({
     return (
         <div className="space-y-5">
             {/* Header */}
-            <div className="space-y-4">
+            <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-base font-semibold text-gray-900">
                         Custom Date Settings
@@ -46,18 +46,17 @@ export default function CustomDatesPanel({
                     </p>
                 </div>
 
-                <div className="flex justify-end">
-                    <button
-                        onClick={() => {
-                            setSelectedDate(new Date().toISOString().split("T")[0]);
-                            setShowCustomModal(true);
-                        }}
-                        className="inline-flex items-center gap-2 bg-secondary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-secondary/90 transition-colors"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Add Custom Date
-                    </button>
-                </div>
+                <button
+                    onClick={() => {
+                        setSelectedDate(new Date().toISOString().split("T")[0]);
+                        setShowCustomModal(true);
+                    }}
+                    className="inline-flex items-center justify-center bg-secondary text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-secondary/90 transition-colors"
+                    title="Add Custom Date"
+                >
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden sm:inline ml-1">Add</span>
+                </button>
             </div>
 
             {/* Custom Dates List */}
@@ -78,7 +77,9 @@ export default function CustomDatesPanel({
                                         {formatDate(dateStr)}
                                     </div>
                                     <div className="text-xs text-gray-500">
-                                        {new Date(dateStr) < new Date() ? "Past date" : "Upcoming"}
+                                        {new Date(dateStr) < new Date()
+                                            ? "Past date"
+                                            : "Upcoming"}
                                     </div>
                                 </div>
                             </div>
@@ -132,7 +133,9 @@ export default function CustomDatesPanel({
                                                 className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2"
                                             >
                                                 <Clock className="h-3.5 w-3.5 text-gray-500" />
-                                                <span className="font-mono font-medium">{slot.time}</span>
+                                                <span className="font-mono font-medium">
+                                                    {slot.time}
+                                                </span>
                                                 <span className="text-gray-600">•</span>
                                                 <span className="text-gray-700">
                                                     {slot.slots} {slot.slots === 1 ? "slot" : "slots"}

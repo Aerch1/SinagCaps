@@ -18,18 +18,19 @@ export default function CreateAppointmentModal({
     const handleFormSubmit = async (formData) => {
         try {
             const payload = {
-                name: formData.clientName,
-                email: formData.email,
-                contactNumber: formData.phone,
-                serviceType: formData.serviceType,
+                name: formData.name,
+                email: formData.email || null,
+                contactNumber: formData.contactNumber || null,
+                service_id: formData.service_id, // ✅ DB column
                 date: formData.date,
                 time: formData.time,
                 status: formData.status,
-                notes: formData.notes,
-                details: {}, // will remain empty; details managed separately
+                notes: formData.notes || null,
             };
 
-            await axios.post("/api/admin/appointments", payload, { withCredentials: true });
+            await axios.post("/api/admin/appointments", payload, {
+                withCredentials: true,
+            });
 
             toast.success("Appointment created");
             onSave?.();
@@ -41,7 +42,12 @@ export default function CreateAppointmentModal({
     };
 
     return (
-        <Modal open={isOpen} onClose={onClose} title="Create Appointment" className="max-w-5xl">
+        <Modal
+            open={isOpen}
+            onClose={onClose}
+            title="Create Appointment"
+            className="max-w-5xl"
+        >
             <div className="max-h-[85vh] overflow-y-auto custom-scrollbar">
                 <div className="max-w-full px-2">
                     <CreateAppointmentForm

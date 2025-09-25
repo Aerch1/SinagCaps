@@ -7,7 +7,21 @@ export const getServices = async (req, res) => {
     const [rows] = await pool.query(
       `SELECT id, name, active, created_at FROM services ORDER BY created_at DESC`
     );
-    res.json({ success: true, services: rows });
+
+    // Fetch requirements for each service
+    const [reqs] = await pool.query(
+      `SELECT r.id, r.service_id, r.name, r.is_mandatory
+       FROM requirements r
+       ORDER BY r.created_at ASC`
+    );
+
+    // Group requirements under their service
+    const services = rows.map((s) => ({
+      ...s,
+      requirements: reqs.filter((r) => r.service_id === s.id),
+    }));
+
+    res.json({ success: true, services });
   } catch (err) {
     console.error("❌ getServices error:", err);
     res
@@ -18,46 +32,79 @@ export const getServices = async (req, res) => {
 
 /* ---------------- CREATE service ---------------- */
 export const createService = async (req, res) => {
+  const conn = await pool.getConnection();
   try {
-    const { name, active = true } = req.body;
+    const { name, active = true, requirements = [] } = req.body;
+
     if (!name || !name.trim()) {
       return res
         .status(400)
         .json({ success: false, message: "Service name is required" });
     }
 
-    const [existing] = await pool.query(
+    await conn.beginTransaction();
+
+    // Check duplicate service
+    const [existing] = await conn.query(
       `SELECT id FROM services WHERE LOWER(name) = LOWER(?) LIMIT 1`,
       [name.trim()]
     );
     if (existing.length) {
+      await conn.rollback();
       return res
         .status(400)
         .json({ success: false, message: "Service already exists" });
     }
 
-    const [result] = await pool.query(
+    // Insert service
+    const [result] = await conn.query(
       `INSERT INTO services (name, active) VALUES (?, ?)`,
       [name.trim(), !!active]
     );
+    const serviceId = result.insertId;
 
+    // Insert requirements if provided
+    if (requirements.length) {
+      const values = requirements.map((r) => [
+        serviceId,
+        r.name.trim(),
+        r.description || null,
+        r.is_mandatory !== false, // default true
+      ]);
+      await conn.query(
+        `INSERT INTO requirements (service_id, name, description, is_mandatory)
+         VALUES ?`,
+        [values]
+      );
+    }
+
+    await conn.commit();
     res.status(201).json({
       success: true,
-      service: { id: result.insertId, name: name.trim(), active: !!active },
+      service: {
+        id: serviceId,
+        name: name.trim(),
+        active: !!active,
+        requirements,
+      },
     });
   } catch (err) {
+    await conn.rollback();
     console.error("❌ createService error:", err);
     res
       .status(500)
       .json({ success: false, message: "Failed to create service" });
+  } finally {
+    conn.release();
   }
 };
 
 /* ---------------- UPDATE service ---------------- */
 export const updateService = async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     const { id } = req.params;
-    const { name, active } = req.body;
+    const { name, active, requirements = [] } = req.body;
 
     if (!name || !name.trim()) {
       return res
@@ -65,36 +112,54 @@ export const updateService = async (req, res) => {
         .json({ success: false, message: "Service name is required" });
     }
 
-    const [existing] = await pool.query(
+    await conn.beginTransaction();
+
+    // Ensure service exists and name unique
+    const [existing] = await conn.query(
       `SELECT id FROM services WHERE LOWER(name) = LOWER(?) AND id != ? LIMIT 1`,
       [name.trim(), id]
     );
     if (existing.length) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Another service with this name already exists",
-        });
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Another service with this name already exists",
+      });
     }
 
-    const [result] = await pool.query(
-      `UPDATE services SET name = ?, active = ? WHERE id = ?`,
-      [name.trim(), !!active, id]
-    );
+    await conn.query(`UPDATE services SET name = ?, active = ? WHERE id = ?`, [
+      name.trim(),
+      !!active,
+      id,
+    ]);
 
-    if (result.affectedRows === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Service not found" });
+    // Reset + insert requirements (simple approach)
+    await conn.query(`DELETE FROM requirements WHERE service_id = ?`, [id]);
+
+    if (requirements.length) {
+      const values = requirements.map((r) => [
+        id,
+        r.name.trim(),
+        r.description || null,
+        r.is_mandatory !== false,
+      ]);
+      await conn.query(
+        `INSERT INTO requirements (service_id, name, description, is_mandatory)
+         VALUES ?`,
+        [values]
+      );
     }
 
+    await conn.commit();
     res.json({ success: true, message: "Service updated successfully" });
   } catch (err) {
+    await conn.rollback();
     console.error("❌ updateService error:", err);
     res
       .status(500)
       .json({ success: false, message: "Failed to update service" });
+  } finally {
+    conn.release();
   }
 };
 

@@ -276,7 +276,7 @@ export default function DataTable({
             </div>
 
             {/* ===== Section 2: Table with header controls ===== */}
-            <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-x-auto">
+            <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-x-auto flex flex-col h-[400px]">
                 {/* Top controls bar */}
                 <div className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-gray-800">Appointment Transactions</div>
@@ -284,7 +284,7 @@ export default function DataTable({
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-600">Show</span>
-                            <div className="min-w-[220px]">
+                            <div className="min-w-[220px] overflow-visible">
                                 <FilterDropdown
                                     mode="range"
                                     selectionMode="single"
@@ -319,62 +319,78 @@ export default function DataTable({
                     </div>
                 </div>
 
-                {/* Table */}
-                <table className="min-w-full text-sm">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th onClick={() => cycleSort("id")} className="px-6 py-2 text-left cursor-pointer">
-                                ID <ChevronsUpDown className="inline h-3 w-3 ml-1" />
-                            </th>
-                            <th className="px-6 py-2 text-left">Client</th>
-                            <th className="px-6 py-2 text-left">Contact</th>
-                            <th className="px-6 py-2 text-left">Service</th>
-                            <th className="px-6 py-2 text-left">Status</th>
-                            <th className="px-6 py-2 text-left">Date</th>
-                            <th className="px-6 py-2 text-left">Time</th>
-                            <th className="px-6 py-2 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <AnimatePresence>
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={8} className="text-center py-4">Loading…</td>
-                                </tr>
-                            ) : rows.length === 0 ? (
-                                <tr>
-                                    <td colSpan={8} className="text-center py-4">No results.</td>
-                                </tr>
-                            ) : (
-                                rows.map((r) => (
-                                    <motion.tr
-                                        key={r.id}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -10 }}
-                                        className="border-b hover:bg-gray-50"
-                                    >
-                                        <td className="px-6 py-2 font-mono text-xs text-gray-500">#{r.id}</td>
-                                        <td className="px-6 py-2">
-                                            <div className="font-medium">{r.name}</div>
-                                            <div className="text-xs text-gray-500">{r.email}</div>
+                <div className="flex-1 overflow-y-auto">
+                    <table className="min-w-full text-sm">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th onClick={() => cycleSort("id")} className="px-6 py-2 text-left cursor-pointer">
+                                    ID <ChevronsUpDown className="inline h-3 w-3 ml-1" />
+                                </th>
+                                <th className="px-6 py-2 text-left">Client</th>
+                                <th className="px-6 py-2 text-left">Contact</th>
+                                <th className="px-6 py-2 text-left">Service</th>
+                                <th className="px-6 py-2 text-left">Status</th>
+                                <th className="px-6 py-2 text-left">Date</th>
+                                <th className="px-6 py-2 text-left">Time</th>
+                                <th className="px-6 py-2 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <AnimatePresence>
+                                {loading ? (
+                                    <tr>
+                                        <td
+                                            colSpan={8}
+                                            className="h-48 text-center align-middle"
+                                        >
+                                            <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                                                Loading…
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-2">{r.contactNumber || "—"}</td>
-                                        <td className="px-6 py-2">{r.serviceName}</td>
-                                        <td className="px-6 py-2">
-                                            <span className={statusClass(r.status)}>
-                                                {formatStatusLabel(r.status)}
-                                            </span>
+                                    </tr>
+                                ) : rows.length === 0 ? (
+                                    <tr>
+                                        <td
+                                            colSpan={8}
+                                            className="h-48 text-center align-middle"
+                                        >
+                                            <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                                                No results.
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-2">{formatDate(r.date)}</td>
-                                        <td className="px-6 py-2">{formatTime(r.time)}</td>
-                                        <td className="px-6 py-2 text-right">{renderActions(r)}</td>
-                                    </motion.tr>
-                                ))
-                            )}
-                        </AnimatePresence>
-                    </tbody>
-                </table>
+                                    </tr>
+                                ) : (
+                                    rows.map((r) => (
+                                        <motion.tr
+                                            key={r.id}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="border-b hover:bg-gray-50"
+                                        >
+                                            <td className="px-6 py-2 font-mono text-xs text-gray-500">#{r.id}</td>
+                                            <td className="px-6 py-2">
+                                                <div className="font-medium">{r.name}</div>
+                                                <div className="text-xs text-gray-500">{r.email}</div>
+                                            </td>
+                                            <td className="px-6 py-2">{r.contactNumber || "—"}</td>
+                                            <td className="px-6 py-2">{r.serviceName}</td>
+                                            <td className="px-6 py-2">
+                                                <span className={statusClass(r.status)}>
+                                                    {formatStatusLabel(r.status)}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-2">{formatDate(r.date)}</td>
+                                            <td className="px-6 py-2">{formatTime(r.time)}</td>
+                                            <td className="px-6 py-2 text-right">{renderActions(r)}</td>
+                                        </motion.tr>
+                                    ))
+                                )}
+                            </AnimatePresence>
+                        </tbody>
+                    </table>
+                </div>
+
 
                 {/* Pagination */}
                 {total > 0 && (

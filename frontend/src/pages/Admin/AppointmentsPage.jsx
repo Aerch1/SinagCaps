@@ -124,7 +124,6 @@ export default function AppointmentsPage() {
                 isOpen={createOpen}
                 onClose={() => setCreateOpen(false)}
                 onSave={() => {
-                    toast.success("Appointment created");
                     setCreateOpen(false);
                     setReloadKey((k) => k + 1); // 👈 refresh after create
                 }}

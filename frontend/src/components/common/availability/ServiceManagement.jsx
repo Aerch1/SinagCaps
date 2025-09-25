@@ -1,22 +1,48 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit3, Trash2, Search, Check, X, AlertCircle } from "lucide-react";
+import {
+    Plus,
+    Edit3,
+    Trash2,
+    Search,
+    Check,
+    X,
+    AlertCircle,
+} from "lucide-react";
 import Dropdown from "@/components/ui/Dropdown1";
 import Modal from "@/components/ui/Modal";
 
+const capitalizeWords = (str = "") =>
+    str
+        .toLowerCase()
+        .split(" ")
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+
 export default function ServiceManagement() {
     const [services, setServices] = useState([]);
-    const [search, setSearch] = useState("");
+    const [search, setSearch] = useState(""); // input state
+    const [debouncedSearch, setDebouncedSearch] = useState(""); // debounced state
     const [showModal, setShowModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
+
+    // Add Service form state
     const [newServiceName, setNewServiceName] = useState("");
     const [newServiceStatus, setNewServiceStatus] = useState("active");
+    const [newRequirements, setNewRequirements] = useState([]);
+
+    // Edit state
     const [selectedService, setSelectedService] = useState(null);
     const [editingId, setEditingId] = useState(null);
-    const [editValues, setEditValues] = useState({ name: "", status: "active" });
+    const [editValues, setEditValues] = useState({
+        name: "",
+        status: "active",
+        requirements: [],
+    });
 
     useEffect(() => {
         fetchServices();
@@ -26,7 +52,7 @@ export default function ServiceManagement() {
         try {
             const res = await fetch("/api/admin/services");
             const data = await res.json();
-            if (data.success) setServices(data.services);
+            if (data.success) setServices(data.services || []);
         } catch (err) {
             console.error("❌ fetchServices error:", err);
         }
@@ -37,25 +63,27 @@ export default function ServiceManagement() {
         setShowErrorModal(true);
     };
 
+    /* ---------------- CREATE ---------------- */
     const addService = async () => {
         if (!newServiceName.trim()) {
             return showError("Service name is required");
         }
 
-        const exists = services.some(
-            (s) => s.name.toLowerCase() === newServiceName.trim().toLowerCase()
-        );
-        if (exists) {
-            return showError("Service already exists");
-        }
+        const cleanedReqs = (newRequirements || [])
+            .filter((r) => r?.name && r.name.trim())
+            .map((r) => ({
+                name: capitalizeWords(r.name.trim()),
+                is_mandatory: r.is_mandatory !== false,
+            }));
 
         try {
             const res = await fetch("/api/admin/services", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    name: newServiceName.trim(),
+                    name: capitalizeWords(newServiceName.trim()),
                     active: newServiceStatus === "active",
+                    requirements: cleanedReqs,
                 }),
             });
             const data = await res.json();
@@ -64,26 +92,37 @@ export default function ServiceManagement() {
                 setShowModal(false);
                 setNewServiceName("");
                 setNewServiceStatus("active");
+                setNewRequirements([]);
             } else {
                 showError(data.message || "Failed to add service");
             }
         } catch (err) {
             console.error("❌ addService error:", err);
+            showError("Failed to add service");
         }
     };
 
+    /* ---------------- UPDATE ---------------- */
     const saveEdit = async (id) => {
         if (!editValues.name.trim()) {
             return showError("Service name is required");
         }
+
+        const cleanedReqs = (editValues.requirements || [])
+            .filter((r) => r?.name && r.name.trim())
+            .map((r) => ({
+                name: capitalizeWords(r.name.trim()),
+                is_mandatory: r.is_mandatory !== false,
+            }));
 
         try {
             const res = await fetch(`/api/admin/services/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    name: editValues.name.trim(),
+                    name: capitalizeWords(editValues.name.trim()),
                     active: editValues.status === "active",
+                    requirements: cleanedReqs,
                 }),
             });
             const data = await res.json();
@@ -95,9 +134,11 @@ export default function ServiceManagement() {
             }
         } catch (err) {
             console.error("❌ saveEdit error:", err);
+            showError("Failed to update service");
         }
     };
 
+    /* ---------------- DELETE ---------------- */
     const confirmDeleteService = (svc) => {
         setSelectedService(svc);
         setShowDeleteModal(true);
@@ -118,25 +159,53 @@ export default function ServiceManagement() {
             }
         } catch (err) {
             console.error("❌ deleteService error:", err);
+            showError("Failed to delete service");
         }
     };
 
+    /* ---------------- EDIT ---------------- */
     const startEdit = (svc) => {
         setEditingId(svc.id);
         setEditValues({
             name: svc.name,
             status: svc.active ? "active" : "inactive",
+            requirements: Array.isArray(svc.requirements)
+                ? svc.requirements.map((r) => ({
+                    id: r.id,
+                    name: r.name || "",
+                    is_mandatory: r.is_mandatory !== false,
+                }))
+                : [],
         });
     };
 
     const cancelEdit = () => {
         setEditingId(null);
-        setEditValues({ name: "", status: "active" });
+        setEditValues({ name: "", status: "active", requirements: [] });
     };
 
-    const filtered = services.filter((svc) =>
-        svc.name.toLowerCase().includes(search.toLowerCase())
-    );
+    /* ---------------- SEARCH (debounced) ---------------- */
+    useEffect(() => {
+        const delay = setTimeout(() => {
+            setDebouncedSearch(search.toLowerCase());
+        }, 300);
+        return () => clearTimeout(delay);
+    }, [search]);
+
+    const filtered = services.filter((svc) => {
+        const query = debouncedSearch;
+        if (!query) return true;
+
+        const inName = svc.name?.toLowerCase().includes(query);
+
+        const inRequirements = Array.isArray(svc.requirements)
+            ? svc.requirements.some((r) => r.name?.toLowerCase().includes(query))
+            : false;
+
+        const inStatus = (svc.active ? "active" : "inactive").includes(query);
+
+        return inName || inRequirements || inStatus;
+    });
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -152,7 +221,10 @@ export default function ServiceManagement() {
                             placeholder="Search services..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="block w-full sm:w-64 pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") e.preventDefault();
+                            }}
+                            className="block w-full sm:w-64 pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:outline-0"
                         />
                     </div>
                     <button
@@ -174,6 +246,9 @@ export default function ServiceManagement() {
                                 Service Details
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                                Requirements
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                                 Status
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
@@ -185,103 +260,214 @@ export default function ServiceManagement() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {filtered.map((svc) => (
-                            <tr key={svc.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4">
-                                    {editingId === svc.id ? (
-                                        <input
-                                            type="text"
-                                            value={editValues.name}
-                                            onChange={(e) =>
-                                                setEditValues((prev) => ({ ...prev, name: e.target.value }))
-                                            }
-                                            className="w-full max-w-sm border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-                                            autoFocus
-                                        />
-                                    ) : (
-                                        <div>
-                                            <div className="text-sm font-medium text-gray-900">{svc.name}</div>
-                                            <div className="text-xs text-gray-500 font-mono">ID: {svc.id}</div>
-                                        </div>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4">
-                                    {editingId === svc.id ? (
-                                        <Dropdown
-                                            value={editValues.status}
-                                            onChange={(val) =>
-                                                setEditValues((prev) => ({ ...prev, status: val }))
-                                            }
-                                            options={[
-                                                { value: "active", label: "Active" },
-                                                { value: "inactive", label: "Inactive" },
-                                            ]}
-                                            width="w-full"
-                                        />
-                                    ) : (
-                                        <span
-                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${svc.active
-                                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                                    : "bg-gray-100 text-gray-600 border border-gray-200"
-                                                }`}
-                                        >
-                                            <div
-                                                className={`h-1.5 w-1.5 rounded-full ${svc.active ? "bg-emerald-500" : "bg-gray-400"
-                                                    }`}
-                                            />
-                                            {svc.active ? "Active" : "Inactive"}
-                                        </span>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-600">
-                                    {new Date(svc.created_at).toLocaleDateString("en-US", {
-                                        year: "numeric",
-                                        month: "short",
-                                        day: "numeric",
-                                    })}
-                                </td>
-                                <td className="px-6 py-4 text-right space-x-2">
-                                    {editingId === svc.id ? (
-                                        <>
-                                            <button
-                                                onClick={() => saveEdit(svc.id)}
-                                                className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-sm"
-                                            >
-                                                <Check className="h-4 w-4" /> Save
-                                            </button>
-                                            <button
-                                                onClick={cancelEdit}
-                                                className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-700 text-sm"
-                                            >
-                                                <X className="h-4 w-4" /> Cancel
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button
-                                                onClick={() => startEdit(svc)}
-                                                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
-                                            >
-                                                <Edit3 className="h-4 w-4" /> Edit
-                                            </button>
-                                            <button
-                                                onClick={() => confirmDeleteService(svc)}
-                                                className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-sm"
-                                            >
-                                                <Trash2 className="h-4 w-4" /> Delete
-                                            </button>
-                                        </>
-                                    )}
+                        {filtered.length === 0 ? (
+                            <tr>
+                                <td
+                                    colSpan={5}
+                                    className="px-6 py-10 text-center text-gray-500 text-sm italic"
+                                >
+                                    No results found
                                 </td>
                             </tr>
-                        ))}
+                        ) :
+
+
+                            (filtered.map((svc) => (
+                                <tr key={svc.id} className="hover:bg-gray-50 align-top">
+                                    {/* Service */}
+                                    <td className="px-6 py-4">
+                                        {editingId === svc.id ? (
+                                            <input
+                                                type="text"
+                                                value={editValues.name}
+                                                onChange={(e) =>
+                                                    setEditValues((prev) => ({
+                                                        ...prev,
+                                                        name: e.target.value,
+                                                    }))
+                                                }
+                                                className="w-full max-w-sm border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:outline-0 focus:ring-blue-500"
+                                                autoFocus
+                                            />
+                                        ) : (
+                                            <div>
+                                                <div className="text-sm font-medium text-gray-900">
+                                                    {capitalizeWords(svc.name)}
+                                                </div>
+                                                <div className="text-xs text-gray-500 font-mono">
+                                                    ID: {svc.id}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </td>
+
+                                    {/* Requirements */}
+                                    <td className="px-6 py-4 text-sm text-gray-700">
+                                        {editingId === svc.id ? (
+                                            <div className="space-y-2">
+                                                {editValues.requirements.map((req, idx) => (
+                                                    <div key={idx} className="flex gap-2 items-center">
+                                                        <input
+                                                            type="text"
+                                                            value={req.name}
+                                                            placeholder="Requirement"
+                                                            onChange={(e) => {
+                                                                const updated = [...editValues.requirements];
+                                                                updated[idx].name = e.target.value;
+                                                                setEditValues((prev) => ({
+                                                                    ...prev,
+                                                                    requirements: updated,
+                                                                }));
+                                                            }}
+                                                            className="flex-1 border rounded px-2 py-1 text-sm focus:ring-1 focus:outline-0 focus:ring-blue-500"
+                                                        />
+                                                        <label className="flex items-center gap-1 text-xs text-gray-600">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={req.is_mandatory}
+                                                                onChange={(e) => {
+                                                                    const updated = [...editValues.requirements];
+                                                                    updated[idx].is_mandatory = e.target.checked;
+                                                                    setEditValues((prev) => ({
+                                                                        ...prev,
+                                                                        requirements: updated,
+                                                                    }));
+                                                                }}
+                                                            />
+                                                            Mandatory
+                                                        </label>
+                                                        <button
+                                                            onClick={() =>
+                                                                setEditValues((prev) => ({
+                                                                    ...prev,
+                                                                    requirements: prev.requirements.filter(
+                                                                        (_, i) => i !== idx
+                                                                    ),
+                                                                }))
+                                                            }
+                                                            className="text-red-500 text-xs"
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    onClick={() =>
+                                                        setEditValues((prev) => ({
+                                                            ...prev,
+                                                            requirements: [
+                                                                ...prev.requirements,
+                                                                { name: "", is_mandatory: true },
+                                                            ],
+                                                        }))
+                                                    }
+                                                    className="text-blue-600 text-xs"
+                                                >
+                                                    + Add Requirement
+                                                </button>
+                                            </div>
+                                        ) : svc.requirements && svc.requirements.length > 0 ? (
+                                            <ul className="list-disc pl-4 text-xs text-gray-700">
+                                                {svc.requirements.map((r) => (
+                                                    <li key={r.id || r.name}>
+                                                        {capitalizeWords(r.name)}{" "}
+                                                        {r.is_mandatory ? "(Mandatory)" : "(Optional)"}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <span className="text-xs text-gray-400 italic">
+                                                No requirements
+                                            </span>
+                                        )}
+                                    </td>
+
+                                    {/* Status */}
+                                    <td className="px-6 py-4">
+                                        {editingId === svc.id ? (
+                                            <Dropdown
+                                                value={editValues.status}
+                                                onChange={(val) =>
+                                                    setEditValues((prev) => ({ ...prev, status: val }))
+                                                }
+                                                options={[
+                                                    { value: "active", label: "Active" },
+                                                    { value: "inactive", label: "Inactive" },
+                                                ]}
+                                                width="w-full"
+                                            />
+                                        ) : (
+                                            <span
+                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${svc.active
+                                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                    : "bg-gray-100 text-gray-600 border border-gray-200"
+                                                    }`}
+                                            >
+                                                <div
+                                                    className={`h-1.5 w-1.5 rounded-full ${svc.active ? "bg-emerald-500" : "bg-gray-400"
+                                                        }`}
+                                                />
+                                                {svc.active ? "Active" : "Inactive"}
+                                            </span>
+                                        )}
+                                    </td>
+
+                                    {/* Created */}
+                                    <td className="px-6 py-4 text-sm text-gray-600">
+                                        {new Date(svc.created_at).toLocaleDateString("en-US", {
+                                            year: "numeric",
+                                            month: "short",
+                                            day: "numeric",
+                                        })}
+                                    </td>
+
+                                    {/* Actions */}
+                                    <td className="px-6 py-4 text-right space-x-2">
+                                        {editingId === svc.id ? (
+                                            <>
+                                                <button
+                                                    onClick={() => saveEdit(svc.id)}
+                                                    className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-sm"
+                                                >
+                                                    <Check className="h-4 w-4" /> Save
+                                                </button>
+                                                <button
+                                                    onClick={cancelEdit}
+                                                    className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-700 text-sm"
+                                                >
+                                                    <X className="h-4 w-4" /> Cancel
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={() => startEdit(svc)}
+                                                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm"
+                                                >
+                                                    <Edit3 className="h-4 w-4" /> Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => confirmDeleteService(svc)}
+                                                    className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-sm"
+                                                >
+                                                    <Trash2 className="h-4 w-4" /> Delete
+                                                </button>
+                                            </>
+                                        )}
+                                    </td>
+                                </tr>
+                            )))}
                     </tbody>
                 </table>
             </div>
 
             {/* Add Service Modal */}
             {showModal && (
-                <Modal open={true} onClose={() => setShowModal(false)} title="Add New Service">
+                <Modal
+                    open={true}
+                    onClose={() => setShowModal(false)}
+                    title="Add New Service"
+                >
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-800 mb-1">
@@ -291,7 +477,7 @@ export default function ServiceManagement() {
                                 type="text"
                                 value={newServiceName}
                                 onChange={(e) => setNewServiceName(e.target.value)}
-                                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-0"
                             />
                         </div>
                         <div>
@@ -308,6 +494,66 @@ export default function ServiceManagement() {
                                 width="w-full"
                             />
                         </div>
+
+                        {/* Requirements section */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-800 mb-1">
+                                Requirements
+                            </label>
+                            <div className="space-y-2">
+                                {newRequirements.map((req, idx) => (
+                                    <div key={idx} className="flex gap-2 items-center">
+                                        <input
+                                            type="text"
+                                            placeholder="Requirement name"
+                                            value={req.name}
+                                            onChange={(e) => {
+                                                const updated = [...newRequirements];
+                                                updated[idx].name = e.target.value;
+                                                setNewRequirements(updated);
+                                            }}
+                                            className="flex-1 border rounded px-2 py-1 text-sm focus:outline-0 focus:ring-1 focus:ring-blue-500"
+                                        />
+                                        <label className="flex items-center gap-1 text-xs text-gray-600">
+                                            <input
+                                                type="checkbox"
+                                                checked={req.is_mandatory ?? true}
+                                                onChange={(e) => {
+                                                    const updated = [...newRequirements];
+                                                    updated[idx].is_mandatory = e.target.checked;
+                                                    setNewRequirements(updated);
+                                                }}
+                                            />
+                                            Mandatory
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setNewRequirements((prev) =>
+                                                    prev.filter((_, i) => i !== idx)
+                                                )
+                                            }
+                                            className="text-red-500 text-xs"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setNewRequirements([
+                                        ...newRequirements,
+                                        { name: "", is_mandatory: true },
+                                    ])
+                                }
+                                className="mt-2 text-blue-600 text-sm"
+                            >
+                                + Add Requirement
+                            </button>
+                        </div>
+
                         <div className="flex justify-end gap-3">
                             <button
                                 onClick={() => setShowModal(false)}
@@ -335,7 +581,10 @@ export default function ServiceManagement() {
                 >
                     <p>
                         Are you sure you want to delete{" "}
-                        <span className="font-medium">{selectedService.name}</span>?
+                        <span className="font-medium">
+                            {capitalizeWords(selectedService.name)}
+                        </span>
+                        ?
                     </p>
                     <div className="flex justify-end gap-3 mt-4">
                         <button

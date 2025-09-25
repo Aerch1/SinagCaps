@@ -126,82 +126,120 @@ async function ensureSchema(conn) {
     )
   `);
 
-  await conn.execute(
-    `CREATE TABLE IF NOT EXISTS services (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,              -- "Baptism", "Wedding", etc.
-  description TEXT,
-  active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);`
-  );
+  // 🔹 Services
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS services (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,              -- "Baptism", "Wedding", etc.
+      description TEXT,
+      active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
+  // 🔹 Requirements (linked to services)
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS requirements (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      service_id INT NOT NULL,
+      name VARCHAR(255) NOT NULL,              -- "Birth Certificate"
+      description TEXT,
+      is_mandatory BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 🔹 Church hours
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS church_hours (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  day_of_week TINYINT NOT NULL,            -- 0=Sunday, 6=Saturday
-  open_time TIME NOT NULL,
-  close_time TIME NOT NULL,
-  UNIQUE KEY uniq_day (day_of_week)
-);
-    
-    `);
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      day_of_week TINYINT NOT NULL,            -- 0=Sunday, 6=Saturday
+      open_time TIME NOT NULL,
+      close_time TIME NOT NULL,
+      UNIQUE KEY uniq_day (day_of_week)
+    )
+  `);
 
+  // 🔹 Weekly rules
   await conn.execute(`
-  
-  CREATE TABLE IF NOT EXISTS weekly_rules (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  service_id INT NOT NULL,
-  weekday TINYINT NOT NULL,                -- 0=Sunday, 6=Saturday
-  time TIME NOT NULL,
-  slots INT NOT NULL,
-  FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
-  UNIQUE KEY uniq_rule (service_id, weekday, time)
-);`);
+    CREATE TABLE IF NOT EXISTS weekly_rules (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      service_id INT NOT NULL,
+      weekday TINYINT NOT NULL,                -- 0=Sunday, 6=Saturday
+      time TIME NOT NULL,
+      slots INT NOT NULL,
+      FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+      UNIQUE KEY uniq_rule (service_id, weekday, time)
+    )
+  `);
 
+  // 🔹 Custom dates
   await conn.execute(`
-  CREATE TABLE IF NOT EXISTS custom_dates (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  service_id INT NOT NULL,
-  date DATE NOT NULL,
-  status ENUM('available','blocked') DEFAULT 'available',
-  time TIME NULL,                          -- NULL = full-day override
-  slots INT NULL,
-  FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
-  UNIQUE KEY uniq_custom (service_id, date, time)
-);`);
+    CREATE TABLE IF NOT EXISTS custom_dates (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      service_id INT NOT NULL,
+      date DATE NOT NULL,
+      status ENUM('available','blocked') DEFAULT 'available',
+      time TIME NULL,                          -- NULL = full-day override
+      slots INT NULL,
+      FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+      UNIQUE KEY uniq_custom (service_id, date, time)
+    )
+  `);
 
-  await conn.execute(`CREATE TABLE IF NOT EXISTS appointments (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NULL,
-  service_id INT NOT NULL,                 -- 🔗 Linked to services
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) NOT NULL,
-  contactNumber VARCHAR(32),
-  date DATE NOT NULL,
-  time TIME NOT NULL,
-  party_size INT NOT NULL DEFAULT 1,
-  status ENUM('pending','approved','in_progress','completed','cancelled','failed') DEFAULT 'pending',
-  notes TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_appt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-  CONSTRAINT fk_appt_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
-  INDEX idx_service (service_id, date, time, status)
-);`);
+  // 🔹 Appointments
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS appointments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NULL,
+      service_id INT NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      contactNumber VARCHAR(32),
+      date DATE NOT NULL,
+      time TIME NOT NULL,
+      party_size INT NOT NULL DEFAULT 1,
+      status ENUM('pending','approved','in_progress','completed','cancelled','failed') DEFAULT 'pending',
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT fk_appt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+      CONSTRAINT fk_appt_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+      INDEX idx_service (service_id, date, time, status)
+    )
+  `);
 
-  await conn.execute(`CREATE TABLE IF NOT EXISTS baptism_details (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  appointment_id INT NOT NULL,
-  childFullName VARCHAR(255),
-  childDob DATE,
-  childBirthplace VARCHAR(255),
-  fatherName VARCHAR(255),
-  motherMaidenName VARCHAR(255),
-  parentsMarriageType ENUM('church','civil','unmarried'),
-  sponsors JSON,
-  FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
-);`);
+  // 🔹 Appointment requirements (linked to both appointments & requirements)
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS appointment_requirements (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      appointment_id INT NOT NULL,
+      requirement_id INT NOT NULL,
+      status ENUM('pending','submitted','approved','rejected') DEFAULT 'pending',
+      notes TEXT,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE,
+      FOREIGN KEY (requirement_id) REFERENCES requirements(id) ON DELETE CASCADE,
+      UNIQUE KEY uniq_appt_req (appointment_id, requirement_id)
+    )
+  `);
+
+  // 🔹 Baptism details (example service-specific table)
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS baptism_details (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      appointment_id INT NOT NULL,
+      childFullName VARCHAR(255),
+      childDob DATE,
+      childBirthplace VARCHAR(255),
+      fatherName VARCHAR(255),
+      motherMaidenName VARCHAR(255),
+      parentsMarriageType ENUM('church','civil','unmarried'),
+      sponsors JSON,
+      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+    )
+  `);
 }
 
 /* ----------------------------------------
