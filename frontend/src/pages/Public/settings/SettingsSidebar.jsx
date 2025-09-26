@@ -16,7 +16,7 @@ export default function SettingsSidebar() {
       to="/settings/profile"
       className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
     >
-      Profile
+      Profile 
     </NavLink>
 
     <NavLink

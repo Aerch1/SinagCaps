@@ -1,4 +1,3 @@
-// backend/server.js
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -8,13 +7,11 @@ import path from "path";
 import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.route.js";
 import profileRoutes from "./routes/profile.routes.js";
-import availabilityRoutes from "./routes/availability.routes.js";
 import adminRoutes from "./routes/admin.appointments.routes.js";
 import publicRoutes from "./routes/public.routes.js";
-
-
 import serviceRoutes from "./routes/admin.services.routes.js";
-
+import churchHoursRoutes from "./routes/churchHoursRoutes.js";
+import adminAvailabilityRoutes from "./routes/admin.availability.routes.js"; // ✅ unified rules
 
 // Load env first
 dotenv.config();
@@ -23,11 +20,10 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
-// If you run behind a reverse proxy (e.g., nginx, Render, Vercel Edge)
-// this helps secure cookies work (secure: true) by honoring X-Forwarded-* headers.
+// trust proxy (for secure cookies behind reverse proxy)
 app.set("trust proxy", 1);
 
-// CORS: only needed in development (dev server runs on a different origin)
+// CORS (dev only)
 if (process.env.NODE_ENV !== "production") {
   app.use(
     cors({
@@ -40,14 +36,16 @@ if (process.env.NODE_ENV !== "production") {
 app.use(express.json());
 app.use(cookieParser());
 
-// Routes
+/* ===============================
+   ROUTES
+   =============================== */
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
-app.use("/api/availability", availabilityRoutes);
-app.use("/api/admin", adminRoutes);
+app.use("/api/admin", adminRoutes); // appointments
 app.use("/api/public", publicRoutes);
 app.use("/api/admin/services", serviceRoutes);
-
+app.use("/api/admin/church-hours", churchHoursRoutes);
+app.use("/api/admin/availability", adminAvailabilityRoutes); // ✅ unified rules
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -60,7 +58,7 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// In production, serve the frontend build from the same origin
+// Production: serve frontend
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "/frontend/dist")));
   app.get("*", (req, res) => {
@@ -68,7 +66,9 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-// Error handling
+/* ===============================
+   ERROR HANDLING
+   =============================== */
 app.use((err, req, res, next) => {
   console.error("Global error handler:", err);
 
@@ -93,10 +93,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start
+/* ===============================
+   START SERVER
+   =============================== */
 app.listen(PORT, () => {
   connectDB();
-  console.log(`🚀 Server on :${PORT}`);
+  console.log(`🚀 Server running on :${PORT}`);
   console.log(`🌐 Client URL: ${process.env.CLIENT_URL}`);
   console.log(`📧 Email service: ${process.env.EMAIL_SERVICE}`);
 });

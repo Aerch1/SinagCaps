@@ -5,10 +5,11 @@ import { useForm, Controller, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
-import Dropdown from "../components/ui/Dropdown1";
-import DatePopover from "../components/ui/DatePopover";
-import TimePopover from "../components/ui/TimePopover";
+import Dropdown from "../components/ui/Dropdown1.jsx";
+import DatePopover from "../components/ui/DatePopover.jsx";
+import TimeSelector from "../components/ui/TimeSelector.jsx"; // ✅ NEW
 import { formatStatusLabel } from "../lib/utils.js";
+import useChurchHours from "../hooks/useChurchHours.js"; // ✅ fetch hours from API
 
 /* ---------------- Status Options ---------------- */
 const STATUS_OPTIONS = [
@@ -73,7 +74,6 @@ export default function CreateAppointmentForm({
   defaultDate = "",
   onSubmit,
   onCancel,
-  fetchAvailableTimes,
 }) {
   const {
     register,
@@ -99,11 +99,9 @@ export default function CreateAppointmentForm({
 
   const allDay = useWatch({ control, name: "allDay" });
   const dateISO = useWatch({ control, name: "date" });
-  const service_id = useWatch({ control, name: "service_id" });
 
   const [services, setServices] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [loadingTimes, setLoadingTimes] = useState(false);
+  const { churchHours, loading: hoursLoading } = useChurchHours(); // ✅ dynamic hours
 
   /* Fetch services for dropdown */
   useEffect(() => {
@@ -116,32 +114,6 @@ export default function CreateAppointmentForm({
       })
       .catch((err) => console.error("❌ fetch services failed:", err));
   }, []);
-
-  /* Fetch available times */
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!dateISO || allDay) {
-        setSuggestions([]);
-        return;
-      }
-      setLoadingTimes(true);
-      try {
-        const times =
-          typeof fetchAvailableTimes === "function"
-            ? await fetchAvailableTimes(dateISO, service_id)
-            : mockGenerateTimes("08:00", "17:30", 30);
-        if (active) setSuggestions(Array.isArray(times) ? times : []);
-      } catch {
-        if (active) setSuggestions([]);
-      } finally {
-        if (active) setLoadingTimes(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [dateISO, service_id, allDay, fetchAvailableTimes]);
 
   /* Pass validated form data up */
   const handleFormSubmit = (data) => {
@@ -158,6 +130,8 @@ export default function CreateAppointmentForm({
       notes: data.notes.trim(),
     });
   };
+
+  const weekday = dateISO ? new Date(dateISO).getDay() : null;
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8">
@@ -287,14 +261,14 @@ export default function CreateAppointmentForm({
               control={control}
               name="time"
               render={({ field }) => (
-                <TimePopover
+                <TimeSelector
                   value={field.value}
                   onChange={field.onChange}
-                  suggestions={allDay ? [] : suggestions}
-                  loading={loadingTimes}
-                  disabled={allDay}
+                  churchHours={churchHours} // ✅ real backend hours
+                  weekday={weekday}
+                  disabled={allDay || hoursLoading}
                   error={!allDay ? errors.time?.message : undefined}
-                  minuteStep={5}
+                  step={30}
                 />
               )}
             />
@@ -351,22 +325,4 @@ export default function CreateAppointmentForm({
       </div>
     </form>
   );
-}
-
-/* Helpers */
-function mockGenerateTimes(startHHmm = "08:00", endHHmm = "17:30", everyMin = 30) {
-  const [sh, sm] = startHHmm.split(":").map(Number);
-  const [eh, em] = endHHmm.split(":").map(Number);
-  const out = [];
-  let h = sh,
-    m = sm;
-  while (h < eh || (h === eh && m <= em)) {
-    out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-    m += everyMin;
-    while (m >= 60) {
-      m -= 60;
-      h += 1;
-    }
-  }
-  return out;
 }

@@ -21,10 +21,10 @@ const capitalizeWords = (str = "") =>
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ");
 
-export default function ServiceManagement() {
+export default function ServiceManagement({ onServicesUpdated }) {
     const [services, setServices] = useState([]);
-    const [search, setSearch] = useState(""); // input state
-    const [debouncedSearch, setDebouncedSearch] = useState(""); // debounced state
+    const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [showModal, setShowModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
@@ -52,7 +52,10 @@ export default function ServiceManagement() {
         try {
             const res = await fetch("/api/admin/services");
             const data = await res.json();
-            if (data.success) setServices(data.services || []);
+            if (data.success) {
+                setServices(data.services || []);
+                onServicesUpdated?.(); // ✅ notify parent
+            }
         } catch (err) {
             console.error("❌ fetchServices error:", err);
         }
@@ -89,6 +92,7 @@ export default function ServiceManagement() {
             const data = await res.json();
             if (data.success) {
                 fetchServices();
+                onServicesUpdated?.(); // ✅ notify parent after create
                 setShowModal(false);
                 setNewServiceName("");
                 setNewServiceStatus("active");
@@ -128,6 +132,7 @@ export default function ServiceManagement() {
             const data = await res.json();
             if (data.success) {
                 fetchServices();
+                onServicesUpdated?.(); // ✅ notify parent after update
                 cancelEdit();
             } else {
                 showError(data.message || "Failed to update service");
@@ -152,6 +157,7 @@ export default function ServiceManagement() {
             const data = await res.json();
             if (data.success) {
                 fetchServices();
+                onServicesUpdated?.(); // ✅ notify parent after delete
                 setShowDeleteModal(false);
                 setSelectedService(null);
             } else {
@@ -269,10 +275,8 @@ export default function ServiceManagement() {
                                     No results found
                                 </td>
                             </tr>
-                        ) :
-
-
-                            (filtered.map((svc) => (
+                        ) : (
+                            filtered.map((svc) => (
                                 <tr key={svc.id} className="hover:bg-gray-50 align-top">
                                     {/* Service */}
                                     <td className="px-6 py-4">
@@ -399,8 +403,8 @@ export default function ServiceManagement() {
                                         ) : (
                                             <span
                                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${svc.active
-                                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                                    : "bg-gray-100 text-gray-600 border border-gray-200"
+                                                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                        : "bg-gray-100 text-gray-600 border border-gray-200"
                                                     }`}
                                             >
                                                 <div
@@ -456,18 +460,15 @@ export default function ServiceManagement() {
                                         )}
                                     </td>
                                 </tr>
-                            )))}
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
 
             {/* Add Service Modal */}
             {showModal && (
-                <Modal
-                    open={true}
-                    onClose={() => setShowModal(false)}
-                    title="Add New Service"
-                >
+                <Modal open={true} onClose={() => setShowModal(false)} title="Add New Service">
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-800 mb-1">
@@ -495,7 +496,7 @@ export default function ServiceManagement() {
                             />
                         </div>
 
-                        {/* Requirements section */}
+                        {/* Requirements */}
                         <div>
                             <label className="block text-sm font-medium text-gray-800 mb-1">
                                 Requirements

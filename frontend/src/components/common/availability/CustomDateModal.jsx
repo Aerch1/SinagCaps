@@ -1,288 +1,362 @@
-// src/components/common/availability/CustomDateModal.jsx
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Trash2, Pencil } from "lucide-react";
-import { TIME_OPTIONS, formatDate, parseDate } from "@/utils/availabilityUtils";
-import Modal from "../../ui/Modal"; // ✅ import your modal wrapper
+import { useState, useEffect, useMemo } from "react";
+import { Trash2, Pencil, AlertTriangle } from "lucide-react";
+import Modal from "../../ui/Modal";
+import TimeSelector from "../../ui/TimeSelector";
+import { formatDate, parseDate, to12h } from "@/utils/availabilityUtils";
+import useChurchHours from "../../../hooks/useChurchHours.js";
+import { useAdminAvailabilityStore } from "../../../store/adminAvailabilityStore.js";
+
+/* Helpers */
+const toMinutes = (t) => {
+    const [h, m] = (t || "00:00").split(":").map((v) => parseInt(v, 10));
+    return h * 60 + m;
+};
+const diffMinutes = (start, end) => Math.max(0, toMinutes(end) - toMinutes(start));
+const occurrencesBetween = (start, end, everyMins) => {
+    if (!start || !end || !everyMins) return 0;
+    const total = diffMinutes(start, end);
+    return total <= 0 ? 0 : Math.floor(total / everyMins);
+};
 
 export default function CustomDateModal({
+    serviceId,
     selectedDate,
-    customDates,
-    setCustomDates,
-    blockedWeekdays = {},
+    open,
     onClose,
 }) {
-    const [mode, setMode] = useState("custom");
-    const [customTimes, setCustomTimes] = useState([]);
-    const [newTime, setNewTime] = useState("");
-    const [newSlots, setNewSlots] = useState("");
-    const [editingTime, setEditingTime] = useState(null);
+    const { rules, addRule, updateRule, deleteRule, fetchRules } =
+        useAdminAvailabilityStore();
+
+    const { churchHours } = useChurchHours();
+
+    /* UI state */
+    const [mode, setMode] = useState("single"); // single | recurring | allday | blocked
+    const [time, setTime] = useState("");
+    const [slots, setSlots] = useState("");
+    const [start, setStart] = useState("");
+    const [end, setEnd] = useState("");
+    const [every, setEvery] = useState(30);
 
     const [startDate, setStartDate] = useState(selectedDate || "");
     const [endDate, setEndDate] = useState(selectedDate || "");
-    const [showWarning, setShowWarning] = useState(false);
-    const [warningText, setWarningText] = useState("");
 
-    // --- Load existing data ---
+    const [existingRules, setExistingRules] = useState([]);
+    const [editingRule, setEditingRule] = useState(null);
+
+    /* Load existing rules when modal opens */
     useEffect(() => {
-        if (selectedDate && customDates[selectedDate]) {
-            const custom = customDates[selectedDate];
-            if (custom.status === "blocked") {
-                setMode("blocked");
-                setCustomTimes([]);
-            } else {
-                setMode("custom");
-                setCustomTimes(custom.times || []);
-            }
-        } else {
-            setMode("custom");
-            setCustomTimes([]);
+        if (!open || !selectedDate) return;
+
+        const byDate = Array.isArray(rules)
+            ? rules.filter((r) => r.date === selectedDate)
+            : [];
+
+        setExistingRules(byDate);
+        setEditingRule(null);
+    }, [open, selectedDate, rules]);
+
+    /* Occurrence info */
+    const occInfo = useMemo(() => {
+        if (mode !== "recurring" || !start || !end || !every)
+            return { occ: 0, warn: "" };
+        const occ = occurrencesBetween(start, end, Number(every));
+        let warn = "";
+        const typed = slots === "" ? null : parseInt(slots, 10) || 0;
+        if (typed != null && typed > occ) {
+            warn = `Only ${occ} occurrences fit between ${to12h(
+                start
+            )} and ${to12h(end)} every ${every} mins. Clamped.`;
         }
-    }, [selectedDate, customDates]);
+        return { occ, warn };
+    }, [mode, start, end, every, slots]);
 
-    // --- Slot management ---
-    const addTimeSlot = () => {
-        const slotsInt = parseInt(newSlots, 10);
-        if (!newTime || !slotsInt || slotsInt <= 0) return;
-
-        let updated = [...customTimes];
-
-        if (editingTime) {
-            updated = updated.filter((slot) => slot.time !== editingTime);
-        }
-
-        updated.push({ time: newTime, slots: slotsInt });
-        updated.sort(
-            (a, b) =>
-                new Date(`1970-01-01 ${a.time}`) - new Date(`1970-01-01 ${b.time}`)
-        );
-
-        setCustomTimes(updated);
-        setNewTime("");
-        setNewSlots("");
-        setEditingTime(null);
-    };
-
-    const removeTimeSlot = (timeToRemove) => {
-        setCustomTimes((prev) => prev.filter((slot) => slot.time !== timeToRemove));
-        if (editingTime === timeToRemove) {
-            setNewTime("");
-            setNewSlots("");
-            setEditingTime(null);
-        }
-    };
-
-    const handleEdit = (slot) => {
-        setNewTime(slot.time);
-        setNewSlots(slot.slots);
-        setEditingTime(slot.time);
-    };
-
-    // --- Save handling ---
-    const handleSave = () => {
-        const rangeStart = parseDate(startDate);
-        const dow = rangeStart.getDay();
-
-        if (mode === "custom") {
-            if (blockedWeekdays[dow]) {
-                setWarningText(
-                    "⚠️ This day is normally blocked in Weekly Rules. Adding slots will override it. Continue?"
-                );
-                setShowWarning(true);
-                return;
-            }
-            if (customDates[startDate]?.status === "blocked") {
-                setWarningText(
-                    "⚠️ This date is blocked. Adding slots will re-enable it. Continue?"
-                );
-                setShowWarning(true);
-                return;
-            }
-        }
-
-        if (mode === "blocked" && customDates[startDate]?.times?.length > 0) {
-            setWarningText(
-                "⚠️ This date already has custom slots. Blocking will remove them. Continue?"
-            );
-            setShowWarning(true);
-            return;
-        }
-
-        applySave();
-    };
-
-    const applySave = () => {
-        let updates = {};
+    /* Save handler */
+    const handleSave = async () => {
         const rangeStart = parseDate(startDate);
         const rangeEnd = parseDate(endDate);
+        if (!rangeStart || !rangeEnd) return;
 
         for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
             const iso = formatDate(d);
-            updates[iso] =
-                mode === "blocked"
-                    ? { status: "blocked" }
-                    : { times: customTimes, status: "available" };
+
+            if (editingRule) {
+                // ✅ Update existing
+                await updateRule(editingRule.id, {
+                    ...editingRule,
+                    date: iso,
+                    type: mode,
+                    time: mode === "single" ? time : null,
+                    start: mode === "recurring" || mode === "allday" ? start : null,
+                    end: mode === "recurring" || mode === "allday" ? end : null,
+                    interval_mins: mode === "recurring" ? every : null,
+                    slots: slots === "" ? null : parseInt(slots, 10),
+                    status: mode === "blocked" ? "blocked" : "available",
+                });
+            } else {
+                // ✅ Add new
+                if (mode === "blocked") {
+                    await addRule(serviceId, { date: iso, status: "blocked", type: "allday" });
+                }
+                if (mode === "allday") {
+                    const hours = churchHours[d.getDay()];
+                    if (hours?.is_closed) {
+                        await addRule(serviceId, { date: iso, status: "blocked", type: "allday" });
+                    } else {
+                        await addRule(serviceId, {
+                            date: iso,
+                            status: "available",
+                            type: "allday",
+                            start: hours?.open_time,
+                            end: hours?.close_time,
+                        });
+                    }
+                }
+                if (mode === "single" && time) {
+                    await addRule(serviceId, {
+                        date: iso,
+                        type: "single",
+                        time,
+                        slots: slots === "" ? null : parseInt(slots, 10),
+                        status: "available",
+                    });
+                }
+                if (mode === "recurring" && start && end && every) {
+                    await addRule(serviceId, {
+                        date: iso,
+                        type: "recurring",
+                        start,
+                        end,
+                        interval_mins: every,
+                        slots: slots === "" ? null : parseInt(slots, 10),
+                        status: "available",
+                    });
+                }
+            }
         }
 
-        setCustomDates((prev) => ({ ...prev, ...updates }));
+        await fetchRules(serviceId); // ✅ refresh store
         onClose();
     };
 
-    const isInvalidRange =
-        !startDate || !endDate || parseDate(startDate) > parseDate(endDate);
+    const removeRule = async (rule) => {
+        if (rule.id) {
+            await deleteRule(rule.id);
+            setExistingRules((prev) => prev.filter((r) => r.id !== rule.id));
+            await fetchRules(serviceId);
+        }
+    };
+
+    if (!open) return null;
 
     return (
-        <>
-            {/* Main Modal */}
-            <Modal open={true} onClose={onClose} title="Custom Date Setup" className="max-w-lg">
-                {/* Date Range */}
-                <div className="flex items-center gap-3 mb-6">
-                    <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full border rounded-lg px-3 py-2 text-sm"
-                    />
-                    <span className="text-gray-500">to</span>
-                    <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full border rounded-lg px-3 py-2 text-sm"
-                    />
-                </div>
+        <Modal open={open} onClose={onClose} title="Custom Date Setup" className="max-w-lg">
+            {/* Date range */}
+            <div className="flex items-center gap-3 mb-6">
+                <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+                <span className="text-gray-500">to</span>
+                <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+            </div>
 
-                {/* Mode buttons */}
-                <div className="flex gap-3 mb-6">
-                    <button
-                        onClick={() => setMode("custom")}
-                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${mode === "custom"
-                                ? "bg-blue-100 text-blue-700 border border-blue-300"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                            }`}
-                    >
-                        Add Slots
-                    </button>
-                    <button
-                        onClick={() => setMode("blocked")}
-                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${mode === "blocked"
-                                ? "bg-red-100 text-red-700 border border-red-300"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                            }`}
-                    >
-                        Block Dates
-                    </button>
-                </div>
-
-                {/* Slots Section */}
-                {mode === "custom" && (
-                    <div>
-                        <p className="text-sm text-gray-700 font-medium mb-3">Time Slots</p>
-                        <div className="space-y-2 mb-4 max-h-40 overflow-y-auto pr-1">
-                            {customTimes.map((slot, idx) => (
-                                <div
-                                    key={idx}
-                                    className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-sm"
-                                >
-                                    <span>
-                                        {slot.time} • {slot.slots} slots
-                                    </span>
-                                    <div className="flex gap-2">
+            {/* Existing rules */}
+            {existingRules.length > 0 && (
+                <div className="mb-6">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Existing Rules</p>
+                    <div className="space-y-2">
+                        {existingRules.map((rule) => (
+                            <div
+                                key={rule.id || `${rule.type}-${rule.time || rule.start}`}
+                                className="flex items-center justify-between bg-gray-50 border rounded-lg px-3 py-2 text-sm"
+                            >
+                                <span>
+                                    {rule.type === "allday" && (
+                                        <>All Day • {rule.status === "blocked" ? "Blocked" : "Available"}</>
+                                    )}
+                                    {rule.type === "blocked" && <>Blocked</>}
+                                    {rule.type === "single" && (
+                                        <>
+                                            {to12h(rule.time)} •{" "}
+                                            {rule.slots == null ? "Available" : `${rule.slots} slots`}
+                                        </>
+                                    )}
+                                    {rule.type === "recurring" && (
+                                        <>
+                                            {to12h(rule.start)} – {to12h(rule.end)} every {rule.interval_mins}m •{" "}
+                                            {rule.slots == null ? "Available" : `${rule.slots} slots`}
+                                        </>
+                                    )}
+                                </span>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            setEditingRule(rule);
+                                            setMode(rule.type);
+                                            setTime(rule.time || "");
+                                            setSlots(rule.slots == null ? "" : String(rule.slots));
+                                            setStart(rule.start || "");
+                                            setEnd(rule.end || "");
+                                            setEvery(rule.interval_mins || 30);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800"
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                    </button>
+                                    {rule.id && (
                                         <button
-                                            onClick={() => handleEdit(slot)}
-                                            className="text-blue-500 hover:text-blue-700 text-xs"
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => removeTimeSlot(slot.time)}
-                                            className="text-red-500 hover:text-red-700"
+                                            onClick={() => removeRule(rule)}
+                                            className="text-red-600 hover:text-red-800"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
-                                    </div>
+                                    )}
                                 </div>
-                            ))}
-                            {customTimes.length === 0 && (
-                                <p className="text-xs text-gray-500">No time slots added yet</p>
-                            )}
-                        </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
-                        <div className="flex gap-3 items-center">
-                            <select
-                                value={newTime}
-                                onChange={(e) => setNewTime(e.target.value)}
-                                className="flex-1 border rounded-lg px-3 py-2 text-sm"
-                            >
-                                <option value="">Select time...</option>
-                                {TIME_OPTIONS.map((time) => (
-                                    <option key={time} value={time}>
-                                        {time}
-                                    </option>
-                                ))}
-                            </select>
+            {/* Mode selector */}
+            <div className="flex gap-2 mb-6">
+                {["single", "recurring", "allday", "blocked"].map((m) => (
+                    <button
+                        key={m}
+                        onClick={() => setMode(m)}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${mode === m
+                            ? m === "blocked"
+                                ? "bg-red-100 text-red-700 border border-red-300"
+                                : "bg-blue-100 text-blue-700 border border-blue-300"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            }`}
+                    >
+                        {m === "single" && "Single Slot"}
+                        {m === "recurring" && "Recurring"}
+                        {m === "allday" && "All Day"}
+                        {m === "blocked" && "Blocked"}
+                    </button>
+                ))}
+            </div>
+
+            {/* Single slot */}
+            {mode === "single" && (
+                <div className="grid grid-cols-2 gap-3 items-start">
+                    <TimeSelector
+                        value={time}
+                        onChange={setTime}
+                        churchHours={churchHours}
+                        weekday={parseDate(startDate)?.getDay()}
+                        label="Pick a Time"
+                    />
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Slots (optional)</label>
+                        <input
+                            type="number"
+                            value={slots}
+                            min="1"
+                            onChange={(e) => setSlots(e.target.value)}
+                            placeholder="e.g. 5"
+                            className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Recurring */}
+            {mode === "recurring" && (
+                <>
+                    <div className="grid grid-cols-2 gap-3 items-start">
+                        <TimeSelector
+                            value={start}
+                            onChange={setStart}
+                            churchHours={churchHours}
+                            weekday={parseDate(startDate)?.getDay()}
+                            label="Start Time"
+                        />
+                        <TimeSelector
+                            value={end}
+                            onChange={setEnd}
+                            churchHours={churchHours}
+                            weekday={parseDate(startDate)?.getDay()}
+                            label="End Time"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 items-start mt-2">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Interval (mins)</label>
                             <input
                                 type="number"
-                                min="1"
-                                placeholder="Slots"
-                                value={newSlots}
-                                onChange={(e) => setNewSlots(e.target.value)}
-                                className="w-24 border rounded-lg px-3 py-2 text-sm"
+                                value={every}
+                                min="5"
+                                step="5"
+                                onChange={(e) => setEvery(Number(e.target.value))}
+                                className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
                             />
-                            <button
-                                onClick={addTimeSlot}
-                                disabled={!newTime || !newSlots || parseInt(newSlots, 10) <= 0}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
-                            >
-                                {editingTime ? "Update" : "Add"}
-                            </button>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Slots (optional)</label>
+                            <input
+                                type="number"
+                                value={slots}
+                                min="1"
+                                onChange={(e) => setSlots(e.target.value)}
+                                placeholder="e.g. 5"
+                                className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
+                            />
                         </div>
                     </div>
-                )}
-
-                {mode === "blocked" && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center text-sm text-red-700">
-                        The selected date(s) will be completely unavailable. Existing slots will be removed.
+                    <div className="text-xs text-gray-600 mt-2">
+                        Possible occurrences: <span className="font-medium">{occInfo.occ}</span>
+                        {occInfo.warn && (
+                            <span className="ml-2 text-amber-700 inline-flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                {occInfo.warn}
+                            </span>
+                        )}
                     </div>
-                )}
+                </>
+            )}
 
-                {/* Actions */}
-                <div className="flex justify-end gap-3 mt-8">
-                    <button onClick={onClose} className="px-4 py-2 text-gray-600">
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        disabled={isInvalidRange}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                    >
-                        Save Changes
-                    </button>
+            {/* All day */}
+            {mode === "allday" && (
+                <div className="text-sm text-gray-800">
+                    {to12h(churchHours[parseDate(startDate)?.getDay()]?.open_time)} –{" "}
+                    {to12h(churchHours[parseDate(startDate)?.getDay()]?.close_time)}
+                    <div className="text-xs text-gray-500">
+                        Entire day available within working hours.
+                    </div>
                 </div>
-            </Modal>
+            )}
 
-            {/* Warning Modal */}
-            <Modal open={showWarning} onClose={() => setShowWarning(false)} title="Confirm Action">
-                <p className="text-sm text-red-600 mb-4">{warningText}</p>
-                <div className="flex justify-end gap-3">
-                    <button
-                        onClick={() => setShowWarning(false)}
-                        className="px-4 py-2 text-gray-600"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={() => {
-                            setShowWarning(false);
-                            applySave();
-                        }}
-                        className="bg-red-600 text-white px-4 py-2 rounded"
-                    >
-                        Continue
-                    </button>
+            {/* Blocked */}
+            {mode === "blocked" && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center text-sm text-red-700">
+                    The selected date(s) will be completely unavailable.
                 </div>
-            </Modal>
-        </>
+            )}
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 mt-8">
+                <button onClick={onClose} className="px-4 py-2 text-gray-600">
+                    Cancel
+                </button>
+                <button
+                    onClick={handleSave}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                >
+                    {editingRule ? "Update Rule" : "Save Changes"}
+                </button>
+            </div>
+        </Modal>
     );
 }

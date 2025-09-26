@@ -46,7 +46,7 @@ export default function CreateAppointmentModal({
             open={isOpen}
             onClose={onClose}
             title="Create Appointment"
-            className="max-w-5xl"
+            className="max-w-2xl"
         >
             <div className="max-h-[85vh] overflow-y-auto custom-scrollbar">
                 <div className="max-w-full px-2">

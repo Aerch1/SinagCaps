@@ -1,23 +1,19 @@
-// src/components/common/availability/CustomDatesPanel.jsx
+"use client";
+
 import React from "react";
 import { Plus, Trash2, Edit3, Calendar, Clock, X } from "lucide-react";
+import { to12h } from "@/utils/availabilityUtils";
+import { useAdminAvailabilityStore } from "../../../store/adminAvailabilityStore.js";
 
 export default function CustomDatesPanel({
-    customDates = {},
-    setCustomDates,
+    serviceId,
     setSelectedDate,
     setShowCustomModal,
 }) {
-    const removeCustomDate = (dateStr) => {
-        setCustomDates((prev) => {
-            const updated = { ...prev };
-            delete updated[dateStr];
-            return updated;
-        });
-    };
+    const { customDates, deleteCustomDate } = useAdminAvailabilityStore();
 
-    const safeDates = Object.entries(customDates || {}).sort(([a], [b]) =>
-        new Date(a).getTime() - new Date(b).getTime()
+    const safeDates = [...(customDates || [])].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
     const formatDate = (dateStr) => {
@@ -30,7 +26,7 @@ export default function CustomDatesPanel({
     };
 
     const getTotalSlots = (times = []) => {
-        return times.reduce((sum, slot) => sum + slot.slots, 0);
+        return times.reduce((sum, slot) => sum + (slot.slots ?? 0), 0);
     };
 
     return (
@@ -61,9 +57,9 @@ export default function CustomDatesPanel({
 
             {/* Custom Dates List */}
             <div className="space-y-3 max-h-100 overflow-y-auto pr-2">
-                {safeDates.map(([dateStr, entry]) => (
+                {safeDates.map((entry) => (
                     <div
-                        key={dateStr}
+                        key={entry.id}
                         className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow"
                     >
                         {/* Date Header */}
@@ -74,19 +70,17 @@ export default function CustomDatesPanel({
                                 </div>
                                 <div>
                                     <div className="font-semibold text-gray-900">
-                                        {formatDate(dateStr)}
+                                        {formatDate(entry.date)}
                                     </div>
                                     <div className="text-xs text-gray-500">
-                                        {new Date(dateStr) < new Date()
-                                            ? "Past date"
-                                            : "Upcoming"}
+                                        {new Date(entry.date) < new Date() ? "Past date" : "Upcoming"}
                                     </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
                                 <button
                                     onClick={() => {
-                                        setSelectedDate(dateStr);
+                                        setSelectedDate(entry.date);
                                         setShowCustomModal(true);
                                     }}
                                     className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -95,7 +89,7 @@ export default function CustomDatesPanel({
                                     <Edit3 className="h-4 w-4" />
                                 </button>
                                 <button
-                                    onClick={() => removeCustomDate(dateStr)}
+                                    onClick={() => deleteCustomDate(entry.id)}
                                     className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                     title="Remove custom date"
                                 >
@@ -114,38 +108,40 @@ export default function CustomDatesPanel({
                             </div>
                         ) : (
                             <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium text-gray-700">
-                                        Time Slots
-                                    </span>
-                                    {entry?.times?.length > 0 && (
-                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                                            {getTotalSlots(entry.times)} total slots
-                                        </span>
-                                    )}
-                                </div>
-
                                 {(entry?.times || []).length > 0 ? (
-                                    <div className="grid grid-cols-1 gap-1">
-                                        {entry.times.map((slot, index) => (
-                                            <div
-                                                key={index}
-                                                className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2"
-                                            >
-                                                <Clock className="h-3.5 w-3.5 text-gray-500" />
-                                                <span className="font-mono font-medium">
-                                                    {slot.time}
-                                                </span>
-                                                <span className="text-gray-600">•</span>
-                                                <span className="text-gray-700">
-                                                    {slot.slots} {slot.slots === 1 ? "slot" : "slots"}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-medium text-gray-700">
+                                                Time Slots
+                                            </span>
+                                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                                                {getTotalSlots(entry.times)} total slots
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-1">
+                                            {entry.times.map((slot, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2"
+                                                >
+                                                    <Clock className="h-3.5 w-3.5 text-gray-500" />
+                                                    <span className="font-mono font-medium">
+                                                        {to12h(slot.time)}
+                                                    </span>
+                                                    <span className="text-gray-600">•</span>
+                                                    <span className="text-gray-700">
+                                                        {slot.slots == null
+                                                            ? "Available"
+                                                            : `${slot.slots} ${slot.slots === 1 ? "slot" : "slots"
+                                                            }`}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
                                 ) : (
-                                    <div className="text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
-                                        No time slots configured
+                                    <div className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2 border border-green-200">
+                                        ✅ Available
                                     </div>
                                 )}
                             </div>
@@ -179,8 +175,7 @@ export default function CustomDatesPanel({
 
             {safeDates.length > 0 && (
                 <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2 text-center">
-                    {safeDates.length} custom{" "}
-                    {safeDates.length === 1 ? "date" : "dates"} configured
+                    {safeDates.length} custom {safeDates.length === 1 ? "date" : "dates"} configured
                 </div>
             )}
         </div>

@@ -1,8 +1,10 @@
-// src/config/db.js
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 dotenv.config();
 
+/* ===========================
+   POOL
+=========================== */
 const pool = mysql.createPool({
   host: process.env.DB_HOST || "localhost",
   user: process.env.DB_USER || "root",
@@ -15,9 +17,9 @@ const pool = mysql.createPool({
 
 export default pool;
 
-/* ----------------------------------------
-   DB CONNECTION + INIT
----------------------------------------- */
+/* ===========================
+   CONNECT + INIT
+=========================== */
 export const connectDB = async () => {
   let conn;
   try {
@@ -25,8 +27,10 @@ export const connectDB = async () => {
     await ensureSchema(conn);
 
     if (process.env.NODE_ENV === "development") {
-      await seedDemoData(conn);
-      console.log("✅ Database schema ensured & demo data seeded");
+      await seedAdmin(conn);
+      console.log("✅ Database schema ensured & admin seeded");
+    } else {
+      console.log("✅ Database schema ensured");
     }
   } catch (e) {
     console.error("❌ Database connection failed:", e.message);
@@ -36,28 +40,32 @@ export const connectDB = async () => {
   }
 };
 
-/* ----------------------------------------
-   SCHEMA CREATION
----------------------------------------- */
+/* ===========================
+   SCHEMA
+=========================== */
 async function ensureSchema(conn) {
   const isDev = process.env.NODE_ENV === "development";
+  const doReset =
+    isDev && String(process.env.DB_RESET).toLowerCase() === "true";
 
-  // if (isDev) {
-  //   await conn.execute("SET FOREIGN_KEY_CHECKS = 0");
-  //   await conn.execute("DROP TABLE IF EXISTS baptism_details");
-  //   await conn.execute("DROP TABLE IF EXISTS appointments");
-  //   await conn.execute("DROP TABLE IF EXISTS custom_dates");
-  //   await conn.execute("DROP TABLE IF EXISTS weekly_rules");
-  //   await conn.execute("DROP TABLE IF EXISTS church_hours");
-  //   await conn.execute("DROP TABLE IF EXISTS services");
-  //   await conn.execute("DROP TABLE IF EXISTS change_email_requests");
-  //   await conn.execute("DROP TABLE IF EXISTS password_resets");
-  //   await conn.execute("DROP TABLE IF EXISTS email_verification_tokens");
-  //   await conn.execute("DROP TABLE IF EXISTS users");
-  //   await conn.execute("SET FOREIGN_KEY_CHECKS = 1");
-  // }
+  if (doReset) {
+    console.warn("⚠️  DB_RESET=true → Dropping existing tables (dev only)...");
+    await conn.execute("SET FOREIGN_KEY_CHECKS = 0");
+    await conn.execute("DROP TABLE IF EXISTS baptism_details");
+    await conn.execute("DROP TABLE IF EXISTS appointment_requirements");
+    await conn.execute("DROP TABLE IF EXISTS appointments");
+    await conn.execute("DROP TABLE IF EXISTS rules");
+    await conn.execute("DROP TABLE IF EXISTS church_hours");
+    await conn.execute("DROP TABLE IF EXISTS requirements");
+    await conn.execute("DROP TABLE IF EXISTS services");
+    await conn.execute("DROP TABLE IF EXISTS change_email_requests");
+    await conn.execute("DROP TABLE IF EXISTS password_resets");
+    await conn.execute("DROP TABLE IF EXISTS email_verification_tokens");
+    await conn.execute("DROP TABLE IF EXISTS users");
+    await conn.execute("SET FOREIGN_KEY_CHECKS = 1");
+  }
 
-  // 🔹 Users
+  // ---- Users
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS users (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -77,7 +85,7 @@ async function ensureSchema(conn) {
     )
   `);
 
-  // 🔹 Email verification tokens
+  // ---- Email verification tokens
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS email_verification_tokens (
       id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -95,7 +103,7 @@ async function ensureSchema(conn) {
     )
   `);
 
-  // 🔹 Password resets
+  // ---- Password resets
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS password_resets (
       id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -109,7 +117,7 @@ async function ensureSchema(conn) {
     )
   `);
 
-  // 🔹 Change email requests
+  // ---- Change email requests
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS change_email_requests (
       id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -126,23 +134,23 @@ async function ensureSchema(conn) {
     )
   `);
 
-  // 🔹 Services
+  // ---- Services
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS services (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,              -- "Baptism", "Wedding", etc.
+      name VARCHAR(100) NOT NULL,
       description TEXT,
       active BOOLEAN DEFAULT TRUE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // 🔹 Requirements (linked to services)
+  // ---- Requirements
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS requirements (
       id INT AUTO_INCREMENT PRIMARY KEY,
       service_id INT NOT NULL,
-      name VARCHAR(255) NOT NULL,              -- "Birth Certificate"
+      name VARCHAR(255) NOT NULL,
       description TEXT,
       is_mandatory BOOLEAN DEFAULT TRUE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -150,52 +158,46 @@ async function ensureSchema(conn) {
     )
   `);
 
-  // 🔹 Church hours
+  // ---- Church hours
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS church_hours (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      day_of_week TINYINT NOT NULL,            -- 0=Sunday, 6=Saturday
+      day_of_week TINYINT NOT NULL,
       open_time TIME NOT NULL,
       close_time TIME NOT NULL,
+      is_closed BOOLEAN NOT NULL DEFAULT FALSE,
       UNIQUE KEY uniq_day (day_of_week)
     )
   `);
 
-  // 🔹 Weekly rules
+  // ---- Rules (unified weekly + custom)
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS weekly_rules (
+    CREATE TABLE IF NOT EXISTS rules (
       id INT AUTO_INCREMENT PRIMARY KEY,
       service_id INT NOT NULL,
-      weekday TINYINT NOT NULL,                -- 0=Sunday, 6=Saturday
-      time TIME NOT NULL,
-      slots INT NOT NULL,
-      FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
-      UNIQUE KEY uniq_rule (service_id, weekday, time)
-    )
-  `);
-
-  // 🔹 Custom dates
-  await conn.execute(`
-    CREATE TABLE IF NOT EXISTS custom_dates (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      service_id INT NOT NULL,
-      date DATE NOT NULL,
+      weekday TINYINT NULL, -- 0=Sunday..6=Saturday for recurring rules
+      date DATE NULL,       -- specific override for one date
       status ENUM('available','blocked') DEFAULT 'available',
-      time TIME NULL,                          -- NULL = full-day override
+      type ENUM('single','recurring','allday') NOT NULL DEFAULT 'single',
+      time TIME NULL,
+      start TIME NULL,
+      end TIME NULL,
+      interval_mins INT NULL,
       slots INT NULL,
       FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
-      UNIQUE KEY uniq_custom (service_id, date, time)
+      UNIQUE KEY uniq_rule (service_id, weekday, date, type, time, start, end),
+      INDEX idx_rule_lookup (service_id, weekday, date)
     )
   `);
 
-  // 🔹 Appointments
+  // ---- Appointments
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS appointments (
       id INT AUTO_INCREMENT PRIMARY KEY,
       user_id INT NULL,
       service_id INT NOT NULL,
       name VARCHAR(255) NOT NULL,
-      email VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NULL,
       contactNumber VARCHAR(32),
       date DATE NOT NULL,
       time TIME NOT NULL,
@@ -210,7 +212,7 @@ async function ensureSchema(conn) {
     )
   `);
 
-  // 🔹 Appointment requirements (linked to both appointments & requirements)
+  // ---- Appointment requirements
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS appointment_requirements (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -225,7 +227,7 @@ async function ensureSchema(conn) {
     )
   `);
 
-  // 🔹 Baptism details (example service-specific table)
+  // ---- Baptism details
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS baptism_details (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -242,12 +244,11 @@ async function ensureSchema(conn) {
   `);
 }
 
-/* ----------------------------------------
-   DEMO DATA SEEDING
----------------------------------------- */
-async function seedDemoData(conn) {
-  // Seed default admin
-  const [users] = await conn.execute("SELECT id FROM users WHERE email = ?", [
+/* ===========================
+   SEED ADMIN ONLY
+=========================== */
+async function seedAdmin(conn) {
+  const [users] = await conn.execute("SELECT id FROM users WHERE email=?", [
     "admin@example.com",
   ]);
   if (users.length === 0) {

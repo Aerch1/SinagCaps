@@ -51,14 +51,15 @@ const ManageAvailability = lazy(() => import("./pages/Admin/ManageAvailability")
 const Profile = lazy(() => import("./pages/Admin/Profile"))
 const UserManagement = lazy(() => import("./pages/Admin/UserManagementaPage"))
 const MessagesPage = lazy(() => import("./pages/Admin/MessagesPage"))
+const SettingAdmin = lazy(() => import("./pages/Admin/SettingsPage"))
 
 
 function App() {
-  
-  
+
+
   return (
 
-    
+
     <ErrorBoundary>
       <Router>
         <AuthChecker>
@@ -125,7 +126,7 @@ function App() {
                 >
                   <Route index element={<AdminDashboard />} />
                   <Route path="calendar" element={<CalendarPage />} />
-                  <Route path="settings" element={<div>Settings</div>} />
+                  <Route path="settings" element={<SettingAdmin />} />
                   <Route path="appointments" element={<AdminAppointmentsPage />} />
                   <Route path="content" element={<ContentManagement />} />
                   <Route path="report" element={<ReportsPage />} />

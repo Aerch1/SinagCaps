@@ -1,74 +1,45 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
     Trash2,
     Plus,
-    Clock,
     Settings,
-    X,
     Edit2,
     ChevronDown,
     ChevronUp,
     Calendar,
     AlertTriangle,
 } from "lucide-react";
-import Toggle from "@/components/ui/Toggle";
 import Modal from "@/components/ui/Modal";
+import TimeSelector from "../../ui/TimeSelector";
+import { WEEKDAYS, to12h } from "@/utils/availabilityUtils";
+import useChurchHours from "@/hooks/useChurchHours";
+import { useAdminAvailabilityStore } from "../../../store/adminAvailabilityStore.js";
 
-/* ---------------- Helpers ---------------- */
-const pad2 = (n) => String(n).padStart(2, "0");
+/* Helpers */
 const toMinutes = (t) => {
     const [h, m] = (t || "00:00").split(":").map((v) => parseInt(v, 10));
     return h * 60 + m;
 };
-const diffMinutes = (start, end) => Math.max(0, toMinutes(end) - toMinutes(start));
+const diffMinutes = (start, end) =>
+    Math.max(0, toMinutes(end) - toMinutes(start));
 const occurrencesBetween = (start, end, everyMins) => {
     if (!start || !end || !everyMins) return 0;
     const total = diffMinutes(start, end);
     return total <= 0 ? 0 : Math.floor(total / everyMins);
 };
-const fmt12 = (hhmm) => {
-    try {
-        const d = new Date(`1970-01-01T${hhmm}:00`);
-        return d.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-        });
-    } catch {
-        return hhmm || "—";
-    }
-};
 
-const WEEKDAYS = [
-    { value: 0, label: "Sunday" },
-    { value: 1, label: "Monday" },
-    { value: 2, label: "Tuesday" },
-    { value: 3, label: "Wednesday" },
-    { value: 4, label: "Thursday" },
-    { value: 5, label: "Friday" },
-    { value: 6, label: "Saturday" },
-];
+export default function WeeklyRulesPanel({ serviceId }) {
+    const { rules, addRule, updateRule, deleteRule } =
+        useAdminAvailabilityStore();
 
-const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
-    const mins = i * 30;
-    const hh = Math.floor(mins / 60);
-    const mm = mins % 60;
-    return `${pad2(hh)}:${pad2(mm)}`;
-});
+    const { churchHours } = useChurchHours();
 
-export default function WeeklyRulesPanel({
-    weeklyRules = {},
-    setWeeklyRules,
-    blockedWeekdays = {},
-    setBlockedWeekdays,
-    workingHours = { start: "08:00", end: "17:00" },
-}) {
     /* UI state */
     const [expandedDays, setExpandedDays] = useState({});
     const [editingForDay, setEditingForDay] = useState(null);
-    const [editIndex, setEditIndex] = useState(null);
+    const [editRuleData, setEditRuleData] = useState(null);
 
     const [mode, setMode] = useState("single");
     const [time, setTime] = useState("");
@@ -88,22 +59,21 @@ export default function WeeklyRulesPanel({
         setEnd("");
         setEvery(30);
         setEditingForDay(null);
-        setEditIndex(null);
+        setEditRuleData(null);
     };
 
     const toggleExpand = (day) =>
         setExpandedDays((p) => ({ ...p, [day]: !p[day] }));
 
-    /* Save */
-    const saveRule = (weekday) => {
+    /* Save rule */
+    const saveRule = async (weekday) => {
         if (mode === "allday") {
-            const hasExisting = (weeklyRules[weekday] || []).length > 0;
-            if (hasExisting && editIndex == null) {
+            if ((rules || []).some((r) => r.weekday === weekday)) {
                 setPendingAllDayDay(weekday);
                 setShowOverride(true);
                 return;
             }
-            applyAllDay(weekday, true);
+            await applyAllDay(weekday);
             return;
         }
 
@@ -111,8 +81,24 @@ export default function WeeklyRulesPanel({
             if (!time) return;
             const parsedSlots =
                 slots === "" ? null : Math.max(0, parseInt(slots, 10) || 0);
-            const entry = { type: "single", time, slots: parsedSlots };
-            insertOrUpdate(weekday, entry);
+            if (!editRuleData) {
+                await addRule(serviceId, {
+                    weekday,
+                    type: "single",
+                    time,
+                    slots: parsedSlots,
+                    status: "available",
+                });
+            } else {
+                await updateRule(editRuleData.id, {
+                    weekday,
+                    type: "single",
+                    time,
+                    slots: parsedSlots,
+                    status: "available",
+                });
+            }
+            resetEditor();
             return;
         }
 
@@ -124,72 +110,90 @@ export default function WeeklyRulesPanel({
             const finalSlots =
                 parsedSlots != null && parsedSlots > occ ? occ : parsedSlots;
 
-            const entry = {
-                type: "recurring",
-                start,
-                end,
-                interval: Number(every),
-                slots: finalSlots,
-            };
-            insertOrUpdate(weekday, entry);
+            if (!editRuleData) {
+                await addRule(serviceId, {
+                    weekday,
+                    type: "recurring",
+                    start,
+                    end,
+                    interval_mins: every,
+                    slots: finalSlots,
+                    status: "available",
+                });
+            } else {
+                await updateRule(editRuleData.id, {
+                    weekday,
+                    type: "recurring",
+                    start,
+                    end,
+                    interval_mins: every,
+                    slots: finalSlots,
+                    status: "available",
+                });
+            }
+            resetEditor();
         }
     };
 
-    const insertOrUpdate = (weekday, entry) => {
-        setWeeklyRules((prev) => {
-            const list = [...(prev[weekday] || [])];
-            if (editIndex != null) {
-                list[editIndex] = entry;
-            } else {
-                list.push(entry);
-            }
-            return { ...prev, [weekday]: list };
-        });
-        resetEditor();
-    };
+    /* Apply AllDay (also used for toggleBlock) */
+    const applyAllDay = async (weekday, blockInstead = false) => {
+        for (const rule of rules.filter((r) => r.weekday === weekday)) {
+            await deleteRule(rule.id);
+        }
 
-    const applyAllDay = (weekday) => {
-        setWeeklyRules((prev) => ({
-            ...prev,
-            [weekday]: [
-                { type: "allday", start: workingHours.start, end: workingHours.end },
-            ],
-        }));
+        if (blockInstead) {
+            await addRule(serviceId, {
+                weekday,
+                type: "allday",
+                status: "blocked",
+                start: null,
+                end: null,
+                slots: null,
+            });
+        } else {
+            const hours = churchHours?.[weekday];
+            await addRule(serviceId, {
+                weekday,
+                type: "allday",
+                status: "available",
+                start: hours?.open_time || null,
+                end: hours?.close_time || null,
+                slots: null,
+            });
+        }
+
+        resetEditor();
         setShowOverride(false);
-        setPendingAllDayDay(null);
-        resetEditor();
     };
 
-    const removeRule = (weekday, idx) => {
-        setWeeklyRules((prev) => {
-            const list = [...(prev[weekday] || [])];
-            list.splice(idx, 1);
-            return { ...prev, [weekday]: list };
-        });
-        if (editIndex === idx) resetEditor();
+    const removeRule = async (rule) => {
+        await deleteRule(rule.id);
+        if (editRuleData?.id === rule.id) {
+            resetEditor();
+        }
     };
 
-    const editRule = (weekday, idx, rule) => {
+    const editRule = (weekday, rule) => {
         setEditingForDay(weekday);
-        setEditIndex(idx);
+        setEditRuleData(rule);
         if (rule.type === "allday") {
             setMode("allday");
             return;
         }
+        if (rule.type === "single") {
+            setMode("single");
+            setTime(rule.time?.slice(0, 5) || "");
+            setSlots(rule.slots == null ? "" : String(rule.slots));
+        }
         if (rule.type === "recurring") {
             setMode("recurring");
-            setStart(rule.start || "");
-            setEnd(rule.end || "");
-            setEvery(rule.interval || 30);
+            setStart(rule.start?.slice(0, 5) || "");
+            setEnd(rule.end?.slice(0, 5) || "");
+            setEvery(rule.interval_mins || 30);
             setSlots(rule.slots == null ? "" : String(rule.slots));
-            return;
         }
-        setMode("single");
-        setTime(rule.time || "");
-        setSlots(rule.slots == null ? "" : String(rule.slots));
     };
 
-    /* Info for recurring */
     const occInfo = useMemo(() => {
         if (mode !== "recurring" || !start || !end || !every)
             return { occ: 0, warn: "" };
@@ -197,15 +201,12 @@ export default function WeeklyRulesPanel({
         let warn = "";
         const typed = slots === "" ? null : parseInt(slots, 10) || 0;
         if (typed != null && typed > occ) {
-            warn = `Only ${occ} occurrences fit between ${fmt12(start)} and ${fmt12(
-                end
-            )} every ${every} mins. Clamped.`;
+            warn = `Only ${occ} occurrences fit between ${to12h(
+                start
+            )} and ${to12h(end)} every ${every} mins. Clamped.`;
         }
         return { occ, warn };
     }, [mode, start, end, every, slots]);
-
-    const toggleBlockDay = (day) =>
-        setBlockedWeekdays((p) => ({ ...p, [day]: !p[day] }));
 
     return (
         <div className="space-y-3">
@@ -218,10 +219,12 @@ export default function WeeklyRulesPanel({
 
             <div className="space-y-2">
                 {WEEKDAYS.map(({ value, label }) => {
-                    const isBlocked = blockedWeekdays?.[value] || false;
-                    const rules = weeklyRules?.[value] || [];
+                    const rulesForDay = (rules || []).filter((r) => r.weekday === value);
                     const expanded = expandedDays[value];
-                    const hasAllDay = rules.some((r) => r.type === "allday");
+                    const hasAllDay = rulesForDay.some((r) => r.type === "allday");
+                    const isBlocked = rulesForDay.some(
+                        (r) => r.type === "allday" && r.status === "blocked"
+                    );
 
                     return (
                         <div
@@ -238,11 +241,38 @@ export default function WeeklyRulesPanel({
                                             {label}
                                         </div>
                                         <div className="text-xs text-gray-500">
-                                            {isBlocked ? "Blocked" : rules.length ? "Has rules" : "Available"}
+                                            {hasAllDay
+                                                ? "All Day"
+                                                : rulesForDay.length
+                                                    ? `${rulesForDay.length} rule(s)`
+                                                    : "Available"}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+
+                                {/* ✅ Block Toggle overrides */}
+                                <div className="flex items-center justify-center gap-2">
+                                    <label className="relative inline-flex cursor-pointer items-center">
+                                        <input
+                                            type="checkbox"
+                                            className="peer sr-only"
+                                            checked={!isBlocked}
+                                            onChange={async (e) =>
+                                                e.target.checked
+                                                    ? await applyAllDay(value, false)
+                                                    : await applyAllDay(value, true)
+                                            }
+                                        />
+                                        <div className="peer h-6 w-11 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-emerald-500" />
+                                        <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out peer-checked:translate-x-5" />
+                                    </label>
+                                    <span
+                                        className={`text-xs font-medium ${isBlocked ? "text-red-600" : "text-gray-600"
+                                            }`}
+                                    >
+                                        {isBlocked ? "Blocked" : "Open"}
+                                    </span>
+
                                     <button
                                         onClick={() => toggleExpand(value)}
                                         className="p-1.5 hover:bg-gray-100 rounded"
@@ -253,234 +283,233 @@ export default function WeeklyRulesPanel({
                                             <ChevronDown className="h-4 w-4 text-gray-500" />
                                         )}
                                     </button>
-                                    <Toggle
-                                        checked={isBlocked}
-                                        onChange={() => toggleBlockDay(value)}
-                                        className={isBlocked ? "bg-red-600" : ""}
-                                    />
                                 </div>
                             </div>
 
                             {expanded && (
                                 <div className="px-3 pb-3 space-y-2">
-                                    {isBlocked ? (
-                                        <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-700 flex items-center gap-2">
-                                            <X className="h-4 w-4" />
-                                            {label} is blocked
-                                        </div>
-                                    ) : (
-                                        <>
-                                            {/* Rules list */}
-                                            {rules.map((rule, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className="flex items-start justify-between bg-gray-50 px-3 py-2 rounded border"
-                                                >
-                                                    <div className="text-sm">
-                                                        {rule.type === "allday" ? (
-                                                            <>
-                                                                <div className="font-semibold text-emerald-700">
-                                                                    All Day
-                                                                </div>
-                                                                <div className="text-xs text-gray-700">
-                                                                    {fmt12(rule.start)} – {fmt12(rule.end)}
-                                                                </div>
-                                                            </>
-                                                        ) : rule.type === "recurring" ? (
-                                                            <>
-                                                                <div className="font-mono font-medium">
-                                                                    {fmt12(rule.start)} – {fmt12(rule.end)}
-                                                                </div>
-                                                                <div className="text-xs text-gray-700">
-                                                                    • Every {rule.interval} mins{" "}
-                                                                    {rule.slots == null
-                                                                        ? "• Available"
-                                                                        : `• Slots each: ${rule.slots}`}
-                                                                </div>
-                                                            </>
+                                    {rulesForDay.map((rule) => {
+                                        const hours = churchHours?.[value];
+                                        const isAllDay = rule.type === "allday";
+                                        const isBlocked = isAllDay && rule.status === "blocked";
+
+                                        return (
+                                            <div
+                                                key={rule.id}
+                                                className="flex items-start justify-between bg-gray-50 px-3 py-2 rounded border"
+                                            >
+                                                <div className="text-sm">
+                                                    {isAllDay ? (
+                                                        isBlocked ? (
+                                                            <div className="font-semibold text-red-600">
+                                                                Blocked
+                                                            </div>
                                                         ) : (
-                                                            <>
-                                                                <div className="font-mono font-medium">
-                                                                    {fmt12(rule.time)}
-                                                                </div>
-                                                                <div className="text-xs text-gray-700">
-                                                                    {rule.slots == null
-                                                                        ? "• Available"
-                                                                        : `• ${rule.slots} slots`}
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
+                                                            <div className="font-semibold text-emerald-700">
+                                                                {to12h(rule.start || hours?.open_time) || "—"}{" "}
+                                                                – {to12h(rule.end || hours?.close_time) || "—"}{" "}
+                                                                Available
+                                                            </div>
+                                                        )
+                                                    ) : rule.type === "recurring" ? (
+                                                        <>
+                                                            <div className="font-mono font-medium">
+                                                                {to12h(rule.start)} – {to12h(rule.end)} every{" "}
+                                                                {rule.interval_mins}m
+                                                            </div>
+                                                            <div className="text-xs text-gray-700">
+                                                                {rule.slots == null
+                                                                    ? "• Available"
+                                                                    : `• ${rule.slots} slots`}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="font-mono font-medium">
+                                                                {to12h(rule.time)}
+                                                            </div>
+                                                            <div className="text-xs text-gray-700">
+                                                                {rule.slots == null
+                                                                    ? "• Available"
+                                                                    : `• ${rule.slots} slots`}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    {/* ✅ Hide edit for allday/blocked */}
+                                                    {!isAllDay && !isBlocked && (
                                                         <button
-                                                            onClick={() => editRule(value, idx, rule)}
+                                                            onClick={() => editRule(value, rule)}
                                                             className="p-1 text-blue-600 hover:bg-blue-100 rounded"
                                                         >
                                                             <Edit2 className="h-3.5 w-3.5" />
                                                         </button>
-                                                        <button
-                                                            onClick={() => removeRule(value, idx)}
-                                                            className="p-1 text-red-600 hover:bg-red-100 rounded"
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => removeRule(rule)}
+                                                        className="p-1 text-red-600 hover:bg-red-100 rounded"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* Add/Edit Form */}
+                                    {editingForDay === value && (
+                                        <div className="mt-2 border rounded bg-blue-50 p-3 space-y-3">
+                                            <div className="flex items-center gap-4 text-sm">
+                                                <label>
+                                                    <input
+                                                        type="radio"
+                                                        checked={mode === "single"}
+                                                        onChange={() => setMode("single")}
+                                                    />{" "}
+                                                    Single Slot
+                                                </label>
+                                                <label>
+                                                    <input
+                                                        type="radio"
+                                                        checked={mode === "recurring"}
+                                                        onChange={() => setMode("recurring")}
+                                                    />{" "}
+                                                    Recurring
+                                                </label>
+                                                <label>
+                                                    <input
+                                                        type="radio"
+                                                        checked={mode === "allday"}
+                                                        onChange={() => setMode("allday")}
+                                                    />{" "}
+                                                    All Day
+                                                </label>
+                                            </div>
+
+                                            {mode === "single" && (
+                                                <div className="grid grid-cols-2 gap-3 items-start">
+                                                    <TimeSelector
+                                                        value={time}
+                                                        onChange={setTime}
+                                                        churchHours={churchHours}
+                                                        weekday={value}
+                                                        label="Pick a Time"
+                                                    />
+                                                    <div className="w-full">
+                                                        <label className="block text-sm font-medium mb-1">
+                                                            Slots (optional)
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            value={slots}
+                                                            min="1"
+                                                            onChange={(e) => setSlots(e.target.value)}
+                                                            placeholder="e.g. 5"
+                                                            className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
+                                                        />
                                                     </div>
                                                 </div>
-                                            ))}
+                                            )}
 
-                                            {/* Editor */}
-                                            {editingForDay === value && (
-                                                <div className="mt-2 border rounded bg-blue-50 p-3 space-y-2">
-                                                    <div className="flex items-center gap-4 text-sm">
-                                                        <label>
-                                                            <input
-                                                                type="radio"
-                                                                checked={mode === "single"}
-                                                                onChange={() => setMode("single")}
-                                                            />{" "}
-                                                            Single Slot
-                                                        </label>
-                                                        <label>
-                                                            <input
-                                                                type="radio"
-                                                                checked={mode === "recurring"}
-                                                                onChange={() => setMode("recurring")}
-                                                            />{" "}
-                                                            Recurring
-                                                        </label>
-                                                        <label>
-                                                            <input
-                                                                type="radio"
-                                                                checked={mode === "allday"}
-                                                                onChange={() => setMode("allday")}
-                                                            />{" "}
-                                                            All Day
-                                                        </label>
+                                            {mode === "recurring" && (
+                                                <>
+                                                    <div className="grid grid-cols-2 gap-3 items-start">
+                                                        <TimeSelector
+                                                            value={start}
+                                                            onChange={setStart}
+                                                            churchHours={churchHours}
+                                                            weekday={value}
+                                                            label="Start Time"
+                                                        />
+                                                        <TimeSelector
+                                                            value={end}
+                                                            onChange={setEnd}
+                                                            churchHours={churchHours}
+                                                            weekday={value}
+                                                            label="End Time"
+                                                        />
                                                     </div>
-
-                                                    {mode === "single" && (
-                                                        <div className="grid grid-cols-3 gap-2">
-                                                            <select
-                                                                value={time}
-                                                                onChange={(e) => setTime(e.target.value)}
-                                                                className="col-span-2 border rounded px-2 py-1 text-sm bg-white"
-                                                            >
-                                                                <option value="">Time…</option>
-                                                                {TIME_OPTIONS.map((t) => (
-                                                                    <option key={t} value={t}>
-                                                                        {fmt12(t)}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
+                                                    <div className="grid grid-cols-2 gap-3 items-start mt-2">
+                                                        <div>
+                                                            <label className="block text-sm font-medium mb-1">
+                                                                Interval (mins)
+                                                            </label>
                                                             <input
-                                                                value={slots}
-                                                                onChange={(e) => setSlots(e.target.value)}
-                                                                placeholder="Slots (optional)"
-                                                                className="border rounded px-2 py-1 text-sm"
+                                                                type="number"
+                                                                value={every}
+                                                                min="5"
+                                                                step="5"
+                                                                onChange={(e) =>
+                                                                    setEvery(Number(e.target.value))
+                                                                }
+                                                                className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
                                                             />
                                                         </div>
-                                                    )}
-
-                                                    {mode === "recurring" && (
-                                                        <>
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                <select
-                                                                    value={start}
-                                                                    onChange={(e) => setStart(e.target.value)}
-                                                                    className="border rounded px-2 py-1 text-sm bg-white"
-                                                                >
-                                                                    <option value="">Start…</option>
-                                                                    {TIME_OPTIONS.map((t) => (
-                                                                        <option key={t} value={t}>
-                                                                            {fmt12(t)}
-                                                                        </option>
-                                                                    ))}
-                                                                </select>
-                                                                <select
-                                                                    value={end}
-                                                                    onChange={(e) => setEnd(e.target.value)}
-                                                                    className="border rounded px-2 py-1 text-sm bg-white"
-                                                                >
-                                                                    <option value="">End…</option>
-                                                                    {TIME_OPTIONS.map((t) => (
-                                                                        <option key={t} value={t}>
-                                                                            {fmt12(t)}
-                                                                        </option>
-                                                                    ))}
-                                                                </select>
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                <select
-                                                                    value={every}
-                                                                    onChange={(e) =>
-                                                                        setEvery(parseInt(e.target.value, 10))
-                                                                    }
-                                                                    className="border rounded px-2 py-1 text-sm bg-white"
-                                                                >
-                                                                    {[15, 30, 60].map((n) => (
-                                                                        <option key={n} value={n}>
-                                                                            Every {n} mins
-                                                                        </option>
-                                                                    ))}
-                                                                </select>
-                                                                <input
-                                                                    value={slots}
-                                                                    onChange={(e) => setSlots(e.target.value)}
-                                                                    placeholder="Slots each (optional)"
-                                                                    className="border rounded px-2 py-1 text-sm"
-                                                                />
-                                                            </div>
-                                                            <div className="text-xs text-gray-600">
-                                                                Possible occurrences:{" "}
-                                                                <span className="font-medium">{occInfo.occ}</span>
-                                                                {occInfo.warn && (
-                                                                    <span className="ml-2 text-amber-700 inline-flex items-center gap-1">
-                                                                        <AlertTriangle className="h-3 w-3" />
-                                                                        {occInfo.warn}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </>
-                                                    )}
-
-                                                    {mode === "allday" && (
-                                                        <div className="text-sm text-gray-800">
-                                                            {fmt12(workingHours.start)} – {fmt12(workingHours.end)}
-                                                            <div className="text-xs text-gray-500">
-                                                                Entire day available within working hours. Other
-                                                                slots will be overridden.
-                                                            </div>
+                                                        <div>
+                                                            <label className="block text-sm font-medium mb-1">
+                                                                Slots (optional)
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                value={slots}
+                                                                min="1"
+                                                                onChange={(e) => setSlots(e.target.value)}
+                                                                placeholder="e.g. 5"
+                                                                className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
+                                                            />
                                                         </div>
-                                                    )}
+                                                    </div>
+                                                    <div className="text-xs text-gray-600 mt-2">
+                                                        Possible occurrences:{" "}
+                                                        <span className="font-medium">
+                                                            {occInfo.occ}
+                                                        </span>
+                                                        {occInfo.warn && (
+                                                            <span className="ml-2 text-amber-700 inline-flex items-center gap-1">
+                                                                <AlertTriangle className="h-3 w-3" />
+                                                                {occInfo.warn}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
 
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={resetEditor}
-                                                            className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded"
-                                                        >
-                                                            Cancel
-                                                        </button>
-                                                        <button
-                                                            onClick={() => saveRule(editingForDay)}
-                                                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                                                        >
-                                                            Save
-                                                        </button>
+                                            {mode === "allday" && (
+                                                <div className="text-sm text-gray-800">
+                                                    {to12h(churchHours?.[value]?.open_time) || "—"} –{" "}
+                                                    {to12h(churchHours?.[value]?.close_time) || "—"}
+                                                    <div className="text-xs text-gray-500">
+                                                        Entire day available within working hours.
                                                     </div>
                                                 </div>
                                             )}
 
-                                            {/* Add button */}
-                                            {!hasAllDay && editingForDay == null && (
+                                            <div className="flex justify-end gap-2">
                                                 <button
-                                                    onClick={() => setEditingForDay(value)}
-                                                    className="w-full text-xs text-blue-600 hover:bg-blue-50 rounded py-1.5 font-medium"
+                                                    onClick={resetEditor}
+                                                    className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded"
                                                 >
-                                                    <Plus className="h-3.5 w-3.5 inline mr-1" />
-                                                    Add Time Slot / All Day
+                                                    Cancel
                                                 </button>
-                                            )}
-                                        </>
+                                                <button
+                                                    onClick={() => saveRule(editingForDay)}
+                                                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                                                >
+                                                    {editRuleData ? "Update" : "Save"}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!hasAllDay && editingForDay == null && (
+                                        <button
+                                            onClick={() => setEditingForDay(value)}
+                                            className="w-full text-xs text-blue-600 hover:bg-blue-50 rounded py-1.5 font-medium"
+                                        >
+                                            <Plus className="h-3.5 w-3.5 inline mr-1" />
+                                            Add Time Slot / All Day
+                                        </button>
                                     )}
                                 </div>
                             )}
