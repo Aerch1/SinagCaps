@@ -23,6 +23,7 @@ import {
     to12h,
 } from "@/utils/availabilityUtils";
 import { useAdminAvailabilityStore } from "../../store/adminAvailabilityStore.js";
+import useChurchHours from "@/hooks/useChurchHours";
 
 export default function ManageAvailability() {
     const [topTab, setTopTab] = useState("availability");
@@ -33,12 +34,12 @@ export default function ManageAvailability() {
 
     const [showCustomModal, setShowCustomModal] = useState(false);
     const [selectedDate, setSelectedDate] = useState(null);
+    const [selectedRule, setSelectedRule] = useState(null);
 
-    const workingHours = { start: "08:00", end: "17:00" };
-
+    const { churchHours } = useChurchHours();
     const { rules = [], fetchRules } = useAdminAvailabilityStore();
 
-    /* ---------------- Fetch services ---------------- */
+    /* -------- Fetch services -------- */
     const fetchServices = useCallback(async () => {
         try {
             const res = await fetch("/api/admin/services");
@@ -59,14 +60,14 @@ export default function ManageAvailability() {
         fetchServices();
     }, [fetchServices]);
 
-    /* ---------------- Fetch rules for selected service ---------------- */
+    /* -------- Fetch rules when service changes -------- */
     useEffect(() => {
         if (selectedService?.id) {
             fetchRules(selectedService.id);
         }
     }, [selectedService, fetchRules]);
 
-    /* ---------------- Calendar generation ---------------- */
+    /* -------- Calendar generation -------- */
     const calendarData = useMemo(() => {
         const year = viewDate.getFullYear();
         const month = viewDate.getMonth();
@@ -83,12 +84,11 @@ export default function ManageAvailability() {
 
             let status = "neutral";
             let items = [];
-            let conflict = false;
 
             const weekly = rules.filter((r) => r.weekday === dow && !r.date);
-            const custom = rules.filter((r) => r.date === iso);
+            const custom = rules.filter((r) => formatDate(r.date) === iso);
 
-            const acceptWeekly = weekly.map((rule) => {
+            const normalizeRule = (rule) => {
                 if (rule.type === "single") {
                     return {
                         type: "single",
@@ -107,42 +107,35 @@ export default function ManageAvailability() {
                         status: rule.status,
                     };
                 }
-                if (rule.type === "allday" && rule.status === "available") {
+                if (rule.type === "allday") {
                     return {
                         type: "allday",
                         start: rule.start,
                         end: rule.end,
                         slots: rule.slots,
-                        status: "available",
+                        status: rule.status,
                     };
                 }
                 return null;
-            }).filter(Boolean);
+            };
 
-            const acceptCustom = custom.map((rule) => ({
-                type: rule.type,
-                time: rule.time ? rule.time.slice(0, 5) : null,
-                slots: rule.slots,
-                status: rule.status,
-                start: rule.start,
-                end: rule.end,
-                interval_mins: rule.interval_mins,
-            }));
+            const acceptWeekly = weekly.map(normalizeRule).filter(Boolean);
+            const acceptCustom = custom.map(normalizeRule).filter(Boolean);
 
             if (custom.length > 0) {
                 if (custom.some((c) => c.status === "blocked")) {
                     status = "blocked";
-                } else {
-                    items = [...acceptWeekly, ...acceptCustom];
+                    items = [{ type: "allday", status: "blocked" }];
+                } else if (acceptCustom.length > 0) {
                     status = "available";
+                    items = acceptCustom;
                 }
-            } else if (
-                weekly.some((r) => r.status === "blocked" && r.type === "allday")
-            ) {
+            } else if (weekly.some((r) => r.status === "blocked" && r.type === "allday")) {
                 status = "blocked";
-            } else if (weekly.length > 0) {
-                items = acceptWeekly;
+                items = [{ type: "allday", status: "blocked" }];
+            } else if (acceptWeekly.length > 0) {
                 status = "available";
+                items = acceptWeekly;
             }
 
             days.push({
@@ -151,13 +144,11 @@ export default function ManageAvailability() {
                 date: iso,
                 status,
                 items,
-                conflict,
             });
         }
 
         return days;
     }, [viewDate, rules]);
-
 
     const summary = useMemo(() => {
         const activeDays = calendarData.filter(
@@ -182,7 +173,7 @@ export default function ManageAvailability() {
         return { activeDays, blockedDays, customCount, totalSlots };
     }, [calendarData, rules]);
 
-    /* ---------------- Handlers ---------------- */
+    /* -------- Handlers -------- */
     const handlePrevMonth = () =>
         setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
     const handleNextMonth = () =>
@@ -190,6 +181,7 @@ export default function ManageAvailability() {
 
     const openDay = (cell) => {
         if (!cell.isEmpty && cell.date) {
+            setSelectedRule(null);
             setSelectedDate(cell.date);
             setShowCustomModal(true);
         }
@@ -229,8 +221,7 @@ export default function ManageAvailability() {
                         Service Availability Management
                     </h1>
                     <p className="mt-1 text-xs md:text-sm text-gray-500">
-                        Configure schedules, manage time slots, and set custom availability
-                        rules
+                        Configure schedules, manage time slots, and set custom availability rules
                     </p>
                 </div>
             </div>
@@ -246,8 +237,8 @@ export default function ManageAvailability() {
                             key={t.id}
                             onClick={() => setTopTab(t.id)}
                             className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 ${topTab === t.id
-                                ? "border-blue-500 text-blue-600"
-                                : "border-transparent text-gray-500 hover:text-gray-700"
+                                    ? "border-blue-500 text-blue-600"
+                                    : "border-transparent text-gray-500 hover:text-gray-700"
                                 }`}
                         >
                             <t.icon className="h-4 w-4" />
@@ -272,21 +263,19 @@ export default function ManageAvailability() {
                                     Choose a service to configure its availability
                                 </p>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <Dropdown
-                                    value={selectedService?.id ?? ""}
-                                    onChange={(id) => {
-                                        const svc = services.find((s) => s.id === id);
-                                        setSelectedService(svc || null);
-                                    }}
-                                    options={services.map((s) => ({
-                                        value: s.id,
-                                        label: s.name,
-                                    }))}
-                                    placeholder="Select service..."
-                                    width="w-52"
-                                />
-                            </div>
+                            <Dropdown
+                                value={selectedService?.id ?? ""}
+                                onChange={(id) => {
+                                    const svc = services.find((s) => s.id === id);
+                                    setSelectedService(svc || null);
+                                }}
+                                options={services.map((s) => ({
+                                    value: s.id,
+                                    label: s.name,
+                                }))}
+                                placeholder="Select service..."
+                                width="w-52"
+                            />
                         </div>
                         {/* Summary */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-gray-600">
@@ -306,8 +295,8 @@ export default function ManageAvailability() {
                                         <button
                                             onClick={() => setActiveTab("weekly")}
                                             className={`flex-1 px-3 md:px-4 py-3 text-sm font-medium border-b-2 ${activeTab === "weekly"
-                                                ? "border-blue-500 text-blue-600"
-                                                : "border-transparent text-gray-500 hover:text-gray-700"
+                                                    ? "border-blue-500 text-blue-600"
+                                                    : "border-transparent text-gray-500 hover:text-gray-700"
                                                 }`}
                                         >
                                             Weekly Rules
@@ -315,8 +304,8 @@ export default function ManageAvailability() {
                                         <button
                                             onClick={() => setActiveTab("custom")}
                                             className={`flex-1 px-3 md:px-4 py-3 text-sm font-medium border-b-2 ${activeTab === "custom"
-                                                ? "border-blue-500 text-blue-600"
-                                                : "border-transparent text-gray-500 hover:text-gray-700"
+                                                    ? "border-blue-500 text-blue-600"
+                                                    : "border-transparent text-gray-500 hover:text-gray-700"
                                                 }`}
                                         >
                                             Custom Dates
@@ -327,16 +316,18 @@ export default function ManageAvailability() {
                                             <WeeklyRulesPanel
                                                 serviceId={selectedService.id}
                                                 weeklyRules={rules.filter((r) => !r.date)}
-                                                workingHours={workingHours}
                                             />
                                         )}
-
                                         {activeTab === "custom" && (
                                             <CustomDatesPanel
                                                 serviceId={selectedService.id}
-                                                customDates={rules.filter((r) => !!r.date)}
                                                 setSelectedDate={setSelectedDate}
                                                 setShowCustomModal={setShowCustomModal}
+                                                onEditRule={(date, rule) => {
+                                                    setSelectedDate(date);
+                                                    setSelectedRule(rule);
+                                                    setShowCustomModal(true);
+                                                }}
                                             />
                                         )}
                                     </div>
@@ -403,16 +394,26 @@ export default function ManageAvailability() {
                                                                 </span>
                                                                 {statusIcon(cell.status)}
                                                             </div>
-                                                            {/* PREVIEW */}
                                                             <div className="text-[11px] leading-snug space-y-1 break-words">
                                                                 {cell.items?.map((it, i) => (
                                                                     <div key={i} className="text-left leading-tight">
                                                                         {it.type === "allday" ? (
-                                                                            <div className="font-semibold text-emerald-700 whitespace-nowrap">
-                                                                                {it.start && it.end
-                                                                                    ? `${to12h(it.start)} – ${to12h(it.end)}`
-                                                                                    : "All Day Available"}
-                                                                            </div>
+                                                                            it.status === "blocked" ? (
+                                                                                <div className="text-red-600 font-semibold">
+                                                                                    Closed
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="flex flex-col">
+                                                                                    <div className="text-emerald-600 text-[10px] font-medium">
+                                                                                        Available
+                                                                                    </div>
+                                                                                    <div className="font-semibold text-emerald-700 whitespace-nowrap">
+                                                                                        {it.start && it.end
+                                                                                            ? `${to12h(it.start)} – ${to12h(it.end)}`
+                                                                                            : "All Day Available"}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )
                                                                         ) : it.type === "recurring" ? (
                                                                             <>
                                                                                 <div className="text-[10px] font-medium whitespace-nowrap">
@@ -431,15 +432,16 @@ export default function ManageAvailability() {
                                                                                 <div className="text-[10px] font-medium whitespace-nowrap">
                                                                                     {to12h(it.time)}
                                                                                 </div>
-                                                                                <div className="text-emerald-600  whitespace-nowrap">
-                                                                                    {it.slots == null ? "• Available" : `• ${it.slots} slots`}
+                                                                                <div className="text-emerald-600 whitespace-nowrap">
+                                                                                    {it.slots == null
+                                                                                        ? "• Available"
+                                                                                        : `• ${it.slots} slots`}
                                                                                 </div>
                                                                             </>
                                                                         )}
                                                                     </div>
                                                                 ))}
                                                             </div>
-
                                                         </div>
                                                     )}
                                                 </div>
@@ -475,10 +477,12 @@ export default function ManageAvailability() {
                 <CustomDateModal
                     serviceId={selectedService.id}
                     selectedDate={selectedDate}
+                    editingRule={selectedRule}
                     open={showCustomModal}
-                    onClose={() => {
+                    onClose={async () => {
                         setShowCustomModal(false);
-                        fetchRules(selectedService.id);
+                        setSelectedRule(null);
+                        await fetchRules(selectedService.id);
                     }}
                 />
             )}
@@ -502,5 +506,3 @@ function SummaryBox({ value, label }) {
         </div>
     );
 }
-
-

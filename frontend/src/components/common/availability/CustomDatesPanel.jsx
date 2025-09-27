@@ -1,32 +1,42 @@
-"use client";
-
-import React from "react";
+import React, { useMemo } from "react";
 import { Plus, Trash2, Edit3, Calendar, Clock, X } from "lucide-react";
-import { to12h } from "@/utils/availabilityUtils";
+import { to12h, formatDate } from "@/utils/availabilityUtils";
 import { useAdminAvailabilityStore } from "../../../store/adminAvailabilityStore.js";
 
 export default function CustomDatesPanel({
     serviceId,
     setSelectedDate,
     setShowCustomModal,
+    onEditRule,
 }) {
-    const { customDates, deleteCustomDate } = useAdminAvailabilityStore();
+    const { rules, deleteRule, fetchRules } = useAdminAvailabilityStore();
 
-    const safeDates = [...(customDates || [])].sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    // Group rules by date
+    const groupedByDate = useMemo(() => {
+        const map = {};
+        (rules || [])
+            .filter((r) => r.date)
+            .forEach((r) => {
+                const key = formatDate(r.date);
+                if (!map[key]) map[key] = [];
+                map[key].push(r);
+            });
+        return Object.entries(map)
+            .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+            .map(([date, rules]) => ({ date, rules }));
+    }, [rules]);
 
-    const formatDate = (dateStr) => {
-        return new Date(dateStr).toLocaleDateString("en-US", {
+    const formatDisplayDate = (dateStr) =>
+        new Date(dateStr).toLocaleDateString("en-US", {
             weekday: "short",
             month: "short",
             day: "numeric",
             year: "numeric",
         });
-    };
 
-    const getTotalSlots = (times = []) => {
-        return times.reduce((sum, slot) => sum + (slot.slots ?? 0), 0);
+    const handleDelete = async (id) => {
+        await deleteRule(id);
+        await fetchRules(serviceId);
     };
 
     return (
@@ -41,7 +51,6 @@ export default function CustomDatesPanel({
                         Manage availability for specific dates
                     </p>
                 </div>
-
                 <button
                     onClick={() => {
                         setSelectedDate(new Date().toISOString().split("T")[0]);
@@ -55,101 +64,118 @@ export default function CustomDatesPanel({
                 </button>
             </div>
 
-            {/* Custom Dates List */}
+            {/* Dates list */}
             <div className="space-y-3 max-h-100 overflow-y-auto pr-2">
-                {safeDates.map((entry) => (
-                    <div
-                        key={entry.id}
-                        className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow"
-                    >
-                        {/* Date Header */}
-                        <div className="flex items-center justify-between mb-2.5">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                                    <Calendar className="h-5 w-5 text-gray-600" />
-                                </div>
-                                <div>
-                                    <div className="font-semibold text-gray-900">
-                                        {formatDate(entry.date)}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                        {new Date(entry.date) < new Date() ? "Past date" : "Upcoming"}
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <button
-                                    onClick={() => {
-                                        setSelectedDate(entry.date);
-                                        setShowCustomModal(true);
-                                    }}
-                                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                    title="Edit custom date"
-                                >
-                                    <Edit3 className="h-4 w-4" />
-                                </button>
-                                <button
-                                    onClick={() => deleteCustomDate(entry.id)}
-                                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Remove custom date"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </button>
-                            </div>
-                        </div>
+                {groupedByDate.map(({ date, rules }) => {
+                    const blockedRule = rules.find(
+                        (r) => r.type === "allday" && r.status === "blocked"
+                    );
+                    const isBlocked = Boolean(blockedRule);
 
-                        {/* Status Content */}
-                        {entry?.status === "blocked" ? (
-                            <div className="flex items-center gap-2 text-sm bg-red-50 text-red-700 rounded-lg px-3 py-2 border border-red-200">
-                                <X className="h-4 w-4" />
-                                <span className="font-medium">
-                                    Blocked – No appointments available
-                                </span>
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {(entry?.times || []).length > 0 ? (
-                                    <>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-medium text-gray-700">
-                                                Time Slots
-                                            </span>
-                                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                                                {getTotalSlots(entry.times)} total slots
-                                            </span>
+                    return (
+                        <div
+                            key={date}
+                            className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow"
+                        >
+                            {/* Date header */}
+                            <div className="flex items-center justify-between mb-2.5">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <Calendar className="h-5 w-5 text-gray-600" />
+                                    </div>
+                                    <div>
+                                        <div className="font-semibold text-gray-900">
+                                            {formatDisplayDate(date)}
                                         </div>
-                                        <div className="grid grid-cols-1 gap-1">
-                                            {entry.times.map((slot, index) => (
-                                                <div
-                                                    key={index}
-                                                    className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2"
-                                                >
-                                                    <Clock className="h-3.5 w-3.5 text-gray-500" />
-                                                    <span className="font-mono font-medium">
-                                                        {to12h(slot.time)}
+                                        <div className="text-xs text-gray-500">
+                                            {new Date(date) < new Date() ? "Past date" : "Upcoming"}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Rules */}
+                            {isBlocked ? (
+                                <div className="flex items-center gap-2 justify-between text-sm bg-red-50 text-red-700 rounded-lg px-3 py-2 border border-red-200">
+                                    <div className="flex items-center gap-2">
+                                        <X className="h-4 w-4" />
+                                        <span className="font-medium">
+                                            Blocked – No appointments available
+                                        </span>
+                                    </div>
+                                    {blockedRule && (
+                                        <button
+                                            onClick={() => handleDelete(blockedRule.id)}
+                                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {rules.map((rule) => (
+                                        <div
+                                            key={rule.id}
+                                            className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                {rule.type === "allday" && (
+                                                    <span className="font-medium text-emerald-700">
+                                                        {to12h(rule.start)} – {to12h(rule.end)} • Available
                                                     </span>
-                                                    <span className="text-gray-600">•</span>
+                                                )}
+                                                {rule.type === "single" && (
+                                                    <>
+                                                        <Clock className="h-3.5 w-3.5 text-gray-500" />
+                                                        <span className="font-mono font-medium">
+                                                            {to12h(rule.time)}
+                                                        </span>
+                                                        <span className="text-gray-600">•</span>
+                                                        <span className="text-gray-700">
+                                                            {rule.slots == null
+                                                                ? "Available"
+                                                                : `${rule.slots} slot${rule.slots === 1 ? "" : "s"
+                                                                }`}
+                                                        </span>
+                                                    </>
+                                                )}
+                                                {rule.type === "recurring" && (
                                                     <span className="text-gray-700">
-                                                        {slot.slots == null
+                                                        {to12h(rule.start)} – {to12h(rule.end)} every{" "}
+                                                        {rule.interval_mins}m •{" "}
+                                                        {rule.slots == null
                                                             ? "Available"
-                                                            : `${slot.slots} ${slot.slots === 1 ? "slot" : "slots"
-                                                            }`}
+                                                            : `${rule.slots} slots`}
                                                     </span>
-                                                </div>
-                                            ))}
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => onEditRule?.(date, rule)}
+                                                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <Edit3 className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(rule.id)}
+                                                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
                                         </div>
-                                    </>
-                                ) : (
-                                    <div className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2 border border-green-200">
-                                        ✅ Available
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                ))}
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
 
-                {safeDates.length === 0 && (
+                {groupedByDate.length === 0 && (
                     <div className="text-center py-12 text-gray-500">
                         <Calendar className="h-16 w-16 mx-auto mb-4 opacity-30" />
                         <h4 className="text-lg font-medium text-gray-900 mb-2">
@@ -173,9 +199,10 @@ export default function CustomDatesPanel({
                 )}
             </div>
 
-            {safeDates.length > 0 && (
+            {groupedByDate.length > 0 && (
                 <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2 text-center">
-                    {safeDates.length} custom {safeDates.length === 1 ? "date" : "dates"} configured
+                    {groupedByDate.length} custom{" "}
+                    {groupedByDate.length === 1 ? "date" : "dates"} configured
                 </div>
             )}
         </div>
