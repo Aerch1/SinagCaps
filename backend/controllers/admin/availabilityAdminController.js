@@ -23,74 +23,163 @@ export const getRules = async (req, res) => {
   }
 };
 
-// POST /api/admin/availability/:serviceId/rules
+/* ==================================================
+   Conflict / Duplication Helper
+================================================== */
+async function checkConflicts(payload, excludeId = null) {
+  const {
+    service_id,
+    date,
+    weekday,
+    type,
+    time,
+    start,
+    end,
+    interval_mins,
+    override,
+  } = payload;
+
+  // 🔹 AllDay / Blocked exclusivity (per date OR weekday only)
+  if ((type === "allday" || type === "blocked") && !override) {
+    let conflicts;
+    if (date) {
+      [conflicts] = await pool.execute(
+        `SELECT id FROM rules
+         WHERE service_id=? AND date=? 
+           AND type IN ('allday','blocked')
+         ${excludeId ? "AND id <> ?" : ""}`,
+        excludeId ? [service_id, date, excludeId] : [service_id, date]
+      );
+    } else if (weekday != null) {
+      [conflicts] = await pool.execute(
+        `SELECT id FROM rules
+         WHERE service_id=? AND weekday=? 
+           AND date IS NULL
+           AND type IN ('allday','blocked')
+         ${excludeId ? "AND id <> ?" : ""}`,
+        excludeId ? [service_id, weekday, excludeId] : [service_id, weekday]
+      );
+    } else {
+      conflicts = [];
+    }
+
+    if (conflicts.length > 0) {
+      return [
+        "Existing rule for this date/weekday found. Use override to replace it with all day/blocked.",
+      ];
+    }
+  }
+
+  // 🔹 Prevent adding time-based slots if AllDay (available) already exists
+  if (type === "single" || type === "recurring") {
+    // All Day available guard
+    const [allDayAvail] = await pool.execute(
+      `SELECT id FROM rules
+       WHERE service_id=? 
+         AND (date <=> ? OR weekday <=> ?)
+         AND type='allday' AND status='available'
+       ${excludeId ? "AND id <> ?" : ""}`,
+      excludeId
+        ? [service_id, date ?? null, weekday ?? null, excludeId]
+        : [service_id, date ?? null, weekday ?? null]
+    );
+    if (allDayAvail.length > 0) {
+      return [
+        "This date is already set as All Day available. No need to add specific slots.",
+      ];
+    }
+
+    // Blocked guard
+    const [blocked] = await pool.execute(
+      `SELECT id FROM rules
+       WHERE service_id=? 
+         AND (date <=> ? OR weekday <=> ?)
+         AND type='allday' AND status='blocked'
+       ${excludeId ? "AND id <> ?" : ""}`,
+      excludeId
+        ? [service_id, date ?? null, weekday ?? null, excludeId]
+        : [service_id, date ?? null, weekday ?? null]
+    );
+    if (blocked.length > 0) {
+      return ["This date is blocked. No slots can be added."];
+    }
+  }
+
+  // 🔹 Duplicate SINGLE slot
+  if (type === "single" && time) {
+    const [dupes] = await pool.execute(
+      `SELECT id FROM rules
+       WHERE service_id=? AND type='single' AND time=? 
+       AND (date <=> ? OR weekday <=> ?)
+       ${excludeId ? "AND id <> ?" : ""}`,
+      excludeId
+        ? [service_id, time, date ?? null, weekday ?? null, excludeId]
+        : [service_id, time, date ?? null, weekday ?? null]
+    );
+    if (dupes.length > 0) return ["A slot already exists at this time."];
+  }
+
+  // 🔹 Duplicate RECURRING
+  if (type === "recurring" && start && end && interval_mins) {
+    const [dupes] = await pool.execute(
+      `SELECT id FROM rules
+       WHERE service_id=? AND type='recurring'
+       AND start=? AND end=? AND interval_mins=? 
+       AND (date <=> ? OR weekday <=> ?)
+       ${excludeId ? "AND id <> ?" : ""}`,
+      excludeId
+        ? [
+            service_id,
+            start,
+            end,
+            interval_mins,
+            date ?? null,
+            weekday ?? null,
+            excludeId,
+          ]
+        : [service_id, start, end, interval_mins, date ?? null, weekday ?? null]
+    );
+    if (dupes.length > 0)
+      return ["A recurring schedule already exists for this range."];
+  }
+
+  return [];
+}
+
+/* ==================================================
+   ADD RULE
+================================================== */
 export const addRule = async (req, res) => {
   const { serviceId } = req.params;
   const payload = { ...req.body, service_id: serviceId };
 
-  // 🔹 Run validation
   const errors = validateRule(payload);
-  if (errors.length > 0) {
+  if (errors.length > 0)
     return res.status(400).json({ success: false, errors });
-  }
 
   try {
-    // 🔹 Exclusivity check for allday/blocked
-    if (payload.type === "allday" || payload.type === "blocked") {
-      const [conflicts] = await pool.execute(
-        `SELECT id FROM rules
-         WHERE service_id=? AND (date <=> ? OR weekday <=> ?)`,
-        [serviceId, payload.date ?? null, payload.weekday ?? null]
-      );
-      if (conflicts.length > 0) {
-        return res.status(400).json({
-          success: false,
-          errors: [
-            "All day/blocked rules override existing rules. Please delete or override first.",
-          ],
-        });
-      }
+    const conflictErrors = await checkConflicts(payload);
+    if (conflictErrors.length > 0) {
+      return res.status(400).json({ success: false, errors: conflictErrors });
     }
 
-    // 🔹 Duplicate-time validation (SINGLE & RECURRING)
-    if (payload.type === "single") {
-      const [dupes] = await pool.execute(
-        `SELECT id FROM rules
-         WHERE service_id=? 
-           AND type='single'
-           AND time=? 
-           AND (date <=> ? OR weekday <=> ?)`,
-        [serviceId, payload.time, payload.date ?? null, payload.weekday ?? null]
-      );
-      if (dupes.length > 0) {
-        return res.status(400).json({
-          success: false,
-          errors: ["A slot already exists at this time."],
-        });
-      }
-    }
-
-    if (payload.type === "recurring") {
-      const [dupes] = await pool.execute(
-        `SELECT id FROM rules
-         WHERE service_id=? 
-           AND type='recurring'
-           AND start=? AND end=? AND interval_mins=? 
-           AND (date <=> ? OR weekday <=> ?)`,
-        [
-          serviceId,
-          payload.start,
-          payload.end,
-          payload.interval_mins,
-          payload.date ?? null,
-          payload.weekday ?? null,
-        ]
-      );
-      if (dupes.length > 0) {
-        return res.status(400).json({
-          success: false,
-          errors: ["A recurring schedule already exists for this range."],
-        });
+    // 🔹 If override = true and allday/blocked → delete old rules (same date/weekday only)
+    if (
+      (payload.type === "allday" || payload.type === "blocked") &&
+      payload.override
+    ) {
+      if (payload.date) {
+        await pool.execute(
+          `DELETE FROM rules 
+           WHERE service_id=? AND date=?`,
+          [serviceId, payload.date]
+        );
+      } else if (payload.weekday != null) {
+        await pool.execute(
+          `DELETE FROM rules 
+           WHERE service_id=? AND weekday=? AND date IS NULL`,
+          [serviceId, payload.weekday]
+        );
       }
     }
 
@@ -119,11 +208,7 @@ export const addRule = async (req, res) => {
 
     res.json({
       success: true,
-      rule: {
-        id: result.insertId,
-        service_id: serviceId,
-        ...payload,
-      },
+      rule: { id: result.insertId, service_id: serviceId, ...payload },
     });
   } catch (err) {
     console.error("❌ addRule", err);
@@ -131,89 +216,54 @@ export const addRule = async (req, res) => {
   }
 };
 
-// PUT /api/admin/availability/rules/:id
+/* ==================================================
+   UPDATE RULE
+================================================== */
 export const updateRule = async (req, res) => {
   const { id } = req.params;
-  const payload = { ...req.body, id };
-
-  // 🔹 Run validation
-  const errors = validateRule(payload);
-  if (errors.length > 0) {
-    return res.status(400).json({ success: false, errors });
-  }
 
   try {
-    // 🔹 Exclusivity check for allday/blocked
-    if (payload.type === "allday" || payload.type === "blocked") {
-      const [conflicts] = await pool.execute(
-        `SELECT id FROM rules
-         WHERE service_id=? 
-           AND (date <=> ? OR weekday <=> ?)
-           AND id <> ?`,
-        [payload.service_id, payload.date ?? null, payload.weekday ?? null, id]
-      );
-      if (conflicts.length > 0) {
-        return res.status(400).json({
-          success: false,
-          errors: [
-            "All day/blocked rules override existing rules. Please delete or override first.",
-          ],
-        });
+    // 🔹 Fetch service_id from DB to preserve it
+    const [rows] = await pool.execute(
+      `SELECT service_id FROM rules WHERE id=?`,
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, error: "Rule not found" });
+    }
+    const service_id = rows[0].service_id;
+
+    const payload = { ...req.body, id, service_id };
+
+    const errors = validateRule(payload);
+    if (errors.length > 0)
+      return res.status(400).json({ success: false, errors });
+
+    const conflictErrors = await checkConflicts(payload, id);
+    if (conflictErrors.length > 0) {
+      return res.status(400).json({ success: false, errors: conflictErrors });
+    }
+
+    // 🔹 If override = true and allday/blocked → delete only same-scope rules (except self)
+    if (
+      (payload.type === "allday" || payload.type === "blocked") &&
+      payload.override
+    ) {
+      if (payload.date) {
+        await pool.execute(
+          `DELETE FROM rules 
+           WHERE service_id=? AND date=? AND id <> ?`,
+          [service_id, payload.date, id]
+        );
+      } else if (payload.weekday != null) {
+        await pool.execute(
+          `DELETE FROM rules 
+           WHERE service_id=? AND weekday=? AND date IS NULL AND id <> ?`,
+          [service_id, payload.weekday, id]
+        );
       }
     }
 
-    // 🔹 Duplicate-time validation on UPDATE
-    if (payload.type === "single") {
-      const [dupes] = await pool.execute(
-        `SELECT id FROM rules
-         WHERE service_id=? 
-           AND type='single'
-           AND time=? 
-           AND (date <=> ? OR weekday <=> ?)
-           AND id <> ?`,
-        [
-          payload.service_id,
-          payload.time,
-          payload.date ?? null,
-          payload.weekday ?? null,
-          id,
-        ]
-      );
-      if (dupes.length > 0) {
-        return res.status(400).json({
-          success: false,
-          errors: ["A slot already exists at this time."],
-        });
-      }
-    }
-
-    if (payload.type === "recurring") {
-      const [dupes] = await pool.execute(
-        `SELECT id FROM rules
-         WHERE service_id=? 
-           AND type='recurring'
-           AND start=? AND end=? AND interval_mins=? 
-           AND (date <=> ? OR weekday <=> ?)
-           AND id <> ?`,
-        [
-          payload.service_id,
-          payload.start,
-          payload.end,
-          payload.interval_mins,
-          payload.date ?? null,
-          payload.weekday ?? null,
-          id,
-        ]
-      );
-      if (dupes.length > 0) {
-        return res.status(400).json({
-          success: false,
-          errors: ["A recurring schedule already exists for this range."],
-        });
-      }
-    }
-
-    // ✅ Update Rule
     await pool.execute(
       `UPDATE rules
        SET weekday=?, date=?, type=?, time=?, start=?, end=?, interval_mins=?, slots=?, status=?
@@ -236,20 +286,16 @@ export const updateRule = async (req, res) => {
       ]
     );
 
-    res.json({
-      success: true,
-      rule: {
-        id,
-        ...payload,
-      },
-    });
+    res.json({ success: true, rule: { id, ...payload } });
   } catch (err) {
     console.error("❌ updateRule", err);
     res.status(500).json({ success: false, error: "Failed to update rule" });
   }
 };
 
-// DELETE /api/admin/availability/rules/:id
+/* ==================================================
+   DELETE RULE
+================================================== */
 export const deleteRule = async (req, res) => {
   const { id } = req.params;
   try {
@@ -261,21 +307,23 @@ export const deleteRule = async (req, res) => {
   }
 };
 
-// PATCH /api/admin/availability/:serviceId/block/:weekday
+/* ==================================================
+   TOGGLE BLOCK WEEKDAY
+================================================== */
 export const toggleBlockWeekday = async (req, res) => {
   const { serviceId, weekday } = req.params;
   const { blocked } = req.body; // true = block, false = unblock
 
   try {
     if (blocked) {
-      // 🔹 Delete ALL existing rules for this weekday (weekly + custom overrides)
+      // Only delete weekly rules (date IS NULL) for that weekday
       await pool.execute(
         `DELETE FROM rules 
-         WHERE service_id=? AND (weekday=? OR (date IS NOT NULL AND DAYOFWEEK(date)-1=?))`,
-        [serviceId, weekday, weekday] // DAYOFWEEK()-1 to align JS weekday 0=Sun
+         WHERE service_id=? AND weekday=? AND date IS NULL`,
+        [serviceId, weekday]
       );
 
-      // 🔹 Insert the "blocked" rule
+      // Insert the "blocked" weekly rule
       const [result] = await pool.execute(
         `INSERT INTO rules 
            (service_id, weekday, date, type, status, time, slots)
@@ -297,7 +345,7 @@ export const toggleBlockWeekday = async (req, res) => {
         },
       });
     } else {
-      // 🔹 Remove only the blocked rule
+      // Remove only the blocked weekly rule (leave custom rules intact)
       await pool.execute(
         `DELETE FROM rules 
          WHERE service_id=? AND weekday=? 

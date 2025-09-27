@@ -8,14 +8,14 @@ import { formatDate, parseDate, to12h } from "@/utils/availabilityUtils";
 import useChurchHours from "../../../hooks/useChurchHours.js";
 import { useAdminAvailabilityStore } from "../../../store/adminAvailabilityStore.js";
 import toast from "react-hot-toast";
+import ConfirmDialog from "../../ui/ConfirmDialog.jsx";
 
-/* Helpers */
+/* ---------- Helpers ---------- */
 const toMinutes = (t) => {
     const [h, m] = (t || "00:00").split(":").map((v) => parseInt(v, 10));
     return h * 60 + m;
 };
-const diffMinutes = (start, end) =>
-    Math.max(0, toMinutes(end) - toMinutes(start));
+const diffMinutes = (start, end) => Math.max(0, toMinutes(end) - toMinutes(start));
 const occurrencesBetween = (start, end, everyMins) => {
     if (!start || !end || !everyMins) return 0;
     const total = diffMinutes(start, end);
@@ -44,9 +44,13 @@ export default function CustomDateModal({
     const [endDate, setEndDate] = useState(selectedDate || "");
 
     const [existingRules, setExistingRules] = useState([]);
-    const [overrideOpen, setOverrideOpen] = useState(false);
-    const [pendingDates, setPendingDates] = useState([]);
 
+    // confirm dialog state
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [confirmAction, setConfirmAction] = useState(null);
+    const [activeRule, setActiveRule] = useState(null);
+
+    /* ---------- Load existing rules ---------- */
     useEffect(() => {
         if (!open || !selectedDate) return;
 
@@ -54,8 +58,6 @@ export default function CustomDateModal({
             (r) => formatDate(r.date) === selectedDate
         );
         const weekday = parseDate(selectedDate)?.getDay();
-
-        // include weekly rules for that weekday too
         const weekly = (rules || []).filter(
             (r) => !r.date && r.weekday === weekday
         );
@@ -83,6 +85,7 @@ export default function CustomDateModal({
         }
     }, [open, selectedDate, editingRule, rules]);
 
+    /* ---------- Occurrence Info ---------- */
     const occInfo = useMemo(() => {
         if (mode !== "recurring" || !start || !end || !every)
             return { occ: 0, warn: "" };
@@ -108,10 +111,7 @@ export default function CustomDateModal({
                 ? rangeEndCandidate
                 : rangeStart;
 
-        const iso = formatDate(rangeStart);
-        const weekday = rangeStart.getDay();
-
-        // Frontend validation
+        // ✅ Lightweight validation
         if (mode === "single" && !time) {
             return toast.error("Time is required");
         }
@@ -123,11 +123,50 @@ export default function CustomDateModal({
             if (!every || every <= 0) return toast.error("Interval must be > 0");
         }
 
-        // Editing
-        if (editingRule?.id) {
-            await updateRule(editingRule.id, {
-                ...editingRule,
-                date: iso,
+        // 🔹 Find all rules for this date OR weekday
+        const weekday = rangeStart.getDay();
+        const conflicts = (rules || []).filter(
+            (r) =>
+                (r.date && formatDate(r.date) === formatDate(rangeStart)) ||
+                (!r.date && r.weekday === weekday)
+        );
+
+        // 🚫 If any blocked allday exists (weekly OR custom), forbid adding slots
+        const isBlocked = conflicts.some(
+            (r) => r.type === "allday" && r.status === "blocked"
+        );
+        if (isBlocked && (mode === "single" || mode === "recurring" || mode === "allday")) {
+            return toast.error(
+                "This day is blocked (weekly or custom). You cannot add availability."
+            );
+        }
+
+        // 🚫 Prevent adding slots if already AllDay Available
+        const hasAllDay = conflicts.some(
+            (r) => r.type === "allday" && r.status === "available"
+        );
+        if (hasAllDay && (mode === "single" || mode === "recurring")) {
+            return toast.error(
+                "This date is already set as All Day available. No need to add time slots."
+            );
+        }
+
+        // --- Confirmation for allday/blocked overrides ---
+        if ((mode === "allday" || mode === "blocked") && conflicts.length > 0) {
+            setConfirmAction(() => async () => {
+                await performSave(rangeStart, loopEnd, true);
+                await fetchRules(serviceId);
+                onClose();
+            });
+            setShowConfirm(true);
+            return;
+        }
+
+        // --- UPDATE MODE ---
+        if (activeRule?.id) {
+            await updateRule(activeRule.id, {
+                ...activeRule,
+                date: formatDate(rangeStart),
                 type: mode === "blocked" ? "allday" : mode,
                 time: mode === "single" ? time : null,
                 start: mode === "recurring" || mode === "allday" ? start : null,
@@ -135,58 +174,28 @@ export default function CustomDateModal({
                 interval_mins: mode === "recurring" ? every : null,
                 slots: slots === "" ? null : parseInt(slots, 10),
                 status: mode === "blocked" ? "blocked" : "available",
+                override: mode === "allday" || mode === "blocked" ? true : undefined,
             });
             await fetchRules(serviceId);
+            setActiveRule(null);
             onClose();
             return;
         }
 
         // --- ADD MODE ---
-        const needOverride = [];
-
-        // check if any rules exist for each date in range
-        for (let d = new Date(rangeStart); d <= loopEnd; d.setDate(d.getDate() + 1)) {
-            const _iso = formatDate(d);
-            const hasAnyDateRules = rules.some((r) => formatDate(r.date) === _iso);
-            if ((mode === "allday" || mode === "blocked") && hasAnyDateRules) {
-                needOverride.push(_iso);
-            }
-        }
-
-        const weeklyExclusive = rules.some(
-            (r) =>
-                !r.date &&
-                r.weekday === weekday &&
-                r.type === "allday" &&
-                (r.status === "blocked" || r.status === "available")
-        );
-        if ((mode === "single" || mode === "recurring") && weeklyExclusive) {
-            setPendingDates([iso]);
-            setOverrideOpen(true);
-            return;
-        }
-
-        if (needOverride.length > 0 && !overrideOpen) {
-            setPendingDates(needOverride);
-            setOverrideOpen(true);
-            return;
-        }
-
-        await performSave(rangeStart, loopEnd);
+        await performSave(rangeStart, loopEnd, false);
         await fetchRules(serviceId);
         onClose();
     };
 
-    const performSave = async (loopStart, loopEnd) => {
+
+    const performSave = async (loopStart, loopEnd, override) => {
         for (let d = new Date(loopStart); d <= loopEnd; d.setDate(d.getDate() + 1)) {
             const iso = formatDate(d);
-
             let parsedSlots = slots === "" ? null : parseInt(slots, 10);
             if (mode === "recurring") {
                 const occ = occurrencesBetween(start, end, Number(every));
-                if (parsedSlots != null && parsedSlots > occ) {
-                    parsedSlots = occ;
-                }
+                if (parsedSlots != null && parsedSlots > occ) parsedSlots = occ;
             }
 
             await addRule(serviceId, {
@@ -198,6 +207,7 @@ export default function CustomDateModal({
                 interval_mins: mode === "recurring" ? every : null,
                 slots: parsedSlots,
                 status: mode === "blocked" ? "blocked" : "available",
+                override: override ? true : undefined,
             });
         }
     };
@@ -242,9 +252,7 @@ export default function CustomDateModal({
                 {/* Existing rules */}
                 {existingRules.length > 0 && (
                     <div className="mb-6">
-                        <p className="text-sm font-medium text-gray-700 mb-2">
-                            Existing Rules
-                        </p>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Existing Rules</p>
                         <div className="space-y-2">
                             {existingRules.map((rule) => (
                                 <div
@@ -255,28 +263,29 @@ export default function CustomDateModal({
                                         {rule.type === "allday" &&
                                             (rule.status === "blocked"
                                                 ? "All Day • Blocked"
-                                                : `All Day • ${to12h(rule.start)} – ${to12h(
-                                                    rule.end
-                                                )}`)}
+                                                : `All Day • ${to12h(rule.start)} – ${to12h(rule.end)}`)}
                                         {rule.type === "single" &&
                                             `${to12h(rule.time)} • ${rule.slots == null ? "Available" : `${rule.slots} slots`
                                             }`}
                                         {rule.type === "recurring" &&
-                                            `${to12h(rule.start)} – ${to12h(
-                                                rule.end
-                                            )} every ${rule.interval_mins}m • ${rule.slots == null ? "Available" : `${rule.slots} slots`
+                                            `${to12h(rule.start)} – ${to12h(rule.end)} every ${rule.interval_mins
+                                            }m • ${rule.slots == null ? "Available" : `${rule.slots} slots`
                                             }`}
                                     </span>
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => {
-                                                setMode(
-                                                    rule.status === "blocked" ? "blocked" : rule.type
-                                                );
+                                                // ✅ mark which rule is being edited
+                                                setConfirmAction(null); // reset confirm
+                                                setShowConfirm(false);
+                                                // store current rule for update
+                                                // either via editingRule prop OR local state
+                                                // safest: track a local "activeRule"
+                                                // so replace `editingRule` check in handleSave with activeRule
+                                                // for your current code: use a local setter
+                                                setMode(rule.status === "blocked" ? "blocked" : rule.type);
                                                 setTime(rule.time || "");
-                                                setSlots(
-                                                    rule.slots == null ? "" : String(rule.slots)
-                                                );
+                                                setSlots(rule.slots == null ? "" : String(rule.slots));
                                                 setStart(rule.start || "");
                                                 setEnd(rule.end || "");
                                                 setEvery(rule.interval_mins || 30);
@@ -284,6 +293,11 @@ export default function CustomDateModal({
                                                     setStartDate(formatDate(rule.date));
                                                     setEndDate(formatDate(rule.date));
                                                 }
+                                                // ✅ important: tell Save which rule to update
+                                                // so handleSave goes into update branch
+                                                // add this:
+                                                // local activeRule state
+                                                setActiveRule(rule);
                                             }}
                                             className="text-blue-600 hover:text-blue-800"
                                         >
@@ -302,6 +316,7 @@ export default function CustomDateModal({
                     </div>
                 )}
 
+
                 {/* Mode selector */}
                 <div className="flex gap-2 mb-6">
                     {["single", "recurring", "allday", "blocked"].map((m) => (
@@ -309,10 +324,10 @@ export default function CustomDateModal({
                             key={m}
                             onClick={() => setMode(m)}
                             className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${mode === m
-                                    ? m === "blocked"
-                                        ? "bg-red-100 text-red-700 border border-red-300"
-                                        : "bg-blue-100 text-blue-700 border border-blue-300"
-                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                ? m === "blocked"
+                                    ? "bg-red-100 text-red-700 border border-red-300"
+                                    : "bg-blue-100 text-blue-700 border border-blue-300"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                 }`}
                         >
                             {m === "single" && "Single Slot"}
@@ -394,8 +409,7 @@ export default function CustomDateModal({
                             </div>
                         </div>
                         <div className="text-xs text-gray-600 mt-2">
-                            Possible occurrences:{" "}
-                            <span className="font-medium">{occInfo.occ}</span>
+                            Possible occurrences: <span className="font-medium">{occInfo.occ}</span>
                             {occInfo.warn && (
                                 <span className="ml-2 text-amber-700 inline-flex items-center gap-1">
                                     <AlertTriangle className="h-3 w-3" /> {occInfo.warn}
@@ -442,69 +456,17 @@ export default function CustomDateModal({
                 </div>
             </Modal>
 
-            {/* Override confirm */}
-            <Modal
-                open={overrideOpen}
-                onClose={() => setOverrideOpen(false)}
-                title="Override Existing Rules"
-            >
-                <p className="text-sm text-gray-700">
-                    The selected date(s) already have rules or a weekly all-day/blocked
-                    setting. Continuing may override the existing availability for those
-                    date(s). Proceed?
-                </p>
-                <div className="flex justify-end gap-2 mt-4">
-                    <button
-                        onClick={() => setOverrideOpen(false)}
-                        className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={async () => {
-                            setOverrideOpen(false);
-                            const s = parseDate(startDate);
-                            const eC = endDate ? parseDate(endDate) : null;
-                            const loopEnd = eC && eC >= s ? eC : s;
-
-                            // Remove all existing rules (weekly + custom) if allday/blocked
-                            if (mode === "allday" || mode === "blocked") {
-                                for (
-                                    let d = new Date(s);
-                                    d <= loopEnd;
-                                    d.setDate(d.getDate() + 1)
-                                ) {
-                                    const iso = formatDate(d);
-                                    const toDelete = rules.filter(
-                                        (r) =>
-                                            formatDate(r.date) === iso ||
-                                            (!r.date && r.weekday === d.getDay())
-                                    );
-                                    for (const r of toDelete) await deleteRule(r.id);
-                                }
-                            }
-
-                            // Remove weekly allday if adding single/recurring
-                            if (mode === "single" || mode === "recurring") {
-                                const weeklyAllDay = rules.filter(
-                                    (r) =>
-                                        !r.date &&
-                                        r.weekday === parseDate(startDate)?.getDay() &&
-                                        r.type === "allday"
-                                );
-                                for (const r of weeklyAllDay) await deleteRule(r.id);
-                            }
-
-                            await performSave(s, loopEnd);
-                            await fetchRules(serviceId);
-                            onClose();
-                        }}
-                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                        Override
-                    </button>
-                </div>
-            </Modal>
+            {/* Confirm override dialog */}
+            <ConfirmDialog
+                open={showConfirm}
+                title="Override Existing Rules?"
+                message="All day or blocked will remove existing slots for this date. Do you want to continue?"
+                onConfirm={() => {
+                    setShowConfirm(false);
+                    confirmAction?.();
+                }}
+                onCancel={() => setShowConfirm(false)}
+            />
         </>
     );
 }

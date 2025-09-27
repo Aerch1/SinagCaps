@@ -39,8 +39,9 @@ export const useAdminAvailabilityStore = create((set, get) => ({
       toast.success("Rule added");
     } catch (err) {
       console.error("❌ addRule", err);
-      if (err.response?.status === 400 && err.response.data?.errors) {
-        err.response.data.errors.forEach((e) => toast.error(e));
+      const errors = err.response?.data?.errors;
+      if (Array.isArray(errors)) {
+        errors.forEach((e) => toast.error(e));
       } else {
         toast.error("Failed to add rule");
       }
@@ -52,19 +53,25 @@ export const useAdminAvailabilityStore = create((set, get) => ({
   =============================== */
   updateRule: async (id, payload) => {
     try {
+      // 🔹 Grab service_id from local state
+      const rule = get().rules.find((r) => r.id === id);
+      const service_id = rule?.service_id;
+
       const res = await axios.put(
         `/api/admin/availability/rules/${id}`,
-        payload,
+        { ...payload, service_id }, // ✅ ensure backend always receives service_id
         { withCredentials: true }
       );
+
       set((state) => ({
         rules: state.rules.map((r) => (r.id === id ? res.data.rule : r)),
       }));
       toast.success("Rule updated");
     } catch (err) {
       console.error("❌ updateRule", err);
-      if (err.response?.status === 400 && err.response.data?.errors) {
-        err.response.data.errors.forEach((e) => toast.error(e));
+      const errors = err.response?.data?.errors;
+      if (Array.isArray(errors)) {
+        errors.forEach((e) => toast.error(e));
       } else {
         toast.error("Failed to update rule");
       }
@@ -105,8 +112,9 @@ export const useAdminAvailabilityStore = create((set, get) => ({
       );
     } catch (err) {
       console.error("❌ toggleBlockWeekday", err);
-      if (err.response?.status === 400 && err.response.data?.errors) {
-        err.response.data.errors.forEach((e) => toast.error(e));
+      const errors = err.response?.data?.errors;
+      if (Array.isArray(errors)) {
+        errors.forEach((e) => toast.error(e));
       } else {
         toast.error("Failed to toggle block");
       }
