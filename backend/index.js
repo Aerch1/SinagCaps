@@ -13,6 +13,8 @@ import serviceRoutes from "./routes/admin.services.routes.js";
 import churchHoursRoutes from "./routes/churchHoursRoutes.js";
 import adminAvailabilityRoutes from "./routes/admin.availability.routes.js"; // ✅ unified rules
 
+import availabilityRoutes from "./routes/availability.js";
+
 // Load env first
 dotenv.config();
 
@@ -46,6 +48,7 @@ app.use("/api/public", publicRoutes);
 app.use("/api/admin/services", serviceRoutes);
 app.use("/api/admin/church-hours", churchHoursRoutes);
 app.use("/api/admin/availability", adminAvailabilityRoutes); // ✅ unified rules
+app.use("/api/availability", availabilityRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

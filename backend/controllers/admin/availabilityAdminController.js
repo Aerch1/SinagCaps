@@ -72,36 +72,33 @@ async function checkConflicts(payload, excludeId = null) {
 
   // 🔹 Prevent adding time-based slots if AllDay (available) already exists
   if (type === "single" || type === "recurring") {
-    // All Day available guard
-    const [allDayAvail] = await pool.execute(
-      `SELECT id FROM rules
-       WHERE service_id=? 
-         AND (date <=> ? OR weekday <=> ?)
+    let allDayAvail;
+    if (date) {
+      // Only check exact same date
+      [allDayAvail] = await pool.execute(
+        `SELECT id FROM rules
+       WHERE service_id=? AND date=? 
          AND type='allday' AND status='available'
        ${excludeId ? "AND id <> ?" : ""}`,
-      excludeId
-        ? [service_id, date ?? null, weekday ?? null, excludeId]
-        : [service_id, date ?? null, weekday ?? null]
-    );
-    if (allDayAvail.length > 0) {
-      return [
-        "This date is already set as All Day available. No need to add specific slots.",
-      ];
+        excludeId ? [service_id, date, excludeId] : [service_id, date]
+      );
+    } else if (weekday != null) {
+      // Only check same weekday for weekly rules
+      [allDayAvail] = await pool.execute(
+        `SELECT id FROM rules
+       WHERE service_id=? AND weekday=? AND date IS NULL
+         AND type='allday' AND status='available'
+       ${excludeId ? "AND id <> ?" : ""}`,
+        excludeId ? [service_id, weekday, excludeId] : [service_id, weekday]
+      );
+    } else {
+      allDayAvail = [];
     }
 
-    // Blocked guard
-    const [blocked] = await pool.execute(
-      `SELECT id FROM rules
-       WHERE service_id=? 
-         AND (date <=> ? OR weekday <=> ?)
-         AND type='allday' AND status='blocked'
-       ${excludeId ? "AND id <> ?" : ""}`,
-      excludeId
-        ? [service_id, date ?? null, weekday ?? null, excludeId]
-        : [service_id, date ?? null, weekday ?? null]
-    );
-    if (blocked.length > 0) {
-      return ["This date is blocked. No slots can be added."];
+    if (allDayAvail.length > 0) {
+      return [
+        "This date/weekday is already set as All Day available. No need to add specific slots.",
+      ];
     }
   }
 

@@ -1,45 +1,28 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { generateTimeOptions, to12h } from "@/utils/availabilityUtils";
-import useChurchHours from "@/hooks/useChurchHours"; // ✅ dynamic fetch
+import { to12h } from "@/utils/availabilityUtils";
+import useAvailability from "@/hooks/useAvailability"; // ✅ slot fetch hook
 
-const TIME_24H = /^([01]\d|2[0-3]):([0-5]\d)$/;
-
-export default function TimeSelector({
-    value, // stored as "HH:mm"
+export default function SlotSelector({
+    value, // "HH:mm"
     onChange,
-    weekday, // number: 0=Sunday … 6=Saturday
-    step = 30,
+    serviceId,
+    date, // "YYYY-MM-DD"
     label = "Select Time",
     disabled = false,
     error,
 }) {
     const [open, setOpen] = useState(false);
-    const { churchHours, loading } = useChurchHours(); // ✅ fetch hours
-
-    // build available times based on selected day
-    const suggestions = useMemo(() => {
-        if (weekday == null) return null; // null means "no date selected"
-        const hours = churchHours?.[weekday];
-        if (!hours || hours.is_closed) return [];
-        return generateTimeOptions(churchHours, weekday, step); // ["08:00", "08:30", ...]
-    }, [churchHours, weekday, step]);
+    const { slots = [], loading } = useAvailability(serviceId, date); // ✅ fetch slots for date
 
     const timeLabel = value ? to12h(value) : "Pick a time";
 
     const onQuickPick = (t) => {
-        onChange?.(t); // already "HH:mm"
+        onChange?.(t);
         setOpen(false);
-    };
-
-    const onCustomChange = (e) => {
-        const raw = e.target.value || "";
-        if (!raw || TIME_24H.test(raw)) {
-            onChange?.(raw); // still "HH:mm"
-        }
     };
 
     return (
@@ -69,60 +52,48 @@ export default function TimeSelector({
                     className="z-[9999] w-[320px] p-3 bg-white border border-gray-200 shadow-md rounded-md"
                 >
                     {/* State handling */}
-                    {weekday == null ? (
+                    {!date ? (
                         <div className="text-center text-sm text-gray-500 py-6">
                             Please select a date to view available times
                         </div>
-                    ) : suggestions?.length > 0 ? (
+                    ) : slots.length > 0 ? (
                         <div className="mb-3">
                             <span className="block text-xs font-medium text-gray-600 mb-2">
                                 Available times
                             </span>
                             <div className="grid grid-cols-3 gap-2 max-h-[240px] overflow-y-auto pr-1 custom-scrollbar">
-                                {suggestions.map((t) => (
+                                {slots.map((s) => (
                                     <button
-                                        key={t}
+                                        key={s.time}
                                         type="button"
-                                        onClick={() => onQuickPick(t)}
+                                        onClick={() => !s.unavailable && onQuickPick(s.time)}
+                                        disabled={s.unavailable}
                                         className={[
                                             "px-3 py-1.5 rounded-md border text-sm transition",
-                                            t === value
-                                                ? "bg-blue-600 text-white border-blue-600"
-                                                : "bg-white text-slate-700 border-gray-300 hover:bg-gray-50",
+                                            s.unavailable
+                                                ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                                : value === s.time
+                                                    ? "bg-blue-600 text-white border-blue-600"
+                                                    : "bg-white text-slate-700 border-gray-300 hover:bg-gray-50",
                                         ].join(" ")}
                                     >
-                                        {to12h(t)}
+                                        {to12h(s.time)}{" "}
+                                        {!s.unavailable && typeof s.remaining === "number"
+                                            ? `(${s.remaining})`
+                                            : ""}
                                     </button>
                                 ))}
                             </div>
                         </div>
                     ) : (
                         <div className="text-center text-sm text-red-500 py-4">
-                            🚫 Closed or no times available
+                            🚫 No available times
                         </div>
                     )}
-
-                    {/* Custom input */}
-                    <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Or enter custom time
-                        </label>
-                        <input
-                            type="time"
-                            value={value || ""}
-                            step={step * 60}
-                            onChange={onCustomChange}
-                            className={[
-                                "w-full px-3 py-2 border rounded-lg",
-                                "bg-white text-gray-900",
-                                "focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                                error ? "border-red-500" : "border-gray-300",
-                            ].join(" ")}
-                        />
-                        {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-                    </div>
                 </PopoverContent>
             </Popover>
+
+            {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
         </div>
     );
 }

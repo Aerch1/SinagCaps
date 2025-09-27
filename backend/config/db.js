@@ -55,9 +55,9 @@ async function ensureSchema(conn) {
     await conn.execute("DROP TABLE IF EXISTS appointment_requirements");
     await conn.execute("DROP TABLE IF EXISTS appointments");
     await conn.execute("DROP TABLE IF EXISTS rules");
-    await conn.execute("DROP TABLE IF EXISTS church_hours");
+    // await conn.execute("DROP TABLE IF EXISTS church_hours");
     await conn.execute("DROP TABLE IF EXISTS requirements");
-    await conn.execute("DROP TABLE IF EXISTS services");
+    // await conn.execute("DROP TABLE IF EXISTS services");
     await conn.execute("DROP TABLE IF EXISTS change_email_requests");
     await conn.execute("DROP TABLE IF EXISTS password_resets");
     await conn.execute("DROP TABLE IF EXISTS email_verification_tokens");

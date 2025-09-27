@@ -7,9 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import Dropdown from "../components/ui/Dropdown1.jsx";
 import DatePopover from "../components/ui/DatePopover.jsx";
-import TimeSelector from "../components/ui/TimeSelector.jsx"; // ✅ NEW
+import SlotSelector from "../components/ui/SlotSelector.jsx";
 import { formatStatusLabel } from "../lib/utils.js";
-import useChurchHours from "../hooks/useChurchHours.js"; // ✅ fetch hours from API
+import useChurchHours from "../hooks/useChurchHours.js";
 
 /* ---------------- Status Options ---------------- */
 const STATUS_OPTIONS = [
@@ -20,66 +20,31 @@ const STATUS_OPTIONS = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
-/* ---------------- Regex ---------------- */
-const YYYYMMDD = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_24H = /^([01]\d|2[0-3]):([0-5]\d)$/;
+/* ---------------- Light Zod Schema ---------------- */
+const AppointmentSchema = z.object({
+  clientName: z.string().min(1, "Client name is required"),
+  service_id: z.string().min(1, "Select a service"),
+  date: z.string().min(1, "Date is required"),
+  time: z.string().optional(), // backend validates format
+  status: z.enum(STATUS_OPTIONS.map((o) => o.value)).default("pending"),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  notes: z.string().optional(),
+});
 
-/* ---------------- Zod Schema ---------------- */
-const AppointmentSchema = z
-  .object({
-    clientName: z.string().min(1, "Client name is required").max(120),
-    email: z.string().email("Enter a valid email").optional().or(z.literal("")),
-    phone: z
-      .string()
-      .optional()
-      .or(z.literal(""))
-      .refine((v) => !v || /^[\d+\-\s()]{6,}$/.test(v), {
-        message: "Enter a valid phone number",
-      }),
-    address: z.string().optional().or(z.literal("")),
-    service_id: z.string().min(1, "Select a service"),
-    status: z.enum(STATUS_OPTIONS.map((o) => o.value)).default("pending"),
-    date: z.string().regex(YYYYMMDD, "Pick a valid date"),
-    allDay: z.boolean().default(false),
-    time: z.string().optional().or(z.literal("")),
-    notes: z.string().optional().or(z.literal("")),
-  })
-  .superRefine((val, ctx) => {
-    if (!val.date || !YYYYMMDD.test(val.date)) {
-      ctx.addIssue({
-        path: ["date"],
-        code: z.ZodIssueCode.custom,
-        message: "Appointment date is required",
-      });
-    }
-    if (!val.allDay) {
-      if (!val.time || !val.time.trim()) {
-        ctx.addIssue({
-          path: ["time"],
-          code: z.ZodIssueCode.custom,
-          message: "Preferred time is required",
-        });
-      } else if (!TIME_24H.test(val.time)) {
-        ctx.addIssue({
-          path: ["time"],
-          code: z.ZodIssueCode.custom,
-          message: "Use format HH:mm (24-hour)",
-        });
-      }
-    }
-  });
-
-/* ---------------- Component ---------------- */
 export default function CreateAppointmentForm({
   defaultDate = "",
   onSubmit,
   onCancel,
+  serverErrors = {},
 }) {
   const {
     register,
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
+    setError,
+    setValue, // ✅ fixed (we use this below)
   } = useForm({
     resolver: zodResolver(AppointmentSchema),
     mode: "onTouched",
@@ -99,9 +64,10 @@ export default function CreateAppointmentForm({
 
   const allDay = useWatch({ control, name: "allDay" });
   const dateISO = useWatch({ control, name: "date" });
+  const serviceId = useWatch({ control, name: "service_id" });
 
   const [services, setServices] = useState([]);
-  const { churchHours, loading: hoursLoading } = useChurchHours(); // ✅ dynamic hours
+  const { churchHours } = useChurchHours();
 
   /* Fetch services for dropdown */
   useEffect(() => {
@@ -115,23 +81,44 @@ export default function CreateAppointmentForm({
       .catch((err) => console.error("❌ fetch services failed:", err));
   }, []);
 
-  /* Pass validated form data up */
+  /* Apply backend errors into form fields */
+  useEffect(() => {
+    if (serverErrors && Object.keys(serverErrors).length > 0) {
+      Object.entries(serverErrors).forEach(([field, message]) => {
+        setError(field, { type: "server", message });
+      });
+    }
+  }, [serverErrors, setError]);
+
+  /* Reset time when date changes */
+  useEffect(() => {
+    if (dateISO) {
+      setValue("time", ""); // ✅ clear time if date changes
+    }
+  }, [dateISO, setValue]);
+
+  /* Reset time when allDay is toggled */
+  useEffect(() => {
+    if (allDay) {
+      setValue("time", ""); // ✅ clear time if allDay is true
+    }
+  }, [allDay, setValue]);
+
+  /* Map data for backend */
   const handleFormSubmit = (data) => {
     onSubmit?.({
       name: data.clientName.trim(),
-      email: data.email.trim(),
-      contactNumber: data.phone.trim(),
-      address: data.address.trim(),
+      email: data.email?.trim() || null,
+      contactNumber: data.phone?.trim() || null,
+      address: data.address?.trim() || null,
       service_id: Number(data.service_id),
       status: data.status,
       date: data.date,
       time: data.allDay ? null : data.time,
       allDay: !!data.allDay,
-      notes: data.notes.trim(),
+      notes: data.notes?.trim() || null,
     });
   };
-
-  const weekday = dateISO ? new Date(dateISO).getDay() : null;
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8">
@@ -147,7 +134,7 @@ export default function CreateAppointmentForm({
               type="text"
               {...register("clientName")}
               placeholder="Enter full name"
-              className={`w-full rounded-lg border px-3 py-2 ${errors.clientName ? "border-red-500" : "border-gray-300"
+              className={`w-full rounded-lg border focus:ring-2 focus:ring-blue-500 px-3 py-2 ${errors.clientName ? "border-red-500" : "border-gray-200"
                 }`}
             />
             {errors.clientName && (
@@ -163,9 +150,12 @@ export default function CreateAppointmentForm({
               type="email"
               {...register("email")}
               placeholder="client@example.com"
-              className={`w-full rounded-lg border px-3 py-2 ${errors.email ? "border-red-500" : "border-gray-300"
+              className={`w-full rounded-lg border focus:ring-2 focus:ring-blue-500 px-3 py-2 ${errors.email ? "border-red-500" : "border-gray-300"
                 }`}
             />
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
+            )}
           </div>
 
           <div>
@@ -174,19 +164,12 @@ export default function CreateAppointmentForm({
               type="tel"
               {...register("phone")}
               placeholder="+63 9xx xxx xxxx"
-              className={`w-full rounded-lg border px-3 py-2 ${errors.phone ? "border-red-500" : "border-gray-300"
+              className={`w-full rounded-lg border focus:ring-2 focus:ring-blue-500 px-3 py-2 ${errors.phone ? "border-red-500" : "border-gray-300"
                 }`}
             />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium">Address</label>
-            <input
-              type="text"
-              {...register("address")}
-              placeholder="Street / Barangay / City / Province"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2"
-            />
+            {errors.phone && (
+              <p className="mt-1 text-sm text-red-500">{errors.phone.message}</p>
+            )}
           </div>
         </div>
       </section>
@@ -197,7 +180,6 @@ export default function CreateAppointmentForm({
           Appointment Details
         </h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {/* Service */}
           <div>
             <label className="mb-2 block text-sm font-medium">Service</label>
             <Controller
@@ -222,7 +204,6 @@ export default function CreateAppointmentForm({
             )}
           </div>
 
-          {/* Status */}
           <div>
             <label className="mb-2 block text-sm font-medium">Status</label>
             <Controller
@@ -241,7 +222,6 @@ export default function CreateAppointmentForm({
           </div>
         </div>
 
-        {/* Date & Time */}
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-12">
           <div className="md:col-span-6">
             <Controller
@@ -249,6 +229,7 @@ export default function CreateAppointmentForm({
               name="date"
               render={({ field }) => (
                 <DatePopover
+                  serviceId={serviceId}
                   value={field.value}
                   onChange={field.onChange}
                   error={errors.date?.message}
@@ -261,35 +242,17 @@ export default function CreateAppointmentForm({
               control={control}
               name="time"
               render={({ field }) => (
-                <TimeSelector
+                <SlotSelector
                   value={field.value}
                   onChange={field.onChange}
-                  churchHours={churchHours} // ✅ real backend hours
-                  weekday={weekday}
-                  disabled={allDay || hoursLoading}
+                  serviceId={serviceId}
+                  date={dateISO}
+                  disabled={allDay}
                   error={!allDay ? errors.time?.message : undefined}
-                  step={30}
                 />
               )}
             />
           </div>
-        </div>
-
-        <div className="mt-3">
-          <label className="inline-flex items-center gap-2 text-sm">
-            <Controller
-              control={control}
-              name="allDay"
-              render={({ field }) => (
-                <input
-                  type="checkbox"
-                  {...field}
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-              )}
-            />
-            All-day
-          </label>
         </div>
       </section>
 
@@ -302,8 +265,12 @@ export default function CreateAppointmentForm({
           rows={4}
           {...register("notes")}
           placeholder="Internal notes (optional)…"
-          className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2"
+          className={`w-full resize-none rounded-lg border focus:ring-2 focus:ring-blue-500 px-3 py-2 ${errors.notes ? "border-red-500" : "border-gray-300"
+            }`}
         />
+        {errors.notes && (
+          <p className="mt-1 text-sm text-red-500">{errors.notes.message}</p>
+        )}
       </section>
 
       {/* Actions */}
@@ -317,7 +284,7 @@ export default function CreateAppointmentForm({
         </button>
         <button
           type="submit"
-          className="rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700"
+          className="rounded-lg bg-secondary px-4 py-2 text-white transition hover:bg-secondary/80"
           disabled={isSubmitting}
         >
           {isSubmitting ? "Saving…" : "Save Appointment"}

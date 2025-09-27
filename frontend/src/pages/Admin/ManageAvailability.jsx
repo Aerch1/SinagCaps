@@ -39,14 +39,6 @@ export default function ManageAvailability() {
     const { churchHours } = useChurchHours();
     const { rules = [], fetchRules } = useAdminAvailabilityStore();
 
-    /* -------- Load persisted selection -------- */
-    useEffect(() => {
-        const saved = localStorage.getItem("selectedServiceId");
-        if (saved) {
-            setSelectedService({ id: Number(saved) });
-        }
-    }, []);
-
     /* -------- Fetch services -------- */
     const fetchServices = useCallback(async () => {
         try {
@@ -55,16 +47,8 @@ export default function ManageAvailability() {
             if (data.success) {
                 const active = data.services.filter((s) => s.active);
                 setServices(active);
-
-                // restore selection if still exists
-                const savedId = localStorage.getItem("selectedServiceId");
-                const match =
-                    savedId && active.find((s) => String(s.id) === String(savedId));
-                if (match) {
-                    setSelectedService(match);
-                } else if (active.length > 0 && !selectedService) {
+                if (active.length > 0 && !selectedService) {
                     setSelectedService(active[0]);
-                    localStorage.setItem("selectedServiceId", active[0].id);
                 }
             }
         } catch (e) {
@@ -76,10 +60,9 @@ export default function ManageAvailability() {
         fetchServices();
     }, [fetchServices]);
 
-    /* -------- Persist selection when it changes -------- */
+    /* -------- Fetch rules when service changes -------- */
     useEffect(() => {
         if (selectedService?.id) {
-            localStorage.setItem("selectedServiceId", selectedService.id);
             fetchRules(selectedService.id);
         }
     }, [selectedService, fetchRules]);
@@ -92,6 +75,7 @@ export default function ManageAvailability() {
         const first = getFirstDayOfMonth(year, month);
         const days = [];
 
+        // normalize helper (uses church hours for allday if missing start/end)
         const normalizeRule = (rule, dow) => {
             if (rule.type === "single") {
                 return {
@@ -156,10 +140,14 @@ export default function ManageAvailability() {
                 (r) => r.type === "allday" && r.status === "available"
             );
 
+            // Priority rules:
+            // 1) Any blocked (weekly or custom) → blocked
             if (customBlocked || weeklyBlocked) {
                 status = "blocked";
                 items = [{ type: "allday", status: "blocked" }];
-            } else if (customAllDayAvail || weeklyAllDayAvail) {
+            }
+            // 2) Any allday available (custom wins over weekly) → allday
+            else if (customAllDayAvail || weeklyAllDayAvail) {
                 status = "available";
                 const chosen = customAllDayAvail || weeklyAllDayAvail;
                 items = [
@@ -170,7 +158,9 @@ export default function ManageAvailability() {
                         end: chosen.end || null,
                     },
                 ];
-            } else {
+            }
+            // 3) Otherwise, additive single/recurring from both sources
+            else {
                 const additive = [
                     ...weeklyNorm.filter((r) => r.type !== "allday"),
                     ...customNorm.filter((r) => r.type !== "allday"),
@@ -216,6 +206,7 @@ export default function ManageAvailability() {
         return { activeDays, blockedDays, customCount, totalSlots };
     }, [calendarData, rules]);
 
+    /* -------- Handlers -------- */
     const handlePrevMonth = () =>
         setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
     const handleNextMonth = () =>
@@ -279,8 +270,8 @@ export default function ManageAvailability() {
                             key={t.id}
                             onClick={() => setTopTab(t.id)}
                             className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 ${topTab === t.id
-                                ? "border-blue-500 text-blue-600"
-                                : "border-transparent text-gray-500 hover:text-gray-700"
+                                    ? "border-blue-500 text-blue-600"
+                                    : "border-transparent text-gray-500 hover:text-gray-700"
                                 }`}
                         >
                             <t.icon className="h-4 w-4" />
@@ -308,9 +299,8 @@ export default function ManageAvailability() {
                             <Dropdown
                                 value={selectedService?.id ?? ""}
                                 onChange={(id) => {
-                                    const svc = services.find((s) => String(s.id) === String(id));
+                                    const svc = services.find((s) => s.id === id);
                                     setSelectedService(svc || null);
-                                    if (svc) localStorage.setItem("selectedServiceId", svc.id);
                                 }}
                                 options={services.map((s) => ({
                                     value: s.id,
@@ -338,8 +328,8 @@ export default function ManageAvailability() {
                                         <button
                                             onClick={() => setActiveTab("weekly")}
                                             className={`flex-1 px-3 md:px-4 py-3 text-sm font-medium border-b-2 ${activeTab === "weekly"
-                                                ? "border-blue-500 text-blue-600"
-                                                : "border-transparent text-gray-500 hover:text-gray-700"
+                                                    ? "border-blue-500 text-blue-600"
+                                                    : "border-transparent text-gray-500 hover:text-gray-700"
                                                 }`}
                                         >
                                             Weekly Rules
@@ -347,8 +337,8 @@ export default function ManageAvailability() {
                                         <button
                                             onClick={() => setActiveTab("custom")}
                                             className={`flex-1 px-3 md:px-4 py-3 text-sm font-medium border-b-2 ${activeTab === "custom"
-                                                ? "border-blue-500 text-blue-600"
-                                                : "border-transparent text-gray-500 hover:text-gray-700"
+                                                    ? "border-blue-500 text-blue-600"
+                                                    : "border-transparent text-gray-500 hover:text-gray-700"
                                                 }`}
                                         >
                                             Custom Dates
@@ -474,9 +464,7 @@ export default function ManageAvailability() {
                                                                                     {to12h(it.time)}
                                                                                 </div>
                                                                                 <div className="text-emerald-600 whitespace-nowrap">
-                                                                                    {it.slots == null
-                                                                                        ? "• Available"
-                                                                                        : `• ${it.slots} slots`}
+                                                                                    {it.slots == null ? "• Available" : `• ${it.slots} slots`}
                                                                                 </div>
                                                                             </>
                                                                         )}

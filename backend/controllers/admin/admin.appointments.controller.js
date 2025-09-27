@@ -1,6 +1,11 @@
 // src/controllers/admin/appointments.controller.js
 import { Parser } from "json2csv";
 import pool from "../../config/db.js";
+import {
+  normalizeTime,
+  validateAppointmentInput,
+  validateAppointmentUpdateInput,
+} from "../../utils/validateAppointment.js";
 
 const STATUSES = [
   "pending",
@@ -37,7 +42,6 @@ export const getAppointments = async (req, res) => {
       [pageSize, offset]
     );
 
-    // ✅ Pull service list from services table
     const [serviceRows] = await pool.query(
       `SELECT id, name FROM services WHERE active = TRUE ORDER BY name ASC`
     );
@@ -65,7 +69,7 @@ export const filterAppointments = async (req, res) => {
       pageSize = 10,
       query = "",
       status = [],
-      serviceIds = [], // ✅ now use service_id
+      serviceIds = [],
       date,
       startDate,
       endDate,
@@ -178,23 +182,34 @@ export const createAppointmentAdmin = async (req, res) => {
       service_id,
       date,
       time,
-      party_size = 1,
       status = "pending",
       notes = "",
     } = req.body;
 
-    if (!name || !email || !service_id || !date || !time) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing required fields" });
+    // ✅ Normalize time
+    const normalizedTime = time ? normalizeTime(time) : null;
+
+    // ✅ Strict validation
+    const errors = validateAppointmentInput({
+      name,
+      email,
+      contactNumber,
+      service_id,
+      date,
+      time: normalizedTime,
+      status,
+    });
+
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, errors });
     }
 
     await conn.beginTransaction();
 
     const [result] = await conn.query(
       `INSERT INTO appointments 
-         (user_id, name, email, contactNumber, service_id, date, time, party_size, status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (user_id, name, email, contactNumber, service_id, date, time, status, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.userId || null,
         name,
@@ -202,8 +217,7 @@ export const createAppointmentAdmin = async (req, res) => {
         contactNumber || null,
         service_id,
         date,
-        time,
-        party_size,
+        normalizedTime,
         status,
         notes,
       ]
@@ -231,16 +245,51 @@ export const createAppointmentAdmin = async (req, res) => {
 export const updateAppointmentAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, date, time, notes } = req.body;
+    const {
+      status,
+      date,
+      time,
+      notes,
+      name,
+      email,
+      contactNumber,
+      service_id,
+    } = req.body;
+
+    // ✅ Normalize time if provided
+    const normalizedTime = time ? normalizeTime(time) : null;
+
+    // ✅ Loose validation
+    const errors = validateAppointmentUpdateInput({
+      ...req.body,
+      time: normalizedTime,
+    });
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, errors });
+    }
 
     const [result] = await pool.query(
       `UPDATE appointments
          SET status = COALESCE(?, status),
              date   = COALESCE(?, date),
              time   = COALESCE(?, time),
-             notes  = COALESCE(?, notes)
+             notes  = COALESCE(?, notes),
+             name   = COALESCE(?, name),
+             email  = COALESCE(?, email),
+             contactNumber = COALESCE(?, contactNumber),
+             service_id    = COALESCE(?, service_id)
        WHERE id = ?`,
-      [status, date, time, notes, id]
+      [
+        status,
+        date,
+        normalizedTime,
+        notes,
+        name,
+        email,
+        contactNumber,
+        service_id,
+        id,
+      ]
     );
 
     if (result.affectedRows === 0) {
