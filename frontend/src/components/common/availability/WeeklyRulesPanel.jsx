@@ -16,6 +16,7 @@ import TimeSelector from "../../ui/TimeSelector";
 import { WEEKDAYS, to12h } from "@/utils/availabilityUtils";
 import useChurchHours from "@/hooks/useChurchHours";
 import { useAdminAvailabilityStore } from "../../../store/adminAvailabilityStore.js";
+import toast from "react-hot-toast";
 
 /* Helpers */
 const toMinutes = (t) => {
@@ -31,9 +32,8 @@ const occurrencesBetween = (start, end, everyMins) => {
 };
 
 export default function WeeklyRulesPanel({ serviceId }) {
-    const { rules, addRule, updateRule, deleteRule } =
+    const { rules, addRule, updateRule, deleteRule, toggleBlockWeekday } =
         useAdminAvailabilityStore();
-
     const { churchHours } = useChurchHours();
 
     /* UI state */
@@ -47,9 +47,6 @@ export default function WeeklyRulesPanel({ serviceId }) {
     const [start, setStart] = useState("");
     const [end, setEnd] = useState("");
     const [every, setEvery] = useState(30);
-
-    const [showOverride, setShowOverride] = useState(false);
-    const [pendingAllDayDay, setPendingAllDayDay] = useState(null);
 
     const resetEditor = () => {
         setMode("single");
@@ -65,22 +62,17 @@ export default function WeeklyRulesPanel({ serviceId }) {
     const toggleExpand = (day) =>
         setExpandedDays((p) => ({ ...p, [day]: !p[day] }));
 
-    /* Save rule */
+    /* Save rule (manual add/edit) */
     const saveRule = async (weekday) => {
         if (mode === "allday") {
-            if ((rules || []).some((r) => r.weekday === weekday)) {
-                setPendingAllDayDay(weekday);
-                setShowOverride(true);
-                return;
-            }
-            await applyAllDay(weekday);
+            await applyAllDay(weekday); // only "all day available"
             return;
         }
 
         if (mode === "single") {
-            if (!time) return;
+            if (!time) return toast.error("Time is required");
             const parsedSlots =
-                slots === "" ? null : Math.max(0, parseInt(slots, 10) || 0);
+                slots === "" ? null : Math.max(1, parseInt(slots, 10) || 0);
             if (!editRuleData) {
                 await addRule(serviceId, {
                     weekday,
@@ -103,10 +95,15 @@ export default function WeeklyRulesPanel({ serviceId }) {
         }
 
         if (mode === "recurring") {
-            if (!start || !end) return;
+            if (!start || !end) return toast.error("Start and end time are required");
+            if (toMinutes(end) <= toMinutes(start)) {
+                return toast.error("End time must be after start time");
+            }
+            if (!every || every <= 0) return toast.error("Interval must be > 0");
+
             const occ = occurrencesBetween(start, end, Number(every));
             const parsedSlots =
-                slots === "" ? null : Math.max(0, parseInt(slots, 10) || 0);
+                slots === "" ? null : Math.max(1, parseInt(slots, 10) || 0);
             const finalSlots =
                 parsedSlots != null && parsedSlots > occ ? occ : parsedSlots;
 
@@ -135,35 +132,34 @@ export default function WeeklyRulesPanel({ serviceId }) {
         }
     };
 
-    /* Apply AllDay (also used for toggleBlock) */
-    const applyAllDay = async (weekday, blockInstead = false) => {
-        for (const rule of rules.filter((r) => r.weekday === weekday)) {
-            await deleteRule(rule.id);
+    /* Toggle block (switch) → now calls backend directly */
+    const handleToggleBlock = async (weekday, blocked) => {
+        try {
+            await toggleBlockWeekday(serviceId, weekday, blocked);
+            // toast.success(blocked ? "Day blocked" : "Day unblocked");
+        } catch (err) {
+            console.error("❌ handleToggleBlock", err);
+            toast.error("Failed to toggle block");
         }
+    };
 
-        if (blockInstead) {
-            await addRule(serviceId, {
-                weekday,
-                type: "allday",
-                status: "blocked",
-                start: null,
-                end: null,
-                slots: null,
-            });
-        } else {
-            const hours = churchHours?.[weekday];
-            await addRule(serviceId, {
-                weekday,
-                type: "allday",
-                status: "available",
-                start: hours?.open_time || null,
-                end: hours?.close_time || null,
-                slots: null,
-            });
+    /* Apply AllDay (only for available church hours) */
+    const applyAllDay = async (weekday) => {
+        const hours = churchHours?.[weekday];
+        if (!hours || hours.is_closed) {
+            toast.error("Church is closed on this day");
+            return;
         }
+        await addRule(serviceId, {
+            weekday,
+            type: "allday",
+            status: "available",
+            start: hours.open_time,
+            end: hours.close_time,
+            slots: null,
+        });
 
         resetEditor();
-        setShowOverride(false);
     };
 
     const removeRule = async (rule) => {
@@ -250,20 +246,18 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                     </div>
                                 </div>
 
-                                {/* ✅ Block Toggle overrides */}
+                                {/* ✅ Block Toggle */}
                                 <div className="flex items-center justify-center gap-2">
                                     <label className="relative inline-flex cursor-pointer items-center">
                                         <input
                                             type="checkbox"
                                             className="peer sr-only"
-                                            checked={!isBlocked}
-                                            onChange={async (e) =>
-                                                e.target.checked
-                                                    ? await applyAllDay(value, false)
-                                                    : await applyAllDay(value, true)
+                                            checked={isBlocked}
+                                            onChange={(e) =>
+                                                handleToggleBlock(value, e.target.checked)
                                             }
                                         />
-                                        <div className="peer h-6 w-11 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-emerald-500" />
+                                        <div className="peer h-6 w-11 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-red-500" />
                                         <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out peer-checked:translate-x-5" />
                                     </label>
                                     <span
@@ -306,8 +300,8 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                             </div>
                                                         ) : (
                                                             <div className="font-semibold text-emerald-700">
-                                                                {to12h(rule.start || hours?.open_time) || "—"}{" "}
-                                                                – {to12h(rule.end || hours?.close_time) || "—"}{" "}
+                                                                {to12h(rule.start || hours?.open_time) || "—"} –{" "}
+                                                                {to12h(rule.end || hours?.close_time) || "—"}{" "}
                                                                 Available
                                                             </div>
                                                         )
@@ -337,7 +331,6 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-1">
-                                                    {/* ✅ Hide edit for allday/blocked */}
                                                     {!isAllDay && !isBlocked && (
                                                         <button
                                                             onClick={() => editRule(value, rule)}
@@ -440,9 +433,7 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                                 value={every}
                                                                 min="5"
                                                                 step="5"
-                                                                onChange={(e) =>
-                                                                    setEvery(Number(e.target.value))
-                                                                }
+                                                                onChange={(e) => setEvery(Number(e.target.value))}
                                                                 className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
                                                             />
                                                         </div>
@@ -462,9 +453,7 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                     </div>
                                                     <div className="text-xs text-gray-600 mt-2">
                                                         Possible occurrences:{" "}
-                                                        <span className="font-medium">
-                                                            {occInfo.occ}
-                                                        </span>
+                                                        <span className="font-medium">{occInfo.occ}</span>
                                                         {occInfo.warn && (
                                                             <span className="ml-2 text-amber-700 inline-flex items-center gap-1">
                                                                 <AlertTriangle className="h-3 w-3" />
@@ -517,33 +506,6 @@ export default function WeeklyRulesPanel({ serviceId }) {
                     );
                 })}
             </div>
-
-            {/* Override Modal */}
-            <Modal
-                open={showOverride}
-                onClose={() => setShowOverride(false)}
-                title="Override With All Day"
-            >
-                <p className="text-sm text-gray-700">
-                    Existing slots will be{" "}
-                    <span className="text-red-600 font-medium">removed</span> if you mark
-                    this day as <span className="font-medium">All Day</span>. Continue?
-                </p>
-                <div className="flex justify-end gap-2 mt-4">
-                    <button
-                        onClick={() => setShowOverride(false)}
-                        className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={() => applyAllDay(pendingAllDayDay)}
-                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                        Override
-                    </button>
-                </div>
-            </Modal>
         </div>
     );
 }

@@ -3,20 +3,18 @@ import axios from "axios";
 import toast from "react-hot-toast";
 
 export const useAdminAvailabilityStore = create((set, get) => ({
-  rules: [], // ✅ unified (weekly + custom overrides)
+  rules: [], // ✅ unified (weekly + custom)
   loading: false,
 
   /* ===============================
-     FETCH RULES (weekly + custom)
+     FETCH RULES
   =============================== */
   fetchRules: async (serviceId) => {
     try {
       set({ loading: true });
       const res = await axios.get(
         `/api/admin/availability/${serviceId}/rules`,
-        {
-          withCredentials: true,
-        }
+        { withCredentials: true }
       );
       set({ rules: res.data.rules || [] });
     } catch (err) {
@@ -35,15 +33,17 @@ export const useAdminAvailabilityStore = create((set, get) => ({
       const res = await axios.post(
         `/api/admin/availability/${serviceId}/rules`,
         payload,
-        {
-          withCredentials: true,
-        }
+        { withCredentials: true }
       );
       set((state) => ({ rules: [...state.rules, res.data.rule] }));
       toast.success("Rule added");
     } catch (err) {
       console.error("❌ addRule", err);
-      toast.error("Failed to add rule");
+      if (err.response?.status === 400 && err.response.data?.errors) {
+        err.response.data.errors.forEach((e) => toast.error(e));
+      } else {
+        toast.error("Failed to add rule");
+      }
     }
   },
 
@@ -55,9 +55,7 @@ export const useAdminAvailabilityStore = create((set, get) => ({
       const res = await axios.put(
         `/api/admin/availability/rules/${id}`,
         payload,
-        {
-          withCredentials: true,
-        }
+        { withCredentials: true }
       );
       set((state) => ({
         rules: state.rules.map((r) => (r.id === id ? res.data.rule : r)),
@@ -65,7 +63,11 @@ export const useAdminAvailabilityStore = create((set, get) => ({
       toast.success("Rule updated");
     } catch (err) {
       console.error("❌ updateRule", err);
-      toast.error("Failed to update rule");
+      if (err.response?.status === 400 && err.response.data?.errors) {
+        err.response.data.errors.forEach((e) => toast.error(e));
+      } else {
+        toast.error("Failed to update rule");
+      }
     }
   },
 
@@ -97,11 +99,17 @@ export const useAdminAvailabilityStore = create((set, get) => ({
         { blocked },
         { withCredentials: true }
       );
-      await get().fetchRules(serviceId); // refresh
-      toast.success(`Weekday ${blocked ? "blocked" : "unblocked"}`);
+      await get().fetchRules(serviceId); // ✅ always refresh after toggle
+      toast.success(
+        `Weekday ${blocked ? "blocked (closed)" : "unblocked (open)"}`
+      );
     } catch (err) {
       console.error("❌ toggleBlockWeekday", err);
-      toast.error("Failed to toggle block");
+      if (err.response?.status === 400 && err.response.data?.errors) {
+        err.response.data.errors.forEach((e) => toast.error(e));
+      } else {
+        toast.error("Failed to toggle block");
+      }
     }
   },
 }));

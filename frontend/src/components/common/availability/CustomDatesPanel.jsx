@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Plus, Trash2, Edit3, Calendar, Clock, X } from "lucide-react";
 import { to12h, formatDate } from "@/utils/availabilityUtils";
 import { useAdminAvailabilityStore } from "../../../store/adminAvailabilityStore.js";
+import useChurchHours from "@/hooks/useChurchHours";
 
 export default function CustomDatesPanel({
     serviceId,
@@ -10,6 +11,7 @@ export default function CustomDatesPanel({
     onEditRule,
 }) {
     const { rules, deleteRule, fetchRules } = useAdminAvailabilityStore();
+    const { churchHours } = useChurchHours();
 
     // Group rules by date
     const groupedByDate = useMemo(() => {
@@ -72,6 +74,9 @@ export default function CustomDatesPanel({
                     );
                     const isBlocked = Boolean(blockedRule);
 
+                    const dow = new Date(date).getDay();
+                    const hours = churchHours?.[dow];
+
                     return (
                         <div
                             key={date}
@@ -123,7 +128,8 @@ export default function CustomDatesPanel({
                                             <div className="flex items-center gap-2">
                                                 {rule.type === "allday" && (
                                                     <span className="font-medium text-emerald-700">
-                                                        {to12h(rule.start)} – {to12h(rule.end)} • Available
+                                                        {to12h(rule.start || hours?.open_time)} –{" "}
+                                                        {to12h(rule.end || hours?.close_time)} • Available
                                                     </span>
                                                 )}
                                                 {rule.type === "single" && (
@@ -136,8 +142,7 @@ export default function CustomDatesPanel({
                                                         <span className="text-gray-700">
                                                             {rule.slots == null
                                                                 ? "Available"
-                                                                : `${rule.slots} slot${rule.slots === 1 ? "" : "s"
-                                                                }`}
+                                                                : `${rule.slots} slot${rule.slots === 1 ? "" : "s"}`}
                                                         </span>
                                                     </>
                                                 )}
