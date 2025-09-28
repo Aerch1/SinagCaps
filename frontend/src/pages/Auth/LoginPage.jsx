@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import { useAuthStore } from "../../store/authStore.js";
 import ErrorAlert from "../../components/common/ErrorAlert.jsx";
 import SuccessAlert from "../../components/common/SuccessAlert.jsx";
-import { validateLogin } from "../../../../shared/validation.js";
+import { validateLogin } from "../../shared/validation.js";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");

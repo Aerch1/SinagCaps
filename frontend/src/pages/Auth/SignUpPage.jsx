@@ -9,7 +9,7 @@ import PasswordStrengthMeter from "../../components/common/PasswordStrengthMeter
 import ErrorAlert from "../../components/common/ErrorAlert.jsx";
 import SuccessAlert from "../../components/common/SuccessAlert.jsx";
 import { useAuthStore } from "../../store/authStore.js";
-import { validateSignup } from "../../../../shared/validation.js";
+import { validateSignup } from "../../shared/validation.js";
 
 export default function SignUpPage() {
   const [name, setName] = useState("");

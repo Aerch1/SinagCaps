@@ -6,7 +6,7 @@ import { ArrowLeft, Loader, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import ErrorAlert from "../../components/common/ErrorAlert.jsx";
 import SuccessAlert from "../../components/common/SuccessAlert.jsx";
-import { validateForgotPassword } from "../../../../shared/validation.js";
+import { validateForgotPassword } from "../../shared/validation.js";
 
 const ForgotPasswordPage = () => {
     const [email, setEmail] = useState("");

@@ -6,7 +6,7 @@ import Input from "../../components/ui/Input.jsx";
 import { Lock, Loader, ArrowLeft } from "lucide-react";
 import ErrorAlert from "../../components/common/ErrorAlert.jsx";
 import SuccessAlert from "../../components/common/SuccessAlert.jsx";
-import { validateResetPassword } from "../../../../shared/validation.js";
+import { validateResetPassword } from "../../shared/validation.js";
 
 const ResetPasswordPage = () => {
   const [password, setPassword] = useState("");

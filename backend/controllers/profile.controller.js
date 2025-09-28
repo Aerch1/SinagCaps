@@ -5,7 +5,7 @@ import {
   AppError,
   sendResponse,
 } from "../utils/errorHandler.js";
-import { validateProfile } from "../../shared/validation.js";
+import { validateProfile } from "../shared/validation.js";
 
 export const updateProfile = handleAsyncError(async (req, res) => {
   const { name, phone, gender, dob, location } = req.body;

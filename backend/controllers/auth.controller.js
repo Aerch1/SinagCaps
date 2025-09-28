@@ -21,7 +21,7 @@ import {
   validateResetPassword,
   validateLogin,
   validateForgotPassword,
-} from "../../shared/validation.js";
+} from "../../backend/shared/validation.js";
 
 import {
   AppError,
