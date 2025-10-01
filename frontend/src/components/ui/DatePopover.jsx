@@ -1,59 +1,70 @@
+// src/components/common/modal/DatePopover.jsx
 "use client";
 
 import { useMemo, useState } from "react";
-import { format, parse, isValid, parseISO } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import useMonthAvailability from "@/hooks/useMonthAvailability.js";
-
-const YYYYMMDD = /^\d{4}-\d{2}-\d{2}$/;
-
-function stringToDate(iso) {
-    if (!iso || !YYYYMMDD.test(iso)) return undefined;
-    const d = parse(iso, "yyyy-MM-dd", new Date());
-    return isValid(d) ? d : undefined;
-}
-
-function dateToISO(d) {
-    return d ? format(d, "yyyy-MM-dd") : "";
-}
+import useChurchHours from "@/hooks/useChurchHours.js"; // ✅ NEW
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { parseDate, formatDate } from "@/utils/availabilityUtils.js";
 
 export default function DatePopover({
     label = "Appointment Date",
     value,
     onChange,
-    serviceId, // ✅ must be provided
+    serviceId,
     error,
     buttonClassName = "",
     disabled = false,
 }) {
-    const selected = stringToDate(value);
+    const selected = value ? parseDate(value) : undefined;
 
-    // control which month is being viewed
     const [viewMonth, setViewMonth] = useState(selected || new Date());
     const viewYear = viewMonth.getFullYear();
-    const viewMonthNum = viewMonth.getMonth() + 1; // 1..12
+    const viewMonthNum = viewMonth.getMonth() + 1;
 
-    // fetch month availability from backend
-    const { available, blocked, loading } = useMonthAvailability(
-        serviceId,
-        viewYear,
-        viewMonthNum
+    const { days, loading } = useMonthAvailability(serviceId, viewYear, viewMonthNum);
+    const { churchHours } = useChurchHours(); // ✅ fetch church hours
+
+    // ✅ Merge rules with church hours
+    const mergedDays = useMemo(() => {
+        const copy = { ...days };
+        Object.keys(copy).forEach((iso) => {
+            const d = parseDate(iso);
+            if (!d) return;
+            const weekday = d.getDay(); // 0=Sun
+            const ch = churchHours[weekday];
+
+            if (ch && ch.is_closed) {
+                copy[iso] = { status: "closed", remaining: 0, capacity: 0, booked: 0 };
+            }
+        });
+        return copy;
+    }, [days, churchHours]);
+
+    const availableDates = useMemo(
+        () => Object.entries(mergedDays).filter(([, info]) => info.status === "available").map(([date]) => parseDate(date)),
+        [mergedDays]
     );
-
-    // Precompute Date objects for modifiers
-    const availableDates = useMemo(() => available.map(parseISO), [available]);
-    const blockedDates = useMemo(() => blocked.map(parseISO), [blocked]);
+    const blockedDates = useMemo(
+        () => Object.entries(mergedDays).filter(([, info]) => info.status === "blocked").map(([date]) => parseDate(date)),
+        [mergedDays]
+    );
+    const closedDates = useMemo(
+        () => Object.entries(mergedDays).filter(([, info]) => info.status === "closed").map(([date]) => parseDate(date)),
+        [mergedDays]
+    );
+    const noScheduleDates = useMemo(
+        () => Object.entries(mergedDays).filter(([, info]) => info.status === "none").map(([date]) => parseDate(date)),
+        [mergedDays]
+    );
 
     return (
         <div className="w-full">
-            {label && (
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                    {label}
-                </label>
-            )}
+            {label && <label className="block text-sm font-medium text-gray-900 mb-2">{label}</label>}
 
             <Popover>
                 <PopoverTrigger asChild>
@@ -69,7 +80,7 @@ export default function DatePopover({
                         ].join(" ")}
                     >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selected ? format(selected, "yyyy-MM-dd") : <span>Pick a date</span>}
+                        {selected ? formatDate(selected) : <span>Pick a date</span>}
                     </Button>
                 </PopoverTrigger>
 
@@ -80,37 +91,77 @@ export default function DatePopover({
                     className="z-[1000] p-0 bg-white border border-gray-200 shadow-md rounded-md"
                 >
                     <div className="relative">
-                        {/* optional tiny loader bar */}
                         {loading && (
                             <div className="absolute inset-x-0 top-0 h-1 bg-blue-100">
                                 <div className="h-1 w-1/2 animate-pulse bg-blue-500" />
                             </div>
                         )}
 
-                        <Calendar
-                            mode="single"
-                            selected={selected}
-                            month={viewMonth}
-                            onMonthChange={setViewMonth} // re-fetch when month changes
-                            onSelect={(d) => onChange(dateToISO(d))}
-                            initialFocus
-                            modifiers={{
-                                available: availableDates,
-                                blocked: blockedDates,
-                                disabled: blockedDates, // prevent clicking blocked
-                            }}
-                            modifiersClassNames={{
-                                available:
-                                    "bg-green-100 text-green-900 hover:bg-green-200 hover:text-green-900 aria-selected:bg-green-200",
-                                blocked:
-                                    "bg-red-100 text-red-900 hover:bg-red-200 hover:text-red-900 aria-selected:bg-red-200 line-through",
-                                disabled: "opacity-60 cursor-not-allowed",
-                            }}
-                            classNames={{
-                                day_selected:
-                                    "bg-blue-600 text-white rounded-md hover:bg-blue-600",
-                            }}
-                        />
+                        <TooltipProvider>
+                            <Calendar
+                                mode="single"
+                                selected={selected}
+                                month={viewMonth}
+                                onMonthChange={setViewMonth}
+                                onSelect={(d) => {
+                                    if (!d) return;
+                                    const iso = formatDate(d);
+                                    const info = mergedDays[iso];
+                                    if (info?.status === "closed" || info?.status === "blocked") {
+                                        return;
+                                    }
+                                    onChange(formatDate(d));
+                                }}
+                                initialFocus
+                                modifiers={{
+                                    available: availableDates,
+                                    blocked: blockedDates,
+                                    closed: closedDates,
+                                    none: noScheduleDates,
+                                }}
+                                modifiersClassNames={{
+                                    available: "bg-green-100 text-green-900 hover:bg-green-200 aria-selected:bg-green-200",
+                                    blocked: "bg-red-100 text-red-900 hover:bg-red-200 aria-selected:bg-red-200",
+                                    closed: "bg-gray-200 text-gray-500 hover:bg-gray-300 aria-selected:bg-gray-300 cursor-not-allowed",
+                                    none: "",
+                                }}
+                                classNames={{
+                                    // ✅ keep default colors, only remove ugly yellow focus
+                                    day: "focus:outline-none focus:ring-0",
+                                    day_selected: "bg-blue-600 text-white rounded-md hover:bg-blue-600",
+                                }}
+                                components={{
+                                    DayContent: ({ date }) => {
+                                        const iso = formatDate(date);
+                                        const info = mergedDays[iso];
+                                        let tooltip = "No schedule — you can still book";
+
+                                        if (info?.status === "available") {
+                                            tooltip = `${info.remaining} of ${info.capacity} slots left`;
+                                        } else if (info?.status === "blocked") {
+                                            tooltip =
+                                                info.capacity > 0
+                                                    ? `Fully booked (${info.booked}/${info.capacity})`
+                                                    : "Blocked";
+                                        } else if (info?.status === "closed") {
+                                            tooltip = "Church Closed";
+                                        } else if (info?.status === "none") {
+                                            tooltip = "No schedule defined";
+                                        }
+
+                                        return (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span>{date.getDate()}</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>{tooltip}</TooltipContent>
+                                            </Tooltip>
+                                        );
+                                    },
+                                }}
+                            />
+
+                        </TooltipProvider>
                     </div>
                 </PopoverContent>
             </Popover>

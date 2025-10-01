@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
     Calendar as CalIcon,
@@ -24,6 +22,7 @@ import {
 } from "@/utils/availabilityUtils";
 import { useAdminAvailabilityStore } from "../../store/adminAvailabilityStore.js";
 import useChurchHours from "@/hooks/useChurchHours";
+import api from "@/api/api"; // ✅ centralized axios instance
 
 export default function ManageAvailability() {
     const [topTab, setTopTab] = useState("availability");
@@ -42,10 +41,9 @@ export default function ManageAvailability() {
     /* -------- Fetch services -------- */
     const fetchServices = useCallback(async () => {
         try {
-            const res = await fetch("/api/admin/services");
-            const data = await res.json();
-            if (data.success) {
-                const active = data.services.filter((s) => s.active);
+            const res = await api.get("/admin/services"); // ✅ uses centralized api.js
+            if (res.data.success) {
+                const active = res.data.services.filter((s) => s.active);
                 setServices(active);
                 if (active.length > 0 && !selectedService) {
                     setSelectedService(active[0]);
@@ -141,13 +139,10 @@ export default function ManageAvailability() {
             );
 
             // Priority rules:
-            // 1) Any blocked (weekly or custom) → blocked
             if (customBlocked || weeklyBlocked) {
                 status = "blocked";
                 items = [{ type: "allday", status: "blocked" }];
-            }
-            // 2) Any allday available (custom wins over weekly) → allday
-            else if (customAllDayAvail || weeklyAllDayAvail) {
+            } else if (customAllDayAvail || weeklyAllDayAvail) {
                 status = "available";
                 const chosen = customAllDayAvail || weeklyAllDayAvail;
                 items = [
@@ -158,9 +153,7 @@ export default function ManageAvailability() {
                         end: chosen.end || null,
                     },
                 ];
-            }
-            // 3) Otherwise, additive single/recurring from both sources
-            else {
+            } else {
                 const additive = [
                     ...weeklyNorm.filter((r) => r.type !== "allday"),
                     ...customNorm.filter((r) => r.type !== "allday"),
@@ -206,7 +199,6 @@ export default function ManageAvailability() {
         return { activeDays, blockedDays, customCount, totalSlots };
     }, [calendarData, rules]);
 
-    /* -------- Handlers -------- */
     const handlePrevMonth = () =>
         setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
     const handleNextMonth = () =>
@@ -270,8 +262,8 @@ export default function ManageAvailability() {
                             key={t.id}
                             onClick={() => setTopTab(t.id)}
                             className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 ${topTab === t.id
-                                    ? "border-blue-500 text-blue-600"
-                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                ? "border-blue-500 text-blue-600"
+                                : "border-transparent text-gray-500 hover:text-gray-700"
                                 }`}
                         >
                             <t.icon className="h-4 w-4" />
@@ -328,8 +320,8 @@ export default function ManageAvailability() {
                                         <button
                                             onClick={() => setActiveTab("weekly")}
                                             className={`flex-1 px-3 md:px-4 py-3 text-sm font-medium border-b-2 ${activeTab === "weekly"
-                                                    ? "border-blue-500 text-blue-600"
-                                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                                ? "border-blue-500 text-blue-600"
+                                                : "border-transparent text-gray-500 hover:text-gray-700"
                                                 }`}
                                         >
                                             Weekly Rules
@@ -337,8 +329,8 @@ export default function ManageAvailability() {
                                         <button
                                             onClick={() => setActiveTab("custom")}
                                             className={`flex-1 px-3 md:px-4 py-3 text-sm font-medium border-b-2 ${activeTab === "custom"
-                                                    ? "border-blue-500 text-blue-600"
-                                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                                ? "border-blue-500 text-blue-600"
+                                                : "border-transparent text-gray-500 hover:text-gray-700"
                                                 }`}
                                         >
                                             Custom Dates

@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { UNSAFE_NavigationContext } from "react-router-dom"; // 👈 low-level hook
-import { useContext } from "react";
-import axios from "axios";
+import api from "@/api/api"; // ✅ centralized axios instance
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 
@@ -43,7 +42,7 @@ export default function ChurchHoursSettings() {
     // 🔹 Fetch church hours
     const fetchHours = async () => {
         try {
-            const res = await axios.get("/api/admin/church-hours", { withCredentials: true });
+            const res = await api.get("/admin/church-hours");
             if (res.data.success) {
                 setHours(res.data.hours);
                 setOriginal(res.data.hours);
@@ -65,9 +64,7 @@ export default function ChurchHoursSettings() {
         setLoading(true);
         try {
             for (const row of hours) {
-                await axios.put(`/api/admin/church-hours/${row.day_of_week}`, row, {
-                    withCredentials: true,
-                });
+                await api.put(`/admin/church-hours/${row.day_of_week}`, row);
             }
             toast.success("Church hours updated successfully");
             fetchHours();
@@ -82,7 +79,7 @@ export default function ChurchHoursSettings() {
     // 🔹 Reset to default
     const handleReset = async () => {
         try {
-            await axios.post("/api/admin/church-hours/reset", {}, { withCredentials: true });
+            await api.post("/admin/church-hours/reset");
             toast.success("Reset to default hours");
             fetchHours();
         } catch (err) {
@@ -100,7 +97,9 @@ export default function ChurchHoursSettings() {
         return false;
     }, true);
 
-    useEffect(() => { fetchHours(); }, []);
+    useEffect(() => {
+        fetchHours();
+    }, []);
 
     return (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -183,7 +182,8 @@ export default function ChurchHoursSettings() {
                                         <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out peer-checked:translate-x-5" />
                                     </label>
                                     <span
-                                        className={`text-xs font-medium ${row.is_closed ? "text-red-600" : "text-gray-600"}`}
+                                        className={`text-xs font-medium ${row.is_closed ? "text-red-600" : "text-gray-600"
+                                            }`}
                                     >
                                         {row.is_closed ? "Closed" : "Open"}
                                     </span>

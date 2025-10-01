@@ -8,7 +8,6 @@ import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.route.js";
 import profileRoutes from "./routes/profile.routes.js";
 import adminRoutes from "./routes/admin.appointments.routes.js";
-import publicRoutes from "./routes/public.routes.js";
 import serviceRoutes from "./routes/admin.services.routes.js";
 import churchHoursRoutes from "./routes/churchHoursRoutes.js";
 import adminAvailabilityRoutes from "./routes/admin.availability.routes.js"; // ✅ unified rules
@@ -22,18 +21,26 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
+// CORS
+const allowedOrigins = [
+  process.env.CLIENT_URL, // prod frontend domain
+  "http://localhost:5174", // dev
+  "http://127.0.0.1:5174", // optional extra for dev
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // allow mobile apps, curl, etc.
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
+
 // trust proxy (for secure cookies behind reverse proxy)
 app.set("trust proxy", 1);
-
-// CORS (dev only)
-if (process.env.NODE_ENV !== "production") {
-  app.use(
-    cors({
-      origin: process.env.CLIENT_URL || "http://localhost:5174",
-      credentials: true,
-    })
-  );
-}
 
 app.use(express.json());
 app.use(cookieParser());
@@ -41,10 +48,9 @@ app.use(cookieParser());
 /* ===============================
    ROUTES
    =============================== */
-app.use("/api/auth", authRoutes);
-app.use("/api/profile", profileRoutes);
+app.use("/api/auth", authRoutes); //authentication
+app.use("/api/profile", profileRoutes); //user profile
 app.use("/api/admin", adminRoutes); // appointments
-app.use("/api/public", publicRoutes);
 app.use("/api/admin/services", serviceRoutes);
 app.use("/api/admin/church-hours", churchHoursRoutes);
 app.use("/api/admin/availability", adminAvailabilityRoutes); // ✅ unified rules
@@ -60,14 +66,6 @@ app.get("/api/health", (req, res) => {
     clientUrl: process.env.CLIENT_URL,
   });
 });
-
-// Production: serve frontend
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "/frontend/dist")));
-  app.get("*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
-  });
-}
 
 /* ===============================
    ERROR HANDLING

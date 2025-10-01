@@ -1,13 +1,12 @@
 import { addMinutes } from "date-fns";
 
-/**
- * Expand rules into available slots for a given service + date
- * @param {Array} rules - rules from DB for that service/date
- * @param {Array} appointments - existing appointments [{ time: "HH:mm" }]
- * @param {string} churchOpen - "HH:mm"
- * @param {string} churchClose - "HH:mm"
- * @returns {Array} slots [{ time, remaining, unavailable }]
- */
+// ✅ Normalize to HH:mm (e.g. "08:00:00" → "08:00")
+function normalizeToHHMM(str) {
+  if (!str) return null;
+  if (str.length === 8) return str.slice(0, 5); // trim seconds
+  return str; // already "HH:mm"
+}
+
 export function generateSlots({
   rules,
   appointments,
@@ -17,23 +16,24 @@ export function generateSlots({
   const slots = [];
   const apptCount = {};
 
-  // count appointments by time
+  // count appointments by time (pending + approved + in_progress only)
   appointments.forEach((a) => {
-    apptCount[a.time] = (apptCount[a.time] || 0) + 1;
+    const key = normalizeToHHMM(a.time);
+    apptCount[key] = (apptCount[key] || 0) + 1;
   });
 
   // helper: expand range into times
   const expandRange = (start, end, step) => {
     const result = [];
-    let [sh, sm] = start.split(":").map(Number);
-    let [eh, em] = end.split(":").map(Number);
+    let [sh, sm] = normalizeToHHMM(start).split(":").map(Number);
+    let [eh, em] = normalizeToHHMM(end).split(":").map(Number);
     let cur = new Date(2000, 0, 1, sh, sm);
     let endDate = new Date(2000, 0, 1, eh, em);
 
     while (cur <= endDate) {
       const hh = String(cur.getHours()).padStart(2, "0");
       const mm = String(cur.getMinutes()).padStart(2, "0");
-      result.push(`${hh}:${mm}`);
+      result.push(`${hh}:${mm}`); // always HH:mm
       cur = addMinutes(cur, step);
     }
     return result;
@@ -46,15 +46,17 @@ export function generateSlots({
 
     if (rule.type === "allday") {
       const times = expandRange(
-        rule.start || churchOpen,
-        rule.end || churchClose,
+        normalizeToHHMM(rule.start) || churchOpen,
+        normalizeToHHMM(rule.end) || churchClose,
         30
       );
       for (const t of times) {
         const cap = rule.slots ?? 1;
         const booked = apptCount[t] || 0;
         slots.push({
-          time: t,
+          time: normalizeToHHMM(t),
+          capacity: cap,
+          booked,
           remaining: Math.max(0, cap - booked),
           unavailable: booked >= cap,
         });
@@ -63,22 +65,31 @@ export function generateSlots({
     }
 
     if (rule.type === "single") {
+      const t = normalizeToHHMM(rule.time);
       const cap = rule.slots ?? 1;
-      const booked = apptCount[rule.time] || 0;
+      const booked = apptCount[t] || 0;
       slots.push({
-        time: rule.time,
+        time: t,
+        capacity: cap,
+        booked,
         remaining: Math.max(0, cap - booked),
         unavailable: booked >= cap,
       });
     }
 
     if (rule.type === "recurring") {
-      const times = expandRange(rule.start, rule.end, rule.interval_mins);
+      const times = expandRange(
+        normalizeToHHMM(rule.start),
+        normalizeToHHMM(rule.end),
+        rule.interval_mins
+      );
       for (const t of times) {
         const cap = rule.slots ?? 1;
         const booked = apptCount[t] || 0;
         slots.push({
-          time: t,
+          time: normalizeToHHMM(t),
+          capacity: cap,
+          booked,
           remaining: Math.max(0, cap - booked),
           unavailable: booked >= cap,
         });

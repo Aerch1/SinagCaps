@@ -1,5 +1,6 @@
+// frontend/src/store/adminAvailabilityStore.js
 import { create } from "zustand";
-import axios from "axios";
+import api from "@/api/api"; // ✅ centralized axios instance
 import toast from "react-hot-toast";
 
 export const useAdminAvailabilityStore = create((set, get) => ({
@@ -12,10 +13,7 @@ export const useAdminAvailabilityStore = create((set, get) => ({
   fetchRules: async (serviceId) => {
     try {
       set({ loading: true });
-      const res = await axios.get(
-        `/api/admin/availability/${serviceId}/rules`,
-        { withCredentials: true }
-      );
+      const res = await api.get(`/admin/availability/${serviceId}/rules`);
       set({ rules: res.data.rules || [] });
     } catch (err) {
       console.error("❌ fetchRules", err);
@@ -30,10 +28,9 @@ export const useAdminAvailabilityStore = create((set, get) => ({
   =============================== */
   addRule: async (serviceId, payload) => {
     try {
-      const res = await axios.post(
-        `/api/admin/availability/${serviceId}/rules`,
-        payload,
-        { withCredentials: true }
+      const res = await api.post(
+        `/admin/availability/${serviceId}/rules`,
+        payload
       );
       set((state) => ({ rules: [...state.rules, res.data.rule] }));
       toast.success("Rule added");
@@ -53,15 +50,13 @@ export const useAdminAvailabilityStore = create((set, get) => ({
   =============================== */
   updateRule: async (id, payload) => {
     try {
-      // 🔹 Grab service_id from local state
       const rule = get().rules.find((r) => r.id === id);
       const service_id = rule?.service_id;
 
-      const res = await axios.put(
-        `/api/admin/availability/rules/${id}`,
-        { ...payload, service_id }, // ✅ ensure backend always receives service_id
-        { withCredentials: true }
-      );
+      const res = await api.put(`/admin/availability/rules/${id}`, {
+        ...payload,
+        service_id, // ✅ ensure backend always receives service_id
+      });
 
       set((state) => ({
         rules: state.rules.map((r) => (r.id === id ? res.data.rule : r)),
@@ -83,9 +78,7 @@ export const useAdminAvailabilityStore = create((set, get) => ({
   =============================== */
   deleteRule: async (id) => {
     try {
-      await axios.delete(`/api/admin/availability/rules/${id}`, {
-        withCredentials: true,
-      });
+      await api.delete(`/admin/availability/rules/${id}`);
       set((state) => ({
         rules: state.rules.filter((r) => r.id !== id),
       }));
@@ -101,12 +94,10 @@ export const useAdminAvailabilityStore = create((set, get) => ({
   =============================== */
   toggleBlockWeekday: async (serviceId, weekday, blocked) => {
     try {
-      await axios.patch(
-        `/api/admin/availability/${serviceId}/block/${weekday}`,
-        { blocked },
-        { withCredentials: true }
-      );
-      await get().fetchRules(serviceId); // ✅ always refresh after toggle
+      await api.patch(`/admin/availability/${serviceId}/block/${weekday}`, {
+        blocked,
+      });
+      await get().fetchRules(serviceId);
       toast.success(
         `Weekday ${blocked ? "blocked (closed)" : "unblocked (open)"}`
       );

@@ -1,6 +1,6 @@
 // frontend/src/store/auth.js
 import { create } from "zustand";
-import axios from "axios";
+import api from "@/api/api"; // ✅ use your axios instance
 import {
   validateSignup,
   validateForgotPassword,
@@ -10,10 +10,7 @@ import {
   validateChangeEmail,
 } from "../shared/validation.js";
 
-const API_URL = import.meta.env.VITE_API_URL || "/api";
-const AUTH_API_URL = `${API_URL}/auth`;
-
-axios.defaults.withCredentials = true;
+const AUTH_API_URL = "/auth"; // ✅ relative to baseURL (/api)
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -29,14 +26,8 @@ export const useAuthStore = create((set, get) => ({
   clearMessage: () => set({ message: null }),
   clearAll: () => set({ error: null, message: null }),
 
-setError: (error) => {
-  set({ error, isLoading: false });
-},
-
-setMessage: (message) => {
-  set({ message, isLoading: false });
-},
-
+  setError: (error) => set({ error, isLoading: false }),
+  setMessage: (message) => set({ message, isLoading: false }),
 
   setUser: (user) => {
     set({ user, isAuthenticated: !!user, isCheckingAuth: false });
@@ -47,17 +38,9 @@ setMessage: (message) => {
     if (get().hasCheckedAuth) return get().user;
     set({ isCheckingAuth: true, error: null });
     try {
-      // Try to refresh first (handles expired access token on page reload)
-      await axios.post(
-        `${AUTH_API_URL}/refresh-token`,
-        {},
-        { withCredentials: true }
-      );
+      await api.post(`${AUTH_API_URL}/refresh-token`, {});
 
-      // Then fetch the user
-      const { data } = await axios.get(`${AUTH_API_URL}/check-auth`, {
-        withCredentials: true,
-      });
+      const { data } = await api.get(`${AUTH_API_URL}/check-auth`);
       set({
         user: data.user,
         isAuthenticated: true,
@@ -82,7 +65,7 @@ setMessage: (message) => {
     const v = validateSignup({ email, password, name });
     if (!v.ok) return get().setError(v.message);
     try {
-      const { data } = await axios.post(`${AUTH_API_URL}/signup`, {
+      const { data } = await api.post(`${AUTH_API_URL}/signup`, {
         email: email.trim().toLowerCase(),
         password,
         name: name.trim(),
@@ -107,7 +90,7 @@ setMessage: (message) => {
     if (!v.ok) return get().setError(v.message);
 
     try {
-      const { data } = await axios.post(`${AUTH_API_URL}/login`, {
+      const { data } = await api.post(`${AUTH_API_URL}/login`, {
         email: email.trim().toLowerCase(),
         password,
       });
@@ -140,7 +123,7 @@ setMessage: (message) => {
   logout: async () => {
     set({ isLoading: true, error: null });
     try {
-      await axios.post(`${AUTH_API_URL}/logout`);
+      await api.post(`${AUTH_API_URL}/logout`);
     } catch (error) {
       if (error.response?.status !== 401) console.error("Logout error:", error);
     } finally {
@@ -162,7 +145,7 @@ setMessage: (message) => {
     if (!v.ok) return get().setError(v.message);
 
     try {
-      const { data } = await axios.post(`${AUTH_API_URL}/verify-email`, {
+      const { data } = await api.post(`${AUTH_API_URL}/verify-email`, {
         code: code.trim(),
       });
       set({
@@ -189,7 +172,7 @@ setMessage: (message) => {
     if (!v.ok) return get().setError(v.message);
 
     try {
-      await axios.post(`${AUTH_API_URL}/forgot-password`, {
+      await api.post(`${AUTH_API_URL}/forgot-password`, {
         email: email.trim().toLowerCase(),
       });
       get().setMessage("Password reset link sent to your email");
@@ -210,7 +193,7 @@ setMessage: (message) => {
     const v = validateResetPassword({ token, password });
     if (!v.ok) return get().setError(v.message);
     try {
-      await axios.post(`${AUTH_API_URL}/reset-password/${token}`, { password });
+      await api.post(`${AUTH_API_URL}/reset-password/${token}`, { password });
       get().setMessage("Password reset successfully! You can now log in.");
       return true;
     } catch (error) {
@@ -228,7 +211,7 @@ setMessage: (message) => {
   reauthPassword: async (password) => {
     if (!password) return { ok: false, message: "Please enter your password" };
     try {
-      await axios.post(`${AUTH_API_URL}/reauth`, { password });
+      await api.post(`${AUTH_API_URL}/reauth`, { password });
       return { ok: true };
     } catch (err) {
       const s = err?.response?.status;
@@ -253,7 +236,7 @@ setMessage: (message) => {
       };
 
     try {
-      const { data } = await axios.post(`${AUTH_API_URL}/change-password`, {
+      const { data } = await api.post(`${AUTH_API_URL}/change-password`, {
         current,
         next,
         logoutOthers,
@@ -282,7 +265,7 @@ setMessage: (message) => {
         message: "Please enter your password.",
       };
     try {
-      await axios.post(`${AUTH_API_URL}/delete-account`, { password });
+      await api.post(`${AUTH_API_URL}/delete-account`, { password });
       set({ user: null, isAuthenticated: false });
       return { ok: true };
     } catch (err) {
@@ -299,7 +282,7 @@ setMessage: (message) => {
     const v = validateChangeEmail({ email });
     if (!v.ok) return { ok: false, message: v.message };
     try {
-      await axios.post(`${AUTH_API_URL}/change-email/request`, {
+      await api.post(`${AUTH_API_URL}/change-email/request`, {
         email: email.trim().toLowerCase(),
       });
       return { ok: true };
@@ -318,13 +301,10 @@ setMessage: (message) => {
     if (!vc.ok) return { ok: false, field: "code", message: vc.message };
 
     try {
-      const { data } = await axios.post(
-        `${AUTH_API_URL}/change-email/confirm`,
-        {
-          email: email.trim().toLowerCase(),
-          code: code.trim(),
-        }
-      );
+      const { data } = await api.post(`${AUTH_API_URL}/change-email/confirm`, {
+        email: email.trim().toLowerCase(),
+        code: code.trim(),
+      });
 
       const next =
         data?.user ??
@@ -353,15 +333,14 @@ setMessage: (message) => {
   },
 }));
 
-// ---- Interceptor: refresh on 401 (even if isAuthenticated=false) ----
-axios.interceptors.response.use(
+// ---- Interceptor: refresh on 401 ----
+api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const { response, config: originalRequest } = error || {};
     const status = response?.status;
     const url = originalRequest?.url || "";
 
-    // endpoints that must not trigger refresh
     const noRefresh = [
       "/auth/login",
       "/auth/signup",
@@ -382,24 +361,16 @@ axios.interceptors.response.use(
     originalRequest._retry = true;
 
     try {
-      await axios.post(
-        `${AUTH_API_URL}/refresh-token`,
-        {},
-        { withCredentials: true }
-      );
+      await api.post(`${AUTH_API_URL}/refresh-token`, {});
 
-      // (optional) rehydrate user after refresh
       try {
-        const { data } = await axios.get(`${AUTH_API_URL}/check-auth`, {
-          withCredentials: true,
-        });
+        const { data } = await api.get(`${AUTH_API_URL}/check-auth`);
         useAuthStore.getState().setUser(data.user);
         useAuthStore.setState({ hasCheckedAuth: true, isCheckingAuth: false });
       } catch {}
 
-      return axios(originalRequest); // retry once
+      return api(originalRequest); // retry once
     } catch {
-      // session is gone
       useAuthStore.setState({
         user: null,
         isAuthenticated: false,

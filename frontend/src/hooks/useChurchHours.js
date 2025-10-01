@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "@/api/api"; // ✅ centralized axios instance
 
 /**
  * Fetches church hours once and maps them by day_of_week
@@ -18,9 +18,7 @@ export default function useChurchHours() {
     const fetchHours = async () => {
       try {
         setLoading(true);
-        const res = await axios.get("/api/admin/church-hours", {
-          withCredentials: true,
-        });
+        const res = await api.get("/admin/church-hours"); // ✅ no /api prefix
         if (res.data.success && active) {
           const map = {};
           res.data.hours.forEach((h) => {

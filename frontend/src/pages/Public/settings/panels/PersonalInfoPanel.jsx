@@ -1,15 +1,13 @@
 // src/pages/settings/panels/PersonalInfoPanel.jsx
 "use client";
-import { useMemo, useState, useEffect } from "react";
-import axios from "axios";
+
+import { useState, useEffect } from "react";
 import { format, parseISO, isValid as isValidDateFn } from "date-fns";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useAuthStore } from "../../../../store/authStore.js";
 import { User as UserIcon, ChevronRight, Info } from "lucide-react";
-
-const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/+$/, "");
-const PROFILE_URL = `${API_BASE}/profile`;
+import api from "@/api/api"; // ✅ centralized axios
 
 function Row({ label, children, hint, error }) {
     return (
@@ -36,7 +34,7 @@ export default function PersonalInfoPanel() {
     const [location, setLocation] = useState(user?.location || "");
     const [dob, setDob] = useState(() => (user?.dob ? parseISO(String(user.dob)) : null));
 
-    // keep form in sync when `user` changes (after login/check-auth/refresh)
+    // keep form in sync when `user` changes
     useEffect(() => {
         setName(user?.name || "");
         setPhone(user?.phone || "");
@@ -88,14 +86,14 @@ export default function PersonalInfoPanel() {
             name: name.trim(),
             phone: phone.trim(),
             gender,
-            dob: dob ? format(dob, "yyyy-MM-dd") : "", // ← picker -> DB-safe string
+            dob: dob ? format(dob, "yyyy-MM-dd") : "",
             location: location.trim(),
         };
 
         setSaving(true);
         setSaveErr(""); setSaveMsg("");
         try {
-            const { data } = await axios.post(PROFILE_URL, payload, { withCredentials: true });
+            const { data } = await api.post("/profile", payload); // ✅ now using api.js
             const nextUser = data?.user ? data.user : { ...user, ...payload };
             setUser?.(nextUser);
             setSaveMsg(data?.message || "Changes saved.");
@@ -111,7 +109,6 @@ export default function PersonalInfoPanel() {
         <section className="bg-white">
             <div className="max-w-4xl mx-auto py-2">
                 <div className="overflow-hidden border-gray-200">
-
                     {/* Profile picture row (upload later) */}
                     <div className="px-6 mt-6">
                         <div className="flex items-center justify-between">
@@ -168,7 +165,7 @@ export default function PersonalInfoPanel() {
                         </select>
                     </Row>
 
-                    {/* DOB (DatePicker) */}
+                    {/* DOB */}
                     <Row label="Date of birth *" error={dobErr}>
                         <DatePicker
                             selected={dob}
@@ -181,7 +178,6 @@ export default function PersonalInfoPanel() {
                             placeholderText="Select date"
                             className={`${baseInput} ${dobErr ? errInput : okInput}`}
                             wrapperClassName="w-full"
-
                         />
                     </Row>
 
@@ -214,7 +210,6 @@ export default function PersonalInfoPanel() {
                             {saving ? "Saving…" : "SAVE"}
                         </button>
                     </div>
-
                 </div>
             </div>
         </section>

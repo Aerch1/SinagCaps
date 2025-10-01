@@ -1,17 +1,8 @@
-"use client";
-
 import { useState, useEffect } from "react";
-import {
-    Plus,
-    Edit3,
-    Trash2,
-    Search,
-    Check,
-    X,
-    AlertCircle,
-} from "lucide-react";
+import { Plus, Edit3, Trash2, Search, Check, X, AlertCircle } from "lucide-react";
 import Dropdown from "@/components/ui/Dropdown1";
 import Modal from "@/components/ui/Modal";
+import api from "@/api/api"; // ✅ centralized axios instance
 
 const capitalizeWords = (str = "") =>
     str
@@ -50,11 +41,10 @@ export default function ServiceManagement({ onServicesUpdated }) {
 
     const fetchServices = async () => {
         try {
-            const res = await fetch("/api/admin/services");
-            const data = await res.json();
+            const { data } = await api.get("/admin/services");
             if (data.success) {
                 setServices(data.services || []);
-                onServicesUpdated?.(); // ✅ notify parent
+                onServicesUpdated?.();
             }
         } catch (err) {
             console.error("❌ fetchServices error:", err);
@@ -80,19 +70,15 @@ export default function ServiceManagement({ onServicesUpdated }) {
             }));
 
         try {
-            const res = await fetch("/api/admin/services", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: capitalizeWords(newServiceName.trim()),
-                    active: newServiceStatus === "active",
-                    requirements: cleanedReqs,
-                }),
+            const { data } = await api.post("/admin/services", {
+                name: capitalizeWords(newServiceName.trim()),
+                active: newServiceStatus === "active",
+                requirements: cleanedReqs,
             });
-            const data = await res.json();
+
             if (data.success) {
                 fetchServices();
-                onServicesUpdated?.(); // ✅ notify parent after create
+                onServicesUpdated?.();
                 setShowModal(false);
                 setNewServiceName("");
                 setNewServiceStatus("active");
@@ -120,19 +106,15 @@ export default function ServiceManagement({ onServicesUpdated }) {
             }));
 
         try {
-            const res = await fetch(`/api/admin/services/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: capitalizeWords(editValues.name.trim()),
-                    active: editValues.status === "active",
-                    requirements: cleanedReqs,
-                }),
+            const { data } = await api.patch(`/admin/services/${id}`, {
+                name: capitalizeWords(editValues.name.trim()),
+                active: editValues.status === "active",
+                requirements: cleanedReqs,
             });
-            const data = await res.json();
+
             if (data.success) {
                 fetchServices();
-                onServicesUpdated?.(); // ✅ notify parent after update
+                onServicesUpdated?.();
                 cancelEdit();
             } else {
                 showError(data.message || "Failed to update service");
@@ -151,13 +133,10 @@ export default function ServiceManagement({ onServicesUpdated }) {
 
     const deleteService = async () => {
         try {
-            const res = await fetch(`/api/admin/services/${selectedService.id}`, {
-                method: "DELETE",
-            });
-            const data = await res.json();
+            const { data } = await api.delete(`/admin/services/${selectedService.id}`);
             if (data.success) {
                 fetchServices();
-                onServicesUpdated?.(); // ✅ notify parent after delete
+                onServicesUpdated?.();
                 setShowDeleteModal(false);
                 setSelectedService(null);
             } else {
@@ -403,8 +382,8 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                         ) : (
                                             <span
                                                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${svc.active
-                                                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                                        : "bg-gray-100 text-gray-600 border border-gray-200"
+                                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                    : "bg-gray-100 text-gray-600 border border-gray-200"
                                                     }`}
                                             >
                                                 <div

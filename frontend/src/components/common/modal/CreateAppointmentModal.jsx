@@ -1,83 +1,108 @@
-"use client";
-
 import { format } from "date-fns";
+import { useState } from "react";
+import toast from "react-hot-toast";
+import api from "@/api/api";
+
 import Modal from "../../ui/Modal";
 import CreateAppointmentForm from "../../../forms/CreateAppointmentForm";
-import axios from "axios";
-import toast from "react-hot-toast";
-import { useState } from "react";
+import ConfirmDialog from "../../ui/ConfirmDialog";
 
 export default function CreateAppointmentModal({
     isOpen,
     onClose,
     onSave,
     selectedDate,
-    fetchAvailableTimes,
 }) {
     const defaultDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
     const [serverErrors, setServerErrors] = useState({});
+    const [confirmData, setConfirmData] = useState(null);
+    const [confirmMessage, setConfirmMessage] = useState("");
 
+    /* ---------------- Handle Submit ---------------- */
     const handleFormSubmit = async (formData) => {
         try {
-            const payload = {
-                name: formData.name,
-                email: formData.email,
-                contactNumber: formData.contactNumber,
-                service_id: formData.service_id,
-                date: formData.date,
-                time: formData.time,
-                status: formData.status,
-                notes: formData.notes,
-            };
+            await api.post("/admin/appointments", formData);
 
-            await axios.post("/api/admin/appointments", payload, {
-                withCredentials: true,
-            });
-
-            toast.success("Appointment created");
+            toast.success("Appointment created successfully");
             setServerErrors({});
             onSave?.();
             onClose();
         } catch (err) {
-            console.error("❌ create appointment failed:", err);
+            const { status, data } = err.response || {};
 
-            if (err.response?.data?.errors) {
-                // Map backend validation errors to form fields
+            // 🔹 Confirm Needed (outside hours, blocked, etc.)
+            if (status === 409 && data?.confirmNeeded) {
+                setConfirmData(formData);
+                setConfirmMessage(data.message || "Do you want to continue?");
+                return;
+            }
+
+            // 🔹 Validation errors (400)
+            if (status === 400 && data?.errors) {
                 const mapped = {};
-                err.response.data.errors.forEach((msg) => {
-                    if (msg.toLowerCase().includes("name")) mapped.clientName = msg;
+                data.errors.forEach((msg) => {
+                    if (msg.toLowerCase().includes("name")) mapped.name = msg;
                     else if (msg.toLowerCase().includes("email")) mapped.email = msg;
-                    else if (msg.toLowerCase().includes("contact")) mapped.phone = msg;
+                    else if (msg.toLowerCase().includes("contact")) mapped.contactNumber = msg;
                     else if (msg.toLowerCase().includes("service")) mapped.service_id = msg;
                     else if (msg.toLowerCase().includes("date")) mapped.date = msg;
                     else if (msg.toLowerCase().includes("time")) mapped.time = msg;
                     else mapped.notes = msg;
                 });
                 setServerErrors(mapped);
-            } else {
-                toast.error(err.response?.data?.message || "Failed to create appointment");
+                return;
             }
+
+            // 🔹 Fallback
+            toast.error(data?.message || "❌ Failed to create appointment");
         }
     };
 
+    /* ---------------- Handle Confirm ---------------- */
+    const handleConfirm = async () => {
+        if (!confirmData) return;
+
+        try {
+            await api.post("/admin/appointments", { ...confirmData, override: true });
+
+            toast.success("✅ Appointment created (override)");
+            setConfirmData(null);
+            onSave?.();
+            onClose();
+        } catch (err) {
+            toast.error(err.response?.data?.message || "❌ Failed to override appointment");
+        }
+    };
+
+    const handleCancelConfirm = () => {
+        setConfirmData(null);
+        setConfirmMessage("");
+    };
+
     return (
-        <Modal
-            open={isOpen}
-            onClose={onClose}
-            title="Create Appointment"
-            className="max-w-2xl"
-        >
-            <div className="max-h-[85vh] overflow-y-auto custom-scrollbar">
-                <div className="max-w-full px-2">
-                    <CreateAppointmentForm
-                        defaultDate={defaultDate}
-                        onSubmit={handleFormSubmit}
-                        onCancel={onClose}
-                        fetchAvailableTimes={fetchAvailableTimes}
-                        serverErrors={serverErrors} // ✅ inject backend errors into form
-                    />
+        <>
+            {/* Main Modal */}
+            <Modal open={isOpen} onClose={onClose} title="Create Appointment" className="max-w-2xl">
+                <div className="max-h-[85vh] overflow-y-auto custom-scrollbar">
+                    <div className="max-w-full px-2">
+                        <CreateAppointmentForm
+                            defaultDate={defaultDate}
+                            onSubmit={handleFormSubmit}
+                            onCancel={onClose}
+                            serverErrors={serverErrors}
+                        />
+                    </div>
                 </div>
-            </div>
-        </Modal>
+            </Modal>
+
+            {/* Confirmation Modal */}
+            <ConfirmDialog
+                open={!!confirmData}
+                title="Confirmation Required"
+                message={confirmMessage}
+                onConfirm={handleConfirm}
+                onCancel={handleCancelConfirm}
+            />
+        </>
     );
 }

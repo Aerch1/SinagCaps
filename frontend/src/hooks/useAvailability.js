@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "@/api/api"; // ✅ centralized axios instance
 
 export default function useAvailability(serviceId, date) {
   const [slots, setSlots] = useState([]);
@@ -9,8 +9,8 @@ export default function useAvailability(serviceId, date) {
     if (!serviceId || !date) return;
     setLoading(true);
 
-    axios
-      .get(`/api/availability/${serviceId}/${date}`)
+    api
+      .get(`/availability/${serviceId}/${date}`) // ✅ no "/api" prefix needed
       .then((res) => {
         if (res.data.success) setSlots(res.data.slots);
       })

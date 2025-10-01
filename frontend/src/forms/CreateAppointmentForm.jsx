@@ -1,10 +1,9 @@
-"use client";
 
 import { useEffect, useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
+import api from "@/api/api";                // ✅ use centralized axios instance
 import Dropdown from "../components/ui/Dropdown1.jsx";
 import DatePopover from "../components/ui/DatePopover.jsx";
 import SlotSelector from "../components/ui/SlotSelector.jsx";
@@ -25,7 +24,7 @@ const AppointmentSchema = z.object({
   clientName: z.string().min(1, "Client name is required"),
   service_id: z.string().min(1, "Select a service"),
   date: z.string().min(1, "Date is required"),
-  time: z.string().optional(), // backend validates format
+  time: z.string().optional(),
   status: z.enum(STATUS_OPTIONS.map((o) => o.value)).default("pending"),
   email: z.string().optional(),
   phone: z.string().optional(),
@@ -44,7 +43,7 @@ export default function CreateAppointmentForm({
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
-    setValue, // ✅ fixed (we use this below)
+    setValue,
   } = useForm({
     resolver: zodResolver(AppointmentSchema),
     mode: "onTouched",
@@ -69,19 +68,23 @@ export default function CreateAppointmentForm({
   const [services, setServices] = useState([]);
   const { churchHours } = useChurchHours();
 
-  /* Fetch services for dropdown */
+  /* -------- Fetch services -------- */
   useEffect(() => {
-    axios
-      .get("/api/admin/services")
+    let active = true;
+    api
+      .get("/admin/services")
       .then((res) => {
-        if (res.data.success) {
+        if (active && res.data.success) {
           setServices(res.data.services || []);
         }
       })
       .catch((err) => console.error("❌ fetch services failed:", err));
+    return () => {
+      active = false;
+    };
   }, []);
 
-  /* Apply backend errors into form fields */
+  /* -------- Apply backend errors into form -------- */
   useEffect(() => {
     if (serverErrors && Object.keys(serverErrors).length > 0) {
       Object.entries(serverErrors).forEach(([field, message]) => {
@@ -90,21 +93,16 @@ export default function CreateAppointmentForm({
     }
   }, [serverErrors, setError]);
 
-  /* Reset time when date changes */
+  /* -------- Reset time when date/allDay changes -------- */
   useEffect(() => {
-    if (dateISO) {
-      setValue("time", ""); // ✅ clear time if date changes
-    }
+    if (dateISO) setValue("time", "");
   }, [dateISO, setValue]);
 
-  /* Reset time when allDay is toggled */
   useEffect(() => {
-    if (allDay) {
-      setValue("time", ""); // ✅ clear time if allDay is true
-    }
+    if (allDay) setValue("time", "");
   }, [allDay, setValue]);
 
-  /* Map data for backend */
+  /* -------- Map data for backend -------- */
   const handleFormSubmit = (data) => {
     onSubmit?.({
       name: data.clientName.trim(),

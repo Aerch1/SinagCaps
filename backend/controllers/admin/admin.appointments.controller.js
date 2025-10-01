@@ -81,7 +81,6 @@ export const filterAppointments = async (req, res) => {
     const where = [];
     const values = [];
 
-    // 🔹 Search query
     if (query) {
       const q = `%${String(query).toLowerCase()}%`;
       const isNumeric = /^\d+$/.test(String(query));
@@ -94,19 +93,16 @@ export const filterAppointments = async (req, res) => {
       if (isNumeric) values.push(Number(query));
     }
 
-    // 🔹 Status filter
     if (status.length) {
       where.push(`a.status IN (${status.map(() => "?").join(",")})`);
       values.push(...status);
     }
 
-    // 🔹 Service filter
     if (serviceIds.length) {
       where.push(`a.service_id IN (${serviceIds.map(() => "?").join(",")})`);
       values.push(...serviceIds);
     }
 
-    // 🔹 Date filter
     if (startDate && endDate) {
       where.push(`DATE(a.date) BETWEEN ? AND ?`);
       values.push(startDate, endDate);
@@ -117,7 +113,6 @@ export const filterAppointments = async (req, res) => {
 
     const whereSQL = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-    // 🔹 Sorting
     let orderSQL = "";
     if (sortBy && sortDir) {
       const SORTABLE = new Set(["id", "name", "date", "status"]);
@@ -128,7 +123,6 @@ export const filterAppointments = async (req, res) => {
       orderSQL = `ORDER BY a.date DESC, a.time DESC`;
     }
 
-    // 🔹 Queries
     const sqlCount = `SELECT COUNT(*) as total 
                       FROM appointments a 
                       ${whereSQL}`;
@@ -184,12 +178,12 @@ export const createAppointmentAdmin = async (req, res) => {
       time,
       status = "pending",
       notes = "",
+      override = false,
     } = req.body;
 
-    // ✅ Normalize time
     const normalizedTime = time ? normalizeTime(time) : null;
 
-    // ✅ Strict validation
+    // ✅ Base validation
     const errors = validateAppointmentInput({
       name,
       email,
@@ -199,13 +193,94 @@ export const createAppointmentAdmin = async (req, res) => {
       time: normalizedTime,
       status,
     });
-
+    if (time && !/^\d{2}:\d{2}$/.test(time)) {
+      errors.push("Invalid time format (HH:mm expected)");
+    }
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, errors });
+      return res
+        .status(400)
+        .json({ success: false, code: "VALIDATION_ERROR", errors });
     }
 
     await conn.beginTransaction();
 
+    /* ---------------- 1. Prevent duplicate booking ---------------- */
+    const [dupes] = await conn.query(
+      `SELECT id FROM appointments
+       WHERE service_id = ?
+         AND date = ?
+         AND time = ?
+         AND (email = ? OR contactNumber = ?)
+         AND status IN ('pending','approved','in_progress')`,
+      [service_id, date, normalizedTime, email, contactNumber]
+    );
+    if (dupes.length > 0) {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        code: "DOUBLE_BOOKING",
+        message: "You already have an appointment at this time.",
+      });
+    }
+
+    /* ---------------- 2. Check slot capacity ---------------- */
+    const [apptCount] = await conn.query(
+      `SELECT COUNT(*) as booked
+       FROM appointments
+       WHERE service_id = ?
+         AND date = ?
+         AND time = ?
+         AND status IN ('pending','approved','in_progress')`,
+      [service_id, date, normalizedTime]
+    );
+    const alreadyBooked = apptCount[0].booked;
+
+    /* ---------------- 3. Get matching rules ---------------- */
+    const [rules] = await conn.query(
+      `SELECT slots, type, status
+       FROM rules
+       WHERE service_id = ?
+         AND (date = ? OR (date IS NULL AND weekday = WEEKDAY(?)))
+       ORDER BY FIELD(type,'blocked','allday','single','recurring')
+       LIMIT 1`,
+      [service_id, date, date]
+    );
+
+    let capacity = 1;
+    let blockedByRule = false;
+
+    if (rules.length) {
+      const rule = rules[0];
+      if (rule.type === "blocked" || rule.status === "blocked") {
+        blockedByRule = true;
+        capacity = 0;
+      } else if (rule.slots != null) {
+        capacity = rule.slots;
+      }
+    }
+
+    /* ---------------- 4. Fully booked check ---------------- */
+    if (alreadyBooked >= capacity && capacity > 0) {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        code: "FULLY_BOOKED",
+        message: "This time is already fully booked.",
+      });
+    }
+
+    /* ---------------- 5. Outside church hours ---------------- */
+    if (!override && (capacity === 0 || blockedByRule)) {
+      await conn.rollback();
+      return res.status(409).json({
+        success: false,
+        code: "OUTSIDE_HOURS",
+        message: "This time is outside church hours. Do you want to continue?",
+        confirmNeeded: true,
+      });
+    }
+
+    /* ---------------- 6. Insert ---------------- */
     const [result] = await conn.query(
       `INSERT INTO appointments 
          (user_id, name, email, contactNumber, service_id, date, time, status, notes)
@@ -227,7 +302,9 @@ export const createAppointmentAdmin = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Appointment created successfully",
+      message: override
+        ? "Appointment created with override"
+        : "Appointment created successfully",
       appointmentId: result.insertId,
     });
   } catch (err) {
@@ -243,6 +320,7 @@ export const createAppointmentAdmin = async (req, res) => {
 
 /* ---------------- PATCH /api/admin/appointments/:id ---------------- */
 export const updateAppointmentAdmin = async (req, res) => {
+  const conn = await pool.getConnection();
   try {
     const { id } = req.params;
     const {
@@ -254,21 +332,141 @@ export const updateAppointmentAdmin = async (req, res) => {
       email,
       contactNumber,
       service_id,
+      override = false,
     } = req.body;
 
-    // ✅ Normalize time if provided
     const normalizedTime = time ? normalizeTime(time) : null;
 
-    // ✅ Loose validation
     const errors = validateAppointmentUpdateInput({
       ...req.body,
       time: normalizedTime,
     });
+    if (time && !/^\d{2}:\d{2}$/.test(time)) {
+      errors.push("Invalid time format (HH:mm expected)");
+    }
     if (errors.length > 0) {
-      return res.status(400).json({ success: false, errors });
+      return res
+        .status(400)
+        .json({ success: false, code: "VALIDATION_ERROR", errors });
     }
 
-    const [result] = await pool.query(
+    await conn.beginTransaction();
+
+    /* ---------------- 1. Fetch existing ---------------- */
+    const [existingRows] = await conn.query(
+      `SELECT service_id, date, time, email, contactNumber
+       FROM appointments WHERE id = ?`,
+      [id]
+    );
+    if (!existingRows.length) {
+      await conn.rollback();
+      return res.status(404).json({
+        success: false,
+        code: "NOT_FOUND",
+        message: "Appointment not found",
+      });
+    }
+    const current = existingRows[0];
+
+    const newService = service_id || current.service_id;
+    const newDate = date || current.date;
+    const newTime = normalizedTime || current.time;
+
+    /* ---------------- 2. If slot changed → validate ---------------- */
+    const slotChanged =
+      newService !== current.service_id ||
+      newDate !== current.date ||
+      newTime !== current.time;
+
+    if (slotChanged) {
+      // Prevent duplicate booking
+      const [dupes] = await conn.query(
+        `SELECT id FROM appointments
+         WHERE service_id = ?
+           AND date = ?
+           AND time = ?
+           AND (email = ? OR contactNumber = ?)
+           AND status IN ('pending','approved','in_progress')
+           AND id != ?`,
+        [
+          newService,
+          newDate,
+          newTime,
+          email || current.email,
+          contactNumber || current.contactNumber,
+          id,
+        ]
+      );
+      if (dupes.length > 0) {
+        await conn.rollback();
+        return res.status(400).json({
+          success: false,
+          code: "DOUBLE_BOOKING",
+          message: "You already have an appointment at this time.",
+        });
+      }
+
+      // Count existing bookings
+      const [apptCount] = await conn.query(
+        `SELECT COUNT(*) as booked
+         FROM appointments
+         WHERE service_id = ?
+           AND date = ?
+           AND time = ?
+           AND status IN ('pending','approved','in_progress')
+           AND id != ?`,
+        [newService, newDate, newTime, id]
+      );
+      const alreadyBooked = apptCount[0].booked;
+
+      // Get rules
+      const [rules] = await conn.query(
+        `SELECT slots, type, status
+         FROM rules
+         WHERE service_id = ?
+           AND (date = ? OR (date IS NULL AND weekday = WEEKDAY(?)))
+         ORDER BY FIELD(type,'blocked','allday','single','recurring')
+         LIMIT 1`,
+        [newService, newDate, newDate]
+      );
+
+      let capacity = 1;
+      let blockedByRule = false;
+      if (rules.length) {
+        const rule = rules[0];
+        if (rule.type === "blocked" || rule.status === "blocked") {
+          blockedByRule = true;
+          capacity = 0;
+        } else if (rule.slots != null) {
+          capacity = rule.slots;
+        }
+      }
+
+      // Fully booked
+      if (alreadyBooked >= capacity && capacity > 0) {
+        await conn.rollback();
+        return res.status(400).json({
+          success: false,
+          code: "FULLY_BOOKED",
+          message: "This time is already fully booked.",
+        });
+      }
+
+      // Outside hours
+      if (!override && (capacity === 0 || blockedByRule)) {
+        await conn.rollback();
+        return res.status(409).json({
+          success: false,
+          code: "OUTSIDE_HOURS",
+          message:
+            "This time is outside church hours. Do you want to continue?",
+          confirmNeeded: true,
+        });
+      }
+    }
+
+    /* ---------------- 3. Apply update ---------------- */
+    const [result] = await conn.query(
       `UPDATE appointments
          SET status = COALESCE(?, status),
              date   = COALESCE(?, date),
@@ -292,18 +490,22 @@ export const updateAppointmentAdmin = async (req, res) => {
       ]
     );
 
-    if (result.affectedRows === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Appointment not found" });
-    }
+    await conn.commit();
 
-    res.json({ success: true, message: "Appointment updated successfully" });
+    res.json({
+      success: true,
+      message: override
+        ? "Appointment updated with override"
+        : "Appointment updated successfully",
+    });
   } catch (err) {
+    if (conn) await conn.rollback();
     console.error("❌ updateAppointmentAdmin error:", err);
     res
       .status(500)
       .json({ success: false, message: "Failed to update appointment" });
+  } finally {
+    if (conn) conn.release();
   }
 };
 
