@@ -48,7 +48,7 @@ async function ensureSchema(conn) {
   const doReset =
     isDev && String(process.env.DB_RESET).toLowerCase() === "true";
 
-  if (doReset) {
+  if (!doReset) {
     console.warn("⚠️  DB_RESET=true → Dropping existing tables (dev only)...");
     await conn.execute("SET FOREIGN_KEY_CHECKS = 0");
     await conn.execute("DROP TABLE IF EXISTS baptism_details");

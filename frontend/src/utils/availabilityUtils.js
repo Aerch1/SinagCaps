@@ -1,4 +1,4 @@
-// 📌 Availability Utilities (fixed for local-safe yyyy-MM-dd)
+//frontend/availabilityUtils
 
 // --- Date helpers ---
 export const pad2 = (n) => String(n).padStart(2, "0");

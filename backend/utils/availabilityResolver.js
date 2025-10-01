@@ -1,0 +1,74 @@
+// src/utils/availabilityResolver.js
+import { generateSlots } from "./generateSlots.js";
+
+/**
+ * Single source of truth for availability resolution.
+ * Applies church hours, blocked checks, generates + aggregates slots.
+ *
+ * @returns {
+ *   status: "available" | "blocked" | "none",
+ *   slots: Array<{ time: "HH:mm", remaining: number, unavailable: boolean }>,
+ *   capacity: number, booked: number, remaining: number
+ * }
+ */
+export function resolveAvailability({ rules, appointments, churchHours }) {
+  // 🔹 Church closed or no config
+  if (!churchHours || churchHours.is_closed) {
+    return { status: "none", slots: [], capacity: 0, booked: 0, remaining: 0 };
+  }
+
+  // 🔹 Hard block
+  const isBlocked = rules?.some(
+    (r) => r.type === "blocked" || r.status === "blocked"
+  );
+  if (isBlocked) {
+    return {
+      status: "blocked",
+      slots: [],
+      capacity: 0,
+      booked: 0,
+      remaining: 0,
+    };
+  }
+
+  // 🔹 Generate slots (from rules + appts + church hours)
+  const slots = generateSlots({
+    rules: rules || [],
+    appointments: appointments || [],
+    churchOpen: churchHours.open_time?.slice(0, 5),
+    churchClose: churchHours.close_time?.slice(0, 5),
+  });
+
+  // 🔹 No slots at all
+  if (!slots.length) {
+    return { status: "none", slots: [], capacity: 0, booked: 0, remaining: 0 };
+  }
+
+  // 🔹 Aggregate totals
+  const capacity = slots.reduce((sum, s) => sum + (s.capacity || 0), 0);
+  const booked = slots.reduce((sum, s) => sum + (s.booked || 0), 0);
+  const remaining = Math.max(0, capacity - booked);
+
+  // ✅ Status logic (slot-level based)
+  let status = "none";
+  if (slots.some((s) => s.remaining > 0)) {
+    // at least one slot has room
+    status = "available";
+  } else if (slots.length > 0) {
+    // slots exist but all are full
+    status = "blocked";
+  }
+
+  return {
+    status,
+    slots: slots.map((s) => ({
+      time: s.time,
+      remaining:
+        s.remaining ?? Math.max(0, (s.capacity || 0) - (s.booked || 0)),
+      unavailable: s.unavailable ?? (s.booked || 0) >= (s.capacity || 0),
+    })),
+    capacity,
+    booked,
+    remaining,
+  };
+}

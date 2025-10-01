@@ -1,5 +1,6 @@
+// src/components/common/modal/CreateAppointmentModal.jsx
 import { format } from "date-fns";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import api from "@/api/api";
 
@@ -16,13 +17,16 @@ export default function CreateAppointmentModal({
     const defaultDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
     const [serverErrors, setServerErrors] = useState({});
     const [confirmData, setConfirmData] = useState(null);
-    const [confirmMessage, setConfirmMessage] = useState("");
+    const [confirmMessage, setConfirmMessage] = useState(null);
 
-    /* ---------------- Handle Submit ---------------- */
+    // Clear server errors whenever modal (re)opens
+    useEffect(() => {
+        if (isOpen) setServerErrors({});
+    }, [isOpen]);
+
     const handleFormSubmit = async (formData) => {
         try {
             await api.post("/admin/appointments", formData);
-
             toast.success("Appointment created successfully");
             setServerErrors({});
             onSave?.();
@@ -30,43 +34,41 @@ export default function CreateAppointmentModal({
         } catch (err) {
             const { status, data } = err.response || {};
 
-            // 🔹 Confirm Needed (outside hours, blocked, etc.)
+            // Handle confirmation-required response
             if (status === 409 && data?.confirmNeeded) {
                 setConfirmData(formData);
-                setConfirmMessage(data.message || "Do you want to continue?");
+                setConfirmMessage(data.message || "This action needs confirmation.");
                 return;
             }
 
-            // 🔹 Validation errors (400)
-            if (status === 400 && data?.errors) {
+            // Handle validation errors
+            if (status === 400 && Array.isArray(data?.errors)) {
                 const mapped = {};
                 data.errors.forEach((msg) => {
-                    if (msg.toLowerCase().includes("name")) mapped.name = msg;
-                    else if (msg.toLowerCase().includes("email")) mapped.email = msg;
-                    else if (msg.toLowerCase().includes("contact")) mapped.contactNumber = msg;
-                    else if (msg.toLowerCase().includes("service")) mapped.service_id = msg;
-                    else if (msg.toLowerCase().includes("date")) mapped.date = msg;
-                    else if (msg.toLowerCase().includes("time")) mapped.time = msg;
+                    const lower = String(msg || "").toLowerCase();
+                    if (lower.includes("name")) mapped.name = msg;
+                    else if (lower.includes("email")) mapped.email = msg;
+                    else if (lower.includes("contact")) mapped.contactNumber = msg;
+                    else if (lower.includes("service")) mapped.service_id = msg;
+                    else if (lower.includes("date")) mapped.date = msg;
+                    else if (lower.includes("time")) mapped.time = msg;
                     else mapped.notes = msg;
                 });
                 setServerErrors(mapped);
                 return;
             }
 
-            // 🔹 Fallback
             toast.error(data?.message || "❌ Failed to create appointment");
         }
     };
 
-    /* ---------------- Handle Confirm ---------------- */
     const handleConfirm = async () => {
         if (!confirmData) return;
-
         try {
             await api.post("/admin/appointments", { ...confirmData, override: true });
-
-            toast.success("✅ Appointment created (override)");
+            toast.success("Custom Appointment created successfully");
             setConfirmData(null);
+            setConfirmMessage(null);
             onSave?.();
             onClose();
         } catch (err) {
@@ -76,12 +78,11 @@ export default function CreateAppointmentModal({
 
     const handleCancelConfirm = () => {
         setConfirmData(null);
-        setConfirmMessage("");
+        setConfirmMessage(null);
     };
 
     return (
         <>
-            {/* Main Modal */}
             <Modal open={isOpen} onClose={onClose} title="Create Appointment" className="max-w-2xl">
                 <div className="max-h-[85vh] overflow-y-auto custom-scrollbar">
                     <div className="max-w-full px-2">
@@ -95,14 +96,15 @@ export default function CreateAppointmentModal({
                 </div>
             </Modal>
 
-            {/* Confirmation Modal */}
-            <ConfirmDialog
-                open={!!confirmData}
-                title="Confirmation Required"
-                message={confirmMessage}
-                onConfirm={handleConfirm}
-                onCancel={handleCancelConfirm}
-            />
+            {confirmData && confirmMessage && (
+                <ConfirmDialog
+                    open
+                    title="Confirmation Required"
+                    message={confirmMessage}
+                    onConfirm={handleConfirm}
+                    onCancel={handleCancelConfirm}
+                />
+            )}
         </>
     );
 }

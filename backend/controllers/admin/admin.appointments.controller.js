@@ -1,11 +1,22 @@
-// src/controllers/admin/appointments.controller.js
+// src/controllers/admin/admin.appointments.controller.js
 import { Parser } from "json2csv";
 import pool from "../../config/db.js";
 import {
   normalizeTime,
-  validateAppointmentInput,
-  validateAppointmentUpdateInput,
+  validateCreate,
+  validateUpdate,
 } from "../../utils/validateAppointment.js";
+import {
+  getDayAvailability,
+  needsConfirmationForAdmin,
+  findSlot,
+} from "../../services/availability.service.js";
+import {
+  hasDuplicateBooking,
+  countBookedAt,
+  insertAppointment,
+  updateAppointment as applyUpdate,
+} from "../../services/appointments.service.js";
 
 const STATUSES = [
   "pending",
@@ -14,6 +25,298 @@ const STATUSES = [
   "completed",
   "cancelled",
 ];
+
+/* ==================================================
+   POST /api/admin/appointments
+   → Create appointment (with override + confirmation)
+================================================== */
+export const createAppointmentAdmin = async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const {
+      name,
+      email,
+      contactNumber,
+      service_id,
+      date,
+      time,
+      status = "pending",
+      notes = "",
+      override = false,
+    } = req.body;
+
+    const t = normalizeTime(time);
+    const errors = validateCreate({ name, email, service_id, date, time: t });
+    if (t === null) errors.push("Invalid time format (HH:mm).");
+    if (errors.length) {
+      return res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        errors,
+      });
+    }
+
+    await conn.beginTransaction();
+
+    // 1) prevent duplicate by person
+    if (
+      await hasDuplicateBooking({
+        service_id,
+        date,
+        time: t,
+        email,
+        contactNumber,
+      })
+    ) {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        code: "DOUBLE_BOOKING",
+        message: "You already have an appointment at this time.",
+      });
+    }
+
+    // 2) availability
+    const dayAvail = await getDayAvailability(service_id, date);
+    const slot = findSlot(dayAvail, t);
+
+    if (slot && slot.unavailable) {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        code: "FULLY_BOOKED",
+        message: "This time is already fully booked.",
+      });
+    }
+
+    // 3) admin confirm logic
+    const confirm = needsConfirmationForAdmin({
+      availability: dayAvail,
+      timeHHMM: t,
+    });
+    if (confirm.needed && !override) {
+      await conn.rollback();
+      return res.status(409).json({
+        success: false,
+        code: "CONFIRM_REQUIRED",
+        message: confirm.reasonText, // ✅ show exact human reason
+        confirmNeeded: true,
+        meta: {
+          reason: confirm.reasonText,
+          reasonCode: confirm.reasonCode,
+        },
+      });
+    }
+
+    // 4) capacity double-check (when slot exists)
+    if (slot) {
+      const alreadyBooked = await countBookedAt({ service_id, date, time: t });
+      const remaining = Math.max(
+        0,
+        slot.remaining ?? slot.capacity - alreadyBooked
+      );
+      if (remaining <= 0 && !override) {
+        await conn.rollback();
+        return res.status(400).json({
+          success: false,
+          code: "FULLY_BOOKED",
+          message: "This time is already fully booked.",
+        });
+      }
+    }
+
+    // 5) insert
+    const newId = await insertAppointment({
+      user_id: req.userId || null,
+      name,
+      email,
+      contactNumber,
+      service_id,
+      date,
+      time: t,
+      status,
+      notes,
+    });
+
+    await conn.commit();
+    return res.status(201).json({
+      success: true,
+      message: override
+        ? "Appointment created with override"
+        : "Appointment created successfully",
+      appointmentId: newId,
+    });
+  } catch (err) {
+    if (conn) await conn.rollback();
+    console.error("❌ createAppointmentAdmin error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to create appointment" });
+  } finally {
+    if (conn) conn.release();
+  }
+};
+
+/* ==================================================
+   PATCH /api/admin/appointments/:id
+   → Update appointment (with override + confirmation)
+================================================== */
+export const updateAppointmentAdmin = async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const { id } = req.params;
+    const {
+      status,
+      date,
+      time,
+      notes,
+      name,
+      email,
+      contactNumber,
+      service_id,
+      override = false,
+    } = req.body;
+
+    const t = time ? normalizeTime(time) : null;
+    const errors = validateUpdate({ status, date, time: t });
+    if (t === null && time) errors.push("Invalid time format (HH:mm).");
+    if (errors.length) {
+      return res.status(400).json({
+        success: false,
+        code: "VALIDATION_ERROR",
+        errors,
+      });
+    }
+
+    await conn.beginTransaction();
+
+    // 1) current
+    const [rows] = await conn.query(
+      `SELECT service_id, date, time, email, contactNumber
+       FROM appointments WHERE id=?`,
+      [id]
+    );
+    if (!rows.length) {
+      await conn.rollback();
+      return res.status(404).json({
+        success: false,
+        code: "NOT_FOUND",
+        message: "Appointment not found",
+      });
+    }
+    const current = rows[0];
+
+    const newService = service_id ?? current.service_id;
+    const newDate = date ?? current.date;
+    const newTime = t ?? current.time;
+
+    // 2) slot changed?
+    const slotChanged =
+      newService !== current.service_id ||
+      newDate !== current.date ||
+      newTime !== current.time;
+
+    if (slotChanged) {
+      if (
+        await hasDuplicateBooking({
+          idToIgnore: id,
+          service_id: newService,
+          date: newDate,
+          time: newTime,
+          email: email || current.email,
+          contactNumber: contactNumber || current.contactNumber,
+        })
+      ) {
+        await conn.rollback();
+        return res.status(400).json({
+          success: false,
+          code: "DOUBLE_BOOKING",
+          message: "You already have an appointment at this time.",
+        });
+      }
+
+      const dayAvail = await getDayAvailability(newService, newDate);
+      const slot = findSlot(dayAvail, newTime);
+
+      if (slot && slot.unavailable) {
+        await conn.rollback();
+        return res.status(400).json({
+          success: false,
+          code: "FULLY_BOOKED",
+          message: "This time is already fully booked.",
+        });
+      }
+
+      const confirm = needsConfirmationForAdmin({
+        availability: dayAvail,
+        timeHHMM: newTime,
+      });
+      if (confirm.needed && !override) {
+        await conn.rollback();
+        return res.status(409).json({
+          success: false,
+          code: "CONFIRM_REQUIRED",
+          message: confirm.reasonText, // ✅ show exact human reason
+          confirmNeeded: true,
+          meta: {
+            reason: confirm.reasonText,
+            reasonCode: confirm.reasonCode,
+          },
+        });
+      }
+
+      if (slot) {
+        const alreadyBooked = await countBookedAt({
+          idToIgnore: id,
+          service_id: newService,
+          date: newDate,
+          time: newTime,
+        });
+        const remaining = Math.max(
+          0,
+          slot.remaining ?? slot.capacity - alreadyBooked
+        );
+        if (remaining <= 0 && !override) {
+          await conn.rollback();
+          return res.status(400).json({
+            success: false,
+            code: "FULLY_BOOKED",
+            message: "This time is already fully booked.",
+          });
+        }
+      }
+    }
+
+    // 3) update
+    await applyUpdate({
+      id,
+      status,
+      date: date ?? null,
+      time: t ?? null,
+      notes,
+      name,
+      email,
+      contactNumber,
+      service_id,
+    });
+
+    await conn.commit();
+    return res.json({
+      success: true,
+      message: override
+        ? "Appointment updated with override"
+        : "Appointment updated successfully",
+    });
+  } catch (err) {
+    if (conn) await conn.rollback();
+    console.error("❌ updateAppointmentAdmin error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to update appointment" });
+  } finally {
+    if (conn) conn.release();
+  }
+};
 
 /* ---------------- GET /api/admin/appointments ---------------- */
 export const getAppointments = async (req, res) => {
@@ -162,350 +465,6 @@ export const filterAppointments = async (req, res) => {
   } catch (err) {
     console.error("❌ filterAppointments error:", err);
     res.status(500).json({ error: "Failed to filter appointments" });
-  }
-};
-
-/* ---------------- POST /api/admin/appointments ---------------- */
-export const createAppointmentAdmin = async (req, res) => {
-  const conn = await pool.getConnection();
-  try {
-    const {
-      name,
-      email,
-      contactNumber,
-      service_id,
-      date,
-      time,
-      status = "pending",
-      notes = "",
-      override = false,
-    } = req.body;
-
-    const normalizedTime = time ? normalizeTime(time) : null;
-
-    // ✅ Base validation
-    const errors = validateAppointmentInput({
-      name,
-      email,
-      contactNumber,
-      service_id,
-      date,
-      time: normalizedTime,
-      status,
-    });
-    if (time && !/^\d{2}:\d{2}$/.test(time)) {
-      errors.push("Invalid time format (HH:mm expected)");
-    }
-    if (errors.length > 0) {
-      return res
-        .status(400)
-        .json({ success: false, code: "VALIDATION_ERROR", errors });
-    }
-
-    await conn.beginTransaction();
-
-    /* ---------------- 1. Prevent duplicate booking ---------------- */
-    const [dupes] = await conn.query(
-      `SELECT id FROM appointments
-       WHERE service_id = ?
-         AND date = ?
-         AND time = ?
-         AND (email = ? OR contactNumber = ?)
-         AND status IN ('pending','approved','in_progress')`,
-      [service_id, date, normalizedTime, email, contactNumber]
-    );
-    if (dupes.length > 0) {
-      await conn.rollback();
-      return res.status(400).json({
-        success: false,
-        code: "DOUBLE_BOOKING",
-        message: "You already have an appointment at this time.",
-      });
-    }
-
-    /* ---------------- 2. Check slot capacity ---------------- */
-    const [apptCount] = await conn.query(
-      `SELECT COUNT(*) as booked
-       FROM appointments
-       WHERE service_id = ?
-         AND date = ?
-         AND time = ?
-         AND status IN ('pending','approved','in_progress')`,
-      [service_id, date, normalizedTime]
-    );
-    const alreadyBooked = apptCount[0].booked;
-
-    /* ---------------- 3. Get matching rules ---------------- */
-    const [rules] = await conn.query(
-      `SELECT slots, type, status
-       FROM rules
-       WHERE service_id = ?
-         AND (date = ? OR (date IS NULL AND weekday = WEEKDAY(?)))
-       ORDER BY FIELD(type,'blocked','allday','single','recurring')
-       LIMIT 1`,
-      [service_id, date, date]
-    );
-
-    let capacity = 1;
-    let blockedByRule = false;
-
-    if (rules.length) {
-      const rule = rules[0];
-      if (rule.type === "blocked" || rule.status === "blocked") {
-        blockedByRule = true;
-        capacity = 0;
-      } else if (rule.slots != null) {
-        capacity = rule.slots;
-      }
-    }
-
-    /* ---------------- 4. Fully booked check ---------------- */
-    if (alreadyBooked >= capacity && capacity > 0) {
-      await conn.rollback();
-      return res.status(400).json({
-        success: false,
-        code: "FULLY_BOOKED",
-        message: "This time is already fully booked.",
-      });
-    }
-
-    /* ---------------- 5. Outside church hours ---------------- */
-    if (!override && (capacity === 0 || blockedByRule)) {
-      await conn.rollback();
-      return res.status(409).json({
-        success: false,
-        code: "OUTSIDE_HOURS",
-        message: "This time is outside church hours. Do you want to continue?",
-        confirmNeeded: true,
-      });
-    }
-
-    /* ---------------- 6. Insert ---------------- */
-    const [result] = await conn.query(
-      `INSERT INTO appointments 
-         (user_id, name, email, contactNumber, service_id, date, time, status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        req.userId || null,
-        name,
-        email,
-        contactNumber || null,
-        service_id,
-        date,
-        normalizedTime,
-        status,
-        notes,
-      ]
-    );
-
-    await conn.commit();
-
-    res.status(201).json({
-      success: true,
-      message: override
-        ? "Appointment created with override"
-        : "Appointment created successfully",
-      appointmentId: result.insertId,
-    });
-  } catch (err) {
-    if (conn) await conn.rollback();
-    console.error("❌ createAppointmentAdmin error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to create appointment" });
-  } finally {
-    if (conn) conn.release();
-  }
-};
-
-/* ---------------- PATCH /api/admin/appointments/:id ---------------- */
-export const updateAppointmentAdmin = async (req, res) => {
-  const conn = await pool.getConnection();
-  try {
-    const { id } = req.params;
-    const {
-      status,
-      date,
-      time,
-      notes,
-      name,
-      email,
-      contactNumber,
-      service_id,
-      override = false,
-    } = req.body;
-
-    const normalizedTime = time ? normalizeTime(time) : null;
-
-    const errors = validateAppointmentUpdateInput({
-      ...req.body,
-      time: normalizedTime,
-    });
-    if (time && !/^\d{2}:\d{2}$/.test(time)) {
-      errors.push("Invalid time format (HH:mm expected)");
-    }
-    if (errors.length > 0) {
-      return res
-        .status(400)
-        .json({ success: false, code: "VALIDATION_ERROR", errors });
-    }
-
-    await conn.beginTransaction();
-
-    /* ---------------- 1. Fetch existing ---------------- */
-    const [existingRows] = await conn.query(
-      `SELECT service_id, date, time, email, contactNumber
-       FROM appointments WHERE id = ?`,
-      [id]
-    );
-    if (!existingRows.length) {
-      await conn.rollback();
-      return res.status(404).json({
-        success: false,
-        code: "NOT_FOUND",
-        message: "Appointment not found",
-      });
-    }
-    const current = existingRows[0];
-
-    const newService = service_id || current.service_id;
-    const newDate = date || current.date;
-    const newTime = normalizedTime || current.time;
-
-    /* ---------------- 2. If slot changed → validate ---------------- */
-    const slotChanged =
-      newService !== current.service_id ||
-      newDate !== current.date ||
-      newTime !== current.time;
-
-    if (slotChanged) {
-      // Prevent duplicate booking
-      const [dupes] = await conn.query(
-        `SELECT id FROM appointments
-         WHERE service_id = ?
-           AND date = ?
-           AND time = ?
-           AND (email = ? OR contactNumber = ?)
-           AND status IN ('pending','approved','in_progress')
-           AND id != ?`,
-        [
-          newService,
-          newDate,
-          newTime,
-          email || current.email,
-          contactNumber || current.contactNumber,
-          id,
-        ]
-      );
-      if (dupes.length > 0) {
-        await conn.rollback();
-        return res.status(400).json({
-          success: false,
-          code: "DOUBLE_BOOKING",
-          message: "You already have an appointment at this time.",
-        });
-      }
-
-      // Count existing bookings
-      const [apptCount] = await conn.query(
-        `SELECT COUNT(*) as booked
-         FROM appointments
-         WHERE service_id = ?
-           AND date = ?
-           AND time = ?
-           AND status IN ('pending','approved','in_progress')
-           AND id != ?`,
-        [newService, newDate, newTime, id]
-      );
-      const alreadyBooked = apptCount[0].booked;
-
-      // Get rules
-      const [rules] = await conn.query(
-        `SELECT slots, type, status
-         FROM rules
-         WHERE service_id = ?
-           AND (date = ? OR (date IS NULL AND weekday = WEEKDAY(?)))
-         ORDER BY FIELD(type,'blocked','allday','single','recurring')
-         LIMIT 1`,
-        [newService, newDate, newDate]
-      );
-
-      let capacity = 1;
-      let blockedByRule = false;
-      if (rules.length) {
-        const rule = rules[0];
-        if (rule.type === "blocked" || rule.status === "blocked") {
-          blockedByRule = true;
-          capacity = 0;
-        } else if (rule.slots != null) {
-          capacity = rule.slots;
-        }
-      }
-
-      // Fully booked
-      if (alreadyBooked >= capacity && capacity > 0) {
-        await conn.rollback();
-        return res.status(400).json({
-          success: false,
-          code: "FULLY_BOOKED",
-          message: "This time is already fully booked.",
-        });
-      }
-
-      // Outside hours
-      if (!override && (capacity === 0 || blockedByRule)) {
-        await conn.rollback();
-        return res.status(409).json({
-          success: false,
-          code: "OUTSIDE_HOURS",
-          message:
-            "This time is outside church hours. Do you want to continue?",
-          confirmNeeded: true,
-        });
-      }
-    }
-
-    /* ---------------- 3. Apply update ---------------- */
-    const [result] = await conn.query(
-      `UPDATE appointments
-         SET status = COALESCE(?, status),
-             date   = COALESCE(?, date),
-             time   = COALESCE(?, time),
-             notes  = COALESCE(?, notes),
-             name   = COALESCE(?, name),
-             email  = COALESCE(?, email),
-             contactNumber = COALESCE(?, contactNumber),
-             service_id    = COALESCE(?, service_id)
-       WHERE id = ?`,
-      [
-        status,
-        date,
-        normalizedTime,
-        notes,
-        name,
-        email,
-        contactNumber,
-        service_id,
-        id,
-      ]
-    );
-
-    await conn.commit();
-
-    res.json({
-      success: true,
-      message: override
-        ? "Appointment updated with override"
-        : "Appointment updated successfully",
-    });
-  } catch (err) {
-    if (conn) await conn.rollback();
-    console.error("❌ updateAppointmentAdmin error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to update appointment" });
-  } finally {
-    if (conn) conn.release();
   }
 };
 

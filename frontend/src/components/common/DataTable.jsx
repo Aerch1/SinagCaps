@@ -1,4 +1,3 @@
-// src/components/admin/DataTable.jsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -26,7 +25,6 @@ import {
     formatDate,
     formatTime,
     computeRange,
-    fmtRangeLabel,
     formatStatusLabel,
 } from "../../lib/utils.js";
 
@@ -59,7 +57,10 @@ export default function DataTable({
 
     // ranges
     const [showRangeKey, setShowRangeKey] = useState("all");
-    const [{ startDate, endDate }, setRange] = useState({ startDate: null, endDate: null });
+    const [{ startDate, endDate }, setRange] = useState({
+        startDate: null,
+        endDate: null,
+    });
 
     const [processingRow, setProcessingRow] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -83,7 +84,12 @@ export default function DataTable({
                 setLoading(true);
 
                 const hasFilters =
-                    query || selectedServiceIds.length || selectedStatuses.length || sort.key || startDate || endDate;
+                    query ||
+                    selectedServiceIds.length ||
+                    selectedStatuses.length ||
+                    sort.key ||
+                    startDate ||
+                    endDate;
 
                 let res;
                 if (hasFilters) {
@@ -110,7 +116,9 @@ export default function DataTable({
                 setTotal(res.total || 0);
 
                 // meta
-                setServiceOptions((res.meta?.services || []).map((s) => ({ value: s.id, label: s.name })));
+                setServiceOptions(
+                    (res.meta?.services || []).map((s) => ({ value: s.id, label: s.name }))
+                );
                 setStatusOptions(
                     (res.meta?.statuses || []).map((s) => ({
                         value: s,
@@ -125,7 +133,16 @@ export default function DataTable({
             }
         };
         load();
-    }, [page, pageSize, query, selectedServiceIds, selectedStatuses, sort, startDate, endDate]);
+    }, [
+        page,
+        pageSize,
+        query,
+        selectedServiceIds,
+        selectedStatuses,
+        sort,
+        startDate,
+        endDate,
+    ]);
 
     /* --- Debounce search --- */
     useEffect(() => {
@@ -139,7 +156,9 @@ export default function DataTable({
     /* --- Sorting --- */
     const cycleSort = (key) => {
         setSort((prev) =>
-            prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }
+            prev.key === key
+                ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+                : { key, dir: "asc" }
         );
     };
 
@@ -189,7 +208,15 @@ export default function DataTable({
     if (totalPages <= 7) for (let i = 1; i <= totalPages; i++) pages.push(i);
     else if (page <= 4) pages.push(1, 2, 3, 4, 5, "…", totalPages);
     else if (page >= totalPages - 3)
-        pages.push(1, "…", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        pages.push(
+            1,
+            "…",
+            totalPages - 4,
+            totalPages - 3,
+            totalPages - 2,
+            totalPages - 1,
+            totalPages
+        );
     else pages.push(1, "…", page - 1, page, page + 1, "…", totalPages);
 
     return (
@@ -279,7 +306,16 @@ export default function DataTable({
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-x-auto flex flex-col h-[400px]">
                 {/* Top controls bar */}
                 <div className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-gray-800">Appointment Transactions</div>
+                    <div>
+                        <div className="text-sm font-semibold text-gray-800">
+                            Appointment Transactions
+                        </div>
+                        {showRangeKey !== "all" && (
+                            <div className="text-xs text-gray-500 mt-0.5">
+                                Showing: {computeRange(showRangeKey).label}
+                            </div>
+                        )}
+                    </div>
 
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
@@ -288,15 +324,14 @@ export default function DataTable({
                                 <FilterDropdown
                                     mode="range"
                                     selectionMode="single"
-                                    displayLabel={fmtRangeLabel(startDate, endDate)}
+                                    value={showRangeKey}
+                                    onChange={setShowRangeKey}
                                     options={[
                                         { value: "all", label: "All" },
                                         { value: "7d", label: "Last 7 days" },
                                         { value: "month", label: "This month" },
                                         { value: "year", label: "This year" },
                                     ]}
-                                    value={showRangeKey}
-                                    onValueChange={setShowRangeKey}
                                 />
                             </div>
                         </div>
@@ -319,84 +354,78 @@ export default function DataTable({
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto">
+                {/* Table */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
                     <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-gray-50 sticky top-0 z-10">
                             <tr>
-                                <th onClick={() => cycleSort("id")} className="px-6 py-2 text-left cursor-pointer">
+                                <th
+                                    onClick={() => cycleSort("id")}
+                                    className="px-6 py-2 text-left cursor-pointer bg-gray-50"
+                                >
                                     ID <ChevronsUpDown className="inline h-3 w-3 ml-1" />
                                 </th>
-                                <th className="px-6 py-2 text-left">Client</th>
-                                <th className="px-6 py-2 text-left">Contact</th>
-                                <th className="px-6 py-2 text-left">Service</th>
-                                <th className="px-6 py-2 text-left">Status</th>
-                                <th className="px-6 py-2 text-left">Date</th>
-                                <th className="px-6 py-2 text-left">Time</th>
-                                <th className="px-6 py-2 text-right">Actions</th>
+                                <th className="px-6 py-2 text-left bg-gray-50">Client</th>
+                                <th className="px-6 py-2 text-left bg-gray-50">Contact</th>
+                                <th className="px-6 py-2 text-left bg-gray-50">Service</th>
+                                <th className="px-6 py-2 text-left bg-gray-50">Status</th>
+                                <th className="px-6 py-2 text-left bg-gray-50">Date</th>
+                                <th className="px-6 py-2 text-left bg-gray-50">Time</th>
+                                <th className="px-6 py-2 text-right bg-gray-50">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <AnimatePresence>
-                                {loading ? (
-                                    <tr>
-                                        <td
-                                            colSpan={8}
-                                            className="h-48 text-center align-middle"
-                                        >
-                                            <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-                                                Loading…
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : rows.length === 0 ? (
-                                    <tr>
-                                        <td
-                                            colSpan={8}
-                                            className="h-48 text-center align-middle"
-                                        >
-                                            <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-                                                No results.
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    rows.map((r) => (
-                                        <motion.tr
-                                            key={r.id}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -10 }}
-                                            className="border-b hover:bg-gray-50"
-                                        >
-                                            <td className="px-6 py-2 font-mono text-xs text-gray-500">#{r.id}</td>
-                                            <td className="px-6 py-2">
-                                                <div className="font-medium">{r.name}</div>
-                                                <div className="text-xs text-gray-500">{r.email}</div>
-                                            </td>
-                                            <td className="px-6 py-2">{r.contactNumber || "—"}</td>
-                                            <td className="px-6 py-2">{r.serviceName}</td>
-                                            <td className="px-6 py-2">
-                                                <span className={statusClass(r.status)}>
-                                                    {formatStatusLabel(r.status)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-2">{formatDate(r.date)}</td>
-                                            <td className="px-6 py-2">{formatTime(r.time)}</td>
-                                            <td className="px-6 py-2 text-right">{renderActions(r)}</td>
-                                        </motion.tr>
-                                    ))
-                                )}
-                            </AnimatePresence>
-                        </tbody>
-                    </table>
-                </div>
 
+                        <motion.tbody
+                            key={page + showRangeKey + query}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                        >
+                            {rows.length === 0 && !loading ? (
+                                <tr>
+                                    <td colSpan={8} className="h-48 text-center text-gray-500">
+                                        No results.
+                                    </td>
+                                </tr>
+                            ) : loading ? (
+                                <tr>
+                                    <td colSpan={8} className="h-48 text-center text-gray-500">
+                                        Loading…
+                                    </td>
+                                </tr>
+                            ) : (
+                                rows.map((r) => (
+                                    <tr key={r.id} className="border-b hover:bg-gray-50">
+                                        <td className="px-6 py-2 font-mono text-xs text-gray-500">#{r.id}</td>
+                                        <td className="px-6 py-2">
+                                            <div className="font-medium">{r.name}</div>
+                                            <div className="text-xs text-gray-500">{r.email}</div>
+                                        </td>
+                                        <td className="px-6 py-2">{r.contactNumber || "—"}</td>
+                                        <td className="px-6 py-2">{r.serviceName}</td>
+                                        <td className="px-6 py-2">
+                                            <span className={statusClass(r.status)}>
+                                                {formatStatusLabel(r.status)}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-2">{formatDate(r.date)}</td>
+                                        <td className="px-6 py-2">{formatTime(r.time)}</td>
+                                        <td className="px-6 py-2 text-right">{renderActions(r)}</td>
+                                    </tr>
+                                ))
+                            )}
+                        </motion.tbody>
+                    </table>
+
+                </div>
 
                 {/* Pagination */}
                 {total > 0 && (
                     <div className="border-t px-6 py-4 flex justify-between items-center">
                         <div className="text-sm text-gray-600">
-                            Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total}
+                            Showing {(page - 1) * pageSize + 1} to{" "}
+                            {Math.min(page * pageSize, total)} of {total}
                         </div>
                         <div className="flex gap-2">
                             <button
@@ -408,12 +437,19 @@ export default function DataTable({
                             </button>
                             {pages.map((n, i) =>
                                 n === "…" ? (
-                                    <span key={`dots-${i}`} className="h-9 w-9 flex items-center justify-center">…</span>
+                                    <span
+                                        key={`dots-${i}`}
+                                        className="h-9 w-9 flex items-center justify-center"
+                                    >
+                                        …
+                                    </span>
                                 ) : (
                                     <button
                                         key={`page-${n}`}
                                         onClick={() => setPage(n)}
-                                        className={`h-9 w-9 rounded-md border text-sm ${n === page ? "bg-blue-600 text-white" : "bg-white hover:bg-gray-50"
+                                        className={`h-9 w-9 rounded-md border text-sm ${n === page
+                                            ? "bg-blue-600 text-white"
+                                            : "bg-white hover:bg-gray-50"
                                             }`}
                                     >
                                         {n}

@@ -1,19 +1,27 @@
+// src/components/ui/ConfirmDialog.jsx
 "use client";
 import React from "react";
 import { AlertTriangle } from "lucide-react";
-import Modal from "./Modal";
 
-export default function ConfirmDialog({ open, title, message, onConfirm, onCancel }) {
+export default function ConfirmDialog({
+    open,
+    title,
+    message,
+    onConfirm,
+    onCancel,
+}) {
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/40 z-[102] flex items-center justify-center ">
+        <div className="fixed inset-0 bg-black/40 z-[102] flex items-center justify-center">
             <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6">
                 <div className="flex items-center gap-2 text-red-600 mb-3">
                     <AlertTriangle className="h-5 w-5" />
                     <h3 className="font-semibold text-base">{title}</h3>
                 </div>
-                <p className="text-sm text-gray-700 mb-6">{message}</p>
+
+                <p className="text-sm text-gray-700 mb-4">{message}</p>
+
                 <div className="flex justify-end gap-2">
                     <button
                         onClick={onCancel}
