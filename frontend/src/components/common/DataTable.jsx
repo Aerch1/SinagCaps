@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -19,7 +17,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import FilterDropdown from "../ui/FilterDropdown.jsx";
 import ProcessModal from "./ProcessModal.jsx";
-
+import ViewAppointmentModal from "../common/modal/ViewAppointmentModal.jsx"; // ✅ import modal
 import {
     statusClass,
     formatDate,
@@ -32,7 +30,6 @@ export default function DataTable({
     manageHref = "/admin/appointments",
     initialPageSize = 5,
     activeTab = "all",
-    onView,
     onDelete,
 }) {
     const location = useLocation();
@@ -64,6 +61,9 @@ export default function DataTable({
 
     const [processingRow, setProcessingRow] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    // ✅ view modal state
+    const [viewingId, setViewingId] = useState(null);
 
     /* --- Sync active tab --- */
     useEffect(() => {
@@ -117,7 +117,10 @@ export default function DataTable({
 
                 // meta
                 setServiceOptions(
-                    (res.meta?.services || []).map((s) => ({ value: s.id, label: s.name }))
+                    (res.meta?.services || []).map((s) => ({
+                        value: s.id,
+                        label: s.name,
+                    }))
                 );
                 setStatusOptions(
                     (res.meta?.statuses || []).map((s) => ({
@@ -183,7 +186,7 @@ export default function DataTable({
                 {/* View */}
                 <button
                     className="h-9 w-9 rounded-md hover:bg-gray-100 flex items-center justify-center"
-                    onClick={() => onView?.(r)}
+                    onClick={() => setViewingId(r.id)} // ✅ open modal with ID
                     title="View details"
                 >
                     <Eye className="h-4 w-4" />
@@ -303,7 +306,7 @@ export default function DataTable({
             </div>
 
             {/* ===== Section 2: Table with header controls ===== */}
-            <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-x-auto flex flex-col h-[400px]">
+            <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-x-auto flex flex-col max-h-[800px]">
                 {/* Top controls bar */}
                 <div className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -359,18 +362,15 @@ export default function DataTable({
                     <table className="min-w-full text-sm">
                         <thead className="bg-gray-50 sticky top-0 z-10">
                             <tr>
-                                <th
-                                    onClick={() => cycleSort("id")}
-                                    className="px-6 py-2 text-left cursor-pointer bg-gray-50"
-                                >
+                                <th onClick={() => cycleSort("id")} className="px-6 py-2 text-left cursor-pointer bg-gray-50">
                                     ID <ChevronsUpDown className="inline h-3 w-3 ml-1" />
                                 </th>
                                 <th className="px-6 py-2 text-left bg-gray-50">Client</th>
                                 <th className="px-6 py-2 text-left bg-gray-50">Contact</th>
                                 <th className="px-6 py-2 text-left bg-gray-50">Service</th>
                                 <th className="px-6 py-2 text-left bg-gray-50">Status</th>
-                                <th className="px-6 py-2 text-left bg-gray-50">Date</th>
-                                <th className="px-6 py-2 text-left bg-gray-50">Time</th>
+                                <th className="px-6 py-2 text-left bg-gray-50">Schedule</th>
+                                <th className="px-6 py-2 text-left bg-gray-50">Address</th>
                                 <th className="px-6 py-2 text-right bg-gray-50">Actions</th>
                             </tr>
                         </thead>
@@ -397,28 +397,30 @@ export default function DataTable({
                             ) : (
                                 rows.map((r) => (
                                     <tr key={r.id} className="border-b hover:bg-gray-50">
-                                        <td className="px-6 py-2 font-mono text-xs text-gray-500">#{r.id}</td>
-                                        <td className="px-6 py-2">
+                                        <td className="px-6 py-3 font-mono text-xs text-gray-500">#{r.id}</td>
+                                        <td className="px-6 py-3">
                                             <div className="font-medium">{r.name}</div>
                                             <div className="text-xs text-gray-500">{r.email}</div>
                                         </td>
-                                        <td className="px-6 py-2">{r.contactNumber || "—"}</td>
-                                        <td className="px-6 py-2">{r.serviceName}</td>
-                                        <td className="px-6 py-2">
-                                            <span className={statusClass(r.status)}>
-                                                {formatStatusLabel(r.status)}
-                                            </span>
+                                        <td className="px-6 py-3">{r.contactNumber || "—"}</td>
+                                        <td className="px-6 py-3">{r.serviceName}</td>
+                                        <td className="px-6 py-3">
+                                            <span className={statusClass(r.status)}>{formatStatusLabel(r.status)}</span>
                                         </td>
-                                        <td className="px-6 py-2">{formatDate(r.date)}</td>
-                                        <td className="px-6 py-2">{formatTime(r.time)}</td>
-                                        <td className="px-6 py-2 text-right">{renderActions(r)}</td>
+                                        <td className="px-6 py-3">
+                                            <div>{formatDate(r.date)}</div>
+                                            <div className="text-xs text-gray-500">{formatTime(r.time)}</div>
+                                        </td>
+                                        <td className="px-6 py-3 max-w-xs truncate">{r.address || "—"}</td>
+                                        <td className="px-6 py-3 text-right">{renderActions(r)}</td>
                                     </tr>
+
                                 ))
                             )}
                         </motion.tbody>
                     </table>
-
                 </div>
+
 
                 {/* Pagination */}
                 {total > 0 && (
@@ -475,6 +477,20 @@ export default function DataTable({
                     onClose={() => setProcessingRow(null)}
                     onSave={() => setProcessingRow(null)}
                     onComplete={() => setProcessingRow(null)}
+                />
+            )}
+
+            {/* ✅ View Appointment Modal */}
+            {viewingId && (
+                <ViewAppointmentModal
+                    isOpen={!!viewingId}
+                    appointmentId={viewingId}
+                    onClose={() => setViewingId(null)}
+                    onUpdate={(updated) => {
+                        setRows((prev) =>
+                            prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r))
+                        );
+                    }}
                 />
             )}
         </div>

@@ -1,46 +1,55 @@
-// src/pages/Public/appointments/steps/Step1Service.jsx
-"use client"
+"use client";
 
-import Dropdown from "../../../../components/ui/Dropdown1"
+import { useEffect, useState, useMemo } from "react";
+import Dropdown from "../../../../components/ui/Dropdown1.jsx";
+import api from "../../../../api/api.js";
+import toast from "react-hot-toast";
 
 export default function Step1Service({ formData, setFormData }) {
-  const SERVICES = [
-    { id: "baptism", label: "Baptism (Binyag)" },
-    { id: "confirmation", label: "Confirmation (Kumpil)" },
-    { id: "marriage", label: "Wedding (Kasal)" },
-    { id: "confession", label: "Confession (Kumpisal)" },
-    { id: "anointing", label: "Anointing of the Sick (Pagpapahid sa Maysakit)" },
-  ]
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const serviceNotes = {
-    baptism:
-      "Baptism is scheduled as a parish group after Sunday Mass, or as a solo schedule upon request (subject to parish approval).",
-    confirmation:
-      "Confirmation may require catechesis/orientation and is typically scheduled on weekdays as announced by the parish.",
-    marriage:
-      "Weddings require a canonical interview and Pre-Cana/Marriage preparation. Coordinate early and prepare complete church/civil documents.",
-    confession:
-      "Confession is available during parish confession hours or by request. Please arrive early and maintain a prayerful disposition.",
-    anointing:
-      "Anointing of the Sick is for those who are seriously ill or elderly. Coordinate details (home/hospital) with the parish office.",
-  }
+  useEffect(() => {
+    const loadServices = async () => {
+      try {
+        const res = await api.get("/public/services");
+        if (res.data?.success) {
+          setServices(res.data.services || []);
+        } else {
+          setServices([]);
+        }
+      } catch (err) {
+        console.error("❌ Failed to load services:", err);
+        toast.error("Failed to load services. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadServices();
+  }, []);
 
-  // show pretty label in the dropdown; store the id in state
-  const serviceOptions = SERVICES.map((s) => s.label)
-  const selectedServiceLabel =
-    SERVICES.find((s) => s.id === formData.serviceType)?.label || ""
+  // Selected service object
+  const selectedService = useMemo(
+    () => services.find((s) => String(s.id) === String(formData.service_id)),
+    [formData.service_id, services]
+  );
+
+  const selectedServiceLabel = selectedService?.name || "";
 
   const onServiceChange = (label) => {
-    const picked = SERVICES.find((s) => s.label === label)
-    const id = picked?.id || ""
-    setFormData((p) => ({
-      ...p,
-      serviceType: id,
-      // clear any date/time whenever service changes
+    const picked = services.find((s) => s.name === label);
+    if (!picked) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      service_id: picked.id,          // numeric ID (from DB)
+      formType: picked.form_type,     // ✅ direct from backend, no guessing
+      serviceName: picked.name,     // ✅ NEW field for display later
       preferredDate: "",
       preferredTime: "",
-    }))
-  }
+      extraData: {},                  // reset extra form data (baptism, wedding, etc.)
+    }));
+  };
 
   return (
     <div className="space-y-8">
@@ -55,19 +64,16 @@ export default function Step1Service({ formData, setFormData }) {
                 Service Type <span className="text-red-500">*</span>
               </label>
 
-              {/* Inline reminder shown when Baptism is selected */}
-              {formData.serviceType === "baptism" && (
-                <span className="text-xs text-gray-600">
-                  Reminder: Group after Sunday Mass or solo by request (with approval).
-                </span>
+              {selectedService?.reminder && (
+                <span className="text-xs text-gray-600">{selectedService.reminder}</span>
               )}
             </div>
 
             <Dropdown
               value={selectedServiceLabel}
               onChange={onServiceChange}
-              options={serviceOptions}
-              placeholder="Select a service"
+              options={services.map((s) => s.name)}
+              placeholder={loading ? "Loading..." : "Select a service"}
               className="w-full"
             />
           </div>
@@ -77,16 +83,27 @@ export default function Step1Service({ formData, setFormData }) {
         <div className="md:col-span-6">
           <div className="rounded-md bg-gray-50 p-5">
             <h4 className="text-sm font-semibold text-gray-900">
-              {formData.serviceType
-                ? SERVICES.find((s) => s.id === formData.serviceType)?.label
-                : "Service Information"}
+              {selectedService ? selectedService.name : "Service Information"}
             </h4>
 
             <div className="mt-3 space-y-3 text-sm leading-6 text-gray-800">
-              {!formData.serviceType ? (
+              {!selectedService ? (
                 <p>Select a service to see details and scheduling notes.</p>
               ) : (
-                <p>{serviceNotes[formData.serviceType]}</p>
+                <>
+                  <p>{selectedService.description}</p>
+
+                  <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-700">
+                    {selectedService.requirements?.map((req) => (
+                      <li key={req.id || req.name}>
+                        {req.name}{" "}
+                        {req.is_mandatory && (
+                          <span className="text-red-500 text-xs">(required)</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </div>
           </div>
@@ -98,19 +115,19 @@ export default function Step1Service({ formData, setFormData }) {
         <h5 className="text-sm font-semibold text-red-600 tracking-wide">NOTICE</h5>
         <ol className="mt-2 list-decimal pl-5 text-sm leading-6 text-gray-800 space-y-1">
           <li>
-            Ensure all requirements and personal details are complete and accurate. Incomplete or incorrect info may
-            cause delays or rescheduling.
+            Ensure all requirements and personal details are complete and accurate. Incomplete or
+            incorrect info may cause delays or rescheduling.
           </li>
           <li>
-            Seminars/Orientations are required where applicable (e.g., Pre-Baptism, Pre-Cana/Marriage Prep, Catechesis).
-            Attendance and punctuality are mandatory.
+            Seminars/Orientations are required where applicable (e.g., Pre-Baptism,
+            Pre-Cana/Marriage Prep, Catechesis). Attendance and punctuality are mandatory.
           </li>
           <li>
-            Use your active phone and email. Official updates are sent through parish channels. Avoid fixers or
-            third-party coordinators.
+            Use your active phone and email. Official updates are sent through parish channels.
+            Avoid fixers or third-party coordinators.
           </li>
         </ol>
       </div>
     </div>
-  )
+  );
 }

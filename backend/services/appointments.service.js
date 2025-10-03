@@ -1,6 +1,9 @@
+// src/services/appointments.service.js
 import pool from "../config/db.js";
 
-/** returns true if same person already booked same slot (pending/approved/in_progress) */
+/**
+ * ✅ Check duplicate bookings (same person, same slot, not cancelled)
+ */
 export async function hasDuplicateBooking({
   idToIgnore = null,
   service_id,
@@ -23,6 +26,9 @@ export async function hasDuplicateBooking({
   return rows.length > 0;
 }
 
+/**
+ * ✅ Count booked slots for capacity validation
+ */
 export async function countBookedAt({
   service_id,
   date,
@@ -43,11 +49,15 @@ export async function countBookedAt({
   return rows[0].booked;
 }
 
+/**
+ * ✅ Insert new appointment 
+ */
 export async function insertAppointment({
   user_id = null,
   name,
   email,
   contactNumber = null,
+  address = null, // ✅ added
   service_id,
   date,
   time,
@@ -56,13 +66,27 @@ export async function insertAppointment({
 }) {
   const [result] = await pool.query(
     `INSERT INTO appointments
-       (user_id, name, email, contactNumber, service_id, date, time, status, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [user_id, name, email, contactNumber, service_id, date, time, status, notes]
+       (user_id, name, email, contactNumber, address, service_id, date, time, status, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      user_id,
+      name,
+      email,
+      contactNumber,
+      address,
+      service_id,
+      date,
+      time,
+      status,
+      notes,
+    ]
   );
   return result.insertId;
 }
 
+/**
+ * ✅ Update existing appointment (with address)
+ */
 export async function updateAppointment({
   id,
   status,
@@ -72,19 +96,32 @@ export async function updateAppointment({
   name,
   email,
   contactNumber,
+  address, // ✅ added
   service_id,
 }) {
   await pool.query(
     `UPDATE appointments
-       SET status = COALESCE(?, status),
-           date   = COALESCE(?, date),
-           time   = COALESCE(?, time),
-           notes  = COALESCE(?, notes),
-           name   = COALESCE(?, name),
-           email  = COALESCE(?, email),
-           contactNumber = COALESCE(?, contactNumber),
-           service_id    = COALESCE(?, service_id)
+       SET status       = COALESCE(?, status),
+           date         = COALESCE(?, date),
+           time         = COALESCE(?, time),
+           notes        = COALESCE(?, notes),
+           name         = COALESCE(?, name),
+           email        = COALESCE(?, email),
+           contactNumber= COALESCE(?, contactNumber),
+           address      = COALESCE(?, address),   -- ✅ new field
+           service_id   = COALESCE(?, service_id)
      WHERE id = ?`,
-    [status, date, time, notes, name, email, contactNumber, service_id, id]
+    [
+      status,
+      date,
+      time,
+      notes,
+      name,
+      email,
+      contactNumber,
+      address,
+      service_id,
+      id,
+    ]
   );
 }

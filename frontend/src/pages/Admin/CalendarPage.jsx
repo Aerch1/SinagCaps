@@ -3,14 +3,11 @@
 import { useState } from "react";
 import Card from "../../components/common/Card";
 import Calendar from "../../components/common/Calendar";
-import Dropdown from "../../components/ui/Dropdown1";
 import TodaySchedule from "../../components/common/TodaySchedule";
 import UpcomingEvents from "../../components/common/UpcomingEvents";
 import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal"; // ← add
-import { Plus } from "lucide-react";
 
 export default function CalendarPage() {
-    const [viewFilter, setViewFilter] = useState("Month");
     const viewOptions = ["Week", "Month"];
 
     // Appointments shown on calendar + TodaySchedule
@@ -42,13 +39,13 @@ export default function CalendarPage() {
                     </p>
                 </div>
 
-              
-            </div>
 
+            </div>
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
                 <Card />
             </div>
+
 
             {/* Calendar + Right Column */}
             <div className="grid md:grid-cols-[1fr_320px] gap-4 md:gap-4">

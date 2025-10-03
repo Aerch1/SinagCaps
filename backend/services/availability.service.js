@@ -112,6 +112,14 @@ export function needsConfirmationForAdmin({ availability, timeHHMM }) {
     };
   }
 
+  if (availability.status === "full") {
+    return {
+      needed: true,
+      reasonCode: "FULLY_BOOKED",
+      reasonText: "All slots are already booked for this day.",
+    };
+  }
+
   // ✅ outside hours
   if (availability.churchHours) {
     const open = toHHMM(availability.churchHours.open_time);

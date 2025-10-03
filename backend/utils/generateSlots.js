@@ -1,16 +1,13 @@
 // src/utils/generateSlots.js
 import { addMinutes } from "date-fns";
 
-// Normalize to HH:mm (e.g. "08:00:00" → "08:00")
+// Normalize to HH:mm
 function hhmm(s) {
   if (!s) return null;
   return s.length === 8 ? s.slice(0, 5) : s;
 }
 
-/**
- * Specificity precedence for same time collisions:
- * single (3) > recurring (2) > allday (1)
- */
+// Rule specificity (priority: single > recurring > allday)
 function specificityOf(rule) {
   if (rule.type === "single") return 3;
   if (rule.type === "recurring") return 2;
@@ -18,10 +15,7 @@ function specificityOf(rule) {
   return 0;
 }
 
-/**
- * Expand a time range (inclusive start, inclusive end) by step minutes.
- * Returns array of HH:mm strings.
- */
+// Expand start..end into array of HH:mm times
 function expandRange(start, end, step) {
   const startHH = hhmm(start),
     endHH = hhmm(end);
@@ -43,9 +37,7 @@ function expandRange(start, end, step) {
 
 /**
  * Generate merged slots from rules + appointments + church hours.
- * Always returns unique times; if multiple rules target the same time,
- * the more specific rule wins (single > recurring > allday).
- * Each slot carries capacity/booked/remaining/unavailable.
+ * Always returns unique times; more specific rules override less specific.
  */
 export function generateSlots({
   rules,
@@ -53,37 +45,33 @@ export function generateSlots({
   churchOpen,
   churchClose,
 }) {
-  // Count booked appointments per time
+  // Count booked appointments
   const apptCount = {};
   (appointments || []).forEach((a) => {
     const key = hhmm(a.time);
     apptCount[key] = (apptCount[key] || 0) + 1;
   });
 
-  // If there’s any blocked rule, short-circuit (handled also by resolver)
+  // Blocked rules → no slots
   if (
     (rules || []).some((r) => r.type === "blocked" || r.status === "blocked")
   ) {
     return [];
   }
 
-  // Build a map of time → { capacity, specificity }
   const timeMap = new Map();
 
   for (const rule of rules || []) {
-    if (rule.type === "blocked") {
-      return []; // guard (resolver already checks)
-    }
-
     const spec = specificityOf(rule);
 
-    // ALlDAY → expand using church hours if missing
+    // ALlDAY
     if (rule.type === "allday") {
       const start = hhmm(rule.start) || hhmm(churchOpen);
       const end = hhmm(rule.end) || hhmm(churchClose);
-      const times = expandRange(start, end, 30);
+      const step = Number(rule.interval_mins) || 30;
+      const times = expandRange(start, end, step);
       for (const t of times) {
-        const cap = rule.slots != null ? rule.slots : 1; // interpret NULL as 1
+        const cap = rule.slots ?? 1;
         const prev = timeMap.get(t);
         if (!prev || prev.specificity <= spec) {
           timeMap.set(t, { capacity: cap, specificity: spec });
@@ -92,45 +80,46 @@ export function generateSlots({
       continue;
     }
 
-    // SINGLE → one time
+    // SINGLE
     if (rule.type === "single") {
       const t = hhmm(rule.time);
       if (!t) continue;
-      const cap = rule.slots != null ? rule.slots : 1; // interpret NULL as 1
+      const cap = rule.slots ?? 1;
       const prev = timeMap.get(t);
-      if (!prev || prev.specificity < spec) {
+      if (
+        !prev ||
+        prev.specificity < spec ||
+        (prev.specificity === spec && cap > prev.capacity)
+      ) {
         timeMap.set(t, { capacity: cap, specificity: spec });
-      } else if (prev.specificity === spec) {
-        // if both are single → keep bigger cap
-        if (cap > prev.capacity)
-          timeMap.set(t, { capacity: cap, specificity: spec });
       }
       continue;
     }
 
-    // RECURRING → expand start..end by interval_mins
+    // RECURRING
     if (rule.type === "recurring") {
-      const start = hhmm(rule.start);
-      const end = hhmm(rule.end);
+      const start = hhmm(rule.start) || hhmm(churchOpen);
+      const end = hhmm(rule.end) || hhmm(churchClose);
       const step = Number(rule.interval_mins) || 30;
       const times = expandRange(start, end, step);
       for (const t of times) {
-        const cap = rule.slots != null ? rule.slots : 1; // interpret NULL as 1
+        const cap = rule.slots ?? 1;
         const prev = timeMap.get(t);
-        if (!prev || prev.specificity < spec) {
+        if (
+          !prev ||
+          prev.specificity < spec ||
+          (prev.specificity === spec && cap > prev.capacity)
+        ) {
           timeMap.set(t, { capacity: cap, specificity: spec });
-        } else if (prev.specificity === spec) {
-          if (cap > prev.capacity)
-            timeMap.set(t, { capacity: cap, specificity: spec });
         }
       }
       continue;
     }
   }
 
-  // Convert to sorted slot list with booked/remaining
+  // Convert to sorted slots
   const timesSorted = [...timeMap.keys()].sort();
-  const slots = timesSorted.map((t) => {
+  return timesSorted.map((t) => {
     const cap = timeMap.get(t).capacity || 0;
     const booked = apptCount[t] || 0;
     const remaining = Math.max(0, cap - booked);
@@ -142,6 +131,4 @@ export function generateSlots({
       unavailable: booked >= cap,
     };
   });
-
-  return slots;
 }

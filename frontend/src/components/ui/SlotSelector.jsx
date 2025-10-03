@@ -109,23 +109,21 @@ export default function SlotSelector({
                         s.unavailable
                           ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
                           : normalizedValue === cleanTime
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-white text-slate-700 border-gray-300 hover:bg-gray-50",
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white text-slate-700 border-gray-300 hover:bg-gray-50",
                       ].join(" ")}
                     >
                       {/* Time label */}
                       <span
-                        className={`text-sm font-medium ${
-                          s.unavailable ? "text-gray-400" : ""
-                        }`}
+                        className={`text-sm font-medium ${s.unavailable ? "text-gray-400" : ""
+                          }`}
                       >
                         {mainLabel}
                       </span>
                       {/* Subtext */}
                       <span
-                        className={`text-xs ${
-                          s.unavailable ? "text-gray-400" : "text-gray-500"
-                        }`}
+                        className={`text-xs ${s.unavailable ? "text-gray-400" : "text-gray-500"
+                          }`}
                       >
                         {subLabel}
                       </span>
@@ -164,7 +162,6 @@ export default function SlotSelector({
         </PopoverContent>
       </Popover>
 
-      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
     </div>
   );
 }

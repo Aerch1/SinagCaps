@@ -24,7 +24,6 @@ router.get("/:serviceId/:date", async (req, res) => {
     const isoDate = formatDate(targetDate);
     const weekday = targetDate.getDay(); // 0..6
 
-    // Fetch in parallel
     const [[rules], [appointments], [hours]] = await Promise.all([
       pool.execute(
         `SELECT * FROM rules
@@ -50,7 +49,6 @@ router.get("/:serviceId/:date", async (req, res) => {
     ]);
 
     const churchHours = hours?.[0] || null;
-
     const availability = resolveAvailability({
       rules,
       appointments,
@@ -78,11 +76,9 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
     const m = Number(month); // 1..12
     const daysInMonth = getDaysInMonth(y, m - 1);
 
-    // Preload once
     const [[rules], [appointments], [hours]] = await Promise.all([
       pool.execute(
-        `SELECT id, date, type, slots, start, end, interval_mins, weekday, status, time
-         FROM rules
+        `SELECT * FROM rules
          WHERE service_id = ?
            AND (YEAR(date) = ? OR date IS NULL)
            AND (MONTH(date) = ? OR date IS NULL)`,
@@ -102,7 +98,6 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
       ),
     ]);
 
-    // Group appts by yyyy-MM-dd
     const apptsByDay = {};
     for (const a of appointments) {
       const key = formatDate(a.d);
@@ -118,7 +113,6 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
       const dt = parseDate(iso);
       const weekday = dt.getDay();
 
-      // Specific date rules first, else weekly rules
       const rulesForDay = rules.filter(
         (r) => r.date && formatDate(r.date) === iso
       );
@@ -134,7 +128,6 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
         churchHours,
       });
 
-      // ✅ trust resolveAvailability for status
       days[iso] = {
         status: availability.status, // "available" | "blocked" | "none"
         remaining: availability.remaining,

@@ -1,80 +1,44 @@
-"use client"
+"use client";
 
-import { useEffect, useMemo } from "react"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { parseISO, format } from "date-fns"
-import { User, Mail, Phone, MapPin } from "lucide-react"
+import { useEffect, useMemo } from "react";
+import { parseISO, format } from "date-fns";
+import { User, Mail, Phone, MapPin } from "lucide-react";
 
-import Input from "../components/ui/Input"
+import Input from "../components/ui/Input";
 
-const Req = () => <span className="text-red-500 ml-0.5">*</span>
-const FieldError = ({ error }) =>
-    error ? <p className="mt-1 text-xs text-red-500">{error.message}</p> : null
+const Req = () => <span className="text-red-500 ml-0.5">*</span>;
 
-/* ---------------------- ZOD SCHEMA ---------------------- */
-export const DefaultSchema = z.object({
-    firstName: z.string().min(1, "First name is required."),
-    lastName: z.string().min(1, "Last name is required."),
-    email: z.string().email("Invalid email address."),
-    phone: z.string().min(1, "Phone is required."),
-    address: z.string().min(1, "Address is required."),
-    purpose: z.string().min(1, "Purpose is required."),
-    additionalNotes: z.string().optional(),
-})
-
-/* ---------------------- COMPONENT ---------------------- */
 export default function DefaultForm({ formData, setFormData, registerValidator }) {
-    const {
-        register,
-        formState: { errors },
-        getValues,
-    } = useForm({
-        resolver: zodResolver(DefaultSchema),
-        defaultValues: {
-            firstName: formData.firstName || "",
-            lastName: formData.lastName || "",
-            email: formData.email || "",
-            phone: formData.phone || "",
-            address: formData.address || "",
-            purpose: formData.purpose || "",
-            additionalNotes: formData.additionalNotes || "",
-        },
-    })
+    const updateField = (field, value) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    };
 
-    // Sync to parent state
-    const syncValues = () => {
-        const values = getValues()
-        setFormData((prev) => ({ ...prev, ...values }))
-    }
-
-    // Register validator for Step 3
+    // Step validation
     useEffect(() => {
-        if (!registerValidator) return
+        if (!registerValidator) return;
         const validator = () => {
-            const values = getValues()
-            const result = DefaultSchema.safeParse(values)
-            if (!result.success) return false
-            syncValues()
-            return true
-        }
-        registerValidator(3, validator)
-    }, [registerValidator, getValues])
+            const required = ["firstName", "lastName", "email", "phone", "address", "purpose"];
+            for (const f of required) {
+                if (!formData[f]) return false;
+            }
+            return true;
+        };
+        registerValidator(3, validator);
+    }, [formData, registerValidator]);
 
     const scheduleLabel = useMemo(() => {
-        if (!formData.preferredDate) return ""
+        if (!formData.preferredDate) return "";
         try {
-            const d = parseISO(formData.preferredDate)
-            const dateStr = format(d, "EEE, MMM d, yyyy")
-            return formData.preferredTime ? `${dateStr} • ${formData.preferredTime}` : dateStr
+            const d = parseISO(formData.preferredDate);
+            const dateStr = format(d, "EEE, MMM d, yyyy");
+            return formData.preferredTime ? `${dateStr} • ${formData.preferredTime}` : dateStr;
         } catch {
-            return formData.preferredDate
+            return formData.preferredDate;
         }
-    }, [formData.preferredDate, formData.preferredTime])
+    }, [formData.preferredDate, formData.preferredTime]);
 
     return (
-        <form className="space-y-8" onChange={syncValues} noValidate>
+        <div className="space-y-8" noValidate>
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <h3 className="text-lg font-medium">Personal Information & Details</h3>
                 {scheduleLabel && (
@@ -89,32 +53,54 @@ export default function DefaultForm({ formData, setFormData, registerValidator }
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                         First Name <Req />
                     </label>
-                    <Input icon={User} placeholder="First Name" autoComplete="given-name" {...register("firstName")} />
-                    <FieldError error={errors.firstName} />
+                    <Input
+                        icon={User}
+                        placeholder="First Name"
+                        autoComplete="given-name"
+                        value={formData.firstName || ""}
+                        onChange={(e) => updateField("firstName", e.target.value)}
+                    />
                 </div>
 
                 <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                         Last Name <Req />
                     </label>
-                    <Input icon={User} placeholder="Last Name" autoComplete="family-name" {...register("lastName")} />
-                    <FieldError error={errors.lastName} />
+                    <Input
+                        icon={User}
+                        placeholder="Last Name"
+                        autoComplete="family-name"
+                        value={formData.lastName || ""}
+                        onChange={(e) => updateField("lastName", e.target.value)}
+                    />
                 </div>
 
                 <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                         Email <Req />
                     </label>
-                    <Input icon={Mail} type="email" placeholder="Email" autoComplete="email" {...register("email")} />
-                    <FieldError error={errors.email} />
+                    <Input
+                        icon={Mail}
+                        type="email"
+                        placeholder="Email"
+                        autoComplete="email"
+                        value={formData.email || ""}
+                        onChange={(e) => updateField("email", e.target.value)}
+                    />
                 </div>
 
                 <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                         Phone <Req />
                     </label>
-                    <Input icon={Phone} type="tel" placeholder="Phone" autoComplete="tel" {...register("phone")} />
-                    <FieldError error={errors.phone} />
+                    <Input
+                        icon={Phone}
+                        type="tel"
+                        placeholder="Phone"
+                        autoComplete="tel"
+                        value={formData.phone || ""}
+                        onChange={(e) => updateField("phone", e.target.value)}
+                    />
                 </div>
             </div>
 
@@ -130,10 +116,10 @@ export default function DefaultForm({ formData, setFormData, registerValidator }
                         rows={3}
                         placeholder="Complete Address"
                         className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300"
-                        {...register("address")}
+                        value={formData.address || ""}
+                        onChange={(e) => updateField("address", e.target.value)}
                     />
                 </div>
-                <FieldError error={errors.address} />
             </div>
 
             <div>
@@ -144,9 +130,9 @@ export default function DefaultForm({ formData, setFormData, registerValidator }
                     rows="3"
                     placeholder="Briefly describe why you’re booking"
                     className="w-full px-3 py-2 rounded-lg border border-gray-300"
-                    {...register("purpose")}
+                    value={formData.purpose || ""}
+                    onChange={(e) => updateField("purpose", e.target.value)}
                 />
-                <FieldError error={errors.purpose} />
             </div>
 
             <div>
@@ -155,9 +141,10 @@ export default function DefaultForm({ formData, setFormData, registerValidator }
                     rows="3"
                     placeholder="Anything else we should know?"
                     className="w-full px-3 py-2 rounded-lg border border-gray-300"
-                    {...register("additionalNotes")}
+                    value={formData.additionalNotes || ""}
+                    onChange={(e) => updateField("additionalNotes", e.target.value)}
                 />
             </div>
-        </form>
-    )
+        </div>
+    );
 }

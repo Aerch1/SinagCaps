@@ -1,95 +1,151 @@
+// src/pages/admin/AdminDashboard.jsx
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect } from "react";
 import KpiCard from "../../components/common/KpiCard";
 import Dropdown from "../../components/ui/Dropdown1";
 import ServiceAreaChart from "../../components/common/ServiceAreaChart";
 import ServiceBarChart from "../../components/common/ServiceBarChart";
 import DataTable from "../../components/common/DataTable";
 import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal";
+import api from "@/api/api";
+import {
+    BarChart3,
+    CalendarDays,
+    Clock,
+    Users,
+    ListChecks,
+} from "lucide-react";
 
-/* ---------------- helpers ---------------- */
-const series = (arr) => arr.map((v, i) => ({ label: `P${i + 1}`, value: v }));
-
-// ✅ KEEP MOCKED KPI DATA
-const mockKpiData = {
-    Week: [
-        { id: "total", title: "Total Appointments", current: 0, previous: 0, trend: series([1, 0, 0, 0, 0, 0, 0]) },
-        { id: "pending", title: "Pending Appointments", current: 14, previous: 16, trend: series([18, 17, 16, 15, 14, 14, 14]) },
-        { id: "today", title: "Today’s Schedule", current: 6, previous: 5, trend: series([3, 4, 5, 6, 6, 6, 6]) },
-        { id: "canceled", title: "Canceled Appointments", current: 3, previous: 5, trend: series([5, 5, 4, 4, 4, 3, 3]) },
-    ],
-    Month: [
-        { id: "total", title: "Total Appointments", current: 520, previous: 480, trend: series([380, 410, 430, 455, 489, 505, 520]) },
-        { id: "pending", title: "Pending Appointments", current: 60, previous: 72, trend: series([80, 75, 70, 66, 63, 61, 60]) },
-        { id: "today", title: "Today’s Schedule", current: 90, previous: 19, trend: series([10, 14, 16, 18, 19, 21, 22]) },
-        { id: "canceled", title: "Canceled Appointments", current: 11, previous: 15, trend: series([15, 15, 14, 13, 12, 11, 11]) },
-    ],
-    Year: [
-        { id: "total", title: "Total Appointments", current: 6320, previous: 5980, trend: series([4800, 5200, 5600, 5900, 6100, 6250, 6320]) },
-        { id: "pending", title: "Pending Appointments", current: 180, previous: 220, trend: series([260, 240, 220, 210, 195, 185, 180]) },
-        { id: "today", title: "Today’s Schedule", current: 28, previous: 24, trend: series([12, 16, 19, 21, 23, 26, 28]) },
-        { id: "canceled", title: "Canceled Appointments", current: 80, previous: 96, trend: series([110, 105, 100, 95, 90, 85, 80]) },
-    ],
+const KPI_CONFIG = {
+    total: { icon: BarChart3, color: "bg-blue-500" },
+    pending: { icon: Clock, color: "bg-yellow-500" },
+    today: { icon: CalendarDays, color: "bg-green-500" },
+    activeUsers: { icon: Users, color: "bg-purple-500" },
 };
+
+function getPeriodLabel(filter, id) {
+    if (id === "today") return "yesterday"; // special case
+    switch (filter) {
+        case "Week":
+            return "last week";
+        case "Month":
+            return "last month";
+        case "Year":
+            return "last year";
+        default:
+            return "last period";
+    }
+}
 
 export default function AdminDashboard() {
     const periodOptions = ["Week", "Month", "Year"];
     const [filter, setFilter] = useState("Month");
 
-    // state for modal (hooked up later if you connect DataTable actions)
+    const [kpiData, setKpiData] = useState([]);
+    const [loadingKpi, setLoadingKpi] = useState(false);
+
     const [viewOpen, setViewOpen] = useState(false);
     const [viewAppt, setViewAppt] = useState(null);
 
-    const calcChange = useCallback((current, previous) => {
-        if (!previous) return 0;
-        return Math.round(((current - previous) / previous) * 100);
+    // 🕒 Live time in Philippine Standard Time
+    const [time, setTime] = useState(new Date());
+    useEffect(() => {
+        const interval = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(interval);
     }, []);
 
-    const kpis = useMemo(() => {
-        const raw = mockKpiData[filter] || [];
-        return raw.map((k) => ({
-            id: k.id,
-            title: k.title,
-            value: k.current,
-            change: calcChange(k.current, k.previous),
-            data: k.trend,
-        }));
-    }, [filter, calcChange]);
+    /* --- fetch KPI data --- */
+    useEffect(() => {
+        let active = true;
+        setLoadingKpi(true);
+        api
+            .get(`/admin/dashboard/kpis?period=${filter}`)
+            .then((res) => {
+                if (active && res.data.success) {
+                    const raw = res.data.data || [];
+                    setKpiData(
+                        raw.map((k) => ({
+                            id: k.id,
+                            title: k.title,
+                            value: k.current,     // ✅ current KPI value
+                            previous: k.previous, // ✅ previous KPI value
+                            data: k.trend || [],
+                        }))
+                    );
+                }
+            })
+            .catch((err) => console.error("❌ KPI fetch failed:", err))
+            .finally(() => setLoadingKpi(false));
+        return () => {
+            active = false;
+        };
+    }, [filter]);
 
     return (
         <div className="space-y-4 md:space-y-6">
-            {/* Header */}
-            <div className="flex flex-col gap-3 md:gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-xl md:text-2xl font-bold text-slate-900">
-                        Dashboard Overview
-                    </h1>
-                    <p className="mt-1 text-xs md:text-sm text-gray-500">
+            {/* 🔵 Header strip */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-md bg-secondary px-6 py-2 text-white">
+                <div className="border-white py-4">
+                    <h1 className="text-lg md:text-xl font-bold">Dashboard</h1>
+                    <p className="text-xs md:text-sm opacity-90">
                         Monitor your appointment metrics and performance
                     </p>
                 </div>
 
+                <div className="text-right mt-3 sm:mt-0">
+                    <div className="text-sm md:text-base font-semibold">
+                        {time.toLocaleTimeString("en-PH", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                            hour12: true,
+                            timeZone: "Asia/Manila",
+                        })}
+                    </div>
+                    <div className="text-xs md:text-sm opacity-90">
+                        {time.toLocaleDateString("en-PH", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                            timeZone: "Asia/Manila",
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Dropdown filter */}
+            <div className="flex justify-end">
                 <Dropdown
                     value={filter}
                     onChange={setFilter}
                     options={periodOptions}
                     placeholder="Select period…"
-                    className="w-40"
+                    className="w-32 text-black"
                 />
             </div>
 
-            {/* KPI Grid (mocked for now) */}
+            {/* KPI Grid */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 lg:gap-6 xl:grid-cols-4">
-                {kpis.map((kpi) => (
-                    <KpiCard
-                        key={kpi.id}
-                        title={kpi.title}
-                        value={kpi.value}
-                        change={kpi.change}
-                        data={kpi.data}
-                    />
-                ))}
+                {loadingKpi && <p className="text-sm text-gray-500">Loading KPIs…</p>}
+                {!loadingKpi &&
+                    kpiData.map((kpi) => {
+                        const { icon, color } = KPI_CONFIG[kpi.id] || {
+                            icon: ListChecks,
+                            color: "border-gray-400",
+                        };
+                        return (
+                            <KpiCard
+                                key={kpi.id}
+                                title={kpi.title}
+                                value={kpi.value}
+                                previous={kpi.previous}
+                                icon={icon}
+                                stripeColor={color}
+                                periodLabel={getPeriodLabel(filter, kpi.id)}
+                            />
+                        );
+                    })}
             </div>
 
             {/* Analytics row */}
@@ -101,10 +157,9 @@ export default function AdminDashboard() {
                     <ServiceBarChart filter={filter} />
                 </div>
 
-                {/* DataTable preview */}
                 <div className="lg:col-span-12">
                     <DataTable
-                        initialPageSize={5} // ✅ preview mode
+                        initialPageSize={5}
                         manageHref="/admin/appointments?status=all"
                         onView={(row) => {
                             setViewAppt(row);

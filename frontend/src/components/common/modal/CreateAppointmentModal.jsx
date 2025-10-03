@@ -18,6 +18,7 @@ export default function CreateAppointmentModal({
     const [serverErrors, setServerErrors] = useState({});
     const [confirmData, setConfirmData] = useState(null);
     const [confirmMessage, setConfirmMessage] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
 
     // Clear server errors whenever modal (re)opens
     useEffect(() => {
@@ -25,9 +26,12 @@ export default function CreateAppointmentModal({
     }, [isOpen]);
 
     const handleFormSubmit = async (formData) => {
+        setSubmitting(true);
+        const toastId = toast.loading("⏳ Creating appointment...");
         try {
             await api.post("/admin/appointments", formData);
-            toast.success("Appointment created successfully");
+
+            toast.success("✅ Appointment created successfully", { id: toastId });
             setServerErrors({});
             onSave?.();
             onClose();
@@ -36,6 +40,7 @@ export default function CreateAppointmentModal({
 
             // Handle confirmation-required response
             if (status === 409 && data?.confirmNeeded) {
+                toast.dismiss(toastId);
                 setConfirmData(formData);
                 setConfirmMessage(data.message || "This action needs confirmation.");
                 return;
@@ -43,40 +48,46 @@ export default function CreateAppointmentModal({
 
             // Handle validation errors
             if (status === 400 && Array.isArray(data?.errors)) {
+                toast.dismiss(toastId);
                 const mapped = {};
-                data.errors.forEach((msg) => {
-                    const lower = String(msg || "").toLowerCase();
-                    if (lower.includes("name")) mapped.name = msg;
-                    else if (lower.includes("email")) mapped.email = msg;
-                    else if (lower.includes("contact")) mapped.contactNumber = msg;
-                    else if (lower.includes("service")) mapped.service_id = msg;
-                    else if (lower.includes("date")) mapped.date = msg;
-                    else if (lower.includes("time")) mapped.time = msg;
-                    else mapped.notes = msg;
+                data.errors.forEach((errObj) => {
+                    if (typeof errObj === "string") {
+                        mapped._general = errObj;
+                    } else if (errObj.field) {
+                        mapped[errObj.field] = errObj.message;
+                    }
                 });
                 setServerErrors(mapped);
                 return;
             }
 
-            toast.error(data?.message || "❌ Failed to create appointment");
+            toast.error(data?.message || "❌ Failed to create appointment", { id: toastId });
+        } finally {
+            setSubmitting(false);
         }
     };
 
     const handleConfirm = async () => {
         if (!confirmData) return;
+        setSubmitting(true);
+        const toastId = toast.loading("⏳ Overriding appointment...");
         try {
             await api.post("/admin/appointments", { ...confirmData, override: true });
-            toast.success("Custom Appointment created successfully");
+
+            toast.success("✅ Custom appointment created successfully", { id: toastId });
             setConfirmData(null);
             setConfirmMessage(null);
             onSave?.();
             onClose();
         } catch (err) {
-            toast.error(err.response?.data?.message || "❌ Failed to override appointment");
+            toast.error(err.response?.data?.message || "❌ Failed to override appointment", { id: toastId });
+        } finally {
+            setSubmitting(false);
         }
     };
 
     const handleCancelConfirm = () => {
+        if (submitting) return; // prevent closing while loading
         setConfirmData(null);
         setConfirmMessage(null);
     };
@@ -91,6 +102,7 @@ export default function CreateAppointmentModal({
                             onSubmit={handleFormSubmit}
                             onCancel={onClose}
                             serverErrors={serverErrors}
+                            submitting={submitting} // ✅ pass state
                         />
                     </div>
                 </div>
@@ -103,6 +115,7 @@ export default function CreateAppointmentModal({
                     message={confirmMessage}
                     onConfirm={handleConfirm}
                     onCancel={handleCancelConfirm}
+                    submitting={submitting} // ✅ disable confirm while loading
                 />
             )}
         </>

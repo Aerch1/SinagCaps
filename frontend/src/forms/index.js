@@ -1,15 +1,23 @@
-// src/forms/index.js
 import BaptismForm from "./BaptismForm.jsx";
 import DefaultForm from "./DefaultForm.jsx";
-// in future: import WeddingForm from "./WeddingForm.jsx"
+// Future: import WeddingForm from "./WeddingForm.jsx";
 
 export const formRegistry = {
   baptism: BaptismForm,
-  wedding: DefaultForm, // temporary until you build WeddingForm
+  wedding: DefaultForm, // swap later with WeddingForm
   confirmation: DefaultForm,
   confession: DefaultForm,
   anointing: DefaultForm,
+  funeral: DefaultForm,
   default: DefaultForm, // fallback
 };
+
+/**
+ * Safe getter — returns a registered form component
+ * or DefaultForm if no match exists.
+ */
+export function getFormComponent(formType = "default") {
+  return formRegistry[formType] || formRegistry.default;
+}
 
 export default formRegistry;

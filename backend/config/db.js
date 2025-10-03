@@ -1,3 +1,4 @@
+// src/config/db.js
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
 dotenv.config();
@@ -51,17 +52,14 @@ async function ensureSchema(conn) {
   if (!doReset) {
     console.warn("⚠️  DB_RESET=true → Dropping existing tables (dev only)...");
     await conn.execute("SET FOREIGN_KEY_CHECKS = 0");
+    await conn.execute("DROP TABLE IF EXISTS baptism_sponsors");
     await conn.execute("DROP TABLE IF EXISTS baptism_details");
     await conn.execute("DROP TABLE IF EXISTS appointment_requirements");
     await conn.execute("DROP TABLE IF EXISTS appointments");
     await conn.execute("DROP TABLE IF EXISTS rules");
-    // await conn.execute("DROP TABLE IF EXISTS church_hours");
+    await conn.execute("DROP TABLE IF EXISTS church_hours");
     await conn.execute("DROP TABLE IF EXISTS requirements");
-    // await conn.execute("DROP TABLE IF EXISTS services");
-    await conn.execute("DROP TABLE IF EXISTS change_email_requests");
-    await conn.execute("DROP TABLE IF EXISTS password_resets");
-    await conn.execute("DROP TABLE IF EXISTS email_verification_tokens");
-    await conn.execute("DROP TABLE IF EXISTS users");
+    await conn.execute("DROP TABLE IF EXISTS services");
     await conn.execute("SET FOREIGN_KEY_CHECKS = 1");
   }
 
@@ -141,6 +139,8 @@ async function ensureSchema(conn) {
       name VARCHAR(100) NOT NULL,
       description TEXT,
       active BOOLEAN DEFAULT TRUE,
+      form_type ENUM('default','baptism','wedding','confirmation','confession','anointing')
+        DEFAULT 'default',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -170,13 +170,13 @@ async function ensureSchema(conn) {
     )
   `);
 
-  // ---- Rules (unified weekly + custom)
+  // ---- Rules
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS rules (
       id INT AUTO_INCREMENT PRIMARY KEY,
       service_id INT NOT NULL,
-      weekday TINYINT NULL, -- 0=Sunday..6=Saturday for recurring rules
-      date DATE NULL,       -- specific override for one date
+      weekday TINYINT NULL,
+      date DATE NULL,
       status ENUM('available','blocked') DEFAULT 'available',
       type ENUM('single','recurring','allday') NOT NULL DEFAULT 'single',
       time TIME NULL,
@@ -199,6 +199,7 @@ async function ensureSchema(conn) {
       name VARCHAR(255) NOT NULL,
       email VARCHAR(255) NULL,
       contactNumber VARCHAR(32),
+      address VARCHAR(500) NULL,
       date DATE NOT NULL,
       time TIME NOT NULL,
       party_size INT NOT NULL DEFAULT 1,
@@ -232,22 +233,41 @@ async function ensureSchema(conn) {
     CREATE TABLE IF NOT EXISTS baptism_details (
       id INT AUTO_INCREMENT PRIMARY KEY,
       appointment_id INT NOT NULL,
-      childFullName VARCHAR(255),
-      childDob DATE,
-      childBirthplace VARCHAR(255),
-      fatherName VARCHAR(255),
-      motherMaidenName VARCHAR(255),
-      parentsMarriageType ENUM('church','civil','unmarried'),
-      sponsors JSON,
-      FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+      childFullName VARCHAR(255) NOT NULL,
+      childDob DATE NOT NULL,
+      childBirthplace VARCHAR(255) NOT NULL,
+      fatherName VARCHAR(255) NOT NULL,
+      motherMaidenName VARCHAR(255) NOT NULL,
+      parentsMarriageType ENUM('church','civil','unmarried') NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT fk_baptism_appt FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+    )
+  `);
+
+  // ---- Baptism sponsors
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS baptism_sponsors (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      baptism_id INT NOT NULL,
+      role ENUM('Ninong','Ninang') NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      address VARCHAR(500) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT fk_baptism_sponsor FOREIGN KEY (baptism_id) REFERENCES baptism_details(id) ON DELETE CASCADE
     )
   `);
 }
 
 /* ===========================
-   SEED ADMIN ONLY
+   SEED ADMIN + PUBLIC DATA
 =========================== */
 async function seedAdmin(conn) {
+ 
+  
+  
+  // --- seed admin
   const [users] = await conn.execute("SELECT id FROM users WHERE email=?", [
     "admin@example.com",
   ]);
@@ -259,5 +279,75 @@ async function seedAdmin(conn) {
       ["Admin User", "admin@example.com", hashed, "admin", true]
     );
     console.log("✅ Default admin created: admin@example.com / admin123");
+  }
+
+  // --- seed one baptism service
+  const [services] = await conn.execute(
+    "SELECT id FROM services WHERE name=?",
+    ["Baptism"]
+  );
+  let baptismServiceId;
+  if (services.length === 0) {
+    const [result] = await conn.execute(
+      "INSERT INTO services (name, description, form_type) VALUES (?, ?, ?)",
+      ["Baptism", "Holy Baptism Service", "baptism"]
+    );
+    baptismServiceId = result.insertId;
+    console.log("✅ Baptism service seeded");
+  } else {
+    baptismServiceId = services[0].id;
+  }
+
+  // --- seed one appointment if none
+  const [appts] = await conn.execute(
+    "SELECT id FROM appointments WHERE service_id=?",
+    [baptismServiceId]
+  );
+  if (appts.length === 0) {
+    const [appt] = await conn.execute(
+      `INSERT INTO appointments 
+        (service_id, name, email, contactNumber, address, date, time, status, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      [
+        baptismServiceId,
+        "Parent Juan Dela Cruz",
+        "parent@example.com",
+        "09171234567",
+        "123 Barangay St., Lipa City",
+        "2025-10-15",
+        "09:00:00",
+        "Seeded test appointment",
+      ]
+    );
+    const apptId = appt.insertId;
+
+    const [bap] = await conn.execute(
+      `INSERT INTO baptism_details
+        (appointment_id, childFullName, childDob, childBirthplace, fatherName, motherMaidenName, parentsMarriageType)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        apptId,
+        "Baby Maria Dela Cruz",
+        "2024-08-12",
+        "Lipa City Hospital",
+        "Jose Dela Cruz",
+        "Maria Santos",
+        "church",
+      ]
+    );
+    const baptismId = bap.insertId;
+
+    await conn.execute(
+      `INSERT INTO baptism_sponsors (baptism_id, role, name, address) VALUES (?, ?, ?, ?)`,
+      [baptismId, "Ninong", "Pedro Santos", "Lipa City"]
+    );
+    await conn.execute(
+      `INSERT INTO baptism_sponsors (baptism_id, role, name, address) VALUES (?, ?, ?, ?)`,
+      [baptismId, "Ninang", "Maria Lopez", "Batangas City"]
+    );
+
+    console.log(
+      "✅ Seeded one baptism appointment + baptism_details + sponsors"
+    );
   }
 }

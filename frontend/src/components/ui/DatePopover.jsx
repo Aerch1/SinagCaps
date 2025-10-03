@@ -62,6 +62,14 @@ export default function DatePopover({
         [mergedDays]
     );
 
+    const fullDates = useMemo(
+        () =>
+            Object.entries(mergedDays)
+                .filter(([, info]) => info.status === "full")
+                .map(([date]) => parseDate(date)),
+        [mergedDays]
+    );
+
     const blockedDates = useMemo(
         () =>
             Object.entries(mergedDays)
@@ -119,10 +127,14 @@ export default function DatePopover({
                             modifiers={{
                                 available: availableDates,
                                 blocked: blockedDates,
+                                full: fullDates,       // ✅ added
+
                             }}
                             modifiersClassNames={{
                                 available:
                                     "bg-green-100 text-green-900 hover:bg-green-200 aria-selected:bg-green-200",
+                                full:
+                                    "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 aria-selected:bg-yellow-200", // ✅ new style
                                 blocked:
                                     "bg-red-100 text-red-900 hover:bg-red-200 aria-selected:bg-red-200",
                             }}
@@ -135,7 +147,6 @@ export default function DatePopover({
                 </PopoverContent>
             </Popover>
 
-            {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
         </div>
     );
 }

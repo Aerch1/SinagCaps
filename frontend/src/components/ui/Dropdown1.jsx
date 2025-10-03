@@ -10,7 +10,7 @@ export default function Dropdown({
     options = [],
     placeholder = "Select…",
     className = "",
-    width = "w-40",
+    width = "w-30",
     formatter,
 }) {
     const [open, setOpen] = useState(false);

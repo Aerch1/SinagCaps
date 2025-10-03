@@ -35,7 +35,7 @@ const NotificationPanel = lazy(() => import("./pages/Public/settings/panels/Noti
 
 // --- Lazy-loaded Pages (Appointments) ---
 const GeneralInformation = lazy(() => import("./pages/Public/appointments/GeneralInformation"));
-const AppointmentForm = lazy(() => import("./pages/Public/appointments/AppointmentForm"));
+const AppointmentPage = lazy(() => import("./pages/Public/appointments/AppointmentPage"));
 const AppointmentSuccess = lazy(() => import("./pages/Public/appointments/AppointmentSuccess"));
 const AppointmentTerms = lazy(() => import("./pages/Public/appointments/AppointmentTerms"));
 
@@ -93,7 +93,7 @@ function App() {
                   {/* Public area but requires login (non-admin) */}
                   <Route
                     path="/services/appointments/book"
-                    element={<PublicAuthOnly><AppointmentForm /></PublicAuthOnly>}
+                    element={<PublicAuthOnly><AppointmentPage /></PublicAuthOnly>}
                   />
 
                   {/* Success page (open) */}

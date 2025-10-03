@@ -1,4 +1,3 @@
-// src/controllers/admin/admin.appointments.controller.js
 import { Parser } from "json2csv";
 import pool from "../../config/db.js";
 import {
@@ -17,6 +16,7 @@ import {
   insertAppointment,
   updateAppointment as applyUpdate,
 } from "../../services/appointments.service.js";
+import { sendAppointmentCreatedEmail } from "../../utils/appointmentEmails.js";
 
 const STATUSES = [
   "pending",
@@ -28,7 +28,6 @@ const STATUSES = [
 
 /* ==================================================
    POST /api/admin/appointments
-   → Create appointment (with override + confirmation)
 ================================================== */
 export const createAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
@@ -40,25 +39,31 @@ export const createAppointmentAdmin = async (req, res) => {
       service_id,
       date,
       time,
+      address = null,
       status = "pending",
-      notes = "",
+      notes = null,
       override = false,
     } = req.body;
 
     const t = normalizeTime(time);
-    const errors = validateCreate({ name, email, service_id, date, time: t });
+    const errors = validateCreate({
+      name,
+      email,
+      contactNumber,
+      address,
+      service_id,
+      date,
+      time: t,
+    });
     if (t === null) errors.push("Invalid time format (HH:mm).");
     if (errors.length) {
-      return res.status(400).json({
-        success: false,
-        code: "VALIDATION_ERROR",
-        errors,
-      });
+      return res
+        .status(400)
+        .json({ success: false, code: "VALIDATION_ERROR", errors });
     }
 
     await conn.beginTransaction();
 
-    // 1) prevent duplicate by person
     if (
       await hasDuplicateBooking({
         service_id,
@@ -76,10 +81,8 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // 2) availability
     const dayAvail = await getDayAvailability(service_id, date);
     const slot = findSlot(dayAvail, t);
-
     if (slot && slot.unavailable) {
       await conn.rollback();
       return res.status(400).json({
@@ -89,7 +92,6 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // 3) admin confirm logic
     const confirm = needsConfirmationForAdmin({
       availability: dayAvail,
       timeHHMM: t,
@@ -99,16 +101,12 @@ export const createAppointmentAdmin = async (req, res) => {
       return res.status(409).json({
         success: false,
         code: "CONFIRM_REQUIRED",
-        message: confirm.reasonText, // ✅ show exact human reason
+        message: confirm.reasonText,
         confirmNeeded: true,
-        meta: {
-          reason: confirm.reasonText,
-          reasonCode: confirm.reasonCode,
-        },
+        meta: { reason: confirm.reasonText, reasonCode: confirm.reasonCode },
       });
     }
 
-    // 4) capacity double-check (when slot exists)
     if (slot) {
       const alreadyBooked = await countBookedAt({ service_id, date, time: t });
       const remaining = Math.max(
@@ -125,20 +123,37 @@ export const createAppointmentAdmin = async (req, res) => {
       }
     }
 
-    // 5) insert
     const newId = await insertAppointment({
       user_id: req.userId || null,
       name,
       email,
       contactNumber,
+      address,
       service_id,
       date,
       time: t,
       status,
-      notes,
+      notes: notes || null,
     });
 
     await conn.commit();
+
+    try {
+      const [[service]] = await conn.query(
+        "SELECT name FROM services WHERE id=?",
+        [service_id]
+      );
+      await sendAppointmentCreatedEmail(email, {
+        name,
+        serviceName: service?.name || "Selected Service",
+        date,
+        time: t,
+        appointmentId: newId,
+      });
+    } catch (e) {
+      console.error("sendAppointmentCreatedEmail failed (admin):", e.message);
+    }
+
     return res.status(201).json({
       success: true,
       message: override
@@ -159,7 +174,6 @@ export const createAppointmentAdmin = async (req, res) => {
 
 /* ==================================================
    PATCH /api/admin/appointments/:id
-   → Update appointment (with override + confirmation)
 ================================================== */
 export const updateAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
@@ -173,6 +187,7 @@ export const updateAppointmentAdmin = async (req, res) => {
       name,
       email,
       contactNumber,
+      address,
       service_id,
       override = false,
     } = req.body;
@@ -181,126 +196,43 @@ export const updateAppointmentAdmin = async (req, res) => {
     const errors = validateUpdate({ status, date, time: t });
     if (t === null && time) errors.push("Invalid time format (HH:mm).");
     if (errors.length) {
-      return res.status(400).json({
-        success: false,
-        code: "VALIDATION_ERROR",
-        errors,
-      });
+      return res
+        .status(400)
+        .json({ success: false, code: "VALIDATION_ERROR", errors });
     }
 
     await conn.beginTransaction();
-
-    // 1) current
-    const [rows] = await conn.query(
-      `SELECT service_id, date, time, email, contactNumber
-       FROM appointments WHERE id=?`,
-      [id]
-    );
-    if (!rows.length) {
-      await conn.rollback();
-      return res.status(404).json({
-        success: false,
-        code: "NOT_FOUND",
-        message: "Appointment not found",
-      });
-    }
-    const current = rows[0];
-
-    const newService = service_id ?? current.service_id;
-    const newDate = date ?? current.date;
-    const newTime = t ?? current.time;
-
-    // 2) slot changed?
-    const slotChanged =
-      newService !== current.service_id ||
-      newDate !== current.date ||
-      newTime !== current.time;
-
-    if (slotChanged) {
-      if (
-        await hasDuplicateBooking({
-          idToIgnore: id,
-          service_id: newService,
-          date: newDate,
-          time: newTime,
-          email: email || current.email,
-          contactNumber: contactNumber || current.contactNumber,
-        })
-      ) {
-        await conn.rollback();
-        return res.status(400).json({
-          success: false,
-          code: "DOUBLE_BOOKING",
-          message: "You already have an appointment at this time.",
-        });
-      }
-
-      const dayAvail = await getDayAvailability(newService, newDate);
-      const slot = findSlot(dayAvail, newTime);
-
-      if (slot && slot.unavailable) {
-        await conn.rollback();
-        return res.status(400).json({
-          success: false,
-          code: "FULLY_BOOKED",
-          message: "This time is already fully booked.",
-        });
-      }
-
-      const confirm = needsConfirmationForAdmin({
-        availability: dayAvail,
-        timeHHMM: newTime,
-      });
-      if (confirm.needed && !override) {
-        await conn.rollback();
-        return res.status(409).json({
-          success: false,
-          code: "CONFIRM_REQUIRED",
-          message: confirm.reasonText, // ✅ show exact human reason
-          confirmNeeded: true,
-          meta: {
-            reason: confirm.reasonText,
-            reasonCode: confirm.reasonCode,
-          },
-        });
-      }
-
-      if (slot) {
-        const alreadyBooked = await countBookedAt({
-          idToIgnore: id,
-          service_id: newService,
-          date: newDate,
-          time: newTime,
-        });
-        const remaining = Math.max(
-          0,
-          slot.remaining ?? slot.capacity - alreadyBooked
-        );
-        if (remaining <= 0 && !override) {
-          await conn.rollback();
-          return res.status(400).json({
-            success: false,
-            code: "FULLY_BOOKED",
-            message: "This time is already fully booked.",
-          });
-        }
-      }
-    }
-
-    // 3) update
     await applyUpdate({
       id,
       status,
       date: date ?? null,
       time: t ?? null,
-      notes,
+      notes: notes || null,
       name,
       email,
       contactNumber,
+      address,
       service_id,
     });
-
     await conn.commit();
+
+    try {
+      const [[service]] = await conn.query(
+        "SELECT name FROM services WHERE id=?",
+        [service_id]
+      );
+      await sendAppointmentStatusEmail(email, {
+        name,
+        serviceName: service?.name || "Selected Service",
+        date,
+        time: t,
+        status,
+        appointmentId: id,
+      });
+    } catch (e) {
+      console.error("sendAppointmentStatusEmail failed:", e.message);
+    }
+
     return res.json({
       success: true,
       message: override
@@ -318,7 +250,90 @@ export const updateAppointmentAdmin = async (req, res) => {
   }
 };
 
-/* ---------------- GET /api/admin/appointments ---------------- */
+export const getAppointmentById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 🔹 Appointment (common fields only, plus service)
+    const [[appt]] = await pool.execute(
+      `SELECT 
+         a.id,
+         a.name,
+         a.email,
+         a.contactNumber,
+         a.address,
+         a.status,
+         a.date,
+         a.time,
+         a.notes,
+         a.created_at AS createdAt,
+         s.name AS serviceName,
+         s.form_type
+       FROM appointments a
+       JOIN services s ON a.service_id = s.id
+       WHERE a.id=?`,
+      [id]
+    );
+
+    if (!appt) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Appointment not found" });
+    }
+
+    let details = null;
+    let sponsors = [];
+
+    // 🔵 Extra: Baptism details & sponsors (clean fields only)
+    if (appt.form_type === "baptism") {
+      [[details]] = await pool.execute(
+        `SELECT 
+           childFullName,
+           childDob,
+           childBirthplace,
+           fatherName,
+           motherMaidenName,
+           parentsMarriageType
+         FROM baptism_details 
+         WHERE appointment_id=?`,
+        [id]
+      );
+
+      if (details) {
+        const [sponsorRows] = await pool.execute(
+          `SELECT 
+             role, 
+             name, 
+             address
+           FROM baptism_sponsors 
+           WHERE baptism_id = (
+             SELECT id FROM baptism_details WHERE appointment_id=? LIMIT 1
+           )`,
+          [id]
+        );
+        sponsors = sponsorRows;
+      }
+    }
+
+    return res.json({
+      success: true,
+      appointment: appt, // ✅ includes Transaction ID, service, status, createdAt
+      details,           // ✅ clean fields (no id, no created_at)
+      sponsors,          // ✅ clean fields (no id, no created_at)
+    });
+  } catch (err) {
+    console.error("❌ getAppointmentById error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch appointment" });
+  }
+};
+
+
+/* ==================================================
+   GET /api/admin/appointments
+   → List appointments (common fields only)
+================================================== */
 export const getAppointments = async (req, res) => {
   try {
     const page = Number(req.query.page || 1);
@@ -333,7 +348,7 @@ export const getAppointments = async (req, res) => {
 
     const [rows] = await pool.query(
       `SELECT 
-         a.id, a.name, a.email, a.contactNumber, 
+         a.id, a.name, a.email, a.contactNumber, a.address,
          s.name AS serviceName,
          a.status,
          DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
@@ -350,21 +365,20 @@ export const getAppointments = async (req, res) => {
     );
 
     res.json({
+      success: true,
       data: rows,
       total,
       totalPages,
-      meta: {
-        services: serviceRows,
-        statuses: STATUSES,
-      },
+      meta: { services: serviceRows, statuses: STATUSES },
     });
   } catch (err) {
     console.error("❌ getAppointments error:", err);
-    res.status(500).json({ error: "Failed to fetch appointments" });
+    res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch appointments" });
   }
 };
 
-/* ---------------- POST /api/admin/appointments/filter ---------------- */
 export const filterAppointments = async (req, res) => {
   try {
     const {
@@ -388,11 +402,12 @@ export const filterAppointments = async (req, res) => {
       const q = `%${String(query).toLowerCase()}%`;
       const isNumeric = /^\d+$/.test(String(query));
       where.push(
-        `(LOWER(a.name) LIKE ? OR LOWER(a.email) LIKE ? OR CAST(a.id AS CHAR) LIKE ?${
-          isNumeric ? ` OR a.id = ?)` : `)`
-        }`
+        `(LOWER(a.name) LIKE ? 
+          OR LOWER(a.email) LIKE ? 
+          OR LOWER(a.address) LIKE ? 
+          OR CAST(a.id AS CHAR) LIKE ?${isNumeric ? ` OR a.id = ?)` : `)`}`
       );
-      values.push(q, q, q);
+      values.push(q, q, q, q);
       if (isNumeric) values.push(Number(query));
     }
 
@@ -426,13 +441,10 @@ export const filterAppointments = async (req, res) => {
       orderSQL = `ORDER BY a.date DESC, a.time DESC`;
     }
 
-    const sqlCount = `SELECT COUNT(*) as total 
-                      FROM appointments a 
-                      ${whereSQL}`;
-
+    const sqlCount = `SELECT COUNT(*) as total FROM appointments a ${whereSQL}`;
     const sqlRows = `
       SELECT 
-        a.id, a.name, a.email, a.contactNumber,
+        a.id, a.name, a.email, a.contactNumber, a.address,
         s.name AS serviceName,
         a.status,
         DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
@@ -446,7 +458,6 @@ export const filterAppointments = async (req, res) => {
     const [countRows] = await pool.query(sqlCount, values);
     const total = countRows[0].total;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
     const [rows] = await pool.query(sqlRows, [...values, pageSize, offset]);
 
     const [serviceRows] = await pool.query(
@@ -454,57 +465,29 @@ export const filterAppointments = async (req, res) => {
     );
 
     res.json({
+      success: true,
       data: rows,
       total,
       totalPages,
-      meta: {
-        services: serviceRows,
-        statuses: STATUSES,
-      },
+      meta: { services: serviceRows, statuses: STATUSES },
     });
   } catch (err) {
     console.error("❌ filterAppointments error:", err);
-    res.status(500).json({ error: "Failed to filter appointments" });
-  }
-};
-
-/* ---------------- GET /api/admin/appointments/:id ---------------- */
-export const getAppointmentById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const [rows] = await pool.query(
-      `SELECT 
-         a.id, a.name, a.email, a.contactNumber,
-         s.name AS serviceName,
-         a.status, a.date, a.time, a.notes
-       FROM appointments a
-       JOIN services s ON a.service_id = s.id
-       WHERE a.id = ?`,
-      [id]
-    );
-
-    if (!rows.length) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Appointment not found" });
-    }
-
-    res.json({ success: true, appointment: rows[0] });
-  } catch (err) {
-    console.error("❌ getAppointmentById error:", err);
     res
       .status(500)
-      .json({ success: false, message: "Failed to fetch appointment" });
+      .json({ success: false, error: "Failed to filter appointments" });
   }
 };
 
-/* ---------------- GET /api/admin/appointments/export ---------------- */
+/* ==================================================
+   GET /api/admin/appointments/export
+   → Export as CSV
+================================================== */
 export const exportAppointments = async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT 
-         a.id, a.name, a.email, a.contactNumber,
+         a.id, a.name, a.email, a.contactNumber, a.address,
          s.name AS serviceName,
          a.status,
          DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
@@ -520,6 +503,7 @@ export const exportAppointments = async (req, res) => {
         "name",
         "email",
         "contactNumber",
+        "address",
         "serviceName",
         "status",
         "date",

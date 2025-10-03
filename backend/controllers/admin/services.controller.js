@@ -1,11 +1,12 @@
-// src/controllers/admin/services.controller.js
 import pool from "../../config/db.js";
 
 /* ---------------- GET all services ---------------- */
 export const getServices = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, active, created_at FROM services ORDER BY created_at DESC`
+      `SELECT id, name, active, form_type, created_at 
+       FROM services 
+       ORDER BY created_at DESC`
     );
 
     // Fetch requirements for each service
@@ -34,7 +35,12 @@ export const getServices = async (req, res) => {
 export const createService = async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { name, active = true, requirements = [] } = req.body;
+    const {
+      name,
+      active = true,
+      requirements = [],
+      formType = "default",
+    } = req.body;
 
     if (!name || !name.trim()) {
       return res
@@ -56,10 +62,10 @@ export const createService = async (req, res) => {
         .json({ success: false, message: "Service already exists" });
     }
 
-    // Insert service
+    // Insert service with form_type
     const [result] = await conn.query(
-      `INSERT INTO services (name, active) VALUES (?, ?)`,
-      [name.trim(), !!active]
+      `INSERT INTO services (name, active, form_type) VALUES (?, ?, ?)`,
+      [name.trim(), !!active, formType]
     );
     const serviceId = result.insertId;
 
@@ -85,6 +91,7 @@ export const createService = async (req, res) => {
         id: serviceId,
         name: name.trim(),
         active: !!active,
+        formType,
         requirements,
       },
     });
@@ -104,7 +111,7 @@ export const updateService = async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const { id } = req.params;
-    const { name, active, requirements = [] } = req.body;
+    const { name, active, requirements = [], formType = "default" } = req.body;
 
     if (!name || !name.trim()) {
       return res
@@ -127,13 +134,12 @@ export const updateService = async (req, res) => {
       });
     }
 
-    await conn.query(`UPDATE services SET name = ?, active = ? WHERE id = ?`, [
-      name.trim(),
-      !!active,
-      id,
-    ]);
+    await conn.query(
+      `UPDATE services SET name = ?, active = ?, form_type = ? WHERE id = ?`,
+      [name.trim(), !!active, formType, id]
+    );
 
-    // Reset + insert requirements (simple approach)
+    // Reset + insert requirements
     await conn.query(`DELETE FROM requirements WHERE service_id = ?`, [id]);
 
     if (requirements.length) {

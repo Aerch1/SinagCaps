@@ -6,7 +6,6 @@ import DatePopover from "../components/ui/DatePopover.jsx";
 import SlotSelector from "../components/ui/SlotSelector.jsx";
 import { formatStatusLabel } from "../lib/utils.js";
 
-/* ---------------- Status Options ---------------- */
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
@@ -20,11 +19,14 @@ export default function CreateAppointmentForm({
   onSubmit,
   onCancel,
   serverErrors = {},
+  submitting = false,  // ✅ new
+
 }) {
   const [form, setForm] = useState({
     name: "",
     email: "",
     contactNumber: "",
+    address: "",
     service_id: "",
     status: "pending",
     date: defaultDate,
@@ -33,6 +35,7 @@ export default function CreateAppointmentForm({
   });
 
   const [services, setServices] = useState([]);
+  const [localErrors, setLocalErrors] = useState({});
 
   /* -------- Fetch services -------- */
   useEffect(() => {
@@ -49,14 +52,6 @@ export default function CreateAppointmentForm({
       active = false;
     };
   }, []);
-
-  /* -------- Sync backend validation errors -------- */
-  useEffect(() => {
-    if (serverErrors && Object.keys(serverErrors).length > 0) {
-      // Already mapped in CreateAppointmentModal
-      // No need to do anything special, just re-render
-    }
-  }, [serverErrors]);
 
   /* -------- Handle change -------- */
   const handleChange = (e) => {
@@ -80,11 +75,61 @@ export default function CreateAppointmentForm({
     setForm((prev) => ({ ...prev, time: val }));
   };
 
+  /* -------- Frontend Validation -------- */
+  const validateForm = () => {
+    const errors = {};
+    if (!form.name.trim()) errors.name = "Name is required.";
+
+    // Email validation
+    if (!form.email.trim()) {
+      errors.email = "Email is required.";
+    } else {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(form.email)) {
+        errors.email = "Invalid email format (example@domain.com).";
+      }
+    }
+
+    // Contact number validation
+    if (!form.contactNumber.trim()) {
+      errors.contactNumber = "Contact number is required.";
+    } else if (!/^\d+$/.test(form.contactNumber)) {
+      errors.contactNumber = "Contact number must contain digits only.";
+    } else if (form.contactNumber.length !== 11) {
+      errors.contactNumber = "Contact number must be exactly 11 digits.";
+    }
+
+    // Address required
+    if (!form.address.trim()) errors.address = "Address is required.";
+
+    // Service validation
+    if (!form.service_id) {
+      errors.service_id = "Service is required.";
+    } else if (isNaN(Number(form.service_id))) {
+      errors.service_id = "Service ID must be a number.";
+    }
+
+    // Date/time required
+    if (!form.date) errors.date = "Date is required.";
+    if (!form.time) errors.time = "Time is required.";
+
+    return errors;
+  };
+
   /* -------- Submit -------- */
   const handleSubmit = (e) => {
     e.preventDefault();
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setLocalErrors(errors);
+      return;
+    }
+    setLocalErrors({});
     onSubmit?.(form);
   };
+
+  // Merge server and local errors
+  const mergedErrors = { ...serverErrors, ...localErrors };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -102,11 +147,11 @@ export default function CreateAppointmentForm({
               value={form.name}
               onChange={handleChange}
               placeholder="Enter full name"
-              className={`w-full rounded-lg border px-3 py-2 ${serverErrors.name ? "border-red-500" : "border-gray-200"
+              className={`w-full rounded-lg border px-3 py-2 ${mergedErrors.name ? "border-red-500" : "border-gray-200"
                 }`}
             />
-            {serverErrors.name && (
-              <p className="mt-1 text-sm text-red-500">{serverErrors.name}</p>
+            {mergedErrors.name && (
+              <p className="mt-1 text-sm text-red-500">{mergedErrors.name}</p>
             )}
           </div>
 
@@ -118,11 +163,11 @@ export default function CreateAppointmentForm({
               value={form.email}
               onChange={handleChange}
               placeholder="client@example.com"
-              className={`w-full rounded-lg border px-3 py-2 ${serverErrors.email ? "border-red-500" : "border-gray-300"
+              className={`w-full rounded-lg border px-3 py-2 ${mergedErrors.email ? "border-red-500" : "border-gray-300"
                 }`}
             />
-            {serverErrors.email && (
-              <p className="mt-1 text-sm text-red-500">{serverErrors.email}</p>
+            {mergedErrors.email && (
+              <p className="mt-1 text-sm text-red-500">{mergedErrors.email}</p>
             )}
           </div>
 
@@ -135,16 +180,32 @@ export default function CreateAppointmentForm({
               name="contactNumber"
               value={form.contactNumber}
               onChange={handleChange}
-              placeholder="+63 9xx xxx xxxx"
-              className={`w-full rounded-lg border px-3 py-2 ${serverErrors.contactNumber
+              placeholder="09xxxxxxxxx"
+              className={`w-full rounded-lg border px-3 py-2 ${mergedErrors.contactNumber
                 ? "border-red-500"
                 : "border-gray-300"
                 }`}
             />
-            {serverErrors.contactNumber && (
+            {mergedErrors.contactNumber && (
               <p className="mt-1 text-sm text-red-500">
-                {serverErrors.contactNumber}
+                {mergedErrors.contactNumber}
               </p>
+            )}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-medium">Address</label>
+            <input
+              type="text"
+              name="address"
+              value={form.address}
+              onChange={handleChange}
+              placeholder="Enter client address"
+              className={`w-full rounded-lg border px-3 py-2 ${mergedErrors.address ? "border-red-500" : "border-gray-300"
+                }`}
+            />
+            {mergedErrors.address && (
+              <p className="mt-1 text-sm text-red-500">{mergedErrors.address}</p>
             )}
           </div>
         </div>
@@ -167,9 +228,9 @@ export default function CreateAppointmentForm({
               }))}
               className="w-full"
             />
-            {serverErrors.service_id && (
+            {mergedErrors.service_id && (
               <p className="mt-1 text-sm text-red-500">
-                {serverErrors.service_id}
+                {mergedErrors.service_id}
               </p>
             )}
           </div>
@@ -192,8 +253,11 @@ export default function CreateAppointmentForm({
               serviceId={form.service_id}
               value={form.date}
               onChange={handleDateChange}
-              error={serverErrors.date}
+              error={mergedErrors.date}
             />
+            {mergedErrors.date && (
+              <p className="mt-1 text-sm text-red-500">{mergedErrors.date}</p>
+            )}
           </div>
           <div className="md:col-span-6">
             <SlotSelector
@@ -201,8 +265,11 @@ export default function CreateAppointmentForm({
               onChange={handleTimeChange}
               serviceId={form.service_id}
               date={form.date}
-              error={serverErrors.time}
+              error={mergedErrors.time}
             />
+            {mergedErrors.time && (
+              <p className="mt-1 text-sm text-red-500">{mergedErrors.time}</p>
+            )}
           </div>
         </div>
       </section>
@@ -218,29 +285,47 @@ export default function CreateAppointmentForm({
           value={form.notes}
           onChange={handleChange}
           placeholder="Internal notes (optional)…"
-          className={`w-full resize-none rounded-lg border px-3 py-2 ${serverErrors.notes ? "border-red-500" : "border-gray-300"
+          className={`w-full resize-none rounded-lg border px-3 py-2 ${mergedErrors.notes ? "border-red-500" : "border-gray-300"
             }`}
         />
-        {serverErrors.notes && (
-          <p className="mt-1 text-sm text-red-500">{serverErrors.notes}</p>
+        {mergedErrors.notes && (
+          <p className="mt-1 text-sm text-red-500">{mergedErrors.notes}</p>
         )}
       </section>
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-3 pt-2">
         <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-lg px-4 py-2 text-slate-700 transition hover:bg-gray-100"
-        >
-          Cancel
-        </button>
-        <button
           type="submit"
-          className="rounded-lg bg-secondary px-4 py-2 text-white transition hover:bg-secondary/80"
+          disabled={submitting}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-white transition 
+    ${submitting ? "bg-gray-400 cursor-not-allowed" : "bg-secondary hover:bg-secondary/80"}`}
         >
-          Save Appointment
+          {submitting && (
+            <svg
+              className="h-4 w-4 animate-spin text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+              />
+            </svg>
+          )}
+          {submitting ? "Saving..." : "Save Appointment"}
         </button>
+
       </div>
     </form>
   );

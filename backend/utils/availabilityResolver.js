@@ -6,7 +6,7 @@ import { generateSlots } from "./generateSlots.js";
  * Applies church hours, blocked checks, generates + aggregates slots.
  *
  * @returns {
- *   status: "available" | "blocked" | "none",
+ *   status: "available" | "full" | "blocked" | "none",
  *   slots: Array<{ time: "HH:mm", remaining: number, unavailable: boolean }>,
  *   capacity: number, booked: number, remaining: number
  * }
@@ -17,7 +17,7 @@ export function resolveAvailability({ rules, appointments, churchHours }) {
     return { status: "none", slots: [], capacity: 0, booked: 0, remaining: 0 };
   }
 
-  // 🔹 Hard block
+  // 🔹 Hard block (explicit rule)
   const isBlocked = rules?.some(
     (r) => r.type === "blocked" || r.status === "blocked"
   );
@@ -49,14 +49,12 @@ export function resolveAvailability({ rules, appointments, churchHours }) {
   const booked = slots.reduce((sum, s) => sum + (s.booked || 0), 0);
   const remaining = Math.max(0, capacity - booked);
 
-  // ✅ Status logic (slot-level based)
+  // ✅ Status logic
   let status = "none";
   if (slots.some((s) => s.remaining > 0)) {
-    // at least one slot has room
-    status = "available";
+    status = "available"; // at least one slot open
   } else if (slots.length > 0) {
-    // slots exist but all are full
-    status = "blocked";
+    status = "full"; // slots exist but all are booked
   }
 
   return {
