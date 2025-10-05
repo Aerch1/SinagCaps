@@ -88,6 +88,7 @@ export default function CalendarComponent() {
         });
         setViewOpen(true);
     }, []);
+
     /* ---------- custom event renderer ---------- */
     const renderEventContent = (eventInfo) => {
         const { serviceType, clientName, status } = eventInfo.event.extendedProps;
@@ -97,8 +98,10 @@ export default function CalendarComponent() {
         const statusColors = {
             pending: "bg-yellow-500",
             approved: "bg-green-500",
-            "in-progress": "bg-blue-500",
+            completed: "bg-blue-500",
             cancelled: "bg-red-500",
+            rejected: "bg-red-500",
+            archived: "bg-gray-400",
         };
 
         return (
@@ -106,8 +109,7 @@ export default function CalendarComponent() {
                 <div className="flex items-center gap-1">
                     {/* colored dot */}
                     <span
-                        className={`w-2 h-2 rounded-full ${statusColors[status] || "bg-gray-400"
-                            }`}
+                        className={`w-2 h-2 rounded-full ${statusColors[status] || "bg-gray-400"}`}
                     />
                     <span className="font-medium text-slate-900">{serviceType}</span>
                 </div>
@@ -117,11 +119,10 @@ export default function CalendarComponent() {
         );
     };
 
-
     return (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 relative">
+        <div className="w-full">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4 px-4">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => calendarRef.current?.getApi().prev()}
@@ -145,7 +146,6 @@ export default function CalendarComponent() {
                         {calendarRef.current ? calendarRef.current.getApi().view.title : "Calendar"}
                     </h2>
                 </div>
-
                 <div className="flex items-center gap-3">
                     {/* Service Filter */}
                     <div className="relative">
@@ -211,36 +211,37 @@ export default function CalendarComponent() {
                 </div>
             </div>
 
-            {/* Calendar */}
-            <FullCalendar
-                ref={calendarRef}
-                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                initialView={currentView}
-                headerToolbar={false}
-                events={filteredAppointments}
-                dateClick={handleDateClick}
-                eventClick={handleEventClick}
-                eventContent={renderEventContent}
-                height="600px"
-                slotMinTime="08:00:00"
-                slotMaxTime="18:00:00"
-                allDaySlot={false}
-                timeZone="local"
-                weekends
-                nowIndicator
-                /* 👇 Fix time labels */
-                slotLabelFormat={{
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true, // force 12-hour format
-                }}
-                eventTimeFormat={{
-                    hour: "numeric",
-                    minute: "2-digit",
-                    hour12: true, // 12-hour AM/PM
-                }}
-            />
 
+            {/* Calendar Body */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4 relative">
+                <FullCalendar
+                    ref={calendarRef}
+                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                    initialView={currentView}
+                    headerToolbar={false}
+                    events={filteredAppointments}
+                    dateClick={handleDateClick}
+                    eventClick={handleEventClick}
+                    eventContent={renderEventContent}
+                    height="600px"
+                    slotMinTime="08:00:00"
+                    slotMaxTime="18:00:00"
+                    allDaySlot={false}
+                    timeZone="local"
+                    weekends
+                    nowIndicator
+                    slotLabelFormat={{
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                    }}
+                    eventTimeFormat={{
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                    }}
+                />
+            </div>
 
             {/* Modals */}
             <CreateAppointmentModal
@@ -277,11 +278,14 @@ function getStatusColor(status) {
             return "#fbbf24"; // amber
         case "approved":
             return "#22c55e"; // green
-        case "in-progress":
+        case "completed":
             return "#3b82f6"; // blue
         case "cancelled":
+        case "rejected":
             return "#ef4444"; // red
-        default:
+        case "archived":
             return "#6b7280"; // gray
+        default:
+            return "#9ca3af"; // neutral gray
     }
 }

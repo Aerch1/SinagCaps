@@ -53,11 +53,18 @@ export function validateCreate({
 
 export function validateUpdate({ status, date, time }) {
   const errors = [];
+
+  // ✅ removed "in_progress" (no longer a valid status)
   if (
     status &&
-    !["pending", "approved", "in_progress", "completed", "cancelled"].includes(
-      status
-    )
+    ![
+      "pending",
+      "approved",
+      "completed",
+      "cancelled",
+      "rejected",
+      "archived",
+    ].includes(status)
   ) {
     errors.push({ field: "status", message: "Invalid status." });
   }

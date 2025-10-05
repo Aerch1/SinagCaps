@@ -10,33 +10,35 @@ import profileRoutes from "./routes/profile.routes.js";
 import adminRoutes from "./routes/admin.appointments.routes.js";
 import serviceRoutes from "./routes/admin.services.routes.js";
 import churchHoursRoutes from "./routes/churchHoursRoutes.js";
-import scheduleRules from "./routes/admin.availability.routes.js"; // ✅ unified rules
+import scheduleRules from "./routes/admin.availability.routes.js";
 import availabilityRoutes from "./routes/availableSlots.routes.js";
-
 import publicServicesRoutes from "./routes/public.services.routes.js";
-
 import publicAppointmentsRoutes from "./routes/public.appointments.routes.js";
-
 import adminDashboardRoutes from "./routes/admin.dashboard.routes.js";
+import adminEventRoutes from "./routes/admin.events.routes.js";
+import adminAdvisoriesRoutes from "./routes/admin.advisories.routes.js";
+import adminAnnouncementsRoutes from "./routes/admin.announcements.routes.js";
+import chatbotRoutes from "./routes/chatbot.routes.js";
 
-// Load env first
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
-// CORS
+/* ===============================
+   CORS
+=============================== */
 const allowedOrigins = [
-  process.env.CLIENT_URL, // prod frontend domain
-  "http://localhost:5174", // dev
-  "http://127.0.0.1:5174", // optional extra for dev
+  process.env.CLIENT_URL,
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
 ].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow mobile apps, curl, etc.
+      if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
       return callback(new Error("Not allowed by CORS"));
     },
@@ -44,27 +46,33 @@ app.use(
   })
 );
 
-// trust proxy (for secure cookies behind reverse proxy)
 app.set("trust proxy", 1);
-
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
 /* ===============================
    ROUTES
-   =============================== */
-app.use("/api/auth", authRoutes); //authentication
-app.use("/api/profile", profileRoutes); //user profile
-app.use("/api/admin", adminRoutes); // appointments
+=============================== */
+app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/admin/services", serviceRoutes);
 app.use("/api/admin/church-hours", churchHoursRoutes);
-app.use("/api/admin/availability", scheduleRules); // ✅ unified rules
+app.use("/api/admin/availability", scheduleRules);
 app.use("/api/availability", availabilityRoutes);
 app.use("/api/public/services", publicServicesRoutes);
 app.use("/api/appointments", publicAppointmentsRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
+app.use("/api/admin/events", adminEventRoutes);
 
-// Health check
+app.use("/api/admin/advisories", adminAdvisoriesRoutes);
+app.use("/api/admin/announcements", adminAnnouncementsRoutes);
+app.use("/api/chat", chatbotRoutes);
+
+/* ===============================
+   HEALTH CHECK
+=============================== */
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
@@ -77,10 +85,9 @@ app.get("/api/health", (req, res) => {
 
 /* ===============================
    ERROR HANDLING
-   =============================== */
+=============================== */
 app.use((err, req, res, next) => {
   console.error("Global error handler:", err);
-
   if (err.type === "entity.parse.failed") {
     return res
       .status(400)
@@ -89,9 +96,8 @@ app.use((err, req, res, next) => {
   if (err.type === "entity.too.large") {
     return res
       .status(413)
-      .json({ success: false, message: "Request entity too large" });
+      .json({ success: false, message: "Request too large" });
   }
-
   res.status(500).json({
     success: false,
     message: "Something went wrong!",
@@ -104,18 +110,25 @@ app.use((err, req, res, next) => {
 
 /* ===============================
    START SERVER
-   =============================== */
+=============================== */
 app.listen(PORT, () => {
   connectDB();
-  console.log(`🚀 Server running on :${PORT}`);
-  console.log(`🌐 Client URL: ${process.env.CLIENT_URL}`);
-  console.log(`📧 Email service: ${process.env.EMAIL_SERVICE}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌐 Frontend: ${process.env.CLIENT_URL}`);
+  console.log(`☁️  Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);
+  console.log(`📧 Email Service: ${process.env.EMAIL_SERVICE}`);
 });
 
-// Optional hard exits
+/* ===============================
+   SAFETY HANDLERS
+=============================== */
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Promise Rejection:", err.message);
 });
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err.message);
+});
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received. Closing server gracefully...");
+  process.exit(0);
 });

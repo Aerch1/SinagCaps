@@ -1,0 +1,22 @@
+{
+  "parish_name": "Our Lady of Peace and Good Voyage Parish",
+  "address": "Barangay 7, Lipa City, Batangas, Philippines",
+  "contact": {
+    "phone": "0917-123-4567",
+    "email": "olopgvparish@gmail.com",
+    "office_hours": "Monday to Friday, 8:00 AM – 5:00 PM"
+  },
+  "mass_schedule": {
+    "sunday": ["7:00 AM", "9:00 AM", "11:00 AM", "4:00 PM", "6:00 PM"],
+    "weekday": ["6:00 AM", "5:30 PM"]
+  },
+  "mission": "To guide parishioners in faith, service, and community through the teachings of Christ.",
+  "vision": "A Christ-centered community inspired by peace, love, and good works.",
+  "ministries": [
+    "Music Ministry",
+    "Youth Ministry",
+    "Ushers and Greeters",
+    "Catechists",
+    "Lectors and Commentators"
+  ]
+}

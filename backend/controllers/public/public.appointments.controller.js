@@ -1,5 +1,5 @@
 import pool from "../../config/db.js";
-import { sendAppointmentCreatedEmail } from "../../utils/appointmentEmails.js"; // 👈 new import
+import { sendAppointmentCreatedEmail } from "../../utils/appointmentEmails.js"; // ✅ keep email sending
 
 /* ==================================================
    CREATE Public Appointment
@@ -34,12 +34,12 @@ export async function createPublicAppointment(req, res) {
 
     await conn.beginTransaction();
 
-    // 1. Check for duplicate booking
+    // 1. Check for duplicate booking (❌ removed 'in_progress')
     const [dupes] = await conn.execute(
       `SELECT id FROM appointments 
        WHERE service_id=? AND date=? AND time=? 
          AND (email=? OR contactNumber=?)
-         AND status IN ('pending','approved','in_progress')`,
+         AND status IN ('pending','approved')`,
       [service_id, date, time, email, contactNumber]
     );
     if (dupes.length > 0) {
@@ -51,12 +51,12 @@ export async function createPublicAppointment(req, res) {
       });
     }
 
-    // 2. Check slot availability
+    // 2. Check slot availability (❌ removed 'in_progress')
     const [bookedRows] = await conn.execute(
       `SELECT COUNT(*) as booked 
        FROM appointments 
        WHERE service_id=? AND date=? AND time=? 
-         AND status IN ('pending','approved','in_progress')`,
+         AND status IN ('pending','approved')`,
       [service_id, date, time]
     );
     const booked = bookedRows[0].booked;
@@ -134,7 +134,7 @@ export async function createPublicAppointment(req, res) {
         serviceName: service?.name || "Selected Service",
         date,
         time,
-        appointmentId, // 👈 added here
+        appointmentId, // keep id in email
       });
     } catch (e) {
       console.error("sendAppointmentCreatedEmail failed:", e.message);

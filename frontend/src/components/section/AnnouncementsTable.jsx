@@ -1,257 +1,445 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Search, ChevronDown, MoreHorizontal, Edit2, Eye, EyeOff, Trash2 } from "lucide-react";
+import React, { useMemo, useState, useEffect } from "react";
+import { Edit2, Eye, Trash2, Plus, CalendarDays } from "lucide-react";
+import toast from "react-hot-toast";
+import api from "@/api/api";
+import Modal from "@/components/ui/Modal";
+import Dropdown from "@/components/ui/Dropdown1";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { useAuthStore } from "../../store/authStore.js";
 
-const STATUS = ["All Status", "Published", "Draft"];
+/* ---------- Default Categories ---------- */
+const DEFAULT_CATEGORIES = [
+    { value: "Parish Advisory", label: "Parish Advisory" },
+    { value: "Community", label: "Community" },
+    { value: "Outreach", label: "Outreach" },
+    { value: "Music Ministry", label: "Music Ministry" },
+    { value: "General", label: "General" },
+];
 
-const badgeStyles = (status) => {
-    const s = String(status || "").toLowerCase();
-    if (s === "published")
-        return "bg-green-50 text-green-700 ring-1 ring-green-600/20 dark:bg-green-400/10 dark:text-green-300 dark:ring-green-400/20";
-    if (s === "draft")
-        return "bg-yellow-50 text-yellow-800 ring-1 ring-yellow-600/20 dark:bg-yellow-400/10 dark:text-yellow-300 dark:ring-yellow-400/20";
-    return "bg-gray-50 text-gray-600 ring-1 ring-gray-500/10 dark:bg-gray-400/10 dark:text-gray-300 dark:ring-gray-400/20";
+/* ---------- Helper: badge colors ---------- */
+const categoryColor = (category) => {
+    const map = {
+        "Parish Advisory": "bg-blue-100 text-blue-700 border border-blue-200",
+        Community: "bg-green-100 text-green-700 border border-green-200",
+        Outreach: "bg-orange-100 text-orange-700 border border-orange-200",
+        "Music Ministry": "bg-purple-100 text-purple-700 border border-purple-200",
+        General: "bg-gray-100 text-gray-700 border border-gray-200",
+    };
+    return map[category] || "bg-gray-100 text-gray-700 border border-gray-200";
 };
 
-export default function AnnouncementsTable({
-    rows = [],
-    onEdit,
-    onTogglePublish,
-    onDelete,
-}) {
+/* ---------- Main Component ---------- */
+export default function AnnouncementsTable() {
+    const [announcements, setAnnouncements] = useState([]);
     const [query, setQuery] = useState("");
-    const [status, setStatus] = useState(STATUS[0]);
+    const [openModal, setOpenModal] = useState(false);
+    const [viewItem, setViewItem] = useState(null);
+    const [editItem, setEditItem] = useState(null);
+    const [confirmData, setConfirmData] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    const { user } = useAuthStore();
+
+    const fetchAnnouncements = async () => {
+        try {
+            setLoading(true);
+            const res = await api.get("/admin/announcements");
+            setAnnouncements(res.data.data || []);
+        } catch {
+            toast.error("Failed to load announcements");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAnnouncements();
+    }, []);
 
     const filtered = useMemo(() => {
-        let data = rows;
-
-        if (status !== "All Status") {
-            data = data.filter((r) => String(r.status).toLowerCase() === status.toLowerCase());
-        }
-
-        if (query.trim()) {
-            const q = query.toLowerCase();
+        const q = query.toLowerCase().trim();
+        let data = announcements;
+        if (q) {
             data = data.filter(
                 (r) =>
                     (r.title || "").toLowerCase().includes(q) ||
-                    (r.author || "").toLowerCase().includes(q) ||
-                    (r.excerpt || "").toLowerCase().includes(q)
+                    (r.category || "").toLowerCase().includes(q)
             );
         }
-
         return [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
-    }, [rows, status, query]);
+    }, [announcements, query]);
+
+    const handleSave = async (formData) => {
+        try {
+            const payload = { ...formData, author: user?.name || "Admin User" };
+            const toastId = toast.loading(editItem ? "Updating..." : "Creating...");
+            if (editItem) {
+                await api.put(`/admin/announcements/${editItem.id}`, payload);
+                toast.success("Announcement updated", { id: toastId });
+            } else {
+                await api.post("/admin/announcements", payload);
+                toast.success("Announcement created", { id: toastId });
+            }
+            fetchAnnouncements();
+            setOpenModal(false);
+            setEditItem(null);
+        } catch {
+            toast.error("Save failed");
+        }
+    };
+
+    const confirmDelete = (item) => {
+        setConfirmData({
+            title: "Delete Announcement",
+            message: `Are you sure you want to permanently delete "${item.title}"?`,
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/admin/announcements/${item.id}`);
+                    toast.success("Deleted successfully");
+                    fetchAnnouncements();
+                    setViewItem(null);
+                    setConfirmData(null);
+                } catch {
+                    toast.error("Delete failed");
+                }
+            },
+        });
+    };
 
     return (
-        <div>
-            {/* header */}
-            <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="p-6 space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h3 className="text-base font-medium text-gray-900 dark:text-white">Announcements</h3>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        {filtered.length} {filtered.length === 1 ? "announcement" : "announcements"}
+                    <h2 className="text-lg font-semibold text-gray-900">
+                        Announcements Management
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                        Manage parish announcements and bulletins.
                     </p>
                 </div>
+                <button
+                    onClick={() => {
+                        setEditItem(null);
+                        setOpenModal(true);
+                    }}
+                    className="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg"
+                >
+                    <Plus className="h-4 w-4" /> New Announcement
+                </button>
+            </div>
 
-                <div className="flex items-center gap-3">
-                    {/* search – subtle gray focus */}
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                        <input
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Search announcements..."
-                            className="
-                w-64 rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm
-                text-gray-900 placeholder:text-gray-500
-                focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-300
-                dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder:text-gray-400
-                dark:focus:ring-gray-500 dark:focus:border-gray-500
-              "
-                        />
-                    </div>
+            {/* Search */}
+            <div className="relative w-full sm:w-72">
+                <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search announcements..."
+                    className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-gray-200 focus:outline-none"
+                />
+            </div>
 
-                    {/* filter – NO outline/ring on focus */}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="
-                  gap-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50
-                  dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600
-                  focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0
-                "
-                            >
-                                {status}
-                                <ChevronDown className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            align="end"
-                            className="
-                w-40 bg-white border border-gray-200 shadow-md
-                dark:bg-gray-800 dark:border-gray-700
-              "
-                        >
-                            <DropdownMenuLabel className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                                Filter by status
-                            </DropdownMenuLabel>
-                            <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-700" />
-                            {STATUS.map((s) => (
-                                <DropdownMenuItem
-                                    key={s}
-                                    onClick={() => setStatus(s)}
-                                    className="cursor-pointer px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+            {/* Table */}
+            <div className="overflow-hidden border border-gray-200 rounded-xl bg-white">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            {["Title", "Category", "Author", "Date", "Actions"].map((h) => (
+                                <th
+                                    key={h}
+                                    className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500 tracking-wider"
                                 >
-                                    {s}
-                                </DropdownMenuItem>
+                                    {h}
+                                </th>
                             ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {filtered.length === 0 ? (
+                            <tr>
+                                <td
+                                    colSpan={5}
+                                    className="text-center py-10 text-gray-500 text-sm"
+                                >
+                                    No announcements found.
+                                </td>
+                            </tr>
+                        ) : (
+                            filtered.map((item) => (
+                                <tr key={item.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 font-medium text-gray-900">
+                                        {item.title}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span
+                                            className={`text-xs font-medium px-2 py-1 rounded-full ${categoryColor(
+                                                item.category
+                                            )}`}
+                                        >
+                                            {item.category}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-gray-700">{item.author}</td>
+                                    <td className="px-6 py-4 text-gray-700">
+                                        {new Date(item.date).toLocaleDateString("en-US", {
+                                            year: "numeric",
+                                            month: "short",
+                                            day: "numeric",
+                                        })}
+                                    </td>
+                                    <td className="px-6 py-4 text-right space-x-2">
+                                        <button
+                                            onClick={() => setViewItem(item)}
+                                            className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-xs"
+                                        >
+                                            <Eye className="h-4 w-4" /> View
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setEditItem(item);
+                                                setOpenModal(true);
+                                            }}
+                                            className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-xs"
+                                        >
+                                            <Edit2 className="h-4 w-4" /> Edit
+                                        </button>
+                                        <button
+                                            onClick={() => confirmDelete(item)}
+                                            className="inline-flex items-center gap-1 px-3 py-1.5 border border-red-300 rounded-md text-red-600 hover:bg-red-50 text-xs"
+                                        >
+                                            <Trash2 className="h-4 w-4" /> Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
             </div>
 
-            {/* table */}
-            <div className="overflow-hidden">
-                <div className="overflow-x-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="border-gray-200 hover:bg-transparent dark:border-gray-700">
-                                <TableHead className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                    Title
-                                </TableHead>
-                                <TableHead className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                    Author
-                                </TableHead>
-                                <TableHead className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                    Date
-                                </TableHead>
-                                <TableHead className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                    Status
-                                </TableHead>
-                                <TableHead className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                    Actions
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
+            {/* Create/Edit Modal */}
+            <Modal
+                open={openModal}
+                onClose={() => {
+                    setOpenModal(false);
+                    setEditItem(null);
+                }}
+                title={editItem ? "Edit Announcement" : "New Announcement"}
+                className="max-w-3xl"
+            >
+                <AnnouncementForm
+                    editItem={editItem}
+                    onSave={handleSave}
+                    onCancel={() => setOpenModal(false)}
+                />
+            </Modal>
 
-                        <TableBody>
-                            {filtered.length === 0 ? (
-                                <TableRow className="border-gray-200 dark:border-gray-700">
-                                    <TableCell colSpan={5} className="px-6 py-16 text-center">
-                                        <div className="text-gray-500 dark:text-gray-400">
-                                            <div className="text-sm font-medium">No announcements found</div>
-                                            <div className="mt-1 text-xs">
-                                                {query ? "Try adjusting your search terms" : "Get started by creating your first announcement"}
-                                            </div>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filtered.map((row, index) => (
-                                    <TableRow
-                                        key={row.id}
-                                        className={`border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50 ${index === filtered.length - 1 ? "border-b-0" : ""
-                                            }`}
-                                    >
-                                        <TableCell className="px-6 py-4">
-                                            <div className="max-w-xs">
-                                                <div className="font-medium text-gray-900 dark:text-white">{row.title}</div>
-                                                {row.excerpt && (
-                                                    <div className="mt-1 text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-                                                        {row.excerpt}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                                            {row.author || "—"}
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                                            {new Date(row.date).toLocaleDateString("en-US", {
-                                                year: "numeric",
-                                                month: "short",
-                                                day: "numeric",
-                                            })}
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4">
-                                            <Badge className={`${badgeStyles(row.status)} rounded-full px-2.5 py-1 text-xs font-medium`}>
-                                                {row.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="px-6 py-4 text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="
-                              h-8 w-8 p-0 text-gray-400 hover:text-gray-600
-                              dark:text-gray-500 dark:hover:text-gray-300
-                              focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0
-                            "
-                                                    >
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent
-                                                    align="end"
-                                                    className="w-32 bg-white border border-gray-200 shadow-md dark:bg-gray-800 dark:border-gray-700"
-                                                >
-                                                    <DropdownMenuItem
-                                                        onClick={() => onEdit?.(row)}
-                                                        className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
-                                                    >
-                                                        <Edit2 className="h-4 w-4" />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() => onTogglePublish?.(row)}
-                                                        className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
-                                                    >
-                                                        {String(row.status).toLowerCase() === "published" ? (
-                                                            <>
-                                                                <EyeOff className="h-4 w-4" />
-                                                                Unpublish
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Eye className="h-4 w-4" />
-                                                                Publish
-                                                            </>
-                                                        )}
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-700" />
-                                                    <DropdownMenuItem
-                                                        onClick={() => onDelete?.(row)}
-                                                        className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </div>
+            {/* View Modal */}
+            <Modal
+                open={!!viewItem}
+                onClose={() => setViewItem(null)}
+                title="View Announcement"
+                className="max-w-2xl"
+            >
+                {viewItem && (
+                    <div className="space-y-5 text-gray-800 text-sm max-h-[70vh] overflow-y-auto p-2">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                            <span
+                                className={`px-3 py-1 text-xs font-medium rounded-full ${categoryColor(
+                                    viewItem.category
+                                )}`}
+                            >
+                                {viewItem.category}
+                            </span>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <CalendarDays className="w-4 h-4" />
+                                {new Date(viewItem.date).toLocaleDateString("en-US", {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                })}
+                            </div>
+                        </div>
+
+                        <h3 className="text-xl font-semibold leading-snug text-gray-900">
+                            {viewItem.title}
+                        </h3>
+                        <p className="text-sm text-gray-500 mb-2">By {viewItem.author}</p>
+
+                        <div className="border-t border-gray-200 pt-3 text-gray-700 whitespace-pre-line leading-relaxed">
+                            {viewItem.text}
+                        </div>
+
+                        <div className="flex justify-end pt-4">
+                            <button
+                                onClick={() => confirmDelete(viewItem)}
+                                className="inline-flex items-center gap-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md"
+                            >
+                                <Trash2 className="h-4 w-4" /> Delete
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            {/* Confirm Delete Dialog */}
+            <ConfirmDialog
+                open={!!confirmData}
+                title={confirmData?.title}
+                message={confirmData?.message}
+                onCancel={() => setConfirmData(null)}
+                onConfirm={confirmData?.onConfirm}
+            />
         </div>
+    );
+}
+
+/* ---------- Form with Add Category ---------- */
+function AnnouncementForm({ editItem, onSave, onCancel }) {
+    const [form, setForm] = useState({
+        title: "",
+        category: "Parish Advisory",
+        date: "",
+        text: "",
+    });
+    const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+    const [showNewCategory, setShowNewCategory] = useState(false);
+    const [newCategory, setNewCategory] = useState("");
+
+    useEffect(() => {
+        if (editItem) setForm(editItem);
+    }, [editItem]);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setForm((f) => ({ ...f, [name]: value }));
+    };
+
+    const handleAddCategory = () => {
+        if (!newCategory.trim()) {
+            toast.error("Enter a category name");
+            return;
+        }
+        const exists = categories.find(
+            (c) => c.label.toLowerCase() === newCategory.toLowerCase()
+        );
+        if (exists) {
+            toast.error("Category already exists");
+            return;
+        }
+
+        const newCat = { value: newCategory, label: newCategory };
+        setCategories((prev) => [...prev, newCat]);
+        setForm((f) => ({ ...f, category: newCategory }));
+        setNewCategory("");
+        setShowNewCategory(false);
+        toast.success("Category added");
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!form.title.trim() || !form.text.trim()) {
+            toast.error("Title and content are required");
+            return;
+        }
+        if (!form.date) {
+            toast.error("Date is required");
+            return;
+        }
+        onSave(form);
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+            <div>
+                <label className="text-sm font-medium text-gray-700">Title</label>
+                <input
+                    name="title"
+                    value={form.title}
+                    onChange={handleChange}
+                    className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm"
+                />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="text-sm font-medium text-gray-700">Category</label>
+                    <Dropdown
+                        value={form.category}
+                        onChange={(v) => setForm((f) => ({ ...f, category: v }))}
+                        options={categories}
+                        width="w-full"
+                    />
+
+                    <button
+                        type="button"
+                        onClick={() => setShowNewCategory(true)}
+                        className="mt-2 text-xs text-gray-600 hover:text-gray-900 inline-flex items-center gap-1"
+                    >
+                        <Plus className="w-3 h-3" /> Add Category
+                    </button>
+
+                    {showNewCategory && (
+                        <div className="mt-2 flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={newCategory}
+                                onChange={(e) => setNewCategory(e.target.value)}
+                                placeholder="New category name"
+                                className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                            />
+                            <button
+                                type="button"
+                                onClick={handleAddCategory}
+                                className="px-3 py-1 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"
+                            >
+                                Add
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <label className="text-sm font-medium text-gray-700">Date</label>
+                    <input
+                        type="date"
+                        name="date"
+                        value={form.date}
+                        onChange={handleChange}
+                        className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm"
+                    />
+                </div>
+            </div>
+
+            <div>
+                <label className="text-sm font-medium text-gray-700">Content</label>
+                <textarea
+                    name="text"
+                    rows={4}
+                    value={form.text}
+                    onChange={handleChange}
+                    className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm"
+                />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    className="px-4 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="submit"
+                    className="px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"
+                >
+                    Save
+                </button>
+            </div>
+        </form>
     );
 }

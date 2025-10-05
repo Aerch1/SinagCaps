@@ -12,7 +12,7 @@ import {
     X,
     BellRing,
 } from "lucide-react";
-import { motion,AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 
 
 function UserMenu({ user, onLogout, compact = false }) {
@@ -268,7 +268,7 @@ export default function Header({ user, onLogout }) {
                                     Schedule Appointment
                                 </NavLink>
                                 <NavLink
-                                    to="/services/appointments/book"
+                                    to="/document-request"
                                     className={({ isActive }) =>
                                         `block px-4 py-2 text-sm transition ${isActive ? "bg-gray-50 text-secondary" : "hover:bg-gray-50 hover:text-secondary"
                                         }`
@@ -280,41 +280,23 @@ export default function Header({ user, onLogout }) {
                         </div>
 
                         {/* About dropdown (desktop hover) */}
-                        <div className="relative group">
-                            <button
-                                type="button"
-                                className={`flex items-center gap-1 ${aboutActive ? activeLink : "text-gray-700"} transition group-hover:text-secondary`}
-                            >
-                                <span>About</span>
-                                <ChevronDown className="w-4 h-4 transform transition-transform duration-200 group-hover:rotate-180" />
-                            </button>
-                            <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md border border-gray-200 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition duration-200 z-20">
-                                <NavLink
-                                    to="/about/mission"
-                                    className={({ isActive }) =>
-                                        `block px-4 py-2 text-sm transition ${isActive ? "bg-gray-50 text-secondary" : "hover:bg-gray-50 hover:text-secondary"
-                                        }`
-                                    }
-                                >
-                                    Our Mission
-                                </NavLink>
-                                <NavLink
-                                    to="/about/team"
-                                    className={({ isActive }) =>
-                                        `block px-4 py-2 text-sm transition ${isActive ? "bg-gray-50 text-secondary" : "hover:bg-gray-50 hover:text-secondary"
-                                        }`
-                                    }
-                                >
-                                    Our Team
-                                </NavLink>
-                            </div>
-                        </div>
+                        <NavLink to="/about" className={navLinkClass}>
+                            About
+                        </NavLink>
+
 
                         <NavLink to="/contact" className={navLinkClass}>
                             Contact
                         </NavLink>
+
+                        {/* 🔧 renamed "Events" → "Events & News" */}
                         <NavLink to="/event" className={navLinkClass}>
-                            Events
+                            Events & News
+                        </NavLink>
+
+                        {/* 🔧 new "Announcements" page link */}
+                        <NavLink to="/announcements" className={navLinkClass}>
+                            Announcements
                         </NavLink>
                     </nav>
 
@@ -410,18 +392,30 @@ export default function Header({ user, onLogout }) {
                                 >
                                     Schedule Appointment
                                 </NavLink>
+                                <NavLink
+                                    to="/document-request"
+                                    onClick={() => setMobileOpen(false)}
+                                    className={({ isActive }) =>
+                                        `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                        }`
+                                    }
+                                >
+                                    Request Document
+                                </NavLink>
+
                             </div>
 
-                            {/* About accordion */}
-                            <button
-                                type="button"
-                                onClick={() => setAboutOpen((o) => !o)}
-                                className="flex w-full items-center justify-between px-2 py-2 text-base text-gray-700 hover:text-secondary"
-                                aria-expanded={aboutOpen}
+                            <NavLink
+                                to="/about"
+                                onClick={() => setMobileOpen(false)}
+                                className={({ isActive }) =>
+                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                    }`
+                                }
                             >
-                                <span>About</span>
-                                <ChevronDown className={`h-5 w-5 transition ${aboutOpen ? "rotate-180" : ""}`} />
-                            </button>
+                                About
+                            </NavLink>
+
                             <div className={`${aboutOpen ? "block" : "hidden"} pl-4`}>
                                 <NavLink
                                     to="/about/mission"
@@ -460,12 +454,29 @@ export default function Header({ user, onLogout }) {
                                 to="/event"
                                 onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
-                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                    `block px-2 py-2 text-base ${isActive
+                                        ? "text-secondary font-medium"
+                                        : "text-gray-700 hover:text-secondary"
                                     }`
                                 }
                             >
-                                Events
+                                Events & News
                             </NavLink>
+
+                            {/* 🔧 added new announcements link */}
+                            <NavLink
+                                to="/announcements"
+                                onClick={() => setMobileOpen(false)}
+                                className={({ isActive }) =>
+                                    `block px-2 py-2 text-base ${isActive
+                                        ? "text-secondary font-medium"
+                                        : "text-gray-700 hover:text-secondary"
+                                    }`
+                                }
+                            >
+                                Announcements
+                            </NavLink>
+
 
                             <div className="my-3 h-px bg-gray-200" />
 

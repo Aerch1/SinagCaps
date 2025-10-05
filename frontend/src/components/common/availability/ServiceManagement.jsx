@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit3, Trash2, Search, Check, X, AlertCircle } from "lucide-react";
+import { Plus, Edit3, Trash2, Search, Check, X } from "lucide-react";
 import Dropdown from "@/components/ui/Dropdown1";
 import Modal from "@/components/ui/Modal";
 import api from "@/api/api"; // ✅ centralized axios instance
+import toast from "react-hot-toast"; // ✅ toast notifications
 
 const capitalizeWords = (str = "") =>
     str
@@ -18,8 +19,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [showModal, setShowModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [showErrorModal, setShowErrorModal] = useState(false);
-    const [errorMessage, setErrorMessage] = useState("");
+    const [selectedService, setSelectedService] = useState(null);
 
     // Add Service form state
     const [newServiceName, setNewServiceName] = useState("");
@@ -27,7 +27,6 @@ export default function ServiceManagement({ onServicesUpdated }) {
     const [newRequirements, setNewRequirements] = useState([]);
 
     // Edit state
-    const [selectedService, setSelectedService] = useState(null);
     const [editingId, setEditingId] = useState(null);
     const [editValues, setEditValues] = useState({
         name: "",
@@ -39,6 +38,12 @@ export default function ServiceManagement({ onServicesUpdated }) {
         fetchServices();
     }, []);
 
+    const handleError = (err, fallback = "Something went wrong") => {
+        const msg = err?.response?.data?.message || err?.message || fallback;
+        console.error("❌", msg, err);
+        toast.error(msg);
+    };
+
     const fetchServices = async () => {
         try {
             const { data } = await api.get("/admin/services");
@@ -47,19 +52,14 @@ export default function ServiceManagement({ onServicesUpdated }) {
                 onServicesUpdated?.();
             }
         } catch (err) {
-            console.error("❌ fetchServices error:", err);
+            handleError(err, "Failed to fetch services");
         }
-    };
-
-    const showError = (msg) => {
-        setErrorMessage(msg);
-        setShowErrorModal(true);
     };
 
     /* ---------------- CREATE ---------------- */
     const addService = async () => {
         if (!newServiceName.trim()) {
-            return showError("Service name is required");
+            return toast.error("Service name is required");
         }
 
         const cleanedReqs = (newRequirements || [])
@@ -83,19 +83,19 @@ export default function ServiceManagement({ onServicesUpdated }) {
                 setNewServiceName("");
                 setNewServiceStatus("active");
                 setNewRequirements([]);
+                toast.success("Service added successfully");
             } else {
-                showError(data.message || "Failed to add service");
+                toast.error(data.message || "Failed to add service");
             }
         } catch (err) {
-            console.error("❌ addService error:", err);
-            showError("Failed to add service");
+            handleError(err, "Failed to add service");
         }
     };
 
     /* ---------------- UPDATE ---------------- */
     const saveEdit = async (id) => {
         if (!editValues.name.trim()) {
-            return showError("Service name is required");
+            return toast.error("Service name is required");
         }
 
         const cleanedReqs = (editValues.requirements || [])
@@ -116,12 +116,12 @@ export default function ServiceManagement({ onServicesUpdated }) {
                 fetchServices();
                 onServicesUpdated?.();
                 cancelEdit();
+                toast.success("Service updated successfully");
             } else {
-                showError(data.message || "Failed to update service");
+                toast.error(data.message || "Failed to update service");
             }
         } catch (err) {
-            console.error("❌ saveEdit error:", err);
-            showError("Failed to update service");
+            handleError(err, "Failed to update service");
         }
     };
 
@@ -139,12 +139,12 @@ export default function ServiceManagement({ onServicesUpdated }) {
                 onServicesUpdated?.();
                 setShowDeleteModal(false);
                 setSelectedService(null);
+                toast.success("Service deleted successfully");
             } else {
-                showError(data.message || "Failed to delete service");
+                toast.error(data.message || "Failed to delete service");
             }
         } catch (err) {
-            console.error("❌ deleteService error:", err);
-            showError("Failed to delete service");
+            handleError(err, "Failed to delete service");
         }
     };
 
@@ -182,11 +182,9 @@ export default function ServiceManagement({ onServicesUpdated }) {
         if (!query) return true;
 
         const inName = svc.name?.toLowerCase().includes(query);
-
         const inRequirements = Array.isArray(svc.requirements)
             ? svc.requirements.some((r) => r.name?.toLowerCase().includes(query))
             : false;
-
         const inStatus = (svc.active ? "active" : "inactive").includes(query);
 
         return inName || inRequirements || inStatus;
@@ -221,7 +219,6 @@ export default function ServiceManagement({ onServicesUpdated }) {
                     </button>
                 </div>
             </div>
-
             {/* Table */}
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -583,27 +580,37 @@ export default function ServiceManagement({ onServicesUpdated }) {
                 </Modal>
             )}
 
-            {/* Error Modal */}
-            {showErrorModal && (
+            {/* Delete Confirmation */}
+            {showDeleteModal && selectedService && (
                 <Modal
                     open={true}
-                    onClose={() => setShowErrorModal(false)}
-                    title="Validation Error"
+                    onClose={() => setShowDeleteModal(false)}
+                    title="Delete Service"
                 >
-                    <div className="flex items-start gap-3">
-                        <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                        <p className="text-sm text-gray-700">{errorMessage}</p>
-                    </div>
+                    <p>
+                        Are you sure you want to delete{" "}
+                        <span className="font-medium">
+                            {capitalizeWords(selectedService.name)}
+                        </span>
+                        ?
+                    </p>
                     <div className="flex justify-end gap-3 mt-4">
                         <button
-                            onClick={() => setShowErrorModal(false)}
-                            className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                            onClick={() => setShowDeleteModal(false)}
+                            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded"
                         >
-                            OK
+                            Cancel
+                        </button>
+                        <button
+                            onClick={deleteService}
+                            className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                        >
+                            Delete
                         </button>
                     </div>
                 </Modal>
             )}
         </div>
+
     );
 }

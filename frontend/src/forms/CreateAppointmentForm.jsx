@@ -1,4 +1,3 @@
-"use client";
 import { useEffect, useState } from "react";
 import api from "@/api/api";
 import Dropdown from "../components/ui/Dropdown1.jsx";
@@ -9,7 +8,6 @@ import { formatStatusLabel } from "../lib/utils.js";
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
-  { value: "in_progress", label: "In Progress" },
   { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
 ];
@@ -19,8 +17,7 @@ export default function CreateAppointmentForm({
   onSubmit,
   onCancel,
   serverErrors = {},
-  submitting = false,  // ✅ new
-
+  submitting = false, // ✅ new
 }) {
   const [form, setForm] = useState({
     name: "",
@@ -147,8 +144,9 @@ export default function CreateAppointmentForm({
               value={form.name}
               onChange={handleChange}
               placeholder="Enter full name"
-              className={`w-full rounded-lg border px-3 py-2 ${mergedErrors.name ? "border-red-500" : "border-gray-200"
-                }`}
+              className={`w-full rounded-lg border px-3 py-2 ${
+                mergedErrors.name ? "border-red-500" : "border-gray-200"
+              }`}
             />
             {mergedErrors.name && (
               <p className="mt-1 text-sm text-red-500">{mergedErrors.name}</p>
@@ -163,8 +161,9 @@ export default function CreateAppointmentForm({
               value={form.email}
               onChange={handleChange}
               placeholder="client@example.com"
-              className={`w-full rounded-lg border px-3 py-2 ${mergedErrors.email ? "border-red-500" : "border-gray-300"
-                }`}
+              className={`w-full rounded-lg border px-3 py-2 ${
+                mergedErrors.email ? "border-red-500" : "border-gray-300"
+              }`}
             />
             {mergedErrors.email && (
               <p className="mt-1 text-sm text-red-500">{mergedErrors.email}</p>
@@ -181,10 +180,11 @@ export default function CreateAppointmentForm({
               value={form.contactNumber}
               onChange={handleChange}
               placeholder="09xxxxxxxxx"
-              className={`w-full rounded-lg border px-3 py-2 ${mergedErrors.contactNumber
-                ? "border-red-500"
-                : "border-gray-300"
-                }`}
+              className={`w-full rounded-lg border px-3 py-2 ${
+                mergedErrors.contactNumber
+                  ? "border-red-500"
+                  : "border-gray-300"
+              }`}
             />
             {mergedErrors.contactNumber && (
               <p className="mt-1 text-sm text-red-500">
@@ -201,8 +201,9 @@ export default function CreateAppointmentForm({
               value={form.address}
               onChange={handleChange}
               placeholder="Enter client address"
-              className={`w-full rounded-lg border px-3 py-2 ${mergedErrors.address ? "border-red-500" : "border-gray-300"
-                }`}
+              className={`w-full rounded-lg border px-3 py-2 ${
+                mergedErrors.address ? "border-red-500" : "border-gray-300"
+              }`}
             />
             {mergedErrors.address && (
               <p className="mt-1 text-sm text-red-500">{mergedErrors.address}</p>
@@ -285,8 +286,9 @@ export default function CreateAppointmentForm({
           value={form.notes}
           onChange={handleChange}
           placeholder="Internal notes (optional)…"
-          className={`w-full resize-none rounded-lg border px-3 py-2 ${mergedErrors.notes ? "border-red-500" : "border-gray-300"
-            }`}
+          className={`w-full resize-none rounded-lg border px-3 py-2 ${
+            mergedErrors.notes ? "border-red-500" : "border-gray-300"
+          }`}
         />
         {mergedErrors.notes && (
           <p className="mt-1 text-sm text-red-500">{mergedErrors.notes}</p>
@@ -299,7 +301,11 @@ export default function CreateAppointmentForm({
           type="submit"
           disabled={submitting}
           className={`flex items-center gap-2 rounded-lg px-4 py-2 text-white transition 
-    ${submitting ? "bg-gray-400 cursor-not-allowed" : "bg-secondary hover:bg-secondary/80"}`}
+    ${
+      submitting
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-secondary hover:bg-secondary/80"
+    }`}
         >
           {submitting && (
             <svg
@@ -325,7 +331,6 @@ export default function CreateAppointmentForm({
           )}
           {submitting ? "Saving..." : "Save Appointment"}
         </button>
-
       </div>
     </form>
   );

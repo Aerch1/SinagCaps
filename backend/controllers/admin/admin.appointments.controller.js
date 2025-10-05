@@ -1,3 +1,4 @@
+// src/controllers/admin/admin.appointments.controller.js
 import { Parser } from "json2csv";
 import pool from "../../config/db.js";
 import {
@@ -16,14 +17,20 @@ import {
   insertAppointment,
   updateAppointment as applyUpdate,
 } from "../../services/appointments.service.js";
-import { sendAppointmentCreatedEmail } from "../../utils/appointmentEmails.js";
+import {
+  sendAppointmentCreatedEmail,
+  sendAppointmentUpdatedEmail,
+} from "../../utils/appointmentEmails.js";
 
+// ✅ Updated statuses (removed in_progress)
+// ✅ Updated statuses (added archived)
 const STATUSES = [
   "pending",
   "approved",
-  "in_progress",
   "completed",
   "cancelled",
+  "rejected",
+  "archived", // ✅ now supported
 ];
 
 /* ==================================================
@@ -64,6 +71,7 @@ export const createAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
+    // duplicate booking check
     if (
       await hasDuplicateBooking({
         service_id,
@@ -81,6 +89,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
+    // slot availability
     const dayAvail = await getDayAvailability(service_id, date);
     const slot = findSlot(dayAvail, t);
     if (slot && slot.unavailable) {
@@ -159,7 +168,7 @@ export const createAppointmentAdmin = async (req, res) => {
       message: override
         ? "Appointment created with override"
         : "Appointment created successfully",
-      appointmentId: newId,
+      appointmentId: newId, // ✅ keep simple (DataTable doesn’t need full row)
     });
   } catch (err) {
     if (conn) await conn.rollback();
@@ -174,6 +183,7 @@ export const createAppointmentAdmin = async (req, res) => {
 
 /* ==================================================
    PATCH /api/admin/appointments/:id
+   (approve / reject / cancel / update)
 ================================================== */
 export const updateAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
@@ -191,6 +201,15 @@ export const updateAppointmentAdmin = async (req, res) => {
       service_id,
       override = false,
     } = req.body;
+
+    // strict status validation
+    if (status && !STATUSES.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_STATUS",
+        message: "Invalid status value",
+      });
+    }
 
     const t = time ? normalizeTime(time) : null;
     const errors = validateUpdate({ status, date, time: t });
@@ -216,28 +235,32 @@ export const updateAppointmentAdmin = async (req, res) => {
     });
     await conn.commit();
 
+    // notify client if email provided
     try {
-      const [[service]] = await conn.query(
-        "SELECT name FROM services WHERE id=?",
-        [service_id]
-      );
-      await sendAppointmentStatusEmail(email, {
-        name,
-        serviceName: service?.name || "Selected Service",
-        date,
-        time: t,
-        status,
-        appointmentId: id,
-      });
+      if (email) {
+        const [[service]] = await conn.query(
+          "SELECT name FROM services WHERE id=?",
+          [service_id]
+        );
+        await sendAppointmentUpdatedEmail(email, {
+          name,
+          serviceName: service?.name || "Selected Service",
+          date,
+          time: t,
+          status,
+          appointmentId: id,
+        });
+      }
     } catch (e) {
-      console.error("sendAppointmentStatusEmail failed:", e.message);
+      console.error("sendAppointmentUpdatedEmail failed:", e.message);
     }
 
     return res.json({
       success: true,
-      message: override
-        ? "Appointment updated with override"
-        : "Appointment updated successfully",
+      message:
+        override && status
+          ? `Appointment ${status} with override`
+          : `Appointment ${status || "updated"} successfully`,
     });
   } catch (err) {
     if (conn) await conn.rollback();
@@ -250,14 +273,17 @@ export const updateAppointmentAdmin = async (req, res) => {
   }
 };
 
+/* ==================================================
+   GET /api/admin/appointments/:id
+================================================== */
 export const getAppointmentById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 🔹 Appointment (common fields only, plus service)
     const [[appt]] = await pool.execute(
       `SELECT 
          a.id,
+         a.service_id,
          a.name,
          a.email,
          a.contactNumber,
@@ -284,7 +310,6 @@ export const getAppointmentById = async (req, res) => {
     let details = null;
     let sponsors = [];
 
-    // 🔵 Extra: Baptism details & sponsors (clean fields only)
     if (appt.form_type === "baptism") {
       [[details]] = await pool.execute(
         `SELECT 
@@ -301,10 +326,7 @@ export const getAppointmentById = async (req, res) => {
 
       if (details) {
         const [sponsorRows] = await pool.execute(
-          `SELECT 
-             role, 
-             name, 
-             address
+          `SELECT role, name, address
            FROM baptism_sponsors 
            WHERE baptism_id = (
              SELECT id FROM baptism_details WHERE appointment_id=? LIMIT 1
@@ -317,9 +339,9 @@ export const getAppointmentById = async (req, res) => {
 
     return res.json({
       success: true,
-      appointment: appt, // ✅ includes Transaction ID, service, status, createdAt
-      details,           // ✅ clean fields (no id, no created_at)
-      sponsors,          // ✅ clean fields (no id, no created_at)
+      appointment: appt,
+      details,
+      sponsors,
     });
   } catch (err) {
     console.error("❌ getAppointmentById error:", err);
@@ -329,16 +351,20 @@ export const getAppointmentById = async (req, res) => {
   }
 };
 
-
 /* ==================================================
    GET /api/admin/appointments
-   → List appointments (common fields only)
 ================================================== */
 export const getAppointments = async (req, res) => {
   try {
     const page = Number(req.query.page || 1);
     const pageSize = Number(req.query.pageSize || 10);
     const offset = (page - 1) * pageSize;
+
+    const sortBy = req.query.sortBy || "id";
+    const sortDir = (req.query.sortDir || "DESC").toUpperCase();
+    const SORTABLE = new Set(["id", "name", "date", "status"]);
+    const safeKey = SORTABLE.has(sortBy) ? `a.${sortBy}` : "a.id";
+    const safeDir = sortDir === "ASC" ? "ASC" : "DESC";
 
     const [countRows] = await pool.query(
       `SELECT COUNT(*) as total FROM appointments`
@@ -348,14 +374,15 @@ export const getAppointments = async (req, res) => {
 
     const [rows] = await pool.query(
       `SELECT 
-         a.id, a.name, a.email, a.contactNumber, a.address,
+         a.id, a.service_id,
+         a.name, a.email, a.contactNumber, a.address,
          s.name AS serviceName,
          a.status,
          DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
          a.time, a.notes
        FROM appointments a
        JOIN services s ON a.service_id = s.id
-       ORDER BY a.date DESC, a.time DESC
+       ORDER BY ${safeKey} ${safeDir}
        LIMIT ? OFFSET ?`,
       [pageSize, offset]
     );
@@ -379,6 +406,9 @@ export const getAppointments = async (req, res) => {
   }
 };
 
+/* ==================================================
+   POST /api/admin/appointments/filter
+================================================== */
 export const filterAppointments = async (req, res) => {
   try {
     const {
@@ -481,7 +511,6 @@ export const filterAppointments = async (req, res) => {
 
 /* ==================================================
    GET /api/admin/appointments/export
-   → Export as CSV
 ================================================== */
 export const exportAppointments = async (req, res) => {
   try {

@@ -37,7 +37,7 @@ router.get("/:serviceId/:date", async (req, res) => {
          FROM appointments
          WHERE service_id = ?
            AND date = ?
-           AND status IN ('pending','approved','in_progress')`,
+           AND status IN ('pending','approved')`, // ✅ removed in_progress
         [serviceId, isoDate]
       ),
       pool.execute(
@@ -90,7 +90,7 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
          WHERE service_id = ?
            AND YEAR(date) = ?
            AND MONTH(date) = ?
-           AND status IN ('pending','approved','in_progress')`,
+           AND status IN ('pending','approved')`, // ✅ removed in_progress
         [serviceId, y, m]
       ),
       pool.execute(

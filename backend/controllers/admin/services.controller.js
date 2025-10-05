@@ -27,7 +27,10 @@ export const getServices = async (req, res) => {
     console.error("❌ getServices error:", err);
     res
       .status(500)
-      .json({ success: false, message: "Failed to fetch services" });
+      .json({
+        success: false,
+        message: err.message || "Failed to fetch services",
+      });
   }
 };
 
@@ -98,9 +101,20 @@ export const createService = async (req, res) => {
   } catch (err) {
     await conn.rollback();
     console.error("❌ createService error:", err);
+
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({
+        success: false,
+        message: "A service with this name already exists.",
+      });
+    }
+
     res
       .status(500)
-      .json({ success: false, message: "Failed to create service" });
+      .json({
+        success: false,
+        message: err.message || "Failed to create service",
+      });
   } finally {
     conn.release();
   }
@@ -121,7 +135,7 @@ export const updateService = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // Ensure service exists and name unique
+    // Ensure name unique (exclude current id)
     const [existing] = await conn.query(
       `SELECT id FROM services WHERE LOWER(name) = LOWER(?) AND id != ? LIMIT 1`,
       [name.trim(), id]
@@ -134,10 +148,18 @@ export const updateService = async (req, res) => {
       });
     }
 
-    await conn.query(
+    const [updateResult] = await conn.query(
       `UPDATE services SET name = ?, active = ?, form_type = ? WHERE id = ?`,
       [name.trim(), !!active, formType, id]
     );
+
+    if (updateResult.affectedRows === 0) {
+      await conn.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
 
     // Reset + insert requirements
     await conn.query(`DELETE FROM requirements WHERE service_id = ?`, [id]);
@@ -161,9 +183,20 @@ export const updateService = async (req, res) => {
   } catch (err) {
     await conn.rollback();
     console.error("❌ updateService error:", err);
+
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({
+        success: false,
+        message: "A service with this name already exists.",
+      });
+    }
+
     res
       .status(500)
-      .json({ success: false, message: "Failed to update service" });
+      .json({
+        success: false,
+        message: err.message || "Failed to update service",
+      });
   } finally {
     conn.release();
   }
@@ -186,8 +219,20 @@ export const deleteService = async (req, res) => {
     res.json({ success: true, message: "Service deleted successfully" });
   } catch (err) {
     console.error("❌ deleteService error:", err);
+
+    if (err.code === "ER_ROW_IS_REFERENCED_2") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete service because it is still in use.",
+      });
+    }
+
     res
       .status(500)
-      .json({ success: false, message: "Failed to delete service" });
+      .json({
+        success: false,
+        message: err.message || "Failed to delete service",
+      });
   }
 };
+

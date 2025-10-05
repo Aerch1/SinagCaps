@@ -7,6 +7,7 @@ import InfoBanner from "../../components/section/InfoBanner";
 import TwoFeatureCards from "../../components/section/TwoFeatureCards";
 import AppointmentQuickLinks from "../../components/section/AppointmentQuickLinks";
 import ChurchUpdates from "../../components/section/ChurchUpdates";
+import AppointmentChatbot from "../../components/common/AppointmentChatbot";
 
 // ✅ Animation wrapper
 import FadeInWhenVisible from "../../components/common/FadeInWhenVisible";
@@ -50,9 +51,8 @@ export default function HomePage() {
             {/* ✅ Lightweight sections */}
             <FadeInWhenVisible>
                 <PublicAdvisory
-                    variant="announcement"
-                    message="Church offices will be closed this Friday for facility maintenance. Services proceed as scheduled."
-                    ctas={[{ label: "View Details", to: "/announcements" }]}
+
+
                 />
             </FadeInWhenVisible>
 
@@ -75,6 +75,9 @@ export default function HomePage() {
             <FadeInWhenVisible>
                 <AppointmentQuickLinks />
             </FadeInWhenVisible>
+
+            <AppointmentChatbot />
+
         </>
     );
 }

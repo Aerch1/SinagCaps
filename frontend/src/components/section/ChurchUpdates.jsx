@@ -1,45 +1,15 @@
-// src/components/ChurchUpdates.jsx
+"use client";
+
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import api from "@/api/api"; // ✅ centralized axios instance
+import { CalendarDays, Clock } from "lucide-react";
+import { formatDate, to12h } from "@/utils/availabilityUtils";
 
-const UPDATES = [
-    {
-        title: "Youth Ministry Gathering",
-        date: "Sept 18, 2025",
-        description:
-            "Our Youth Ministry invites all teens for fellowship, praise, and worship night. Bring your friends!",
-        image: "/banner.png",
-        to: "/updates/youth-gathering",
-    },
-    {
-        title: "Choir Practice",
-        date: "Sept 20, 2025",
-        description:
-            "Weekly choir practice resumes. All members and interested parishioners are welcome to join.",
-        image: "/bg1.jpg",
-        to: "/updates/choir-practice",
-    },
-    {
-        title: "Parish Outreach Program",
-        date: "Sept 25, 2025",
-        description:
-            "Join our outreach to support families in need. Volunteers and donations are welcome.",
-        image: "/updates/outreach.jpg",
-        to: "/updates/outreach-program",
-    },
-    {
-        title: "Bible Study Series",
-        date: "Sept 28, 2025",
-        description:
-            "A 4-week Bible Study series on the Gospel of John. Everyone is encouraged to participate.",
-        image: "/updates/biblestudy.jpg",
-        to: "/updates/bible-study",
-    },
-];
-
-// Framer Motion variants
+// 🪄 Animation variants
 const container = {
     hidden: { opacity: 0 },
     show: {
@@ -53,21 +23,63 @@ const item = {
     show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
 };
 
-export default function ChurchUpdates({ updates = UPDATES }) {
+export default function ChurchUpdates() {
+    const [updates, setUpdates] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // ✅ Fetch the latest News & Events from backend
+    useEffect(() => {
+        const fetchUpdates = async () => {
+            try {
+                const res = await api.get("/admin/events");
+                const data = res.data?.data || [];
+
+                // sort newest first
+                const sorted = [...data].sort(
+                    (a, b) => new Date(b.date) - new Date(a.date)
+                );
+                setUpdates(sorted);
+            } catch (err) {
+                console.error("Failed to fetch updates:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchUpdates();
+    }, []);
+
+    if (loading)
+        return (
+            <section className="w-full bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center text-gray-500">
+                    Loading updates...
+                </div>
+            </section>
+        );
+
+    if (!updates.length)
+        return (
+            <section className="w-full bg-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center text-gray-500">
+                    No news or events available yet.
+                </div>
+            </section>
+        );
+
     return (
         <section className="w-full bg-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-                {/* Section Header */}
+                {/* Header */}
                 <div className="flex justify-between items-center mb-8">
                     <h2 className="text-3xl font-bold tracking-tight">
-                        Latest News & Updates
+                        Latest News & Events
                     </h2>
                     <Button
                         variant="outline"
                         asChild
-                        className="border-secondary text-secondary"
+                        className="border-secondary text-secondary hover:bg-secondary/10"
                     >
-                        <Link to="/updates">View All Updates</Link>
+                        <Link to="/event">View All Updates</Link>
                     </Button>
                 </div>
 
@@ -79,46 +91,71 @@ export default function ChurchUpdates({ updates = UPDATES }) {
                     whileInView="show"
                     viewport={{ once: true, amount: 0.2 }}
                 >
-                    {updates.slice(0, 3).map(({ title, date, description, image, to }, i) => (
-                        <motion.div key={i} variants={item}>
-                            <Card
-                                className="overflow-hidden rounded-xl border py-0 border-gray-200 shadow-sm 
-                           hover:shadow-md hover:scale-[1.02] transition-transform duration-300 
-                           flex flex-col"
-                            >
-                                {/* ✅ Lazy-loaded Image */}
-                                <div className="w-full h-60">
-                                    <img
-                                        src={image}
-                                        alt={title}
-                                        loading="lazy"
-                                        decoding="async"
-                                        className="h-full w-full object-cover"
-                                    />
-                                </div>
+                    {updates.slice(0, 3).map((u) => {
+                        const optimizedImg = u.image_url?.includes("/upload/")
+                            ? u.image_url.replace("/upload/", "/upload/f_auto,q_auto,w_800/")
+                            : u.image_url;
 
-                                {/* Content */}
-                                <CardContent className="flex flex-col flex-1 p-5">
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-semibold">{title}</h3>
-                                        <p className="text-sm text-gray-500 mt-1">{date}</p>
-                                        <p className="text-sm text-gray-700 mt-3 line-clamp-3">
-                                            {description}
-                                        </p>
-                                    </div>
+                        return (
+                            <motion.div key={u.id} variants={item}>
+                                <Card className="overflow-hidden rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:scale-[1.02] transition-transform duration-300 flex flex-col">
+                                    {/* ✅ Image */}
+                                    {optimizedImg && (
+                                        <div className="w-full h-60 bg-gray-100 flex items-center justify-center">
+                                            <img
+                                                src={optimizedImg}
+                                                alt={u.title}
+                                                loading="lazy"
+                                                decoding="async"
+                                                className="max-h-60 w-auto object-contain"
+                                            />
+                                        </div>
+                                    )}
 
-                                    {/* Full Width Outline Button */}
-                                    <Button
-                                        asChild
-                                        variant="outline"
-                                        className="mt-6 w-full justify-center border-secondary text-secondary"
-                                    >
-                                        <Link to={to}>Read More</Link>
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    ))}
+                                    {/* ✅ Content */}
+                                    <CardContent className="flex flex-col flex-1 p-5">
+                                        <div className="flex-1">
+                                            <h3 className="text-lg font-semibold">{u.title}</h3>
+                                            <div className="mt-1 flex flex-col gap-1 text-sm text-gray-500">
+                                                <div className="flex items-center gap-2">
+                                                    <CalendarDays className="h-4 w-4 text-gray-400" />
+                                                    <span>{formatDate(u.date)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Clock className="h-4 w-4 text-gray-400" />
+                                                    <span>{to12h(u.time)}</span>
+                                                </div>
+
+                                                {/* 👇 Type indicator */}
+                                                <span
+                                                    className={`mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-full w-fit ${u.type === "event"
+                                                            ? "bg-emerald-50 text-emerald-700"
+                                                            : "bg-blue-50 text-blue-700"
+                                                        }`}
+                                                >
+                                                    {u.type === "event" ? "Event" : "News"}
+                                                </span>
+                                            </div>
+
+                                            {/* ✅ Description preview */}
+                                            <p className="text-sm text-gray-700 mt-3 line-clamp-3">
+                                                {u.description}
+                                            </p>
+                                        </div>
+
+                                        {/* ✅ Read more button */}
+                                        <Button
+                                            asChild
+                                            variant="outline"
+                                            className="mt-6 w-full justify-center border-secondary text-secondary hover:bg-secondary/10"
+                                        >
+                                            <Link to={`/updates/${u.id}`}>Read More</Link>
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        );
+                    })}
                 </motion.div>
             </div>
         </section>

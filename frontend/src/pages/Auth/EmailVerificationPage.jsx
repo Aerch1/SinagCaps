@@ -1,4 +1,3 @@
-// src/pages/auth/EmailVerificationPage.jsx
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -6,15 +5,17 @@ import { useAuthStore } from "../../store/authStore.js";
 import toast from "react-hot-toast";
 import ErrorAlert from "../../components/common/ErrorAlert.jsx";
 import SuccessAlert from "../../components/common/SuccessAlert.jsx";
+import api from "@/api/api"; // ✅ centralized axios instance
 
 const EmailVerificationPage = () => {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
+  const [isResending, setIsResending] = useState(false);
   const inputRefs = useRef([]);
   const attemptedCodeRef = useRef(null);
   const submittingRef = useRef(false);
 
   const navigate = useNavigate();
-  const { error, isLoading, verifyEmail, message, clearError, clearMessage } = useAuthStore();
+  const { error, isLoading, verifyEmail, message, clearError, clearMessage, user } = useAuthStore();
 
   const handleChange = (index, value) => {
     clearError();
@@ -60,7 +61,7 @@ const EmailVerificationPage = () => {
       if (result?.user?.role === "admin") navigate("/admin");
       else navigate("/");
     } catch {
-      // error handled by store
+      // handled by store
     } finally {
       submittingRef.current = false;
       attemptedCodeRef.current = codeStr;
@@ -72,6 +73,25 @@ const EmailVerificationPage = () => {
     const codeStr = code.join("");
     if (codeStr.length !== 6) return;
     await submitCode(codeStr);
+  };
+
+  // ✅ NEW: handle resend code
+  const handleResendCode = async () => {
+    try {
+      setIsResending(true);
+      const emailToUse = user?.email || localStorage.getItem("pendingEmail");
+      if (!emailToUse) {
+        toast.error("Missing email. Please sign up again.");
+        return;
+      }
+      const res = await api.post("/auth/resend-verification", { email: emailToUse });
+      toast.success(res.data.message || "Verification code resent!");
+    } catch (err) {
+      const msg = err.response?.data?.message || "Failed to resend code";
+      toast.error(msg);
+    } finally {
+      setIsResending(false);
+    }
   };
 
   useEffect(() => {
@@ -140,6 +160,18 @@ const EmailVerificationPage = () => {
             >
               {isLoading ? "Verifying..." : "Verify Email"}
             </button>
+
+            {/* ✅ NEW: Resend link */}
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={isResending}
+                className="text-sm text-secondary hover:underline disabled:opacity-50"
+              >
+                {isResending ? "Resending..." : "Didn’t receive a code? Resend"}
+              </button>
+            </div>
           </form>
         </div>
       </div>

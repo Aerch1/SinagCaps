@@ -1,6 +1,4 @@
 // src/pages/admin/AdminDashboard.jsx
-"use client";
-
 import { useState, useEffect } from "react";
 import KpiCard from "../../components/common/KpiCard";
 import Dropdown from "../../components/ui/Dropdown1";
@@ -9,13 +7,7 @@ import ServiceBarChart from "../../components/common/ServiceBarChart";
 import DataTable from "../../components/common/DataTable";
 import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal";
 import api from "@/api/api";
-import {
-    BarChart3,
-    CalendarDays,
-    Clock,
-    Users,
-    ListChecks,
-} from "lucide-react";
+import { BarChart3, CalendarDays, Clock, Users } from "lucide-react";
 
 const KPI_CONFIG = {
     total: { icon: BarChart3, color: "bg-blue-500" },
@@ -48,7 +40,7 @@ export default function AdminDashboard() {
     const [viewOpen, setViewOpen] = useState(false);
     const [viewAppt, setViewAppt] = useState(null);
 
-    // 🕒 Live time in Philippine Standard Time
+    // 🕒 Live Philippine Standard Time clock
     const [time, setTime] = useState(new Date());
     useEffect(() => {
         const interval = setInterval(() => setTime(new Date()), 1000);
@@ -59,24 +51,18 @@ export default function AdminDashboard() {
     useEffect(() => {
         let active = true;
         setLoadingKpi(true);
+
         api
             .get(`/admin/dashboard/kpis?period=${filter}`)
             .then((res) => {
                 if (active && res.data.success) {
                     const raw = res.data.data || [];
-                    setKpiData(
-                        raw.map((k) => ({
-                            id: k.id,
-                            title: k.title,
-                            value: k.current,     // ✅ current KPI value
-                            previous: k.previous, // ✅ previous KPI value
-                            data: k.trend || [],
-                        }))
-                    );
+                    setKpiData(raw); // ✅ controller already provides {id,title,current,previous}
                 }
             })
             .catch((err) => console.error("❌ KPI fetch failed:", err))
             .finally(() => setLoadingKpi(false));
+
         return () => {
             active = false;
         };
@@ -131,14 +117,14 @@ export default function AdminDashboard() {
                 {!loadingKpi &&
                     kpiData.map((kpi) => {
                         const { icon, color } = KPI_CONFIG[kpi.id] || {
-                            icon: ListChecks,
-                            color: "border-gray-400",
+                            icon: BarChart3,
+                            color: "bg-gray-400",
                         };
                         return (
                             <KpiCard
                                 key={kpi.id}
                                 title={kpi.title}
-                                value={kpi.value}
+                                value={kpi.current}
                                 previous={kpi.previous}
                                 icon={icon}
                                 stripeColor={color}
@@ -148,7 +134,7 @@ export default function AdminDashboard() {
                     })}
             </div>
 
-            {/* Analytics row */}
+            {/* Charts + Table */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
                 <div className="lg:col-span-8">
                     <ServiceAreaChart filter={filter} />
@@ -156,7 +142,6 @@ export default function AdminDashboard() {
                 <div className="lg:col-span-4">
                     <ServiceBarChart filter={filter} />
                 </div>
-
                 <div className="lg:col-span-12">
                     <DataTable
                         initialPageSize={5}

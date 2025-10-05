@@ -14,10 +14,12 @@ import {
     StickyNote,
     Save,
     XCircle,
+    ClipboardList,
 } from "lucide-react";
 import api from "@/api/api";
 import { formatDate, to12h } from "@/utils/availabilityUtils";
 import { statusClass } from "@/lib/utils";
+import ProcessModal from "../ProcessModal";
 
 // ✅ Pretty labels for extra fields
 function formatLabel(key) {
@@ -35,23 +37,20 @@ function formatLabel(key) {
 // ✅ Format field values
 function formatFieldValue(key, val) {
     if (!val) return "—";
-    if (key === "childDob") {
-        return formatDate(val); // only date
-    }
+    if (key === "childDob") return formatDate(val);
     return val;
 }
 
-export default function ViewAppointmentModal({
-    isOpen,
-    onClose,
-    appointmentId,
-    onUpdate,
-}) {
+export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, onUpdate }) {
     const [isEditing, setIsEditing] = useState(false);
     const [local, setLocal] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    // 🔵 Fetch appointment details
+    // ✅ Requirements progress
+    const [reqProgress, setReqProgress] = useState({ done: 0, total: 0 });
+    const [showProcess, setShowProcess] = useState(false);
+
+    // 🔵 Fetch appointment + requirements progress
     useEffect(() => {
         if (!isOpen || !appointmentId) return;
         const fetchDetails = async () => {
@@ -63,6 +62,12 @@ export default function ViewAppointmentModal({
                     details: res.data?.details || null,
                     sponsors: res.data?.sponsors || [],
                 });
+
+                // ✅ Always fetch requirement progress
+                const reqRes = await api.get(`/admin/appointments/${appointmentId}/requirements`);
+                const reqs = reqRes.data?.requirements || [];
+                const done = reqs.filter((r) => r.completed).length;
+                setReqProgress({ done, total: reqs.length });
             } catch (err) {
                 console.error("❌ Failed to fetch appointment details:", err);
             } finally {
@@ -99,10 +104,10 @@ export default function ViewAppointmentModal({
                 {/* Header */}
                 <header className="flex items-center justify-between px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                     <div>
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Transaction ID</p>
-                        <h2 className="text-lg font-bold text-gray-900 mt-0.5">
-                            #{local?.id || "—"}
-                        </h2>
+                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                            Transaction ID
+                        </p>
+                        <h2 className="text-lg font-bold text-gray-900 mt-0.5">#{local?.id || "—"}</h2>
                     </div>
                     <div className="flex items-center gap-2">
                         <button
@@ -140,8 +145,12 @@ export default function ViewAppointmentModal({
                                         {initials}
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Client</p>
-                                        <h3 className="text-lg font-semibold text-gray-900">{local?.name || "—"}</h3>
+                                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                                            Client
+                                        </p>
+                                        <h3 className="text-lg font-semibold text-gray-900">
+                                            {local?.name || "—"}
+                                        </h3>
                                     </div>
                                 </div>
                             </section>
@@ -162,11 +171,7 @@ export default function ViewAppointmentModal({
                                                 : "—"
                                         }
                                     />
-                                    <Detail
-                                        icon={Tag}
-                                        label="Service"
-                                        value={local?.serviceName}
-                                    />
+                                    <Detail icon={Tag} label="Service" value={local?.serviceName} />
                                     <div className="flex items-start gap-3">
                                         <div className="p-2 rounded-lg bg-gray-50">
                                             <Clock className="w-4 h-4 text-gray-500" />
@@ -181,6 +186,30 @@ export default function ViewAppointmentModal({
                                 </div>
                             </section>
 
+                            {/* ✅ Requirements Progress */}
+                            {reqProgress.total > 0 && (
+                                <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+                                        <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                                        Requirements
+                                    </h4>
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm font-medium text-gray-700">
+                                            {reqProgress.done === reqProgress.total
+                                                ? `Completed (${reqProgress.done}/${reqProgress.total})`
+                                                : `In Progress (${reqProgress.done}/${reqProgress.total})`}
+                                        </p>
+                                        <button
+                                            onClick={() => setShowProcess(true)}
+                                            className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                                        >
+                                            <ClipboardList className="w-3.5 h-3.5" />
+                                            View All
+                                        </button>
+                                    </div>
+                                </section>
+                            )}
+
                             {/* Contact */}
                             <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
@@ -190,11 +219,7 @@ export default function ViewAppointmentModal({
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <Detail icon={Mail} label="Email" value={local?.email} />
-                                        <Detail
-                                            icon={Phone}
-                                            label="Phone"
-                                            value={local?.contactNumber}
-                                        />
+                                        <Detail icon={Phone} label="Phone" value={local?.contactNumber} />
                                     </div>
                                     <Detail icon={MapPin} label="Address" value={local?.address} />
                                 </div>
@@ -229,7 +254,10 @@ export default function ViewAppointmentModal({
                                     </h4>
                                     <div className="space-y-3">
                                         {local.sponsors.map((s, i) => (
-                                            <div key={i} className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-gray-50 to-white hover:shadow-sm transition-shadow">
+                                            <div
+                                                key={i}
+                                                className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-gray-50 to-white hover:shadow-sm transition-shadow"
+                                            >
                                                 <p className="text-sm font-semibold text-gray-900 mb-1">
                                                     <span className="text-blue-600">{s.role}:</span> {s.name}
                                                 </p>
@@ -256,7 +284,10 @@ export default function ViewAppointmentModal({
                                         rows={4}
                                         value={local?.notes || ""}
                                         onChange={(e) =>
-                                            setLocal((prev) => ({ ...prev, notes: e.target.value }))
+                                            setLocal((prev) => ({
+                                                ...prev,
+                                                notes: e.target.value,
+                                            }))
                                         }
                                         placeholder="Add notes about this appointment..."
                                         className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
@@ -268,9 +299,11 @@ export default function ViewAppointmentModal({
                                                 <StickyNote className="w-4 h-4 text-gray-400" />
                                             </div>
                                             <p className="text-sm text-gray-700 whitespace-pre-wrap flex-1">
-                                                {local?.notes?.trim()
-                                                    ? local.notes
-                                                    : <span className="text-gray-400 italic">No additional notes</span>}
+                                                {local?.notes?.trim() ? (
+                                                    local.notes
+                                                ) : (
+                                                    <span className="text-gray-400 italic">No additional notes</span>
+                                                )}
                                             </p>
                                         </div>
                                     </div>
@@ -298,9 +331,7 @@ export default function ViewAppointmentModal({
                         </>
                     ) : (
                         <>
-                            <p className="text-xs text-gray-500">
-                                Make your changes and save
-                            </p>
+                            <p className="text-xs text-gray-500">Make your changes and save</p>
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={() => setIsEditing(false)}
@@ -324,6 +355,24 @@ export default function ViewAppointmentModal({
                     )}
                 </footer>
             </aside>
+
+            {/* ✅ Process Modal */}
+            {showProcess && (
+                <ProcessModal
+                    appointment={local}
+                    onClose={() => setShowProcess(false)}
+                    onSave={async () => {
+                        const reqRes = await api.get(`/admin/appointments/${appointmentId}/requirements`);
+                        const reqs = reqRes.data?.requirements || [];
+                        const done = reqs.filter((r) => r.completed).length;
+                        setReqProgress({ done, total: reqs.length });
+                    }}
+                    onComplete={() => {
+                        setShowProcess(false);
+                        onUpdate?.();
+                    }}
+                />
+            )}
         </>
     );
 }
@@ -336,8 +385,10 @@ function Detail({ icon: Icon, label, value }) {
                 <Icon className="w-4 h-4 text-gray-500" />
             </div>
             <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium  text-gray-500 mb-1">{label}</p>
-                <p className="text-sm font-medium text-nowrap text-gray-900  break-words">{value || "—"}</p>
+                <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>
+                <p className="text-sm font-medium text-nowrap text-gray-900 break-words">
+                    {value || "—"}
+                </p>
             </div>
         </div>
     );

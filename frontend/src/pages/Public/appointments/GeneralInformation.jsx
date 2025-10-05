@@ -1,8 +1,9 @@
-"use client";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore.js";
 import HeroBanner from "../../../components/section/HeroBanner.jsx";
 import toast from "react-hot-toast";
+import api from "@/api/api"; // ✅ centralized axios
 
 const HERO_IMG = "/forgot.jpg";
 
@@ -10,24 +11,35 @@ export default function GeneralInformation() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
 
-  const requirementLinks = [
-    { label: "Wedding (Matrimony)", to: "/services/appointments/requirements/wedding" },
-    { label: "Baptism (Infant)", to: "/services/appointments/requirements/baptism" },
-    { label: "Adult Baptism / RCIA", to: "/services/appointments/requirements/rcia" },
-    { label: "Confirmation (Kumpil)", to: "/services/appointments/requirements/confirmation" },
-    { label: "First Holy Communion", to: "/services/appointments/requirements/first-commune" },
-    { label: "Confession (Reconciliation)", to: "/services/appointments/requirements/confession" },
-    { label: "Anointing of the Sick / Sick Call", to: "/services/appointments/requirements/anointing" },
-    { label: "Funeral Mass / Memorial", to: "/services/appointments/requirements/funeral" },
-    { label: "Mass Intentions / Prayer Requests", to: "/services/appointments/requirements/intentions" },
-    { label: "Blessings (Home, Car, Business, Articles)", to: "/services/appointments/requirements/blessings" },
-  ];
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedService, setSelectedService] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
+  /* -------------------- 🔹 Fetch Services + Requirements -------------------- */
+/* -------------------- 🔹 Fetch Services + Requirements -------------------- */
+useEffect(() => {
+  const fetchServices = async () => {
+    try {
+      // ✅ Correct public route
+      const res = await api.get("public/services");
+      if (res.data.success) setServices(res.data.services);
+    } catch (err) {
+      console.error("❌ Failed to fetch services:", err);
+      toast.error("Unable to load services.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchServices();
+}, []);
+
+
+  /* -------------------- 🔹 Booking Button -------------------- */
   const goToBooking = (e) => {
     e.preventDefault();
     if (isAuthenticated) {
-
-      setTimeout(() => navigate("/services/appointments/terms"), 1500)
+      setTimeout(() => navigate("/services/appointments/terms"), 1500);
     } else {
       toast.error("Please login your account first.");
       setTimeout(() => {
@@ -35,6 +47,17 @@ export default function GeneralInformation() {
       }, 1500);
     }
   };
+
+  /* -------------------- 🔹 Modal Control -------------------- */
+  const handleOpenModal = (service) => {
+    setSelectedService(service);
+    setShowModal(true);
+  };
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedService(null);
+  };
+
 
   return (
     <main className="bg-white">
@@ -177,36 +200,58 @@ export default function GeneralInformation() {
             </div>
           </section>
 
-          {/* RIGHT: requirements list + secondary button (sticky) */}
           <aside className="space-y-6">
-            <div className="border border-gray-200 rounded-xl p-6 sticky top-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Service Requirements</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Click any service to view documents and specific requirements.
-              </p>
+            <div
+              className="border border-gray-200 rounded-xl p-6 sticky top-6 flex flex-col justify-between"
+              style={{ minHeight: "520px" }} // ✅ keeps consistent height like static version
+            >
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Service Requirements</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Click any service to view documents and specific requirements.
+                </p>
 
-              <ul className="space-y-2">
-                {requirementLinks.map((item) => (
-                  <li key={item.to}>
-                    <Link
-                      to={item.to}
-                      className="block rounded-md border border-gray-200 px-3 py-2 text-sm text-blue-700 hover:text-blue-800 hover:border-blue-300"
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+                {/* Service List */}
+                <div className="flex-1">
+                  {loading ? (
+                    <ul className="space-y-2 animate-pulse">
+                      {[...Array(6)].map((_, i) => (
+                        <li
+                          key={i}
+                          className="h-8 bg-gray-100 rounded-md border border-gray-200"
+                        ></li>
+                      ))}
+                    </ul>
+                  ) : services.length > 0 ? (
+                    <ul className="space-y-2">
+                      {services.map((s) => (
+                        <li key={s.id}>
+                          <button
+                            onClick={() => handleOpenModal(s)}
+                            className="w-full text-left block rounded-md border border-gray-200 px-3 py-2 text-sm text-blue-700 hover:text-blue-800 hover:border-blue-300 transition"
+                          >
+                            {s.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="text-sm text-gray-500 italic py-4 text-center border rounded-md bg-gray-50">
+                      No active services available.
+                    </div>
+                  )}
+                </div>
 
-              <p className="text-xs text-gray-500 mt-4">
-                Note: Requirements may vary by parish/diocese. Bring originals and photocopies.
-              </p>
+                <p className="text-xs text-gray-500 mt-4">
+                  Note: Requirements may vary by parish/diocese. Bring originals and photocopies.
+                </p>
+              </div>
 
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <button
                   onClick={goToBooking}
                   aria-label="Book a church appointment"
-                  className="w-full rounded-md border border-gray-200 bg-secondary text-white px-5 py-3 text-sm font-semibold hover:bg-secondary cursor-pointer  "
+                  className="w-full rounded-md border border-gray-200 bg-secondary text-white px-5 py-3 text-sm font-semibold hover:bg-secondary/90"
                 >
                   Book an Appointment
                 </button>
@@ -215,6 +260,64 @@ export default function GeneralInformation() {
           </aside>
         </div>
       </div>
+
+      {/* ===========================
+          📌 MODAL (DB Data)
+      ============================ */}
+      {showModal && selectedService && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative min-h-[380px] flex flex-col">
+            {/* Close Button */}
+            <button
+              onClick={handleCloseModal}
+              className="absolute top-2 right-3 text-gray-500 hover:text-gray-700 text-xl font-bold"
+            >
+              ×
+            </button>
+
+            {/* Header */}
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              {selectedService.name} Requirements
+            </h2>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto">
+              {selectedService.requirements?.length ? (
+                <ul className="list-disc pl-5 space-y-2 text-sm text-gray-800">
+                  {selectedService.requirements.map((r) => (
+                    <li key={r.id}>
+                      {r.name}{" "}
+                      {r.is_mandatory && (
+                        <span className="text-red-500 text-xs font-medium">(Required)</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-sm text-gray-500 italic">
+                    No specific requirements for this service.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <p className="text-xs text-gray-500 mt-4">
+              Bring both original and photocopy of each document during verification.
+            </p>
+
+            <div className="mt-5 text-right">
+              <button
+                onClick={handleCloseModal}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -47,19 +47,61 @@ export const signup = handleAsyncError(async (req, res) => {
   try {
     conn = await pool.getConnection();
 
+    // ✅ Check existing user (we also fetch isVerified)
     const [existing] = await conn.execute(
-      "SELECT id FROM users WHERE email = ?",
+      "SELECT id, isVerified FROM users WHERE email = ?",
       [normalizedEmail]
     );
-    if (existing.length) throw new AppError("User already  exists", 400);
 
+    // ✅ Case 1: Already verified user → reject
+    if (existing.length && existing[0].isVerified) {
+      throw new AppError("User already exists", 400);
+    }
+
+    // ✅ Case 2: Exists but NOT verified → resend code
+    if (existing.length && !existing[0].isVerified) {
+      const userId = existing[0].id;
+
+      // generate new code
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      await conn.execute(
+        `INSERT INTO email_verification_tokens
+         (user_id, token, purpose, sent_to_email, expires_at)
+         VALUES (?, ?, 'signup', ?, ?)`,
+        [userId, code, normalizedEmail, expires]
+      );
+
+      try {
+        await sendVerificationEmail(normalizedEmail, code);
+      } catch (e) {
+        console.error("Resend verification email failed:", e.message);
+      }
+
+      return sendResponse(
+        res,
+        200,
+        true,
+        "Verification code resent. Please check your email.",
+        {
+          user: {
+            id: userId,
+            email: normalizedEmail,
+            name: name?.trim() || "",
+            isVerified: false,
+          },
+        }
+      );
+    }
+
+    // ✅ Case 3: New user → create + send code
     const hashed = await bcryptjs.hash(password, 12);
     const [r] = await conn.execute(
       "INSERT INTO users (email, password, name, isVerified) VALUES (?, ?, ?, FALSE)",
       [normalizedEmail, hashed, name.trim()]
     );
 
-    // create 6-digit code (24h)
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -94,6 +136,67 @@ export const signup = handleAsyncError(async (req, res) => {
     if (conn) conn.release();
   }
 });
+
+
+/**
+ * POST /auth/resend-verification
+ * - Resends the verification code for unverified users
+ */
+export const resendVerification = handleAsyncError(async (req, res) => {
+  const { email } = req.body;
+  if (!email?.trim()) throw new AppError("Email is required", 400);
+
+  const normalizedEmail = email.trim().toLowerCase();
+  let conn;
+
+  try {
+    conn = await pool.getConnection();
+
+    // Check if user exists
+    const [users] = await conn.execute(
+      "SELECT id, isVerified FROM users WHERE email = ?",
+      [normalizedEmail]
+    );
+
+    if (!users.length) {
+      throw new AppError("No account found with this email", 404);
+    }
+
+    const user = users[0];
+    if (user.isVerified) {
+      throw new AppError("Email already verified", 400);
+    }
+
+    // Create a new verification code (valid for 24 hours)
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await conn.execute(
+      `INSERT INTO email_verification_tokens
+       (user_id, token, purpose, sent_to_email, expires_at)
+       VALUES (?, ?, 'signup', ?, ?)`,
+      [user.id, code, normalizedEmail, expires]
+    );
+
+    try {
+      await sendVerificationEmail(normalizedEmail, code);
+    } catch (e) {
+      console.error("Resend verification email failed:", e.message);
+      throw new AppError("Failed to send verification email", 500);
+    }
+
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Verification code resent. Please check your email."
+    );
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+
 
 /**
  * POST /auth/verify-email

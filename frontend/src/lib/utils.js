@@ -60,29 +60,17 @@ export function computeRange(key) {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 /* ---------- Status label + classes ---------- */
 export const formatStatusLabel = (status) => {
   if (!status) return "";
   const map = {
     pending: "Pending",
     approved: "Approved",
-    in_progress: "In Progress",
     completed: "Completed",
     cancelled: "Cancelled",
     canceled: "Cancelled",
-    failed: "Failed",
+    rejected: "Rejected",
+    archived: "Archived",
   };
   return map[status.toLowerCase()] || status;
 };
@@ -96,12 +84,12 @@ export const statusClass = (s) => {
     return `${BASE} bg-amber-50 text-amber-700 border-amber-200`;
   if (v === "approved")
     return `${BASE} bg-emerald-50 text-emerald-700 border-emerald-200`;
-  if (v === "in_progress" || v === "in progress")
-    return `${BASE} bg-indigo-50 text-indigo-700 border-indigo-200`;
   if (v === "completed")
     return `${BASE} bg-blue-50 text-blue-700 border-blue-200`;
-  if (["cancelled", "canceled", "failed"].includes(v))
+  if (["cancelled", "canceled", "rejected"].includes(v))
     return `${BASE} bg-red-50 text-red-700 border-red-200`;
+  if (v === "archived")
+    return `${BASE} bg-gray-100 text-gray-600 border-gray-300`;
 
   return `${BASE} bg-gray-50 text-gray-600 border-gray-200`;
 };

@@ -9,13 +9,16 @@ import {
   LayoutDashboard,
   CalendarDays,
   ClipboardList,
-  Calendar,
+  FileArchive,
   MessageCircle,
-  Users,
+  UserCog,
   Settings,
   LogOut,
   MoreHorizontal,
   Clock,
+  Layers,
+  BarChart3,
+  UserCircle,
   FileText,
   ChevronDown,
 } from "lucide-react";
@@ -39,12 +42,11 @@ const sections = [
           { name: "All Appointments", path: "/admin/appointments?status=all", status: "all", key: "appointments-all" },
           { name: "Pending", path: "/admin/appointments?status=pending", status: "pending", key: "appointments-pending" },
           { name: "Approved", path: "/admin/appointments?status=approved", status: "approved", key: "appointments-approved" },
-          { name: "In Progress", path: "/admin/appointments?status=in_progress", status: "in_progress", key: "appointments-in-progress" },
           { name: "Completed", path: "/admin/appointments?status=completed", status: "completed", key: "appointments-completed" },
           { name: "Cancelled", path: "/admin/appointments?status=cancelled", status: "cancelled", key: "appointments-cancelled" },
         ],
       },
-      { name: "Documents", path: "/admin/documents", icon: <Calendar size={18} />, key: "documents" },
+      { name: "Documents", path: "/admin/documents", icon: <FileArchive size={18} />, key: "documents" },
       { name: "Messages", path: "/admin/messages", icon: <MessageCircle size={18} />, key: "messages" },
     ],
   },
@@ -52,22 +54,23 @@ const sections = [
     key: "management",
     title: "Management",
     items: [
-      { name: "User Management", path: "/admin/users", icon: <Users size={18} />, key: "user-management" },
+      { name: "User Management", path: "/admin/users", icon: <UserCog size={18} />, key: "user-management" },
       { name: "Schedule Availability", path: "/admin/schedule", icon: <Clock size={18} />, key: "schedule" },
-      { name: "Content Management", path: "/admin/content", icon: <FileText size={18} />, key: "content" },
-      { name: "Reports", path: "/admin/report", icon: <FileText size={18} />, key: "report" },
+      { name: "Content Management", path: "/admin/content", icon: <Layers size={18} />, key: "content" },
+      { name: "Reports", path: "/admin/report", icon: <BarChart3 size={18} />, key: "report" },
     ],
   },
   {
     key: "others",
     title: "Others",
     items: [
-      { name: "Profile", path: "/admin/profile", icon: <Users size={18} />, key: "profile" },
+      { name: "Profile", path: "/admin/profile", icon: <UserCircle size={18} />, key: "profile" },
       { name: "Settings", path: "/admin/settings", icon: <Settings size={18} />, key: "settings" },
       { name: "Logout", icon: <LogOut size={18} />, isLogout: true, key: "logout" },
     ],
   },
 ];
+
 
 /** Theme classes */
 const baseItem =
@@ -97,8 +100,7 @@ const SidebarMenuItem = React.memo(function SidebarMenuItem({
   onAfterClick,
 }) {
   const active = !nav.isLogout && nav.path ? isActive(nav.path) : false;
-  const linkClassName = `${baseItem} ${justify(showFullSidebar)} ${active ? activeItem : inactiveItem
-    }`;
+  const linkClassName = `${baseItem} ${justify(showFullSidebar)} ${active ? activeItem : inactiveItem}`;
   const iconClassName = `flex-shrink-0 ${active ? iconActive : iconInactive}`;
 
   if (nav.isLogout) {
@@ -158,10 +160,8 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
   }, [childActive]);
 
   const canDropdown = showFullSidebar && hasChildren;
-  const parentClass = `${baseItem} ${justify(showFullSidebar)} ${parentActive ? activeItem : inactiveItem
-    }`;
-  const iconClassName = `flex-shrink-0 ${parentActive ? iconActive : iconInactive
-    }`;
+  const parentClass = `${baseItem} ${justify(showFullSidebar)} ${parentActive ? activeItem : inactiveItem}`;
+  const iconClassName = `flex-shrink-0 ${parentActive ? iconActive : iconInactive}`;
 
   return (
     <li className="relative">
@@ -186,8 +186,7 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
             </span>
             {hasChildren && (
               <ChevronDown
-                className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""
-                  } text-gray-500`}
+                className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""} text-gray-500`}
               />
             )}
           </>
@@ -197,8 +196,7 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
       {canDropdown && (
         <div
           id={`submenu-${nav.key}`}
-          className={`grid transition-all duration-300 ease-in-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-            }`}
+          className={`grid transition-all duration-300 ease-in-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
         >
           <div className="overflow-hidden">
             <ul className="mt-1 ml-6 flex flex-col gap-1 border-l p-2">
@@ -208,8 +206,7 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
                   <li key={child.key}>
                     <Link
                       to={child.path}
-                      className={`block rounded-md px-2 py-1.5 text-sm transition-all duration-200 ${active ? activeItem : inactiveItem
-                        }`}
+                      className={`block rounded-md px-2 py-1.5 text-sm transition-all duration-200 ${active ? activeItem : inactiveItem}`}
                       onClick={onAfterClick}
                     >
                       {child.name}
@@ -229,8 +226,7 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
 const SectionBlock = ({ title, items, showFullSidebar, renderItem }) => (
   <div>
     <h2
-      className={`mb-3 text-sm font-medium text-gray-700 flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"
-        }`}
+      className={`mb-3 text-sm font-medium text-gray-700 flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"}`}
     >
       {showFullSidebar ? title : <MoreHorizontal className="w-5 h-5" />}
     </h2>
@@ -239,8 +235,7 @@ const SectionBlock = ({ title, items, showFullSidebar, renderItem }) => (
 );
 
 export default function AppSidebar() {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } =
-    useSidebar();
+  const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } = useSidebar();
   const { logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
@@ -264,11 +259,7 @@ export default function AppSidebar() {
   };
 
   const onAfterClick = () => {
-    if (
-      window.innerWidth < 1024 &&
-      isMobileOpen &&
-      typeof toggleMobileSidebar === "function"
-    ) {
+    if (window.innerWidth < 1024 && isMobileOpen && typeof toggleMobileSidebar === "function") {
       toggleMobileSidebar();
     }
   };
@@ -284,8 +275,7 @@ export default function AppSidebar() {
       <div className="flex h-full flex-col">
         {/* Logo / brand */}
         <div
-          className={`flex-none py-6 px-5 hidden lg:flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"
-            }`}
+          className={`flex-none py-6 px-5 hidden lg:flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"}`}
         >
           <Link to="/admin" className="flex items-center gap-3">
             {showFullSidebar ? (
@@ -298,12 +288,8 @@ export default function AppSidebar() {
                   />
                 </div>
                 <div className="flex flex-col">
-                  <h1 className="font-semibold text-lg text-slate-900">
-                    ADMIN
-                  </h1>
-                  <p className="text-sm text-gray-500 whitespace-nowrap">
-                    Management Panel
-                  </p>
+                  <h1 className="font-semibold text-lg text-slate-900">ADMIN</h1>
+                  <p className="text-sm text-gray-500 whitespace-nowrap">Management Panel</p>
                 </div>
               </div>
             ) : (
@@ -320,8 +306,7 @@ export default function AppSidebar() {
 
         {/* Scrollable nav area */}
         <div
-          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${showFullSidebar ? "custom-scrollbar" : "scrollbar-hide"
-            } px-4 pb-6 pt-4 lg:pt-0`}
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${showFullSidebar ? "custom-scrollbar" : "scrollbar-hide"} px-4 pb-6 pt-4 lg:pt-0`}
         >
           <nav className="flex flex-col gap-6">
             {sections.map((section) => (

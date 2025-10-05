@@ -28,10 +28,10 @@ export async function getDayContext(serviceId, dateStr) {
     ),
     pool.execute(
       `SELECT TIME_FORMAT(time, '%H:%i') as time
-       FROM appointments
-       WHERE service_id = ?
-         AND date = ?
-         AND status IN ('pending','approved','in_progress')`,
+   FROM appointments
+   WHERE service_id = ?
+     AND date = ?
+     AND status IN ('pending','approved')`,
       [serviceId, isoDate]
     ),
     pool.execute(

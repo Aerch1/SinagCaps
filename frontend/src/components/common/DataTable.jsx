@@ -1,3 +1,4 @@
+// src/components/admin/DataTable.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -10,14 +11,15 @@ import {
     FileDown,
     X,
     Eye,
-    Trash2,
     ChevronsUpDown,
     ClipboardList,
+    Check,
+    Archive,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import FilterDropdown from "../ui/FilterDropdown.jsx";
 import ProcessModal from "./ProcessModal.jsx";
-import ViewAppointmentModal from "../common/modal/ViewAppointmentModal.jsx"; // ✅ import modal
+import ViewAppointmentModal from "../common/modal/ViewAppointmentModal.jsx";
 import {
     statusClass,
     formatDate,
@@ -25,12 +27,13 @@ import {
     computeRange,
     formatStatusLabel,
 } from "../../lib/utils.js";
+import toast from "react-hot-toast";
+import api from "@/api/api"; // ✅ centralized axios
 
 export default function DataTable({
     manageHref = "/admin/appointments",
     initialPageSize = 5,
     activeTab = "all",
-    onDelete,
 }) {
     const location = useLocation();
     const onDashboard = /^\/admin\/?$/.test(location.pathname);
@@ -46,7 +49,7 @@ export default function DataTable({
     const [statusOptions, setStatusOptions] = useState([]);
 
     // sorting & pagination
-    const [sort, setSort] = useState({ key: null, dir: null });
+    const [sort, setSort] = useState({ key: "id", dir: "desc" });
     const [page, setPage] = useState(1);
     const [pageSize] = useState(initialPageSize);
     const [totalPages, setTotalPages] = useState(1);
@@ -78,74 +81,62 @@ export default function DataTable({
     }, [showRangeKey]);
 
     /* --- Fetch data --- */
-    useEffect(() => {
-        const load = async () => {
-            try {
-                setLoading(true);
+    const fetchData = async () => {
+        try {
+            setLoading(true);
 
-                const hasFilters =
-                    query ||
-                    selectedServiceIds.length ||
-                    selectedStatuses.length ||
-                    sort.key ||
-                    startDate ||
-                    endDate;
+            const payload = { page, pageSize, sortBy: sort.key, sortDir: sort.dir };
 
-                let res;
-                if (hasFilters) {
-                    const payload = {
-                        page,
-                        pageSize,
-                        query,
-                        status: selectedStatuses,
-                        serviceIds: selectedServiceIds,
-                        sortBy: sort.key,
-                        sortDir: sort.dir,
-                    };
-                    if (startDate && endDate) {
-                        payload.startDate = startDate;
-                        payload.endDate = endDate;
-                    }
-                    res = await filterAppointments(payload);
-                } else {
-                    res = await getAppointments({ page, pageSize });
-                }
-
-                setRows(res.data || []);
-                setTotalPages(res.totalPages || 1);
-                setTotal(res.total || 0);
-
-                // meta
-                setServiceOptions(
-                    (res.meta?.services || []).map((s) => ({
-                        value: s.id,
-                        label: s.name,
-                    }))
-                );
-                setStatusOptions(
-                    (res.meta?.statuses || []).map((s) => ({
-                        value: s,
-                        label: formatStatusLabel(s),
-                    }))
-                );
-            } catch (err) {
-                console.error("❌ fetch error:", err);
-                setRows([]);
-            } finally {
-                setLoading(false);
+            if (query) payload.query = query;
+            if (selectedStatuses.length) payload.status = selectedStatuses;
+            if (selectedServiceIds.length) payload.serviceIds = selectedServiceIds;
+            if (startDate && endDate) {
+                payload.startDate = startDate;
+                payload.endDate = endDate;
             }
-        };
-        load();
-    }, [
-        page,
-        pageSize,
-        query,
-        selectedServiceIds,
-        selectedStatuses,
-        sort,
-        startDate,
-        endDate,
-    ]);
+
+            let res;
+            if (
+                query ||
+                selectedServiceIds.length ||
+                selectedStatuses.length ||
+                startDate ||
+                endDate
+            ) {
+                res = await filterAppointments(payload);
+            } else {
+                res = await getAppointments(payload);
+            }
+
+            setRows(res.data || []);
+            setTotalPages(res.totalPages || 1);
+            setTotal(res.total || 0);
+
+            // meta
+            setServiceOptions(
+                (res.meta?.services || []).map((s) => ({
+                    value: s.id,
+                    label: s.name,
+                }))
+            );
+            setStatusOptions(
+                (res.meta?.statuses || []).map((s) => ({
+                    value: s,
+                    label: formatStatusLabel(s),
+                }))
+            );
+        } catch (err) {
+            console.error("❌ fetch error:", err);
+            setRows([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, pageSize, query, selectedServiceIds, selectedStatuses, sort, startDate, endDate]);
 
     /* --- Debounce search --- */
     useEffect(() => {
@@ -165,43 +156,97 @@ export default function DataTable({
         );
     };
 
+    /* --- Status updates --- */
+    const handleStatusChange = async (r, newStatus) => {
+        const oldStatus = r.status;
+        setRows((prev) =>
+            prev.map((row) => (row.id === r.id ? { ...row, status: newStatus } : row))
+        );
+
+        const toastId = toast.loading("Updating appointment...");
+        try {
+            const { data } = await api.patch(`/admin/appointments/${r.id}`, {
+                status: newStatus,
+            });
+            toast.success(data.message || "Appointment updated", { id: toastId });
+            fetchData();
+        } catch (err) {
+            console.error("❌ update failed:", err);
+            toast.error("Failed to update", { id: toastId });
+            // rollback
+            setRows((prev) =>
+                prev.map((row) => (row.id === r.id ? { ...row, status: oldStatus } : row))
+            );
+        }
+    };
+
     /* --- Actions --- */
     const renderActions = (r) => {
-        const locked = ["completed", "cancelled", "canceled"].includes(
-            String(r.status).toLowerCase()
-        );
+        const status = String(r.status).toLowerCase();
+
         return (
             <div className="flex items-center justify-end gap-2">
-                {/* Process */}
-                <button
-                    className={`h-9 w-9 rounded-md hover:bg-gray-100 text-indigo-600 flex items-center justify-center ${locked ? "opacity-50 cursor-not-allowed hover:bg-transparent" : ""
-                        }`}
-                    onClick={() => !locked && setProcessingRow(r)}
-                    disabled={locked}
-                    title="Process"
-                >
-                    <ClipboardList className="h-4 w-4" />
-                </button>
-
-                {/* View */}
+                {/* Always View */}
                 <button
                     className="h-9 w-9 rounded-md hover:bg-gray-100 flex items-center justify-center"
-                    onClick={() => setViewingId(r.id)} // ✅ open modal with ID
+                    onClick={() => setViewingId(r.id)}
                     title="View details"
                 >
                     <Eye className="h-4 w-4" />
                 </button>
 
-                {/* Cancel */}
-                <button
-                    className={`h-9 w-9 rounded-md hover:bg-gray-100 text-red-600 flex items-center justify-center ${locked ? "opacity-50 cursor-not-allowed hover:bg-transparent" : ""
-                        }`}
-                    onClick={() => !locked && onDelete?.(r)}
-                    disabled={locked}
-                    title="Cancel"
-                >
-                    <Trash2 className="h-4 w-4" />
-                </button>
+                {/* Pending → Approve + Reject */}
+                {status === "pending" && (
+                    <>
+                        <button
+                            className="h-9 w-9 rounded-md hover:bg-gray-100 text-green-600 flex items-center justify-center"
+                            onClick={() => handleStatusChange(r, "approved")}
+                            title="Approve"
+                        >
+                            <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                            className="h-9 w-9 rounded-md hover:bg-gray-100 text-red-600 flex items-center justify-center"
+                            onClick={() => handleStatusChange(r, "rejected")}
+                            title="Reject"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </>
+                )}
+
+                {/* Approved → Process + Cancel */}
+                {status === "approved" && (
+                    <>
+                        <button
+                            className="h-9 w-9 rounded-md hover:bg-gray-100 text-indigo-600 flex items-center justify-center"
+                            onClick={() => setProcessingRow(r)}
+                            title="Process"
+                        >
+                            <ClipboardList className="h-4 w-4" />
+                        </button>
+                        <button
+                            className="h-9 w-9 rounded-md hover:bg-gray-100 text-red-600 flex items-center justify-center"
+                            onClick={() => handleStatusChange(r, "cancelled")}
+                            title="Cancel"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </>
+                )}
+
+                {/* Completed → Archive */}
+                {status === "completed" && (
+                    <button
+                        className="h-9 w-9 rounded-md hover:bg-gray-100 text-gray-600 flex items-center justify-center"
+                        onClick={() => handleStatusChange(r, "archived")}
+                        title="Archive"
+                    >
+                        <Archive className="h-4 w-4" />
+                    </button>
+                )}
+
+                {/* Rejected / Cancelled / Archived → Only View (already covered) */}
             </div>
         );
     };
@@ -358,69 +403,67 @@ export default function DataTable({
                 </div>
 
                 {/* Table */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50 sticky top-0 z-10">
-                            <tr>
-                                <th onClick={() => cycleSort("id")} className="px-6 py-2 text-left cursor-pointer bg-gray-50">
-                                    ID <ChevronsUpDown className="inline h-3 w-3 ml-1" />
-                                </th>
-                                <th className="px-6 py-2 text-left bg-gray-50">Client</th>
-                                <th className="px-6 py-2 text-left bg-gray-50">Contact</th>
-                                <th className="px-6 py-2 text-left bg-gray-50">Service</th>
-                                <th className="px-6 py-2 text-left bg-gray-50">Status</th>
-                                <th className="px-6 py-2 text-left bg-gray-50">Schedule</th>
-                                <th className="px-6 py-2 text-left bg-gray-50">Address</th>
-                                <th className="px-6 py-2 text-right bg-gray-50">Actions</th>
-                            </tr>
-                        </thead>
-
-                        <motion.tbody
-                            key={page + showRangeKey + query}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.3, ease: "easeInOut" }}
-                        >
-                            {rows.length === 0 && !loading ? (
+                {/* Table */}
+                <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-x-auto flex flex-col max-h-[800px]">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        <table className="min-w-full text-sm">
+                            <thead className="bg-gray-50 sticky top-0 z-10">
                                 <tr>
-                                    <td colSpan={8} className="h-48 text-center text-gray-500">
-                                        No results.
-                                    </td>
+                                    <th onClick={() => cycleSort("id")} className="px-6 py-2 text-left cursor-pointer">
+                                        ID <ChevronsUpDown className="inline h-3 w-3 ml-1" />
+                                    </th>
+                                    <th className="px-6 py-2 text-left">Client</th>
+                                    <th className="px-6 py-2 text-left">Contact</th>
+                                    <th className="px-6 py-2 text-left">Service</th>
+                                    <th className="px-6 py-2 text-left">Status</th>
+                                    <th className="px-6 py-2 text-left">Schedule</th>
+                                    <th className="px-6 py-2 text-left">Address</th>
+                                    <th className="px-6 py-2 text-right">Actions</th>
                                 </tr>
-                            ) : loading ? (
-                                <tr>
-                                    <td colSpan={8} className="h-48 text-center text-gray-500">
-                                        Loading…
-                                    </td>
-                                </tr>
-                            ) : (
-                                rows.map((r) => (
-                                    <tr key={r.id} className="border-b hover:bg-gray-50">
-                                        <td className="px-6 py-3 font-mono text-xs text-gray-500">#{r.id}</td>
-                                        <td className="px-6 py-3">
-                                            <div className="font-medium">{r.name}</div>
-                                            <div className="text-xs text-gray-500">{r.email}</div>
-                                        </td>
-                                        <td className="px-6 py-3">{r.contactNumber || "—"}</td>
-                                        <td className="px-6 py-3">{r.serviceName}</td>
-                                        <td className="px-6 py-3">
-                                            <span className={statusClass(r.status)}>{formatStatusLabel(r.status)}</span>
-                                        </td>
-                                        <td className="px-6 py-3">
-                                            <div>{formatDate(r.date)}</div>
-                                            <div className="text-xs text-gray-500">{formatTime(r.time)}</div>
-                                        </td>
-                                        <td className="px-6 py-3 max-w-xs truncate">{r.address || "—"}</td>
-                                        <td className="px-6 py-3 text-right">{renderActions(r)}</td>
-                                    </tr>
-
-                                ))
-                            )}
-                        </motion.tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <AnimatePresence>
+                                    {loading ? (
+                                        <motion.tr key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                            <td colSpan={8} className="h-48 text-center text-gray-500">
+                                                Loading…
+                                            </td>
+                                        </motion.tr>
+                                    ) : rows.length === 0 ? (
+                                        <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                            <td colSpan={8} className="h-48 text-center text-gray-500">
+                                                No results.
+                                            </td>
+                                        </motion.tr>
+                                    ) : (
+                                        rows.map((r) => (
+                                            <motion.tr key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                                <td className="px-6 py-3 font-mono text-xs text-gray-500">#{r.id}</td>
+                                                <td className="px-6 py-3">
+                                                    <div className="font-medium">{r.name}</div>
+                                                    <div className="text-xs text-gray-500">{r.email}</div>
+                                                </td>
+                                                <td className="px-6 py-3">{r.contactNumber || "—"}</td>
+                                                <td className="px-6 py-3">{r.serviceName}</td>
+                                                <td className="px-6 py-3">
+                                                    <span className={statusClass(r.status)}>
+                                                        {formatStatusLabel(r.status)}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-3">
+                                                    <div>{formatDate(r.date)}</div>
+                                                    <div className="text-xs text-gray-500">{formatTime(r.time)}</div>
+                                                </td>
+                                                <td className="px-6 py-3 max-w-xs truncate">{r.address || "—"}</td>
+                                                <td className="px-6 py-3 text-right">{renderActions(r)}</td>
+                                            </motion.tr>
+                                        ))
+                                    )}
+                                </AnimatePresence>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-
 
                 {/* Pagination */}
                 {total > 0 && (
@@ -480,17 +523,17 @@ export default function DataTable({
                 />
             )}
 
-            {/* ✅ View Appointment Modal */}
+            {/* View Modal */}
             {viewingId && (
                 <ViewAppointmentModal
                     isOpen={!!viewingId}
                     appointmentId={viewingId}
                     onClose={() => setViewingId(null)}
-                    onUpdate={(updated) => {
+                    onUpdate={(updated) =>
                         setRows((prev) =>
                             prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r))
-                        );
-                    }}
+                        )
+                    }
                 />
             )}
         </div>

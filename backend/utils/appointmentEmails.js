@@ -87,7 +87,7 @@ export const sendAppointmentRescheduledEmail = async (toEmail, data) => {
     )
       .replaceAll("{service}", data.serviceName)
       .replaceAll("{oldDate}", data.oldDate)
-      .replaceAll("{oldTime}", data.oldTime)
+      .replaceAll("{oldTime}", data.oldTime) 
       .replaceAll("{newDate}", data.newDate)
       .replaceAll("{newTime}", data.newTime);
 

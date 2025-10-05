@@ -2,7 +2,7 @@
 import pool from "../config/db.js";
 
 /**
- * ✅ Check duplicate bookings (same person, same slot, not cancelled)
+ * ✅ Check duplicate bookings (same person, same slot, not cancelled/rejected/archived)
  */
 export async function hasDuplicateBooking({
   idToIgnore = null,
@@ -17,7 +17,7 @@ export async function hasDuplicateBooking({
     SELECT id FROM appointments
     WHERE service_id=? AND date=? AND time=? 
       AND (email=? OR contactNumber=?)
-      AND status IN ('pending','approved','in_progress')`;
+      AND status IN ('pending','approved')`; // 🔥 cleaned
   if (idToIgnore) {
     sql += ` AND id != ?`;
     params.push(idToIgnore);
@@ -40,7 +40,7 @@ export async function countBookedAt({
     SELECT COUNT(*) as booked
     FROM appointments
     WHERE service_id=? AND date=? AND time=? 
-      AND status IN ('pending','approved','in_progress')`;
+      AND status IN ('pending','approved')`; // 🔥 cleaned
   if (idToIgnore) {
     sql += ` AND id != ?`;
     params.push(idToIgnore);
@@ -48,6 +48,7 @@ export async function countBookedAt({
   const [rows] = await pool.query(sql, params);
   return rows[0].booked;
 }
+
 
 /**
  * ✅ Insert new appointment 

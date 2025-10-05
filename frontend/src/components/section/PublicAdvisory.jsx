@@ -1,67 +1,89 @@
-import { Link } from "react-router-dom"
-import { Megaphone, Bell } from "lucide-react"
-import { useId } from "react"
+"use client";
 
-const PublicAdvisory = ({
-    variant = "reminder", // "reminder" | "announcement"
-    title,
-    message,
-    ctas = [], // [{ label, to }]
-}) => {
-    const isAnnouncement = variant === "announcement"
-    const Icon = isAnnouncement ? Megaphone : Bell
-    const regionId = useId()
+import { useEffect, useState, useRef } from "react";
+import { Megaphone, Bell } from "lucide-react";
+import api from "@/api/api";
 
-    // colors: announcement = dark; reminder = gold
-    const bannerClasses = isAnnouncement
-        ? "bg-gray-900 text-white"
-        : "bg-primary text-gray-900"
+const ROTATE_INTERVAL = 7000; // 7 seconds
+
+export default function PublicAdvisory() {
+    const [advisories, setAdvisories] = useState([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [paused, setPaused] = useState(false);
+    const intervalRef = useRef(null);
+
+    /* -------------------------------------------
+       Fetch all active advisories
+    ------------------------------------------- */
+    useEffect(() => {
+        const fetchAdvisories = async () => {
+            try {
+                const res = await api.get("/admin/advisories");
+                const active = res.data?.data?.filter((a) => a.status === "active") || [];
+                setAdvisories(active);
+            } catch (err) {
+                console.error("❌ Failed to fetch advisories:", err);
+            }
+        };
+        fetchAdvisories();
+    }, []);
+
+    /* -------------------------------------------
+       Auto-rotate every few seconds
+    ------------------------------------------- */
+    useEffect(() => {
+        if (!advisories.length) return;
+
+        intervalRef.current = setInterval(() => {
+            if (!paused) {
+                setCurrentIndex((i) => (i + 1) % advisories.length);
+            }
+        }, 5000); // rotate every 5s
+
+        return () => clearInterval(intervalRef.current);
+    }, [advisories, paused]);
+
+    if (!advisories.length) return null;
+
+    const advisory = advisories[currentIndex];
+    const Icon = advisory.type === "announcement" ? Megaphone : Bell;
+    const bannerClasses =
+        advisory.type === "announcement"
+            ? "bg-gray-900 text-white"
+            : "bg-primary text-gray-900";
 
     return (
         <section
-            className="relative w-full select-none"
-            aria-labelledby={regionId}
-            role="region"
+            className={`relative w-full select-none transition-all duration-500 ease-in-out ${bannerClasses}`}
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
         >
-            <div className={bannerClasses}>
-                <div className="max-w-7xl mx-auto px-4 py-2 sm:px-6 lg:px-8 justify-center">
-                    <div className="flex flex-wrap items-center  gap-2 sm:gap-3 py-3 animate-fade-in-up">
-                        {/* Title */}
-                        <span
-                            id={regionId}
-                            className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide"
-                        >
-                            <Icon className="h-5 w-5" aria-hidden="true" />
-                            {title || (isAnnouncement ? "Important Announcement" : "Daily Reminder")}
-                        </span>
-
-                        {/* Message (dynamic) */}
-                        {message && (
-                            <p className=" text-base/6 text-current/90 tracking-tight">{message}</p>
-                        )}
-
-                        {/* CTAs (max 2, side-by-side) */}
-                        {ctas.length > 0 && (
-                            <div className="ml-auto flex flex-row flex-wrap  items-center gap-3">
-                                {ctas.slice(0, 2).map((btn, idx) => (
-                                    <Link
-                                        key={idx}
-                                        to={btn.to}
-                                        className={`shrink-0 text-sm font-medium underline-offset-4 hover:underline ${isAnnouncement
-                                                ? "text-white/90 hover:text-white"
-                                                : "text-gray-900 hover:text-gray-800"
-                                            }`}
-                                    >
-                                        {btn.label}
-                                    </Link>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+            <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 animate-fade-in-up">
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-wide">
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                        {advisory.title}
+                    </span>
+                    <p className="text-base/6 text-current/90 tracking-tight">
+                        {advisory.message}
+                    </p>
                 </div>
             </div>
-        </section>
-    )
-}
 
-export default PublicAdvisory
+            {/* Indicator dots */}
+            {advisories.length > 1 && (
+                <div className="absolute right-4 bottom-2 flex gap-1">
+                    {advisories.map((_, idx) => (
+                        <div
+                            key={idx}
+                            className={`h-1.5 w-1.5 rounded-full transition-colors ${idx === currentIndex
+                                    ? "bg-white"
+                                    : "bg-white/40 hover:bg-white/60"
+                                }`}
+                        />
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}

@@ -17,20 +17,20 @@ export default function AppointmentsPage() {
     // Modal states
     const [viewOpen, setViewOpen] = useState(false);
     const [viewAppt, setViewAppt] = useState(null);
-
     const [createOpen, setCreateOpen] = useState(false);
 
-    // ✅ reload trigger
-    const [reloadKey, setReloadKey] = useState(0);
+    // ✅ rows shared with DataTable for optimistic UI
+    const [rows, setRows] = useState([]);
 
-    // ✅ Tabs now include in_progress
+    // ✅ Tabs
     const tabs = [
         { key: "all", label: "All Transactions" },
         { key: "pending", label: "Pending" },
         { key: "approved", label: "Approved" },
-        { key: "in_progress", label: "In Progress" },
         { key: "completed", label: "Completed" },
         { key: "cancelled", label: "Cancelled" },
+        { key: "rejected", label: "Rejected" },
+        { key: "archived", label: "Archived" },
     ];
 
     // ✅ Tab changes update query param
@@ -60,7 +60,7 @@ export default function AppointmentsPage() {
 
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => setCreateOpen(true)} // 👈 open modal
+                        onClick={() => setCreateOpen(true)}
                         className="inline-flex items-center gap-2 bg-secondary hover:bg-secondary/90 text-white text-sm font-medium rounded-lg transition-colors duration-200 px-4 py-2"
                     >
                         <Plus size={16} />
@@ -95,16 +95,10 @@ export default function AppointmentsPage() {
 
             {/* Table */}
             <DataTable
-                key={reloadKey} // 👈 re-render when reloadKey changes
                 initialPageSize={10}
                 activeTab={status}
-                onView={(row) => {
-                    setViewAppt(row);
-                    setViewOpen(true);
-                }}
-                onDelete={(r) => {
-                    console.log("delete", r);
-                }}
+                rows={rows}
+                setRows={setRows} // ✅ DataTable controls state
             />
 
             {/* View Modal */}
@@ -115,7 +109,13 @@ export default function AppointmentsPage() {
                 onUpdate={(updated) => {
                     toast.success("Appointment updated");
                     setViewOpen(false);
-                    setReloadKey((k) => k + 1); // 👈 refresh after update
+
+                    // Optimistic update local row
+                    setRows((prev) =>
+                        prev.map((row) =>
+                            row.id === updated.id ? { ...row, ...updated } : row
+                        )
+                    );
                 }}
             />
 
@@ -123,9 +123,12 @@ export default function AppointmentsPage() {
             <CreateAppointmentModal
                 isOpen={createOpen}
                 onClose={() => setCreateOpen(false)}
-                onSave={() => {
+                onSave={(newAppt) => {
                     setCreateOpen(false);
-                    setReloadKey((k) => k + 1); // 👈 refresh after create
+                    toast.success("Appointment created");
+
+                    // Optimistically prepend new appointment
+                    setRows((prev) => [newAppt, ...prev]);
                 }}
             />
         </div>

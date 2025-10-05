@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import pool from "../../config/db.js";
 import { validateRule } from "../../utils/validateRule.js";
 

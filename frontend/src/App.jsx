@@ -7,6 +7,11 @@ import AuthChecker from "./components/guards/AuthChecker";
 import LoadingSpinner from "./components/common/LoadingSpinner";
 import Contact from "./pages/Public/Contact";
 import Events from "./pages/Public/Events";
+import EventDetail from "./components/section/EventDetail";
+import Announcements from "./components/section/Announcements"; // ✅ NEW IMPORT
+import AnnouncementDetail from "./components/section/AnnouncementDetail";
+
+
 
 // NEW: guards
 import PublicOnly from "./components/guards/PublicOnly";
@@ -16,6 +21,8 @@ import AdminOnly from "./components/guards/AdminOnly";
 // --- Lazy-loaded Layouts ---
 const PublicLayout = lazy(() => import("./layouts/PublicLayout"));
 const AdminLayout = lazy(() => import("./layouts/AdminLayout"));
+const DocumentRequestPage = lazy(() => import("./pages/Public/DocumentRequestPage"));
+
 
 // --- Lazy-loaded Pages (Public/Auth) ---
 const HomePage = lazy(() => import("./pages/Public/HomePage"));
@@ -24,6 +31,7 @@ const LoginPage = lazy(() => import("./pages/Auth/LoginPage"));
 const EmailVerificationPage = lazy(() => import("./pages/Auth/EmailVerificationPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/Auth/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/Auth/ResetPasswordPage"));
+
 
 // --- Lazy-loaded Pages (Settings branch) ---
 const SettingsPage = lazy(() => import("./pages/Public/settings/SettingsPage"));
@@ -38,11 +46,12 @@ const GeneralInformation = lazy(() => import("./pages/Public/appointments/Genera
 const AppointmentPage = lazy(() => import("./pages/Public/appointments/AppointmentPage"));
 const AppointmentSuccess = lazy(() => import("./pages/Public/appointments/AppointmentSuccess"));
 const AppointmentTerms = lazy(() => import("./pages/Public/appointments/AppointmentTerms"));
+const AboutPage = lazy(() => import("./pages/Public/About"))
+
 
 // --- Admin ---
 import AdminProviders from "./context/admin/AdminProviders";
 import CalendarPage from "./pages/Admin/CalendarPage";
-import { LucideAxe } from "lucide-react";
 const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
 const AdminAppointmentsPage = lazy(() => import("./pages/Admin/AppointmentsPage"));
 const ContentManagement = lazy(() => import("./pages/Admin/ContentManagement"))
@@ -52,6 +61,7 @@ const Profile = lazy(() => import("./pages/Admin/Profile"))
 const UserManagement = lazy(() => import("./pages/Admin/UserManagementaPage"))
 const MessagesPage = lazy(() => import("./pages/Admin/MessagesPage"))
 const SettingAdmin = lazy(() => import("./pages/Admin/SettingsPage"))
+const AdminDocumentManagement = lazy(() => import("./pages/Admin/AdminDocumentManagement"));
 
 
 function App() {
@@ -83,10 +93,16 @@ function App() {
                 <Route element={<PublicOnly><PublicLayout /></PublicOnly>}>
                   {/* Public pages */}
                   <Route path="/" element={<HomePage />} />
-                  <Route path="/services" element={<div className="p-8">Services Page</div>} />
-                  <Route path="/about" element={<div className="p-8">About Page</div>} />
+                  <Route path="/about" element={<AboutPage />} />
                   <Route path="/contact" element={<Contact />} />
+                  <Route path="/announcements" element={<Announcements />} /> {/* ✅ NEW PAGE */}
+                  <Route path="/announcements/:id" element={<AnnouncementDetail />} />
+
+
                   <Route path="/event" element={<Events />} />
+                  <Route path="/updates/:id" element={<EventDetail />} />
+                  <Route path="/document-request" element={<DocumentRequestPage />} /> {/* ✅ NEW */}
+
                   <Route path="/services/generalinfo" element={<GeneralInformation />} />
                   <Route path="/services/appointments/terms" element={<AppointmentTerms />} />
 
@@ -136,6 +152,8 @@ function App() {
                   <Route path="messages" element={<MessagesPage />} />
 
                   <Route path="*" element={<Navigate to="/admin" replace />} />
+                  <Route path="documents" element={<AdminDocumentManagement />} />
+
                 </Route>
 
                 {/* ---------- Catch-all ---------- */}

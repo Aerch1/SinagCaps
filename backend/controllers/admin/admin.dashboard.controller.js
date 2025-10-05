@@ -4,7 +4,6 @@ import pool from "../../config/db.js";
    GET /api/admin/dashboard/kpis?period=Week|Month|Year
    → Returns KPI summary data
 ================================================== */
-// src/controllers/admin/dashboard.controller.js (or wherever your KPI route is)
 export async function getKpiData(req, res) {
   const { period = "Month" } = req.query;
 
@@ -21,7 +20,6 @@ export async function getKpiData(req, res) {
       currentWhere = "YEAR(date) = YEAR(CURDATE())";
       previousWhere = "YEAR(date) = YEAR(CURDATE() - INTERVAL 1 YEAR)";
     } else {
-      // Month
       currentWhere =
         "YEAR(date) = YEAR(CURDATE()) AND MONTH(date) = MONTH(CURDATE())";
       previousWhere =
@@ -63,7 +61,7 @@ export async function getKpiData(req, res) {
     );
 
     // -------------------------
-    // Active Users (current vs previous)
+    // Active Users
     // -------------------------
     const [currentUsers] = await pool.query(
       `SELECT COUNT(*) as activeUsers
@@ -98,26 +96,26 @@ export async function getKpiData(req, res) {
       {
         id: "total",
         title: "Total Appointments",
-        current: currentAppts[0].total,
-        previous: previousAppts[0].total,
+        current: currentAppts[0].total || 0,
+        previous: previousAppts[0].total || 0,
       },
       {
         id: "pending",
         title: "Pending Appointments",
-        current: currentAppts[0].pending,
-        previous: previousAppts[0].pending,
+        current: currentAppts[0].pending || 0,
+        previous: previousAppts[0].pending || 0,
       },
       {
         id: "today",
         title: "Today’s Schedule",
-        current: today[0].today,
-        previous: yesterday[0].yesterday, // ✅ compare with yesterday
+        current: today[0].today || 0,
+        previous: yesterday[0].yesterday || 0,
       },
       {
         id: "activeUsers",
         title: "Total Active Users",
-        current: currentUsers[0].activeUsers,
-        previous: previousUsers[0].activeUsers,
+        current: currentUsers[0].activeUsers || 0,
+        previous: previousUsers[0].activeUsers || 0,
       },
     ];
 
@@ -141,15 +139,12 @@ export async function getAreaChartData(req, res) {
     let groupBy, label;
 
     if (period === "Week") {
-      // Return short Mon–Sun
       groupBy = "DAYOFWEEK(a.date)";
-      label = "DATE_FORMAT(a.date, '%a')"; // 'Mon', 'Tue', ...
+      label = "DATE_FORMAT(a.date, '%a')";
     } else if (period === "Year") {
-      // Return short Jan–Dec
       groupBy = "MONTH(a.date)";
-      label = "DATE_FORMAT(a.date, '%b')"; // 'Jan', 'Feb', ...
+      label = "DATE_FORMAT(a.date, '%b')";
     } else {
-      // Week 1–4 of current month
       groupBy = "FLOOR((DAY(a.date) - 1) / 7) + 1";
       label = "CONCAT('Week ', FLOOR((DAY(a.date) - 1) / 7) + 1)";
     }
@@ -190,15 +185,12 @@ export async function getBarChartData(req, res) {
     let groupBy, label;
 
     if (period === "Week") {
-      // Mon–Sun
       groupBy = "DAYOFWEEK(a.date)";
       label = "DAYNAME(a.date)";
     } else if (period === "Year") {
-      // Jan–Dec
       groupBy = "MONTH(a.date)";
       label = "MONTHNAME(a.date)";
     } else {
-      // Week 1–4 of current month
       groupBy = "FLOOR((DAY(a.date) - 1) / 7) + 1";
       label = "CONCAT('Week ', FLOOR((DAY(a.date) - 1) / 7) + 1)";
     }
@@ -213,7 +205,6 @@ export async function getBarChartData(req, res) {
        ORDER BY MIN(a.date)`
     );
 
-    // Transform → { name, total, services: {...} }
     const grouped = {};
     rows.forEach((r) => {
       if (!grouped[r.name])
