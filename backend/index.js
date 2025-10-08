@@ -1,3 +1,4 @@
+// src/index.js
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -24,7 +25,6 @@ import publicNotificationsRoutes from "./routes/public.notifications.routes.js";
 import adminNotificationsRoutes from "./routes/admin.notifications.routes.js";
 import adminDocumentRequestsRoutes from "./routes/admin.documentrequests.routes.js";
 import publicContactRoutes from "./routes/public.contact.routes.js";
-
 import adminUserRoutes from "./routes/admin.users.routes.js";
 import adminSecurityRoutes from "./routes/admin.security.routes.js";
 import reportRoutes from "./routes/admin.reports.routes.js";
@@ -35,36 +35,51 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
-/* ===============================
-   CORS
-=============================== */
-/* ===============================
-   CORS (Fixed)
-=============================== */
+/* ===================================================
+   ✅ CORS (Secure + Preview-Friendly)
+=================================================== */
 const allowedOrigins = [
-  process.env.CLIENT_URL, // from Railway env (should be https://sinag-caps.vercel.app)
+  process.env.CLIENT_URL, // e.g. https://sinag-caps.vercel.app
+  "https://sinagcaps.vercel.app",
   "http://localhost:5173",
   "http://localhost:5174",
-  "https://sinagcaps.vercel.app",
-  "https://sinag-caps.vercel.app",
   "https://www.olopgv.org",
   "https://olopgv.org",
 ];
+
 app.use(
   cors({
-    origin: allowedOrigins,
-    credentials: true,
+    origin: function (origin, callback) {
+      if (
+        !origin || // allow server-to-server / health checks
+        allowedOrigins.includes(origin) || // exact allowed URLs
+        /\.vercel\.app$/i.test(origin) // ✅ allow all Vercel preview URLs
+      ) {
+        callback(null, true);
+      } else {
+        console.warn("❌ Blocked by CORS:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true, // ✅ allow cookies (JWT)
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 
+app.options("*", cors()); // ✅ handle preflight requests
+
+/* ===================================================
+   Middleware
+=================================================== */
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
-/* ===============================
-   ROUTES
-=============================== */
+/* ===================================================
+   Routes
+=================================================== */
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/admin", adminRoutes);
@@ -76,7 +91,6 @@ app.use("/api/public/services", publicServicesRoutes);
 app.use("/api/appointments", publicAppointmentsRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/events", adminEventRoutes);
-
 app.use("/api/admin/advisories", adminAdvisoriesRoutes);
 app.use("/api/admin/announcements", adminAnnouncementsRoutes);
 app.use("/api/chat", chatbotRoutes);
@@ -84,15 +98,14 @@ app.use("/api/public/documents", publicDocumentsRoutes);
 app.use("/api/notifications", publicNotificationsRoutes);
 app.use("/api/admin/notifications", adminNotificationsRoutes);
 app.use("/api/admin/document-requests", adminDocumentRequestsRoutes);
-
 app.use("/api/public", publicContactRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/security", adminSecurityRoutes);
-
 app.use("/api/admin/reports", reportRoutes);
-/* ===============================
-   HEALTH CHECK
-=============================== */
+
+/* ===================================================
+   Health Check
+=================================================== */
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
@@ -103,9 +116,9 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-/* ===============================
-   ERROR HANDLING
-=============================== */
+/* ===================================================
+   Global Error Handling
+=================================================== */
 app.use((err, req, res, next) => {
   console.error("Global error handler:", err);
   if (err.type === "entity.parse.failed") {
@@ -128,20 +141,20 @@ app.use((err, req, res, next) => {
   });
 });
 
-/* ===============================
-   START SERVER
-=============================== */
+/* ===================================================
+   Start Server
+=================================================== */
 app.listen(PORT, () => {
   connectDB();
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Frontend: ${process.env.CLIENT_URL}`);
-  console.log(`☁️  Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);
+  console.log(`☁️ Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);
   console.log(`📧 Email Service: ${process.env.EMAIL_SERVICE}`);
 });
 
-/* ===============================
-   SAFETY HANDLERS
-=============================== */
+/* ===================================================
+   Safety Handlers
+=================================================== */
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Promise Rejection:", err.message);
 });
