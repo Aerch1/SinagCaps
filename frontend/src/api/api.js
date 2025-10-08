@@ -1,9 +1,9 @@
-// frontend/src/api/api.js
+// src/api/api.js
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL, // ✅ always points to /api
-  withCredentials: true, // ✅ keep cookies/JWT
+  baseURL: `${import.meta.env.VITE_API_URL}/api`, // ✅ automatically includes /api
+  withCredentials: true,
 });
 
 export default api;
