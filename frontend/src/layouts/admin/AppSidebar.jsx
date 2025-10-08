@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../../context/admin/SidebarContext.jsx";
 import { useAuthStore } from "../../store/authStore.js";
-
 import {
   LayoutDashboard,
   CalendarDays,
@@ -19,13 +18,12 @@ import {
   Layers,
   BarChart3,
   UserCircle,
-  FileText,
   ChevronDown,
 } from "lucide-react";
 
-/** ---------------------------
- *  Sections
- *  --------------------------- */
+/* ---------------------------
+ *  Sidebar Sections
+ * --------------------------- */
 const sections = [
   {
     key: "main",
@@ -35,15 +33,17 @@ const sections = [
       { name: "Calendar", path: "/admin/calendar", icon: <CalendarDays size={18} />, key: "calendar" },
       {
         name: "Appointments",
-        path: "/admin/appointments?status=all",
+        path: "/admin/appointments", // ✅ simplified: no ?status=all
         icon: <ClipboardList size={18} />,
         key: "appointments",
         children: [
-          { name: "All Appointments", path: "/admin/appointments?status=all", status: "all", key: "appointments-all" },
+          { name: "All Appointments", path: "/admin/appointments", status: "all", key: "appointments-all" },
           { name: "Pending", path: "/admin/appointments?status=pending", status: "pending", key: "appointments-pending" },
           { name: "Approved", path: "/admin/appointments?status=approved", status: "approved", key: "appointments-approved" },
           { name: "Completed", path: "/admin/appointments?status=completed", status: "completed", key: "appointments-completed" },
           { name: "Cancelled", path: "/admin/appointments?status=cancelled", status: "cancelled", key: "appointments-cancelled" },
+          { name: "Rejected", path: "/admin/appointments?status=rejected", status: "rejected", key: "appointments-rejected" },
+          { name: "Archived", path: "/admin/appointments?status=archived", status: "archived", key: "appointments-archived" },
         ],
       },
       { name: "Documents", path: "/admin/documents", icon: <FileArchive size={18} />, key: "documents" },
@@ -71,8 +71,9 @@ const sections = [
   },
 ];
 
-
-/** Theme classes */
+/* ---------------------------
+ *  Helper Styling
+ * --------------------------- */
 const baseItem =
   "group relative flex items-center w-full gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-200";
 const justify = (full) => (full ? "justify-start" : "lg:justify-center");
@@ -81,7 +82,9 @@ const activeItem = "bg-red-50 text-red-600";
 const iconInactive = "text-gray-500 group-hover:text-gray-700";
 const iconActive = "text-red-600";
 
-/* ---------- Route helpers ---------- */
+/* ---------------------------
+ *  Route Info Hook
+ * --------------------------- */
 function useRouteInfo() {
   const { pathname, search } = useLocation();
   const status = useMemo(() => {
@@ -91,7 +94,9 @@ function useRouteInfo() {
   return { pathname, status, search };
 }
 
-/** One leaf item (no children) */
+/* ---------------------------
+ *  Leaf Item
+ * --------------------------- */
 const SidebarMenuItem = React.memo(function SidebarMenuItem({
   nav,
   isActive,
@@ -116,9 +121,7 @@ const SidebarMenuItem = React.memo(function SidebarMenuItem({
           aria-label="Logout"
         >
           <span className={iconClassName}>{nav.icon}</span>
-          {showFullSidebar && (
-            <span className="whitespace-nowrap text-sm">{nav.name}</span>
-          )}
+          {showFullSidebar && <span className="whitespace-nowrap text-sm">{nav.name}</span>}
         </button>
       </li>
     );
@@ -126,35 +129,28 @@ const SidebarMenuItem = React.memo(function SidebarMenuItem({
 
   return (
     <li>
-      <Link
-        to={nav.path}
-        className={linkClassName}
-        onClick={onAfterClick}
-        aria-current={active ? "page" : undefined}
-      >
+      <Link to={nav.path} className={linkClassName} onClick={onAfterClick} aria-current={active ? "page" : undefined}>
         <span className={iconClassName}>{nav.icon}</span>
-        {showFullSidebar && (
-          <span className="whitespace-nowrap text-sm">{nav.name}</span>
-        )}
+        {showFullSidebar && <span className="whitespace-nowrap text-sm">{nav.name}</span>}
       </Link>
     </li>
   );
 });
 
-/** Collapsible parent with children */
+/* ---------------------------
+ *  Collapsible Parent
+ * --------------------------- */
 function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
   const navigate = useNavigate();
   const { pathname, status } = useRouteInfo();
   const hasChildren = Array.isArray(nav.children) && nav.children.length > 0;
 
   const onAppointmentsPage = pathname === "/admin/appointments";
-  const childActive =
-    hasChildren &&
-    onAppointmentsPage &&
-    nav.children.some((c) => (c.status || "") === status);
+  const childActive = hasChildren && onAppointmentsPage && nav.children.some((c) => (c.status || "") === status);
 
   const parentActive = onAppointmentsPage || childActive;
   const [open, setOpen] = useState(childActive);
+
   useEffect(() => {
     setOpen(childActive);
   }, [childActive]);
@@ -170,7 +166,7 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
         className={`${parentClass} w-full`}
         onClick={() => {
           if (!canDropdown) {
-            navigate(nav.path || "/admin/appointments?status=all");
+            navigate(nav.path || "/admin/appointments");
             return;
           }
           setOpen((o) => !o);
@@ -181,13 +177,9 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
         <span className={iconClassName}>{nav.icon}</span>
         {showFullSidebar && (
           <>
-            <span className="flex-1 text-left whitespace-nowrap text-sm">
-              {nav.name}
-            </span>
+            <span className="flex-1 text-left whitespace-nowrap text-sm">{nav.name}</span>
             {hasChildren && (
-              <ChevronDown
-                className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""} text-gray-500`}
-              />
+              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""} text-gray-500`} />
             )}
           </>
         )}
@@ -196,7 +188,9 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
       {canDropdown && (
         <div
           id={`submenu-${nav.key}`}
-          className={`grid transition-all duration-300 ease-in-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+          className={`grid transition-all duration-300 ease-in-out ${
+            open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          }`}
         >
           <div className="overflow-hidden">
             <ul className="mt-1 ml-6 flex flex-col gap-1 border-l p-2">
@@ -206,7 +200,9 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
                   <li key={child.key}>
                     <Link
                       to={child.path}
-                      className={`block rounded-md px-2 py-1.5 text-sm transition-all duration-200 ${active ? activeItem : inactiveItem}`}
+                      className={`block rounded-md px-2 py-1.5 text-sm transition-all duration-200 ${
+                        active ? activeItem : inactiveItem
+                      }`}
                       onClick={onAfterClick}
                     >
                       {child.name}
@@ -222,11 +218,15 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
   );
 }
 
-/** Section block */
+/* ---------------------------
+ *  Section Block
+ * --------------------------- */
 const SectionBlock = ({ title, items, showFullSidebar, renderItem }) => (
   <div>
     <h2
-      className={`mb-3 text-sm font-medium text-gray-700 flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"}`}
+      className={`mb-3 text-sm font-medium text-gray-700 flex ${
+        !showFullSidebar ? "lg:justify-center" : "justify-start"
+      }`}
     >
       {showFullSidebar ? title : <MoreHorizontal className="w-5 h-5" />}
     </h2>
@@ -234,6 +234,9 @@ const SectionBlock = ({ title, items, showFullSidebar, renderItem }) => (
   </div>
 );
 
+/* ---------------------------
+ *  Main Sidebar Component
+ * --------------------------- */
 export default function AppSidebar() {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered, toggleMobileSidebar } = useSidebar();
   const { logout } = useAuthStore();
@@ -273,19 +276,13 @@ export default function AppSidebar() {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="flex h-full flex-col">
-        {/* Logo / brand */}
-        <div
-          className={`flex-none py-6 px-5 hidden lg:flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"}`}
-        >
+        {/* Logo */}
+        <div className={`flex-none py-6 px-5 hidden lg:flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"}`}>
           <Link to="/admin" className="flex items-center gap-3">
             {showFullSidebar ? (
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-                  <img
-                    src="/logo.png"
-                    alt="logo"
-                    className="w-10 h-10 object-contain"
-                  />
+                  <img src="/logo.png" alt="logo" className="w-10 h-10 object-contain" />
                 </div>
                 <div className="flex flex-col">
                   <h1 className="font-semibold text-lg text-slate-900">ADMIN</h1>
@@ -294,19 +291,17 @@ export default function AppSidebar() {
               </div>
             ) : (
               <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-                <img
-                  src="/logo.png"
-                  alt="logo"
-                  className="w-10 h-10 object-contain"
-                />
+                <img src="/logo.png" alt="logo" className="w-10 h-10 object-contain" />
               </div>
             )}
           </Link>
         </div>
 
-        {/* Scrollable nav area */}
+        {/* Nav */}
         <div
-          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${showFullSidebar ? "custom-scrollbar" : "scrollbar-hide"} px-4 pb-6 pt-4 lg:pt-0`}
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${
+            showFullSidebar ? "custom-scrollbar" : "scrollbar-hide"
+          } px-4 pb-6 pt-4 lg:pt-0`}
         >
           <nav className="flex flex-col gap-6">
             {sections.map((section) => (
@@ -340,7 +335,6 @@ export default function AppSidebar() {
               />
             ))}
           </nav>
-          <div className="h-4" />
         </div>
       </div>
     </aside>
