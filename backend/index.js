@@ -24,7 +24,6 @@ import publicNotificationsRoutes from "./routes/public.notifications.routes.js";
 import adminNotificationsRoutes from "./routes/admin.notifications.routes.js";
 import adminDocumentRequestsRoutes from "./routes/admin.documentrequests.routes.js";
 import publicContactRoutes from "./routes/public.contact.routes.js";
-
 import adminUserRoutes from "./routes/admin.users.routes.js";
 import adminSecurityRoutes from "./routes/admin.security.routes.js";
 import reportRoutes from "./routes/admin.reports.routes.js";
@@ -36,14 +35,14 @@ const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
 /* ===============================
-   CORS (Final Production-Safe)
+   ✅ CORS (Safe + Preview Friendly)
 =============================== */
 const allowedOrigins = [
-  process.env.CLIENT_URL, // main production frontend
-  "http://localhost:5173", // local dev
+  process.env.CLIENT_URL, // production frontend
+  "http://localhost:5173",
   "http://localhost:5174",
-  "https://sinagcaps.vercel.app", // main Vercel domain
-  "https://sinag-caps.vercel.app", // alt (in case you renamed project)
+  "https://sinagcaps.vercel.app",
+  "https://sinag-caps.vercel.app",
   "https://www.olopgv.org",
   "https://olopgv.org",
 ];
@@ -52,37 +51,43 @@ app.use(
   cors({
     origin: function (origin, callback) {
       try {
-        if (
+        const isAllowed =
           !origin ||
           allowedOrigins.includes(origin) ||
-          /\.vercel\.app$/.test(new URL(origin).hostname)
-        ) {
-          callback(null, true);
-        } else {
+          /\.vercel\.app$/i.test(origin || ""); // ✅ no URL() call
+        if (isAllowed) callback(null, true);
+        else {
           console.warn("❌ Blocked by CORS:", origin);
           callback(new Error("Not allowed by CORS"));
         }
-      } catch (err) {
-        // Fallback if origin is invalid (like undefined during some preflights)
-        callback(null, true);
+      } catch {
+        callback(null, true); // fallback safe allow
       }
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ ensures all methods are allowed
-    allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"], // ✅ adds safer default
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "x-csrf-token",
+    ],
   })
 );
 
-// ✅ Explicitly handle OPTIONS preflights
+// ✅ Handle preflight requests
 app.options("*", cors());
 
+/* ===============================
+   Middleware
+=============================== */
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
 /* ===============================
-   ROUTES
+   Routes
 =============================== */
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
@@ -95,7 +100,6 @@ app.use("/api/public/services", publicServicesRoutes);
 app.use("/api/appointments", publicAppointmentsRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/events", adminEventRoutes);
-
 app.use("/api/admin/advisories", adminAdvisoriesRoutes);
 app.use("/api/admin/announcements", adminAnnouncementsRoutes);
 app.use("/api/chat", chatbotRoutes);
@@ -103,14 +107,13 @@ app.use("/api/public/documents", publicDocumentsRoutes);
 app.use("/api/notifications", publicNotificationsRoutes);
 app.use("/api/admin/notifications", adminNotificationsRoutes);
 app.use("/api/admin/document-requests", adminDocumentRequestsRoutes);
-
 app.use("/api/public", publicContactRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/security", adminSecurityRoutes);
-
 app.use("/api/admin/reports", reportRoutes);
+
 /* ===============================
-   HEALTH CHECK
+   Health Check
 =============================== */
 app.get("/api/health", (req, res) => {
   res.json({
@@ -123,19 +126,15 @@ app.get("/api/health", (req, res) => {
 });
 
 /* ===============================
-   ERROR HANDLING
+   Error Handling
 =============================== */
 app.use((err, req, res, next) => {
   console.error("Global error handler:", err);
   if (err.type === "entity.parse.failed") {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid JSON format" });
+    return res.status(400).json({ success: false, message: "Invalid JSON format" });
   }
   if (err.type === "entity.too.large") {
-    return res
-      .status(413)
-      .json({ success: false, message: "Request too large" });
+    return res.status(413).json({ success: false, message: "Request too large" });
   }
   res.status(500).json({
     success: false,
@@ -148,18 +147,18 @@ app.use((err, req, res, next) => {
 });
 
 /* ===============================
-   START SERVER
+   Start Server
 =============================== */
 app.listen(PORT, () => {
   connectDB();
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Frontend: ${process.env.CLIENT_URL}`);
-  console.log(`☁️  Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);
+  console.log(`☁️ Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);
   console.log(`📧 Email Service: ${process.env.EMAIL_SERVICE}`);
 });
 
 /* ===============================
-   SAFETY HANDLERS
+   Safety Handlers
 =============================== */
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Promise Rejection:", err.message);
