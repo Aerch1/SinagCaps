@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
- "scripts": {
-  "dev": "nodemon index.js",
-  "start": "node index.js"
-},
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -29,7 +29,7 @@
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
     "mysql2": "^3.14.3",
-    "nodemailer": "^7.0.5",
+    "nodemailer": "^6.9.4",
     "openai": "^6.1.0",
     "pdfkit": "^0.17.2",
     "resend": "^6.1.2"
