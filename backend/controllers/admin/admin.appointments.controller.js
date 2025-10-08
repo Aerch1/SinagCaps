@@ -519,9 +519,7 @@ export const getAppointments = async (req, res) => {
         AND TIMESTAMP(date, time) < NOW() - INTERVAL 3 DAY
     `);
     if (outdated.affectedRows > 0) {
-      console.log(
-        `✅ Auto-completed ${outdated.affectedRows} old appointments`
-      );
+      console.log(`✅ Auto-completed ${outdated.affectedRows} old appointments`);
     }
 
     /* =======================================================
@@ -548,39 +546,19 @@ export const getAppointments = async (req, res) => {
        🔹 3️⃣ Generate randomized messages
     ======================================================= */
     const todayMessages = [
-      `You have ${todayCount} appointment${
-        todayCount > 1 ? "s" : ""
-      } scheduled for today.`,
-      `${todayCount} appointment${
-        todayCount > 1 ? "s" : ""
-      } are lined up for today — make sure to review them.`,
-      `Heads up! ${todayCount} appointment${
-        todayCount > 1 ? "s" : ""
-      } happening today.`,
-      `Today’s schedule includes ${todayCount} appointment${
-        todayCount > 1 ? "s" : ""
-      }.`,
-      `${todayCount} appointment${
-        todayCount > 1 ? "s" : ""
-      } awaiting attention today.`,
+      `You have ${todayCount} appointment${todayCount > 1 ? "s" : ""} scheduled for today.`,
+      `${todayCount} appointment${todayCount > 1 ? "s" : ""} are lined up for today — make sure to review them.`,
+      `Heads up! ${todayCount} appointment${todayCount > 1 ? "s" : ""} happening today.`,
+      `Today’s schedule includes ${todayCount} appointment${todayCount > 1 ? "s" : ""}.`,
+      `${todayCount} appointment${todayCount > 1 ? "s" : ""} awaiting attention today.`,
     ];
 
     const tomorrowMessages = [
-      `You have ${tomorrowCount} appointment${
-        tomorrowCount > 1 ? "s" : ""
-      } scheduled for tomorrow.`,
-      `Reminder: ${tomorrowCount} appointment${
-        tomorrowCount > 1 ? "s" : ""
-      } happening tomorrow.`,
-      `Prepare ahead — ${tomorrowCount} appointment${
-        tomorrowCount > 1 ? "s" : ""
-      } set for tomorrow.`,
-      `Tomorrow’s schedule has ${tomorrowCount} appointment${
-        tomorrowCount > 1 ? "s" : ""
-      }.`,
-      `Upcoming notice: ${tomorrowCount} appointment${
-        tomorrowCount > 1 ? "s" : ""
-      } tomorrow.`,
+      `You have ${tomorrowCount} appointment${tomorrowCount > 1 ? "s" : ""} scheduled for tomorrow.`,
+      `Reminder: ${tomorrowCount} appointment${tomorrowCount > 1 ? "s" : ""} happening tomorrow.`,
+      `Prepare ahead — ${tomorrowCount} appointment${tomorrowCount > 1 ? "s" : ""} set for tomorrow.`,
+      `Tomorrow’s schedule has ${tomorrowCount} appointment${tomorrowCount > 1 ? "s" : ""}.`,
+      `Upcoming notice: ${tomorrowCount} appointment${tomorrowCount > 1 ? "s" : ""} tomorrow.`,
     ];
 
     const randomTodayMessage =
@@ -593,20 +571,20 @@ export const getAppointments = async (req, res) => {
         : null;
 
     /* =======================================================
-   🔹 4️⃣ Notify all admins (avoid duplicates for the same day)
-======================================================= */
+       🔹 4️⃣ Notify all admins (avoid duplicates for the same day)
+    ======================================================= */
     if (todayCount > 0 || tomorrowCount > 0) {
       const [admins] = await pool.query(
         "SELECT id FROM users WHERE role='admin'"
       );
 
       for (const admin of admins) {
-        // 🧩 Prevent duplicate notification for today
+        // Prevent duplicate notification for today
         if (todayCount > 0 && randomTodayMessage) {
           const [existsToday] = await pool.query(
             `SELECT id FROM notifications
-         WHERE user_id=? AND title=? 
-         AND DATE(created_at)=CURDATE()`,
+             WHERE user_id=? AND title=? 
+             AND DATE(created_at)=CURDATE()`,
             [admin.id, "Today's Appointments"]
           );
 
@@ -620,12 +598,12 @@ export const getAppointments = async (req, res) => {
           }
         }
 
-        // 🧩 Prevent duplicate notification for tomorrow
+        // Prevent duplicate notification for tomorrow
         if (tomorrowCount > 0 && randomTomorrowMessage) {
           const [existsTomorrow] = await pool.query(
             `SELECT id FROM notifications
-         WHERE user_id=? AND title=? 
-         AND DATE(created_at)=CURDATE()`,
+             WHERE user_id=? AND title=? 
+             AND DATE(created_at)=CURDATE()`,
             [admin.id, "Upcoming Appointments"]
           );
 
@@ -644,8 +622,14 @@ export const getAppointments = async (req, res) => {
     }
 
     /* =======================================================
-       🔹 5️⃣ Continue with normal pagination + response
+       🔹 5️⃣ Pagination + status filter support
     ======================================================= */
+    const status = req.query.status || "all"; // ✅ added
+    const whereStatus =
+      status && status !== "all" ? `WHERE a.status = ?` : "";
+    const statusParam =
+      status && status !== "all" ? [status] : [];
+
     const page = Number(req.query.page || 1);
     const pageSize = Number(req.query.pageSize || 10);
     const offset = (page - 1) * pageSize;
@@ -656,8 +640,12 @@ export const getAppointments = async (req, res) => {
     const safeKey = SORTABLE.has(sortBy) ? `a.${sortBy}` : "a.id";
     const safeDir = sortDir === "ASC" ? "ASC" : "DESC";
 
+    /* =======================================================
+       🔹 6️⃣ Count + rows query (with filter)
+    ======================================================= */
     const [countRows] = await pool.query(
-      `SELECT COUNT(*) as total FROM appointments`
+      `SELECT COUNT(*) as total FROM appointments a ${whereStatus}`,
+      statusParam
     );
     const total = countRows[0].total;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -672,15 +660,19 @@ export const getAppointments = async (req, res) => {
          a.time, a.notes
        FROM appointments a
        JOIN services s ON a.service_id = s.id
+       ${whereStatus}
        ORDER BY ${safeKey} ${safeDir}
        LIMIT ? OFFSET ?`,
-      [pageSize, offset]
+      [...statusParam, pageSize, offset]
     );
 
     const [serviceRows] = await pool.query(
       `SELECT id, name FROM services WHERE active = TRUE ORDER BY name ASC`
     );
 
+    /* =======================================================
+       🔹 7️⃣ Response
+    ======================================================= */
     res.json({
       success: true,
       data: rows,
@@ -695,6 +687,7 @@ export const getAppointments = async (req, res) => {
       .json({ success: false, error: "Failed to fetch appointments" });
   }
 };
+
 
 /* ==================================================
    GET /api/admin/appointments/conflicts
