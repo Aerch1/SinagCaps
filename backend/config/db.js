@@ -4,17 +4,27 @@ import dotenv from "dotenv";
 dotenv.config();
 
 /* ===========================
-   POOL
+   CREATE POOL (LOCAL or RAILWAY)
 =========================== */
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
-  database: process.env.DB_NAME || "olpgvp",
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
+let pool;
+
+if (process.env.DATABASE_URL) {
+  // ✅ Use Railway internal connection (private network)
+  pool = mysql.createPool(process.env.DATABASE_URL);
+  console.log("🔗 Using Railway internal DATABASE_URL connection");
+} else {
+  // ✅ Fallback for local development
+  pool = mysql.createPool({
+    host: process.env.DB_HOST || "localhost",
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "",
+    database: process.env.DB_NAME || "olpgvp",
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+  });
+  console.log("💻 Using local MySQL connection");
+}
 
 export default pool;
 
