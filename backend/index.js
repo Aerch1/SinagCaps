@@ -45,11 +45,12 @@ const __dirname = path.resolve();
    CORS (Fixed for Deployment)
 =============================== */
 const allowedOrigins = [
-  process.env.CLIENT_URL, // dynamic from .env
-  "http://localhost:5173", // local dev
+  process.env.CLIENT_URL,
+  "http://localhost:5173",
   "http://localhost:5174",
-  "https://sinag-caps.vercel.app", // ✅ your Vercel domain
-  "https://sinagcaps.vercel.app", // ✅ extra safety (dashless typo)
+  "https://sinag-caps.vercel.app",
+  "https://sinagcaps.vercel.app",
+  "https://sinag-caps-evdqgw99y-archievalllamas17-4054s-projects.vercel.app", // ✅ add your preview domain
   "https://www.olopgv.org",
   "https://olopgv.org",
 ];
