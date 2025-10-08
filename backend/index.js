@@ -38,11 +38,11 @@ const __dirname = path.resolve();
    ✅ CORS (Safe + Preview Friendly)
 =============================== */
 const allowedOrigins = [
-  process.env.CLIENT_URL, // production frontend
-  "http://localhost:5173",
+  process.env.CLIENT_URL, // Production Frontend (Vercel)
+  "http://localhost:5173", // Local Dev
   "http://localhost:5174",
-  "https://sinagcaps.vercel.app",
-  "https://sinag-caps.vercel.app",
+  "https://sinagcaps.vercel.app", // old naming
+  "https://sinag-caps.vercel.app", // ✅ correct official
   "https://www.olopgv.org",
   "https://olopgv.org",
 ];
@@ -54,14 +54,16 @@ app.use(
         const isAllowed =
           !origin ||
           allowedOrigins.includes(origin) ||
-          /\.vercel\.app$/i.test(origin || ""); // ✅ no URL() call
+          /\.vercel\.app$/i.test(origin || ""); // allow all vercel preview links
+
         if (isAllowed) callback(null, true);
         else {
           console.warn("❌ Blocked by CORS:", origin);
           callback(new Error("Not allowed by CORS"));
         }
-      } catch {
-        callback(null, true); // fallback safe allow
+      } catch (err) {
+        console.error("⚠️ CORS Origin Parse Error:", err.message);
+        callback(null, true); // safe fallback
       }
     },
     credentials: true,
@@ -75,7 +77,7 @@ app.use(
   })
 );
 
-// ✅ Handle preflight requests
+// ✅ Ensure preflight OPTIONS requests are handled globally
 app.options("*", cors());
 
 /* ===============================
@@ -131,10 +133,14 @@ app.get("/api/health", (req, res) => {
 app.use((err, req, res, next) => {
   console.error("Global error handler:", err);
   if (err.type === "entity.parse.failed") {
-    return res.status(400).json({ success: false, message: "Invalid JSON format" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid JSON format" });
   }
   if (err.type === "entity.too.large") {
-    return res.status(413).json({ success: false, message: "Request too large" });
+    return res
+      .status(413)
+      .json({ success: false, message: "Request too large" });
   }
   res.status(500).json({
     success: false,
