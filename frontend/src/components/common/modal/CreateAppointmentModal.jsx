@@ -22,25 +22,23 @@ export default function CreateAppointmentModal({
     const [confirmMessage, setConfirmMessage] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
+    // ✅ Conflict checker hook
     const { checkConflicts } = useConflictCheck();
 
+    // Reset errors when modal opens
     useEffect(() => {
-        if (isOpen) {
-            setServerErrors({});
-            setConfirmData(null);
-            setConfirmMessage(null);
-            setSubmitting(false);
-        }
+        if (isOpen) setServerErrors({});
     }, [isOpen]);
 
-    /* =====================================================
-       HANDLE FORM SUBMIT (Step 1: pre-check conflicts)
-    ===================================================== */
+    /* ----------------------------------------------------------------
+       FORM SUBMIT HANDLER — includes conflict pre-check
+    ---------------------------------------------------------------- */
     const handleFormSubmit = async (formData) => {
         setSubmitting(true);
         const toastId = toast.loading("⏳ Checking schedule...");
 
         try {
+            // ✅ 1. Check for time conflicts before creating appointment
             const found = await checkConflicts(
                 formData.service_id,
                 formData.date,
@@ -49,10 +47,9 @@ export default function CreateAppointmentModal({
 
             if (found.length) {
                 toast.dismiss(toastId);
-                setSubmitting(false); // 🧩 FIXED flicker issue
                 setConfirmData(formData);
 
-                // Format conflict times
+                // 🕒 Format times like “8:30 AM, 9:00 AM”
                 const nearbyTimes = found
                     .map((c) => {
                         try {
@@ -64,84 +61,76 @@ export default function CreateAppointmentModal({
                     })
                     .join(", ");
 
+                // 🗣️ Natural, human-friendly message
                 setConfirmMessage(
                     found.length === 1
                         ? `There’s another appointment scheduled around ${nearbyTimes}. Do you still want to continue?`
-                        : `There are ${found.length} other appointments near these times: ${nearbyTimes}. Continue anyway?`
+                        : `There are ${found.length} other appointments near these times: ${nearbyTimes}. Do you still want to continue?`
                 );
 
-                return; // Wait for confirmation
+                return;
             }
 
-            await createAppointment(formData, toastId);
-        } catch (err) {
-            handleError(err, toastId);
-        }
-    };
-
-    /* =====================================================
-       ACTUAL CREATE CALL (used by both normal + override)
-    ===================================================== */
-    const createAppointment = async (data, toastId, override = false) => {
-        try {
-            const res = await api.post("/admin/appointments", {
-                ...data,
-                override,
-            });
-
-            toast.dismiss(toastId);
-            toast.success(res.data?.message || "✅ Appointment created successfully");
-
+            // ✅ 2. Proceed normally if no conflicts
+            await api.post("/admin/appointments", formData);
+            toast.success("✅ Appointment created successfully", { id: toastId });
             setServerErrors({});
-            setConfirmData(null);
-            setConfirmMessage(null);
             onSave?.();
             onClose();
         } catch (err) {
-            handleError(err, toastId);
+            const { status, data } = err.response || {};
+            toast.dismiss(toastId);
+
+            // 🔸 409 conflict that requires confirmation (e.g. override)
+            if (status === 409 && data?.confirmNeeded) {
+                setConfirmData(formData);
+                setConfirmMessage(data.message || "This action needs confirmation.");
+                return;
+            }
+
+            // 🔸 Validation errors
+            if (status === 400 && Array.isArray(data?.errors)) {
+                const mapped = {};
+                data.errors.forEach((e) => {
+                    if (typeof e === "string") mapped._general = e;
+                    else if (e.field) mapped[e.field] = e.message;
+                });
+                setServerErrors(mapped);
+                return;
+            }
+
+            toast.error(data?.message || "❌ Failed to create appointment");
         } finally {
             setSubmitting(false);
         }
     };
 
-    /* =====================================================
-       HANDLE ERROR (centralized)
-    ===================================================== */
-    const handleError = (err, toastId) => {
-        toast.dismiss(toastId);
-        setSubmitting(false);
-
-        const { status, data } = err.response || {};
-
-        if (status === 409 && data?.code === "TIME_CONFLICT") {
-            // backend-level conflict, ask again for override
-            setConfirmData(data?.formData || {});
-            setConfirmMessage(data.message || "Conflict detected. Continue?");
-            return;
-        }
-
-        if (status === 400 && Array.isArray(data?.errors)) {
-            const mapped = {};
-            data.errors.forEach((e) => {
-                if (typeof e === "string") mapped._general = e;
-                else if (e.field) mapped[e.field] = e.message;
-            });
-            setServerErrors(mapped);
-            return;
-        }
-
-        toast.error(data?.message || "❌ Failed to create appointment");
-    };
-
-    /* =====================================================
-       CONFIRM HANDLERS
-    ===================================================== */
+    /* ----------------------------------------------------------------
+       CONFIRMATION HANDLERS
+    ---------------------------------------------------------------- */
     const handleConfirm = async () => {
         if (!confirmData) return;
         setSubmitting(true);
-        const toastId = toast.loading("⏳ Creating appointment (override)...");
+        const toastId = toast.loading("⏳ Creating with override...");
 
-        await createAppointment(confirmData, toastId, true);
+        try {
+            await api.post("/admin/appointments", {
+                ...confirmData,
+                override: true,
+            });
+            toast.success("✅ Appointment created with override", { id: toastId });
+            setConfirmData(null);
+            setConfirmMessage(null);
+            onSave?.();
+            onClose();
+        } catch (err) {
+            toast.error(
+                err.response?.data?.message || "❌ Failed to override appointment",
+                { id: toastId }
+            );
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const handleCancelConfirm = () => {
@@ -150,9 +139,9 @@ export default function CreateAppointmentModal({
         setConfirmMessage(null);
     };
 
-    /* =====================================================
+    /* ----------------------------------------------------------------
        RENDER
-    ===================================================== */
+    ---------------------------------------------------------------- */
     return (
         <>
             <Modal
@@ -174,18 +163,15 @@ export default function CreateAppointmentModal({
                 </div>
             </Modal>
 
-            {/* ✅ FIX: always render above modal (z-index higher) */}
             {confirmData && confirmMessage && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-                    <ConfirmDialog
-                        open
-                        title="Confirmation Required"
-                        message={confirmMessage}
-                        onConfirm={handleConfirm}
-                        onCancel={handleCancelConfirm}
-                        submitting={submitting}
-                    />
-                </div>
+                <ConfirmDialog
+                    open
+                    title="Confirmation Required"
+                    message={confirmMessage}
+                    onConfirm={handleConfirm}
+                    onCancel={handleCancelConfirm}
+                    submitting={submitting}
+                />
             )}
         </>
     );

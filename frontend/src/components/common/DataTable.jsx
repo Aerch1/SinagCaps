@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -153,16 +154,6 @@ export default function DataTable({
         endDate,
         activeTab,
     ]);
-
-    // ✅ AUTO REFRESH LISTENER
-    useEffect(() => {
-        const handleRefresh = () => {
-            toast.success("🔄 Appointments list refreshed");
-            fetchData();
-        };
-        window.addEventListener("refreshAppointments", handleRefresh);
-        return () => window.removeEventListener("refreshAppointments", handleRefresh);
-    }, []); // 👈 triggers table reload when event is dispatched
 
     /* ---------------- Debounced Search ---------------- */
     useEffect(() => {
@@ -595,9 +586,7 @@ export default function DataTable({
                     onClose={() => setViewingId(null)}
                     onUpdate={(updated) =>
                         setRows((prev) =>
-                            prev.map((r) =>
-                                r.id === updated.id ? { ...r, ...updated } : r
-                            )
+                            prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r))
                         )
                     }
                 />
@@ -643,6 +632,7 @@ export default function DataTable({
                     );
                 }}
             />
+
         </div>
     );
 }
