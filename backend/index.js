@@ -24,6 +24,7 @@ import publicNotificationsRoutes from "./routes/public.notifications.routes.js";
 import adminNotificationsRoutes from "./routes/admin.notifications.routes.js";
 import adminDocumentRequestsRoutes from "./routes/admin.documentrequests.routes.js";
 import publicContactRoutes from "./routes/public.contact.routes.js";
+
 import adminUserRoutes from "./routes/admin.users.routes.js";
 import adminSecurityRoutes from "./routes/admin.security.routes.js";
 import reportRoutes from "./routes/admin.reports.routes.js";
@@ -35,7 +36,10 @@ const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
 /* ===============================
-   ✅ FIXED CORS CONFIGURATION
+   CORS
+=============================== */
+/* ===============================
+   CORS (Fixed)
 =============================== */
 const allowedOrigins = [
   process.env.CLIENT_URL, // from Railway env (should be https://sinag-caps.vercel.app)
@@ -46,30 +50,12 @@ const allowedOrigins = [
   "https://www.olopgv.org",
   "https://olopgv.org",
 ];
-
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Allow requests from your main frontend and Vercel preview deployments
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        /\.vercel\.app$/i.test(origin)
-      ) {
-        callback(null, true);
-      } else {
-        console.warn("❌ Blocked by CORS:", origin);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: allowedOrigins,
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"],
   })
 );
-
-// ✅ Handle preflight (OPTIONS) requests globally
-app.options("*", cors());
 
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "10mb" }));
@@ -90,6 +76,7 @@ app.use("/api/public/services", publicServicesRoutes);
 app.use("/api/appointments", publicAppointmentsRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/events", adminEventRoutes);
+
 app.use("/api/admin/advisories", adminAdvisoriesRoutes);
 app.use("/api/admin/announcements", adminAnnouncementsRoutes);
 app.use("/api/chat", chatbotRoutes);
@@ -97,11 +84,12 @@ app.use("/api/public/documents", publicDocumentsRoutes);
 app.use("/api/notifications", publicNotificationsRoutes);
 app.use("/api/admin/notifications", adminNotificationsRoutes);
 app.use("/api/admin/document-requests", adminDocumentRequestsRoutes);
+
 app.use("/api/public", publicContactRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/security", adminSecurityRoutes);
-app.use("/api/admin/reports", reportRoutes);
 
+app.use("/api/admin/reports", reportRoutes);
 /* ===============================
    HEALTH CHECK
 =============================== */
@@ -147,7 +135,7 @@ app.listen(PORT, () => {
   connectDB();
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Frontend: ${process.env.CLIENT_URL}`);
-  console.log(`☁️ Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);
+  console.log(`☁️  Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);
   console.log(`📧 Email Service: ${process.env.EMAIL_SERVICE}`);
 });
 
