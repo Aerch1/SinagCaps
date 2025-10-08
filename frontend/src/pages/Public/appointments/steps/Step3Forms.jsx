@@ -26,7 +26,6 @@ export default function Step3Forms({
 
     return (
         <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900">Service Details</h3>
 
             <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
                 <FormComponent

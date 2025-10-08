@@ -1,395 +1,468 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import {
-    X,
-    Pencil,
-    Info,
-    CalendarClock,
-    Clock,
-    Tag,
-    Mail,
-    Phone,
-    MapPin,
-    StickyNote,
-    Save,
-    XCircle,
-    ClipboardList,
+  X,
+  Pencil,
+  CalendarClock,
+  Clock,
+  Tag,
+  Mail,
+  Phone,
+  MapPin,
+  ClipboardList,
+  Check,
+  Archive,
 } from "lucide-react";
 import api from "@/api/api";
+import toast from "react-hot-toast";
 import { formatDate, to12h } from "@/utils/availabilityUtils";
 import { statusClass } from "@/lib/utils";
 import ProcessModal from "../ProcessModal";
+import RejectCancelModal from "./RejectCancelModal";
+import RescheduleModal from "./RescheduleModal";
 
-// ✅ Pretty labels for extra fields
+/* ---------- Label + Value helpers ---------- */
 function formatLabel(key) {
-    const map = {
-        childFullName: "Child Full Name",
-        childDob: "Child Date of Birth",
-        childBirthplace: "Child Birthplace",
-        fatherName: "Father's Name",
-        motherMaidenName: "Mother's Maiden Name",
-        parentsMarriageType: "Parents' Marriage Type",
-    };
-    return map[key] || key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+  const map = {
+    childFullName: "Buong Pangalan ng Bibinyagan",
+    childDob: "Araw ng Kapanganakan",
+    childBirthplace: "Lugar ng Kapanganakan",
+    fatherName: "Pangalan ng Ama",
+    motherMaidenName: "Pangalan ng Ina (Bago Ikasal)",
+    parentsMarriageType: "Uri ng Kasal ng mga Magulang",
+    confirmandName: "Buong Pangalan ng Kukumpilan",
+    confirmandDob: "Araw ng Kapanganakan",
+    confirmandBirthplace: "Lugar ng Kapanganakan",
+    parishOrigin: "Parokyang Pinanggalingan",
+    baptizedAt: "Bininyagan sa Parokya ng",
+    baptizedOn: "Araw ng Binyag",
+  };
+  return map[key] || key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
 }
 
-// ✅ Format field values
 function formatFieldValue(key, val) {
-    if (!val) return "—";
-    if (key === "childDob") return formatDate(val);
-    return val;
+  if (!val) return "—";
+  if (["childDob", "confirmandDob", "baptizedOn"].includes(key)) return formatDate(val);
+  if (key === "parentsMarriageType") {
+    const map = {
+      church: "Church Marriage",
+      civil: "Civil Marriage",
+      unmarried: "Unmarried / Not Married",
+    };
+    return map[val] || val;
+  }
+  return val;
 }
 
+/* ---------- MAIN MODAL ---------- */
 export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, onUpdate }) {
-    const [isEditing, setIsEditing] = useState(false);
-    const [local, setLocal] = useState(null);
-    const [loading, setLoading] = useState(false);
+  const [local, setLocal] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [reqProgress, setReqProgress] = useState({ done: 0, total: 0 });
+  const [showProcess, setShowProcess] = useState(false);
+  const [hidePanel, setHidePanel] = useState(false);
 
-    // ✅ Requirements progress
-    const [reqProgress, setReqProgress] = useState({ done: 0, total: 0 });
-    const [showProcess, setShowProcess] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
 
-    // 🔵 Fetch appointment + requirements progress
-    useEffect(() => {
-        if (!isOpen || !appointmentId) return;
-        const fetchDetails = async () => {
-            setLoading(true);
-            try {
-                const res = await api.get(`/admin/appointments/${appointmentId}`);
-                setLocal({
-                    ...res.data?.appointment,
-                    details: res.data?.details || null,
-                    sponsors: res.data?.sponsors || [],
-                });
+  /* 🔹 Fetch details */
+  useEffect(() => {
+    if (!isOpen || !appointmentId) return;
+    const fetchDetails = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/admin/appointments/${appointmentId}`);
+        setLocal({
+          ...res.data?.appointment,
+          details: res.data?.details || null,
+          sponsors: res.data?.sponsors || [],
+        });
 
-                // ✅ Always fetch requirement progress
-                const reqRes = await api.get(`/admin/appointments/${appointmentId}/requirements`);
-                const reqs = reqRes.data?.requirements || [];
-                const done = reqs.filter((r) => r.completed).length;
-                setReqProgress({ done, total: reqs.length });
-            } catch (err) {
-                console.error("❌ Failed to fetch appointment details:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchDetails();
-    }, [isOpen, appointmentId]);
+        const reqRes = await api.get(`/admin/appointments/${appointmentId}/requirements`);
+        const reqs = reqRes.data?.requirements || [];
+        const done = reqs.filter((r) => r.completed).length;
+        setReqProgress({ done, total: reqs.length });
+      } catch (err) {
+        console.error("❌ Failed to fetch appointment details:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDetails();
+  }, [isOpen, appointmentId]);
 
-    const initials = useMemo(() => {
-        const n = String(local?.name || "").trim();
-        return n
-            ? n
-                .split(/\s+/)
-                .slice(0, 2)
-                .map((s) => s[0])
-                .join("")
-                .toUpperCase()
-            : "??";
-    }, [local?.name]);
+  /* 🔹 Handle status update */
+  const handleStatusChange = async (newStatus) => {
+    const toastId = toast.loading("Updating appointment...");
+    try {
+      await api.patch(`/admin/appointments/${appointmentId}`, { status: newStatus });
+      toast.success("Appointment updated successfully!", { id: toastId });
+      onUpdate?.();
+      setLocal((prev) => ({ ...prev, status: newStatus }));
+    } catch (err) {
+      console.error("❌ update failed:", err);
+      toast.error("Failed to update", { id: toastId });
+    }
+  };
 
-    if (!isOpen) return null;
+  /* 🔹 Trigger modal with panel hide */
+  const triggerWithHide = (modalSetter) => {
+    setHidePanel(true);
+    modalSetter(true);
+  };
 
-    return (
-        <>
-            {/* Backdrop */}
-            <div
-                className="fixed inset-0 h-screen z-[999] bg-black/40 transition-opacity"
+  const initials = useMemo(() => {
+    const n = String(local?.name || "").trim();
+    return n
+      ? n
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((s) => s[0])
+        .join("")
+        .toUpperCase()
+      : "??";
+  }, [local?.name]);
+
+  if (!isOpen && !showProcess) return null;
+
+  const status = local?.status?.toLowerCase();
+  const isAdminCreated = local?.createdBy === "admin" || local?.role === "admin";
+
+  /* ---------- RENDER ---------- */
+  return (
+    <>
+      {!hidePanel && isOpen && (
+        <div className="fixed inset-0 bg-black/40 z-[999]" onClick={onClose} />
+      )}
+
+      {!hidePanel && isOpen && (
+        <aside className="fixed right-0 top-0 z-[1000] w-full max-w-2xl h-screen bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+          {/* HEADER */}
+          <header className="flex items-center justify-between px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Transaction ID
+              </p>
+              <h2 className="text-lg font-bold text-gray-900 mt-0.5">
+                #{local?.id || "—"}
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              {isAdminCreated && (
+                <button
+                  onClick={() => setIsEditing((v) => !v)}
+                  className="p-2.5 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
+              <button
                 onClick={onClose}
-            />
+                className="p-2.5 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </header>
 
-            {/* Slide-over */}
-            <aside className="fixed right-0 top-0 z-[1000] w-full max-w-2xl h-screen bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-                {/* Header */}
-                <header className="flex items-center justify-between px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                    <div>
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                            Transaction ID
-                        </p>
-                        <h2 className="text-lg font-bold text-gray-900 mt-0.5">#{local?.id || "—"}</h2>
+          {/* CONTENT */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-6 space-y-6 bg-gray-50/50">
+            {loading ? (
+              <div className="flex items-center justify-center h-64 text-gray-500 text-sm">
+                Loading appointment details…
+              </div>
+            ) : (
+              <>
+                {/* CLIENT INFO */}
+                <section className="bg-white rounded-xl border p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="h-14 w-14 rounded-full bg-blue-600 flex items-center justify-center text-white text-base font-semibold shadow-sm">
+                      {initials}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setIsEditing((v) => !v)}
-                            className="p-2.5 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
-                            title="Edit appointment"
-                        >
-                            <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={onClose}
-                            className="p-2.5 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
-                            title="Close"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500 uppercase mb-1">Client</p>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {local?.name}
+                      </h3>
                     </div>
-                </header>
+                  </div>
+                </section>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 bg-gray-50/50">
-                    {loading ? (
-                        <div className="flex items-center justify-center h-64">
-                            <div className="text-center">
-                                <div className="w-8 h-8 border-3 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto mb-3"></div>
-                                <p className="text-sm text-gray-500">Loading appointment details…</p>
-                            </div>
-                        </div>
-                    ) : (
-                        <>
-                            {/* Client Info */}
-                            <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                                <div className="flex items-start gap-4">
-                                    <div className="h-14 w-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-base font-semibold shrink-0 shadow-sm">
-                                        {initials}
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                                            Client
-                                        </p>
-                                        <h3 className="text-lg font-semibold text-gray-900">
-                                            {local?.name || "—"}
-                                        </h3>
-                                    </div>
-                                </div>
-                            </section>
+                {/* APPOINTMENT DETAILS */}
+                <section className="bg-white rounded-xl border p-5">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-4 flex items-center gap-2">
+                    <div className="w-1 h-4 bg-blue-500 rounded-full" />
+                    Appointment Details
+                  </h4>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <Detail
+                      icon={CalendarClock}
+                      label="Date & Time"
+                      value={
+                        local?.date
+                          ? `${formatDate(local.date)} · ${to12h(local?.time)}`
+                          : "—"
+                      }
+                    />
+                    <Detail icon={Tag} label="Service" value={local?.serviceName} />
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-gray-50 rounded-lg">
+                        <Clock className="w-4 h-4 text-gray-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1">Status</p>
+                        <span className={statusClass(local?.status)}>
+                          {local?.status?.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
 
-                            {/* Appointment */}
-                            <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
-                                    <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
-                                    Appointment Details
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <Detail
-                                        icon={CalendarClock}
-                                        label="Date & Time"
-                                        value={
-                                            local?.date
-                                                ? `${formatDate(local.date)} · ${to12h(local?.time)}`
-                                                : "—"
-                                        }
-                                    />
-                                    <Detail icon={Tag} label="Service" value={local?.serviceName} />
-                                    <div className="flex items-start gap-3">
-                                        <div className="p-2 rounded-lg bg-gray-50">
-                                            <Clock className="w-4 h-4 text-gray-500" />
-                                        </div>
-                                        <div>
-                                            <p className="text-xs font-medium text-gray-500 mb-1">Status</p>
-                                            <span className={statusClass(local?.status)}>
-                                                {local?.status?.toUpperCase()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
+                {/* REQUIREMENTS */}
+                <section className="bg-white rounded-xl border p-5">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-4 flex items-center gap-2">
+                    <div className="w-1 h-4 bg-indigo-500 rounded-full" />
+                    Requirements
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-700">
+                        {reqProgress.total === 0
+                          ? "No requirements yet"
+                          : `${reqProgress.done}/${reqProgress.total} completed`}
+                      </p>
+                      <button
+                        onClick={() => {
+                          setShowProcess(true);
+                          setHidePanel(true);
+                        }}
+                        className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        <ClipboardList className="w-3.5 h-3.5" />
+                        View All
+                      </button>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{
+                          width:
+                            reqProgress.total > 0
+                              ? `${(reqProgress.done / reqProgress.total) * 100}%`
+                              : "0%",
+                          backgroundColor:
+                            reqProgress.done === reqProgress.total
+                              ? "#22c55e"
+                              : "#3b82f6",
+                        }}
+                        transition={{ duration: 0.5 }}
+                        className="h-2 rounded-full"
+                      />
+                    </div>
+                  </div>
+                </section>
 
-                            {/* ✅ Requirements Progress */}
-                            {reqProgress.total > 0 && (
-                                <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
-                                        <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
-                                        Requirements
-                                    </h4>
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-sm font-medium text-gray-700">
-                                            {reqProgress.done === reqProgress.total
-                                                ? `Completed (${reqProgress.done}/${reqProgress.total})`
-                                                : `In Progress (${reqProgress.done}/${reqProgress.total})`}
-                                        </p>
-                                        <button
-                                            onClick={() => setShowProcess(true)}
-                                            className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                                        >
-                                            <ClipboardList className="w-3.5 h-3.5" />
-                                            View All
-                                        </button>
-                                    </div>
-                                </section>
-                            )}
+                {/* CONTACT INFO */}
+                <section className="bg-white rounded-xl border p-5">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-4 flex items-center gap-2">
+                    <div className="w-1 h-4 bg-emerald-500 rounded-full" />
+                    Contact Information
+                  </h4>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <Detail icon={Mail} label="Email" value={local?.email} />
+                    <Detail icon={Phone} label="Phone" value={local?.contactNumber} />
+                    <Detail icon={MapPin} label="Address" value={local?.address} />
+                  </div>
+                </section>
 
-                            {/* Contact */}
-                            <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
-                                    <div className="w-1 h-4 bg-emerald-500 rounded-full"></div>
-                                    Contact Information
-                                </h4>
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <Detail icon={Mail} label="Email" value={local?.email} />
-                                        <Detail icon={Phone} label="Phone" value={local?.contactNumber} />
-                                    </div>
-                                    <Detail icon={MapPin} label="Address" value={local?.address} />
-                                </div>
-                            </section>
-
-                            {/* Extra Fields */}
-                            {local?.details && (
-                                <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
-                                        <div className="w-1 h-4 bg-purple-500 rounded-full"></div>
-                                        Additional Information
-                                    </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {Object.entries(local.details).map(([key, val]) => (
-                                            <Detail
-                                                key={key}
-                                                icon={Info}
-                                                label={formatLabel(key)}
-                                                value={formatFieldValue(key, val)}
-                                            />
-                                        ))}
-                                    </div>
-                                </section>
-                            )}
-
-                            {/* Sponsors */}
-                            {local?.sponsors?.length > 0 && (
-                                <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
-                                        <div className="w-1 h-4 bg-amber-500 rounded-full"></div>
-                                        Sponsors
-                                    </h4>
-                                    <div className="space-y-3">
-                                        {local.sponsors.map((s, i) => (
-                                            <div
-                                                key={i}
-                                                className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-gray-50 to-white hover:shadow-sm transition-shadow"
-                                            >
-                                                <p className="text-sm font-semibold text-gray-900 mb-1">
-                                                    <span className="text-blue-600">{s.role}:</span> {s.name}
-                                                </p>
-                                                {s.address && (
-                                                    <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                                                        <MapPin className="w-3 h-3" />
-                                                        {s.address}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </section>
-                            )}
-
-                            {/* Notes */}
-                            <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
-                                    <div className="w-1 h-4 bg-rose-500 rounded-full"></div>
-                                    Notes
-                                </h4>
-                                {isEditing ? (
-                                    <textarea
-                                        rows={4}
-                                        value={local?.notes || ""}
-                                        onChange={(e) =>
-                                            setLocal((prev) => ({
-                                                ...prev,
-                                                notes: e.target.value,
-                                            }))
-                                        }
-                                        placeholder="Add notes about this appointment..."
-                                        className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                    />
-                                ) : (
-                                    <div className="rounded-lg border border-gray-200 p-4 bg-gradient-to-br from-gray-50 to-white">
-                                        <div className="flex items-start gap-3">
-                                            <div className="p-2 rounded-lg bg-white shadow-sm">
-                                                <StickyNote className="w-4 h-4 text-gray-400" />
-                                            </div>
-                                            <p className="text-sm text-gray-700 whitespace-pre-wrap flex-1">
-                                                {local?.notes?.trim() ? (
-                                                    local.notes
-                                                ) : (
-                                                    <span className="text-gray-400 italic">No additional notes</span>
-                                                )}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                            </section>
-                        </>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <footer className="border-t border-gray-200 px-6 py-4 bg-white flex items-center justify-between shadow-lg">
-                    {!isEditing ? (
-                        <>
-                            <p className="text-xs text-gray-500 flex items-center gap-2">
-                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                Changes are saved automatically
-                            </p>
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors shadow-sm flex items-center gap-2"
-                            >
-                                <Pencil className="w-3.5 h-3.5" />
-                                Edit details
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <p className="text-xs text-gray-500">Make your changes and save</p>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => setIsEditing(false)}
-                                    className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
-                                >
-                                    <XCircle className="w-3.5 h-3.5" />
-                                    Discard
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setIsEditing(false);
-                                        onUpdate?.(local);
-                                    }}
-                                    className="px-4 py-2 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm flex items-center gap-2"
-                                >
-                                    <Save className="w-3.5 h-3.5" />
-                                    Save changes
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </footer>
-            </aside>
-
-            {/* ✅ Process Modal */}
-            {showProcess && (
-                <ProcessModal
-                    appointment={local}
-                    onClose={() => setShowProcess(false)}
-                    onSave={async () => {
-                        const reqRes = await api.get(`/admin/appointments/${appointmentId}/requirements`);
-                        const reqs = reqRes.data?.requirements || [];
-                        const done = reqs.filter((r) => r.completed).length;
-                        setReqProgress({ done, total: reqs.length });
-                    }}
-                    onComplete={() => {
-                        setShowProcess(false);
-                        onUpdate?.();
-                    }}
-                />
+                {/* NOTES */}
+                <section className="bg-white rounded-xl border p-5">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-4 flex items-center gap-2">
+                    <div className="w-1 h-4 bg-rose-500 rounded-full" />
+                    Notes
+                  </h4>
+                  <div className="border rounded-lg p-3 bg-gray-50">
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {local?.notes?.trim() || "—"}
+                    </p>
+                  </div>
+                </section>
+              </>
             )}
-        </>
-    );
+          </div>
+
+          {/* FOOTER */}
+          <footer className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-lg">
+            {/* ✅ LEFT SIDE */}
+            <div>
+              {status === "approved" &&
+                (() => {
+                  const now = new Date();
+                  const apptDateTime = new Date(`${local?.date}T${local?.time}`);
+                  const isPast = now > apptDateTime;
+
+                  if (isPast) {
+                    return (
+                      <button
+                        onClick={() => handleStatusChange("completed")}
+                        className="px-3 py-2 text-sm rounded-md border border-green-600 text-green-700 hover:bg-green-50 flex items-center gap-1"
+                      >
+                        <Check className="w-4 h-4" /> Mark Completed
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
+            </div>
+
+            {/* ✅ RIGHT SIDE */}
+            <div className="flex gap-2">
+              {status === "pending" && (
+                <>
+                  <button
+                    onClick={() => handleStatusChange("approved")}
+                    className="px-3 py-2 text-sm rounded-md border border-green-500 text-green-600 hover:bg-green-50 flex items-center gap-1"
+                  >
+                    <Check className="w-4 h-4" /> Approve
+                  </button>
+                  <button
+                    onClick={() => triggerWithHide(setShowRejectModal)}
+                    className="px-3 py-2 text-sm rounded-md border border-red-500 text-red-600 hover:bg-red-50 flex items-center gap-1"
+                  >
+                    <X className="w-4 h-4" /> Reject
+                  </button>
+                </>
+              )}
+
+              {status === "approved" && (
+                <>
+                  <button
+                    onClick={() => triggerWithHide(setShowRescheduleModal)}
+                    className="px-3 py-2 text-sm rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 flex items-center gap-1"
+                  >
+                    <CalendarClock className="w-4 h-4" /> Reschedule
+                  </button>
+                  <button
+                    onClick={() => triggerWithHide(setShowCancelModal)}
+                    className="px-3 py-2 text-sm rounded-md border border-red-500 text-red-600 hover:bg-red-50 flex items-center gap-1"
+                  >
+                    <X className="w-4 h-4" /> Cancel
+                  </button>
+                </>
+              )}
+
+              {status === "completed" && (
+                <button
+                  onClick={() => handleStatusChange("archived")}
+                  className="px-3 py-2 text-sm rounded-md border border-gray-400 text-gray-700 hover:bg-gray-50 flex items-center gap-1"
+                >
+                  <Archive className="w-4 h-4" /> Archive
+                </button>
+              )}
+            </div>
+          </footer>
+
+        </aside>
+      )}
+
+      {/* 🔹 MODALS */}
+      <RescheduleModal
+        open={showRescheduleModal}
+        onClose={() => {
+          setShowRescheduleModal(false);
+          setHidePanel(false);
+        }}
+        appointment={local}
+        onSuccess={(updated) => {
+          setShowRescheduleModal(false);
+          setHidePanel(false);
+          setLocal((p) => ({ ...p, ...updated }));
+          onUpdate?.(updated);
+        }}
+      />
+
+      <RejectCancelModal
+        open={showRejectModal}
+        onClose={() => {
+          setShowRejectModal(false);
+          setHidePanel(false);
+        }}
+        type="reject"
+        appointment={local}
+        onSuccess={() => {
+          setShowRejectModal(false);
+          setHidePanel(false);
+          setLocal((p) => ({ ...p, status: "rejected" }));
+          onUpdate?.();
+        }}
+      />
+
+      <RejectCancelModal
+        open={showCancelModal}
+        onClose={() => {
+          setShowCancelModal(false);
+          setHidePanel(false);
+        }}
+        type="cancel"
+        appointment={local}
+        onSuccess={() => {
+          setShowCancelModal(false);
+          setHidePanel(false);
+          setLocal((p) => ({ ...p, status: "cancelled" }));
+          onUpdate?.();
+        }}
+      />
+
+      {showProcess && (
+        <ProcessModal
+          appointment={local}
+          onClose={async () => {
+            try {
+              const reqRes = await api.get(
+                `/admin/appointments/${appointmentId}/requirements`
+              );
+              const reqs = reqRes.data?.requirements || [];
+              const done = reqs.filter((r) => r.completed).length;
+              setReqProgress({ done, total: reqs.length });
+            } catch { }
+            setShowProcess(false);
+            setHidePanel(false);
+          }}
+          onSave={async () => {
+            const reqRes = await api.get(
+              `/admin/appointments/${appointmentId}/requirements`
+            );
+            const reqs = reqRes.data?.requirements || [];
+            const done = reqs.filter((r) => r.completed).length;
+            setReqProgress({ done, total: reqs.length });
+          }}
+          onComplete={() => {
+            setShowProcess(false);
+            setHidePanel(false);
+            onUpdate?.();
+          }}
+        />
+      )}
+    </>
+  );
 }
 
-/* Helpers */
+/* ---------- Detail Helper ---------- */
 function Detail({ icon: Icon, label, value }) {
-    return (
-        <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-gray-50 shrink-0">
-                <Icon className="w-4 h-4 text-gray-500" />
-            </div>
-            <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>
-                <p className="text-sm font-medium text-nowrap text-gray-900 break-words">
-                    {value || "—"}
-                </p>
-            </div>
-        </div>
-    );
+  return (
+    <div className="flex items-start gap-3">
+      <div className="p-2 rounded-lg bg-gray-50 shrink-0">
+        <Icon className="w-4 h-4 text-gray-500" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>
+        <p className="text-sm font-medium text-gray-900 break-words">{value || "—"}</p>
+      </div>
+    </div>
+  );
 }

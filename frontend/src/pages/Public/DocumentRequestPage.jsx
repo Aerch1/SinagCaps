@@ -2,8 +2,9 @@
 import { useState } from "react";
 import HeroBanner from "@/components/section/HeroBanner";
 import toast from "react-hot-toast";
-import Input from "@/components/ui/Input"; // ✅ Reusable input
-import { Mail, Phone, MapPin, User } from "lucide-react"; // example icons
+import api from "@/api/api"; // ✅ Axios instance
+import Input from "@/components/ui/Input";
+import { Mail, Phone, MapPin, User } from "lucide-react";
 
 const HERO_IMG = "/forgot.jpg";
 
@@ -16,41 +17,86 @@ export default function DocumentRequestPage() {
         documentType: "",
         purpose: "",
         copies: "1",
-        sacramentDate: "",
-        sacramentPlace: "",
         additionalInfo: "",
     });
 
     const [showSuccess, setShowSuccess] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e) => {
+    /* ======================================================
+       SIMPLE VALIDATION
+    ====================================================== */
+    const validateForm = () => {
+        const errors = [];
+
+        if (!formData.fullName.trim()) errors.push("Full name is required.");
+        if (!formData.email.trim()) errors.push("Email is required.");
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
+            errors.push("Please enter a valid email address.");
+        if (!formData.phone.trim()) errors.push("Contact number is required.");
+        if (!formData.documentType.trim())
+            errors.push("Please select a document type.");
+        if (!formData.purpose.trim()) errors.push("Purpose is required.");
+        if (!formData.copies || formData.copies < 1 || formData.copies > 10)
+            errors.push("Copies must be between 1 and 10.");
+
+        return errors;
+    };
+
+    /* ======================================================
+       SUBMIT FORM → Backend
+    ====================================================== */
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        const errors = validateForm();
+        if (errors.length > 0) {
+            errors.forEach((err) => toast.error(err));
+            return;
+        }
 
-        console.log("📨 Document Request Submitted:", formData);
+        setIsSubmitting(true);
+        try {
+            const payload = {
+                full_name: formData.fullName,
+                email: formData.email,
+                phone: formData.phone,
+                address: formData.address,
+                document_type: formData.documentType,
+                purpose: formData.purpose,
+                copies: parseInt(formData.copies, 10),
+                additional_info: formData.additionalInfo || null,
+            };
 
-        toast.success("Your document request has been submitted!");
-        setShowSuccess(true);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+            const { data } = await api.post("/public/documents", payload);
 
-        setFormData({
-            fullName: "",
-            email: "",
-            phone: "",
-            address: "",
-            documentType: "",
-            purpose: "",
-            copies: "1",
-            sacramentDate: "",
-            sacramentPlace: "",
-            additionalInfo: "",
-        });
-
-        setTimeout(() => setShowSuccess(false), 5000);
+            toast.success(data.message || "Your document request was submitted!");
+            setShowSuccess(true);
+            setFormData({
+                fullName: "",
+                email: "",
+                phone: "",
+                address: "",
+                documentType: "",
+                purpose: "",
+                copies: "1",
+                additionalInfo: "",
+            });
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            setTimeout(() => setShowSuccess(false), 5000);
+        } catch (error) {
+            const err =
+                error.response?.data?.error ||
+                error.response?.data?.errors?.join(", ") ||
+                "Submission failed. Please try again.";
+            toast.error(err);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -75,9 +121,7 @@ export default function DocumentRequestPage() {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-10">
-                        {/* =============================
-                PERSONAL INFO
-            ============================= */}
+                        {/* PERSONAL INFO */}
                         <div>
                             <h2 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-6">
                                 Personal Information
@@ -147,9 +191,7 @@ export default function DocumentRequestPage() {
                             </div>
                         </div>
 
-                        {/* =============================
-                DOCUMENT REQUEST
-            ============================= */}
+                        {/* DOCUMENT REQUEST */}
                         <div>
                             <h2 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-6">
                                 Document Request
@@ -169,13 +211,9 @@ export default function DocumentRequestPage() {
                                     >
                                         <option value="">Select a document type</option>
                                         <option value="baptism">Certificate of Baptism</option>
-                                        <option value="confirmation">
-                                            Certificate of Confirmation
-                                        </option>
+                                        <option value="confirmation">Certificate of Confirmation</option>
                                         <option value="marriage">Certificate of Marriage</option>
-                                        <option value="first-communion">
-                                            Certificate of First Communion
-                                        </option>
+                                        <option value="first-communion">Certificate of First Communion</option>
                                         <option value="death">Certificate of Death/Burial</option>
                                         <option value="membership">Certificate of Membership</option>
                                         <option value="other">Other (specify in purpose)</option>
@@ -207,72 +245,31 @@ export default function DocumentRequestPage() {
                                         value={formData.copies}
                                         onChange={handleChange}
                                         required
-                                        
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* =============================
-                SACRAMENTAL INFO
-            ============================= */}
-                        <div>
-                            <h2 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-3">
-                                Sacramental Information
-                            </h2>
-                            <p className="text-sm text-gray-600 mb-4">
-                                Fill in information related to the requested document
-                            </p>
-
-                            <div className="grid md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Date of Sacrament (if known)
-                                    </label>
-                                    <Input
-                                        type="date"
-                                        name="sacramentDate"
-                                        value={formData.sacramentDate}
-                                        onChange={handleChange}
                                     />
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Place of Sacrament
+                                        Additional Information
                                     </label>
-                                    <Input
-                                        type="text"
-                                        name="sacramentPlace"
-                                        value={formData.sacramentPlace}
+                                    <textarea
+                                        name="additionalInfo"
+                                        value={formData.additionalInfo}
                                         onChange={handleChange}
-                                        placeholder="Parish name"
-                                    />
+                                        placeholder="Any other details that may help us process your request"
+                                        className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500/60 focus:outline-none min-h-[100px]"
+                                    ></textarea>
                                 </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Additional Information
-                                </label>
-                                <textarea
-                                    name="additionalInfo"
-                                    value={formData.additionalInfo}
-                                    onChange={handleChange}
-                                    placeholder="Any other details that may help us locate your records"
-                                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500/60 focus:outline-none min-h-[100px]"
-                                ></textarea>
                             </div>
                         </div>
 
-                        {/* =============================
-                SUBMIT BUTTON
-            ============================= */}
+                        {/* SUBMIT BUTTON */}
                         <button
                             type="submit"
-                            className="w-full bg-secondary text-white py-3.5 rounded-md text-sm font-semibold hover:bg-secondary/90 transition"
+                            disabled={isSubmitting}
+                            className="w-full bg-secondary text-white py-3.5 rounded-md text-sm font-semibold hover:bg-secondary/90 transition disabled:opacity-70"
                         >
-                            Submit Request
+                            {isSubmitting ? "Submitting..." : "Submit Request"}
                         </button>
                     </form>
                 </div>

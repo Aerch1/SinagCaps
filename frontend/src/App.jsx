@@ -52,6 +52,7 @@ const AboutPage = lazy(() => import("./pages/Public/About"))
 // --- Admin ---
 import AdminProviders from "./context/admin/AdminProviders";
 import CalendarPage from "./pages/Admin/CalendarPage";
+import AdminResetPasswordPage from "./pages/Auth/AdminResetPasswordPage";
 const AdminDashboard = lazy(() => import("./pages/Admin/AdminDashboard"));
 const AdminAppointmentsPage = lazy(() => import("./pages/Admin/AppointmentsPage"));
 const ContentManagement = lazy(() => import("./pages/Admin/ContentManagement"))
@@ -82,6 +83,9 @@ function App() {
               }
             >
               <Routes>
+
+
+
                 {/* ---------- Auth pages (admins blocked) ---------- */}
                 <Route path="/signup" element={<PublicOnly><SignUpPage /></PublicOnly>} />
                 <Route path="/login" element={<PublicOnly><LoginPage /></PublicOnly>} />
@@ -129,6 +133,13 @@ function App() {
                   </Route>
                 </Route>
 
+                {/* ✅ Admin reset password (accessible without login) */}
+                <Route
+                  path="/admin/reset-password/:token"
+                  element={<PublicOnly><AdminResetPasswordPage /></PublicOnly>}
+                />
+
+
                 {/* ---------- Admin (admins only) ---------- */}
                 <Route
                   path="/admin"
@@ -151,10 +162,12 @@ function App() {
                   <Route path="users" element={<UserManagement />} />
                   <Route path="messages" element={<MessagesPage />} />
 
+
                   <Route path="*" element={<Navigate to="/admin" replace />} />
                   <Route path="documents" element={<AdminDocumentManagement />} />
 
                 </Route>
+
 
                 {/* ---------- Catch-all ---------- */}
                 <Route path="*" element={<Navigate to="/" replace />} />

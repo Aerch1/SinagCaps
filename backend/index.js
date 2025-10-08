@@ -19,6 +19,15 @@ import adminEventRoutes from "./routes/admin.events.routes.js";
 import adminAdvisoriesRoutes from "./routes/admin.advisories.routes.js";
 import adminAnnouncementsRoutes from "./routes/admin.announcements.routes.js";
 import chatbotRoutes from "./routes/chatbot.routes.js";
+import publicDocumentsRoutes from "./routes/public.documents.routes.js";
+import publicNotificationsRoutes from "./routes/public.notifications.routes.js";
+import adminNotificationsRoutes from "./routes/admin.notifications.routes.js";
+import adminDocumentRequestsRoutes from "./routes/admin.documentrequests.routes.js";
+import publicContactRoutes from "./routes/public.contact.routes.js";
+
+import adminUserRoutes from "./routes/admin.users.routes.js";
+import adminSecurityRoutes from "./routes/admin.security.routes.js";
+import reportRoutes from "./routes/admin.reports.routes.js";
 
 dotenv.config();
 
@@ -29,19 +38,21 @@ const __dirname = path.resolve();
 /* ===============================
    CORS
 =============================== */
+/* ===============================
+   CORS (Fixed)
+=============================== */
 const allowedOrigins = [
   process.env.CLIENT_URL,
+  "http://localhost:5173",
   "http://localhost:5174",
-  "http://127.0.0.1:5174",
-].filter(Boolean);
+  "https://sinagcaps.vercel.app",
+  "https://www.olopgv.org",
+  "https://olopgv.org",
+];
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("Not allowed by CORS"));
-    },
+    origin: allowedOrigins,
     credentials: true,
   })
 );
@@ -69,7 +80,16 @@ app.use("/api/admin/events", adminEventRoutes);
 app.use("/api/admin/advisories", adminAdvisoriesRoutes);
 app.use("/api/admin/announcements", adminAnnouncementsRoutes);
 app.use("/api/chat", chatbotRoutes);
+app.use("/api/public/documents", publicDocumentsRoutes);
+app.use("/api/notifications", publicNotificationsRoutes);
+app.use("/api/admin/notifications", adminNotificationsRoutes);
+app.use("/api/admin/document-requests", adminDocumentRequestsRoutes);
 
+app.use("/api/public", publicContactRoutes);
+app.use("/api/admin/users", adminUserRoutes);
+app.use("/api/admin/security", adminSecurityRoutes);
+
+app.use("/api/admin/reports", reportRoutes);
 /* ===============================
    HEALTH CHECK
 =============================== */

@@ -1,4 +1,5 @@
 import pool from "../../config/db.js";
+import { createNotification } from "../../utils/createNotification.js"; // ✅ added
 
 /* ==================================================
    VALIDATION
@@ -12,24 +13,61 @@ function validateAdvisory(data) {
 }
 
 /* ==================================================
-   CREATE
+   CREATE (neutral + randomized notifications)
 ================================================== */
 export async function createAdvisory(req, res) {
+  const conn = await pool.getConnection();
   try {
     const { title, message, type, status = "active" } = req.body;
     const errors = validateAdvisory(req.body);
     if (Object.keys(errors).length)
       return res.status(400).json({ success: false, errors });
 
-    const [result] = await pool.query(
+    await conn.beginTransaction();
+
+    const [result] = await conn.query(
       `INSERT INTO advisories (title, message, type, status) VALUES (?, ?, ?, ?)`,
       [title, message, type, status]
     );
 
-    res.json({ success: true, id: result.insertId });
+    const advisoryId = result.insertId;
+
+    // ✅ Get all verified users
+    const [users] = await conn.query(
+      `SELECT id FROM users WHERE role='user' AND isVerified=1`
+    );
+
+    // ✅ Define neutral, concise, shuffled templates
+    const templates = [
+      `A new advisory "${title}" has been released. Please review it in the Advisories section.`,
+      `Stay informed! "${title}" has been added as a new advisory. Visit the Advisories page for details.`,
+      `📢 "${title}" — there's a new advisory available. Check it out in the Advisories section.`,
+      `New parish advisory: "${title}". View more details in the Advisories section.`,
+      `An updated advisory titled "${title}" has just been published. You can view it in the Advisories section.`,
+    ];
+
+    // ✅ Randomly choose template for each user
+    for (const u of users) {
+      const msg = templates[Math.floor(Math.random() * templates.length)];
+
+      await createNotification({
+        user_id: u.id,
+        title: "📢 New Advisory",
+        message: msg,
+        type: "advisory",
+        reference_id: advisoryId,
+      });
+    }
+
+    await conn.commit();
+
+    res.json({ success: true, id: advisoryId });
   } catch (err) {
+    await conn.rollback();
     console.error("❌ CREATE ADVISORY ERROR:", err);
     res.status(500).json({ success: false, error: "Server error" });
+  } finally {
+    conn.release();
   }
 }
 

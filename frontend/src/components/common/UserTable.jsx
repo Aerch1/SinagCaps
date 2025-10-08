@@ -1,154 +1,180 @@
-// src/components/common/DataTable.jsx
-"use client"
+"use client";
 
-import React, { useMemo, useState } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Search, MoreHorizontal } from "lucide-react"
-import { Checkbox } from "@/components/ui/checkbox" // assuming you already have shadcn/ui checkbox
-
-/* ---------------- utils ---------------- */
+import React, { useMemo, useState } from "react";
+import { Search, Trash2, UserCheck, UserX } from "lucide-react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 const statusClass = (s) => {
-    const v = String(s || "").toLowerCase()
-    if (v === "activated")
-        return "bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full px-3 py-1 text-xs font-medium"
-    if (v === "deactivated")
-        return "bg-gray-50 text-gray-600 border border-gray-200 rounded-full px-3 py-1 text-xs font-medium"
-    if (v === "mute" || v === "muted")
-        return "bg-red-50 text-red-600 border border-red-200 rounded-full px-3 py-1 text-xs font-medium"
-    return "bg-gray-50 text-gray-600 border border-gray-200 rounded-full px-3 py-1 text-xs font-medium"
-}
+  const v = String(s || "").toLowerCase();
+  if (v === "activated")
+    return "bg-green-100 text-green-700 border border-green-200";
+  if (v === "deactivated")
+    return "bg-gray-100 text-gray-700 border border-gray-200";
+  return "bg-gray-100 text-gray-700 border border-gray-200";
+};
 
-/* --------------- component --------------- */
+export default function UserTable({ rows = [], onAction }) {
+  const [query, setQuery] = useState("");
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
-export default function DataTable({
-    rows = [],
-    onView,
-}) {
-    const [query, setQuery] = useState("")
-    const [selected, setSelected] = useState([])
+  // 🔍 Filter by search
+  const filtered = useMemo(() => {
+    if (!query.trim()) return rows;
+    const q = query.toLowerCase();
+    return rows.filter(
+      (r) =>
+        r.name?.toLowerCase().includes(q) ||
+        r.email?.toLowerCase().includes(q)
+    );
+  }, [rows, query]);
 
-    const filtered = useMemo(() => {
-        if (!query.trim()) return rows
-        const q = query.toLowerCase()
-        return rows.filter(
-            (r) =>
-                r.firstName?.toLowerCase().includes(q) ||
-                r.lastName?.toLowerCase().includes(q) ||
-                r.email?.toLowerCase().includes(q)
-        )
-    }, [rows, query])
-
-    const allSelected = filtered.length > 0 && selected.length === filtered.length
-
-    const toggleAll = () => {
-        if (allSelected) setSelected([])
-        else setSelected(filtered.map((r) => r.id))
+  // ✅ Confirm dialog handler
+  const handleConfirm = async () => {
+    if (!confirmAction) return;
+    setSubmitting(true);
+    try {
+      await onAction?.(confirmAction.id, confirmAction.type);
+    } finally {
+      setSubmitting(false);
+      setConfirmAction(null);
     }
+  };
 
-    const toggleOne = (id) => {
-        setSelected((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-        )
-    }
-
-    return (
-        <div className="rounded-lg border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-            {/* Header with Search */}
-            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-gray-700">
-                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                    User List
-                </h2>
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search user..."
-                        className="h-9 w-64 rounded-lg border border-gray-200 bg-white pl-10 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0 focus:border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                    />
-                </div>
-            </div>
-
-            {/* Table */}
-            <div className="overflow-x-auto">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="px-4 w-10">
-                                <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
-                            </TableHead>
-                            <TableHead className="px-6 py-3">First Name</TableHead>
-                            <TableHead className="px-6 py-3">Last Name</TableHead>
-                            <TableHead className="px-6 py-3">Email</TableHead>
-                            <TableHead className="px-6 py-3">Status</TableHead>
-                            <TableHead className="px-6 py-3">Last Access</TableHead>
-                            <TableHead className="px-6 py-3 text-right">Action</TableHead>
-                        </TableRow>
-                    </TableHeader>
-
-                    <TableBody>
-                        {filtered.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={7} className="px-6 py-10 text-center text-gray-500">
-                                    No users found
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            filtered.map((r, idx) => (
-                                <TableRow key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                                    <TableCell className="px-4">
-                                        <Checkbox
-                                            checked={selected.includes(r.id)}
-                                            onCheckedChange={() => toggleOne(r.id)}
-                                        />
-                                    </TableCell>
-                                    <TableCell className="px-6 py-3">{r.firstName}</TableCell>
-                                    <TableCell className="px-6 py-3">{r.lastName}</TableCell>
-                                    <TableCell className="px-6 py-3 text-blue-600">{r.email}</TableCell>
-                                    <TableCell className="px-6 py-3">
-                                        <Badge className={statusClass(r.status)}>{r.status}</Badge>
-                                    </TableCell>
-                                    <TableCell className="px-6 py-3 text-sm text-gray-500">
-                                        {r.lastAccess}
-                                    </TableCell>
-                                    <TableCell className="px-6 py-3 text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800"
-                                                >
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            {/* 👇 z-index fix applied */}
-                                            <DropdownMenuContent
-                                                align="end"
-                                                className="z-[9999] w-48 bg-white border border-gray-200 shadow-lg dark:bg-gray-800 dark:border-gray-700"
-                                            >
-                                                <DropdownMenuItem onClick={() => onView?.(r)}>
-                                                    View Details
-                                                </DropdownMenuItem>
-                                                {/* ⚠️ No Edit/Delete (illegal for personal data) */}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+  return (
+    <div className="space-y-3 md:space-y-4 w-full overflow-hidden">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 md:gap-3">
+        <h2 className="text-sm md:text-base font-semibold text-slate-900">
+          User List
+        </h2>
+        <div className="relative w-full sm:w-56 md:w-64">
+          <Search className="absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-gray-400" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or email..."
+            className="w-full pl-8 md:pl-9 pr-2 md:pr-3 py-1.5 md:py-2 border border-gray-300 rounded-md text-xs md:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
         </div>
-    )
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="min-w-full divide-y divide-gray-200 text-xs md:text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              {["Name", "Email", "Role", "Status", "Last Access", "Actions"].map((h) => (
+                <th
+                  key={h}
+                  className="px-2 md:px-3 lg:px-6 py-2 md:py-2.5 lg:py-3 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody className="bg-white divide-y divide-gray-200">
+            {filtered.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="py-6 md:py-8 text-center text-gray-500 text-xs md:text-sm"
+                >
+                  No users found.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((r, i) => (
+                <tr key={i} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-2 md:px-3 lg:px-6 py-2 md:py-2.5 font-medium text-gray-900 truncate max-w-[150px]">
+                    {r.name}
+                  </td>
+                  <td className="px-2 md:px-3 lg:px-6 py-2 md:py-2.5 text-blue-600 truncate max-w-[200px]">
+                    {r.email}
+                  </td>
+                  <td className="px-2 md:px-3 lg:px-6 py-2 md:py-2.5 text-gray-800 capitalize">
+                    {r.role}
+                  </td>
+                  <td className="px-2 md:px-3 lg:px-6 py-2 md:py-2.5">
+                    <span
+                      className={`px-1.5 md:px-2.5 py-0.5 inline-flex text-[10px] md:text-xs font-semibold rounded-full whitespace-nowrap ${statusClass(
+                        r.status
+                      )}`}
+                    >
+                      {r.status}
+                    </span>
+                  </td>
+                  <td className="px-2 md:px-3 lg:px-6 py-2 md:py-2.5 text-gray-600 truncate max-w-[150px]">
+                    {r.lastAccess}
+                  </td>
+
+                  {/* ✅ Conditional Buttons */}
+                  <td className="px-2 md:px-3 lg:px-6 py-2 md:py-2.5">
+                    <div className="flex justify-end gap-1 md:gap-2 flex-wrap">
+                      {/* Activate / Deactivate */}
+                      {r.status === "Activated" ? (
+                        <button
+                          onClick={() =>
+                            setConfirmAction({
+                              id: r.id,
+                              type: "deactivate",
+                              title: "Deactivate Account",
+                              message: `Are you sure you want to deactivate ${r.name}? They will no longer have access.`,
+                            })
+                          }
+                          className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-2.5 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-[10px] md:text-xs whitespace-nowrap"
+                        >
+                          <UserX className="h-3 w-3 md:h-4 md:w-4" />
+                          <span className="hidden sm:inline">Deactivate</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => onAction?.(r.id, "activate")}
+                          className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-2.5 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-[10px] md:text-xs whitespace-nowrap"
+                        >
+                          <UserCheck className="h-3 w-3 md:h-4 md:w-4" />
+                          <span className="hidden sm:inline">Activate</span>
+                        </button>
+                      )}
+
+                      {/* Delete — only for normal users */}
+                      {r.role !== "admin" && (
+                        <button
+                          onClick={() =>
+                            setConfirmAction({
+                              id: r.id,
+                              type: "delete",
+                              title: "Delete User",
+                              message: `Are you sure you want to permanently delete ${r.name}? This action cannot be undone.`,
+                            })
+                          }
+                          className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-2.5 py-1 border border-red-300 rounded-md text-red-600 hover:bg-red-50 text-[10px] md:text-xs whitespace-nowrap"
+                        >
+                          <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
+                          <span className="hidden sm:inline">Delete</span>
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title}
+        message={confirmAction?.message}
+        submitting={submitting}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={handleConfirm}
+      />
+    </div>
+  );
 }

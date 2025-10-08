@@ -5,287 +5,293 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { ChevronLeft, ChevronRight, Filter, ChevronDown, Plus } from "lucide-react";
-import CreateAppointmentModal from "@/components/common/modal/CreateAppointmentModal";
-import ViewAppointmentModal from "@/components/common/modal/ViewAppointmentModal";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import api from "@/api/api";
+import FilterDropdown from "@/components/ui/FilterDropdown.jsx";
+import CreateAppointmentModal from "@/components/common/modal/CreateAppointmentModal.jsx";
+import ViewAppointmentModal from "@/components/common/modal/ViewAppointmentModal.jsx";
 
-/* ---------- view options ---------- */
 const VIEW_OPTIONS = [
-    { value: "dayGridMonth", label: "Month" },
-    { value: "timeGridWeek", label: "Week" },
-    { value: "timeGridDay", label: "Day" },
+  { value: "dayGridMonth", label: "Month" },
+  { value: "timeGridWeek", label: "Week" },
+  { value: "timeGridDay", label: "Day" },
 ];
 
 export default function CalendarComponent() {
-    const [currentView, setCurrentView] = useState("dayGridMonth");
-    const [selectedService, setSelectedService] = useState("All Services");
-    const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
+  const [currentView, setCurrentView] = useState("dayGridMonth");
+  const [selectedService, setSelectedService] = useState("All Services");
+  const [selectedStatus, setSelectedStatus] = useState("All Status");
+  const [services, setServices] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [todayLabel, setTodayLabel] = useState("");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
 
-    const [services, setServices] = useState([]);
-    const [appointments, setAppointments] = useState([]);
+  // 🔹 View Details modal
+  const [viewOpen, setViewOpen] = useState(false);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
 
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [selectedDate, setSelectedDate] = useState(null);
-    const [viewOpen, setViewOpen] = useState(false);
-    const [viewAppt, setViewAppt] = useState(null);
+  const calendarRef = useRef(null);
 
-    const calendarRef = useRef(null);
+  /* =====================================================
+     🔹 Fetch Services & Appointments
+  ===================================================== */
+  const fetchData = async () => {
+    try {
+      const [servicesRes, appointmentsRes] = await Promise.all([
+        api.get("/admin/services"),
+        api.get("/admin/appointments"),
+      ]);
 
-    /* ---------- fetch services ---------- */
-    useEffect(() => {
-        api.get("/admin/services")
-            .then(res => {
-                if (res.data.success) {
-                    setServices(res.data.services || []);
-                }
-            })
-            .catch(err => console.error("❌ Failed to fetch services:", err));
-    }, []);
+      if (servicesRes.data.success)
+        setServices(servicesRes.data.services || []);
 
-    /* ---------- fetch appointments ---------- */
-    useEffect(() => {
-        api.get("/admin/appointments")
-            .then(res => {
-                if (res.data.data) {
-                    const events = res.data.data.map(a => ({
-                        id: a.id,
-                        serviceType: a.serviceName,
-                        clientName: a.name,
-                        status: a.status,
-                        start: `${a.date}T${a.time}`, // Combine date+time
-                        backgroundColor: getStatusColor(a.status),
-                        borderColor: getStatusColor(a.status),
-                    }));
-                    setAppointments(events);
-                }
-            })
-            .catch(err => console.error("❌ Failed to fetch appointments:", err));
-    }, []);
+      if (appointmentsRes.data.success)
+        setAppointments(appointmentsRes.data.data || []);
+    } catch (err) {
+      console.error("❌ Error fetching data:", err);
+    }
+  };
 
-    /* ---------- filter by service ---------- */
-    const filteredAppointments = useMemo(
-        () =>
-            selectedService === "All Services"
-                ? appointments
-                : appointments.filter((a) => a.serviceType === selectedService),
-        [appointments, selectedService]
-    );
+  useEffect(() => {
+    fetchData();
+    const today = new Date();
+    const formatted = today.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+    setTodayLabel(formatted);
+  }, []);
 
-    const handleDateClick = useCallback((arg) => {
-        setSelectedDate(arg.date);
-        setIsCreateOpen(true);
-    }, []);
+  /* =====================================================
+     🔹 Filters
+  ===================================================== */
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter((a) => {
+      const serviceMatch =
+        selectedService === "All Services" || a.serviceName === selectedService;
+      const statusMatch =
+        selectedStatus === "All Status" ||
+        a.status?.toLowerCase() === selectedStatus.toLowerCase();
+      return serviceMatch && statusMatch;
+    });
+  }, [appointments, selectedService, selectedStatus]);
 
-    const handleEventClick = useCallback((clickInfo) => {
-        const evt = clickInfo.event;
-        setViewAppt({
-            id: evt.id,
-            serviceType: evt.extendedProps.serviceType,
-            clientName: evt.extendedProps.clientName,
-            status: evt.extendedProps.status,
-            start: evt.start,
-        });
-        setViewOpen(true);
-    }, []);
+  /* =====================================================
+     🔹 Event Handlers
+  ===================================================== */
+  const handleDateClick = useCallback((arg) => {
+    setSelectedDate(arg.date);
+    setIsCreateModalOpen(true);
+  }, []);
 
-    /* ---------- custom event renderer ---------- */
-    const renderEventContent = (eventInfo) => {
-        const { serviceType, clientName, status } = eventInfo.event.extendedProps;
-        const time = eventInfo.timeText;
+  const handleEventClick = useCallback((clickInfo) => {
+    const appointmentId = clickInfo.event.id;
+    setSelectedAppointmentId(appointmentId);
+    setViewOpen(true);
+  }, []);
 
-        // dot colors for statuses
-        const statusColors = {
-            pending: "bg-yellow-500",
-            approved: "bg-green-500",
-            completed: "bg-blue-500",
-            cancelled: "bg-red-500",
-            rejected: "bg-red-500",
-            archived: "bg-gray-400",
-        };
+  const handleModalClose = () => {
+    setIsCreateModalOpen(false);
+    setSelectedDate(null);
+  };
 
-        return (
-            <div className="flex flex-col text-xs leading-tight p-1">
-                <div className="flex items-center gap-1">
-                    {/* colored dot */}
-                    <span
-                        className={`w-2 h-2 rounded-full ${statusColors[status] || "bg-gray-400"}`}
-                    />
-                    <span className="font-medium text-slate-900">{serviceType}</span>
-                </div>
-                <span className="text-gray-600 truncate">{clientName}</span>
-                <span className="text-[11px] text-gray-500">{time}</span>
-            </div>
-        );
+  const handleAppointmentSaved = () => {
+    fetchData();
+  };
+
+  /* =====================================================
+     🔹 Render Event
+  ===================================================== */
+  const renderEventContent = (eventInfo) => {
+    const { serviceName, name, status } = eventInfo.event.extendedProps;
+    const time = eventInfo.timeText;
+    const isShort =
+      eventInfo.event.end &&
+      eventInfo.event.start &&
+      eventInfo.event.end - eventInfo.event.start < 3600000;
+
+    const statusColors = {
+      pending: "#f59e0b",
+      approved: "#3b82f6",
+      completed: "#22c55e",
+      cancelled: "#ef4444",
+      rejected: "#e2e8f0",
+      archived: "#94a3b8",
     };
 
+    const bgColor = statusColors[status?.toLowerCase()] || "#64748b";
+
     return (
-        <div className="w-full">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4 px-4">
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => calendarRef.current?.getApi().prev()}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                    >
-                        <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <button
-                        onClick={() => calendarRef.current?.getApi().next()}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                    >
-                        <ChevronRight className="w-5 h-5" />
-                    </button>
-                    <button
-                        onClick={() => calendarRef.current?.getApi().today()}
-                        className="px-3 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-                    >
-                        Today
-                    </button>
-                    <h2 className="ml-3 text-lg font-semibold text-slate-900">
-                        {calendarRef.current ? calendarRef.current.getApi().view.title : "Calendar"}
-                    </h2>
-                </div>
-                <div className="flex items-center gap-3">
-                    {/* Service Filter */}
-                    <div className="relative">
-                        <button
-                            onClick={() => setIsServiceDropdownOpen(!isServiceDropdownOpen)}
-                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg"
-                        >
-                            <Filter className="w-4 h-4" />
-                            {selectedService}
-                            <ChevronDown className="w-4 h-4" />
-                        </button>
-                        {isServiceDropdownOpen && (
-                            <>
-                                <div
-                                    className="fixed inset-0 z-10"
-                                    onClick={() => setIsServiceDropdownOpen(false)}
-                                />
-                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedService("All Services");
-                                            setIsServiceDropdownOpen(false);
-                                        }}
-                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                                    >
-                                        All Services
-                                    </button>
-                                    {services.map((s) => (
-                                        <button
-                                            key={s.id}
-                                            onClick={() => {
-                                                setSelectedService(s.name);
-                                                setIsServiceDropdownOpen(false);
-                                            }}
-                                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                                        >
-                                            {s.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    {/* View Controls */}
-                    <div className="flex items-center gap-1">
-                        {VIEW_OPTIONS.map((opt) => (
-                            <button
-                                key={opt.value}
-                                onClick={() => {
-                                    setCurrentView(opt.value);
-                                    calendarRef.current?.getApi().changeView(opt.value);
-                                }}
-                                className={`px-3 py-2 text-sm font-medium rounded-lg ${currentView === opt.value
-                                    ? "bg-red-600 text-white"
-                                    : "text-gray-600 hover:bg-gray-100"
-                                    }`}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+      <div
+        className="flex flex-col h-full w-full px-2 py-1.5 overflow-hidden rounded-md"
+        style={{ backgroundColor: bgColor }}
+      >
+        <div className="flex items-start gap-1.5 min-w-0">
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-white text-xs leading-tight truncate">
+              {serviceName}
             </div>
-
-
-            {/* Calendar Body */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4 relative">
-                <FullCalendar
-                    ref={calendarRef}
-                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    initialView={currentView}
-                    headerToolbar={false}
-                    events={filteredAppointments}
-                    dateClick={handleDateClick}
-                    eventClick={handleEventClick}
-                    eventContent={renderEventContent}
-                    height="600px"
-                    slotMinTime="08:00:00"
-                    slotMaxTime="18:00:00"
-                    allDaySlot={false}
-                    timeZone="local"
-                    weekends
-                    nowIndicator
-                    slotLabelFormat={{
-                        hour: "numeric",
-                        minute: "2-digit",
-                        hour12: true,
-                    }}
-                    eventTimeFormat={{
-                        hour: "numeric",
-                        minute: "2-digit",
-                        hour12: true,
-                    }}
-                />
-            </div>
-
-            {/* Modals */}
-            <CreateAppointmentModal
-                isOpen={isCreateOpen}
-                onClose={() => setIsCreateOpen(false)}
-                onSave={() => { }}
-                selectedDate={selectedDate}
-            />
-            <ViewAppointmentModal
-                isOpen={viewOpen}
-                onClose={() => setViewOpen(false)}
-                appointment={viewAppt}
-            />
-
-            {/* Floating Create */}
-            <button
-                onClick={() => {
-                    setSelectedDate(null);
-                    setIsCreateOpen(true);
-                }}
-                className="fixed bottom-6 right-6 w-14 h-14 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg flex items-center justify-center z-40 group"
-                title="Create Appointment"
-            >
-                <Plus className="w-6 h-6 group-hover:scale-110 transition-transform" />
-            </button>
+            {!isShort && name && (
+              <div className="text-white/90 text-[0.6875rem] leading-tight truncate mt-0.5">
+                {name}
+              </div>
+            )}
+            {!isShort && time && (
+              <div className="text-white/70 text-[0.625rem] leading-tight mt-0.5">
+                {time}
+              </div>
+            )}
+          </div>
         </div>
+      </div>
     );
-}
+  };
 
-/* ---------- helpers ---------- */
-function getStatusColor(status) {
-    switch (status) {
-        case "pending":
-            return "#fbbf24"; // amber
-        case "approved":
-            return "#22c55e"; // green
-        case "completed":
-            return "#3b82f6"; // blue
-        case "cancelled":
-        case "rejected":
-            return "#ef4444"; // red
-        case "archived":
-            return "#6b7280"; // gray
-        default:
-            return "#9ca3af"; // neutral gray
-    }
+  /* =====================================================
+     🔹 Render Calendar
+  ===================================================== */
+  return (
+    <div className="w-full max-w-7xl mx-auto">
+      {/* Header Section */}
+      <section className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5 mb-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          {/* Navigation */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => calendarRef.current?.getApi().prev()}
+              className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              aria-label="Previous"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => calendarRef.current?.getApi().today()}
+              className="px-4 py-2 text-sm font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+            >
+              Today
+            </button>
+            <button
+              onClick={() => calendarRef.current?.getApi().next()}
+              className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              aria-label="Next"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Calendar Title */}
+          <h2 className="text-base font-semibold text-slate-900 flex-1 text-center min-w-0 truncate">
+            {calendarRef.current
+              ? calendarRef.current.getApi().view.title
+              : todayLabel}
+          </h2>
+
+          {/* Filters */}
+          <div className="flex items-center gap-3">
+            <FilterDropdown
+              mode="service"
+              selectionMode="single"
+              options={[
+                { value: "All Services", label: "All Services" },
+                ...services.map((s) => ({ value: s.name, label: s.name })),
+              ]}
+              value={selectedService}
+              onChange={setSelectedService}
+              buttonLabel="Service"
+            />
+            <FilterDropdown
+              mode="status"
+              selectionMode="single"
+              options={[
+                { value: "All Status", label: "All Status" },
+                { value: "Pending", label: "Pending" },
+                { value: "Approved", label: "Approved" },
+                { value: "Completed", label: "Completed" },
+                { value: "Cancelled", label: "Cancelled" },
+              ]}
+              value={selectedStatus}
+              onChange={setSelectedStatus}
+              buttonLabel="Status"
+            />
+          </div>
+        </div>
+
+        {/* View Switch */}
+        <div className="grid grid-cols-3 gap-1 bg-slate-100 rounded-lg p-1">
+          {VIEW_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => {
+                setCurrentView(opt.value);
+                calendarRef.current?.getApi().changeView(opt.value);
+              }}
+              className={`w-full px-3 py-1.5 text-sm font-semibold rounded-md transition-all ${
+                currentView === opt.value
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Calendar Container */}
+      <div className="bg-white rounded-xl border border-slate-200 p-2 sm:p-4 shadow-sm">
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          initialView={currentView}
+          headerToolbar={false}
+          events={filteredAppointments.map((a) => ({
+            id: a.id,
+            title: a.serviceName,
+            start: `${a.date}T${a.time}`,
+            extendedProps: a,
+          }))}
+          dateClick={handleDateClick}
+          eventClick={handleEventClick}
+          eventContent={renderEventContent}
+          height="auto"
+          nowIndicator
+          timeZone="local"
+          slotMinTime="08:00:00"
+          slotMaxTime="18:00:00"
+          allDaySlot={false}
+          dayMaxEvents={3}
+          eventOverlap={false}
+          eventTimeFormat={{ hour: "numeric", minute: "2-digit", hour12: true }}
+          slotLabelFormat={{ hour: "numeric", minute: "2-digit", hour12: true }}
+        />
+      </div>
+
+      {/* Floating Create Button */}
+      <button
+        onClick={() => setIsCreateModalOpen(true)}
+        className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-lg flex items-center justify-center z-40 transition-all hover:scale-105 active:scale-95"
+        aria-label="Create Appointment"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
+
+      {/* Create Appointment Modal */}
+      <CreateAppointmentModal
+        isOpen={isCreateModalOpen}
+        onClose={handleModalClose}
+        onSave={handleAppointmentSaved}
+        selectedDate={selectedDate}
+      />
+
+      {/* View Appointment Modal */}
+      <ViewAppointmentModal
+        isOpen={viewOpen}
+        onClose={() => setViewOpen(false)}
+        appointmentId={selectedAppointmentId}
+        onUpdate={handleAppointmentSaved}
+      />
+    </div>
+  );
 }

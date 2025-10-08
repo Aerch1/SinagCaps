@@ -17,13 +17,13 @@ export default function AboutSection() {
                         <p className="uppercase tracking-widest text-sm text-amber-600 font-semibold">
                             About Our Church
                         </p>
-                        <h2 className="mt-2 text-3xl sm:text-4xl font-extrabold text-gray-900">
+                        <h2 className="mt-2 text-3xl sm:text-4xl font-light text-gray-900">
                             Our Lady of Peace and Good Voyage Parish
                         </h2>
-                        <p className="mt-4 text-gray-600 leading-relaxed">
-                            We are a welcoming Catholic community rooted in prayer, service, and the Sacraments.
+                        <p className="mt-4 text-lg text-gray-600 leading-relaxed">
+                            A welcoming Catholic community rooted in prayer, service, and the Sacraments.
                         </p>
-                        <p className="mt-3 text-gray-600 leading-relaxed line-clamp-3">
+                        <p className="mt-3 text-gray-600 leading-relaxed">
                             Guided by faith, we journey together as one parish family. We celebrate the Eucharist,
                             foster fellowship, and serve those in need. Our mission is to grow in holiness and
                             share the love of Christ with the world.
@@ -32,16 +32,17 @@ export default function AboutSection() {
                         <div className="mt-6">
                             <a
                                 href="/about"
-                                className="inline-flex items-center rounded-full px-5 py-2.5 text-white font-medium
+                                className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-white font-medium
                            bg-secondary hover:bg-secondary/90 focus:outline-none focus:ring-2
-                           focus:ring-[#710000]/50 transition-colors duration-200"
+                           focus:ring-[#710000]/50 transition-all duration-200 group"
                             >
-                                Learn More
+                                Learn More About Us
+                                <span className="transition-transform group-hover:translate-x-1">→</span>
                             </a>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
-    )
+    );
 }

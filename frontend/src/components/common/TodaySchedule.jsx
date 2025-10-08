@@ -1,52 +1,76 @@
 "use client";
 
-import { format, isSameDay } from "date-fns";
+import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import api from "@/api/api";
 
 /**
- * props:
- *  - appointments: [{ id, start, end, serviceType, clientName, title?, backgroundColor?, allDay? }]
- *  - date?: Date (defaults to today)
- *  - onItemClick?: (appt) => void
- *  - className?: string (height can be controlled by parent; card scrolls internally)
+ * Dynamic Today's Schedule component for admin dashboard/calendar
+ *
+ * - Fetches from `/admin/appointments/today`
+ * - Displays time, service, and client name
+ * - Light-only (no dark mode classes)
  */
-export default function TodaySchedule({ appointments = [], date = new Date(), onItemClick, className = "" }) {
-    const todays = (appointments || [])
-        .filter((e) => e?.start && isSameDay(new Date(e.start), date))
-        .sort((a, b) => new Date(a.start) - new Date(b.start));
+export default function TodaySchedule({ onItemClick, className = "" }) {
+    const [appointments, setAppointments] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // ✅ Fetch today's appointments dynamically
+    useEffect(() => {
+        const fetchToday = async () => {
+            try {
+                const res = await api.get("/admin/appointments/today");
+                if (res.data.success) {
+                    setAppointments(res.data.data || []);
+                }
+            } catch (err) {
+                console.error("❌ Failed to fetch today's appointments:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchToday();
+    }, []);
 
     return (
-        <div className={`bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 pt-6 px-4 flex flex-col ${className}`}>
-            {/* Header — matches calendar header sizing */}
+        <div
+            className={`bg-white rounded-lg border border-gray-200 pt-6 px-4 flex flex-col ${className}`}
+        >
+            {/* Header */}
             <div className="flex items-center justify-between gap-4 mb-4 min-h-[40px]">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                    Today Schedule
+                <h3 className="text-lg font-semibold text-slate-900">
+                    Today’s Schedule
                 </h3>
             </div>
 
-            {!todays.length ? (
-                <p className="text-sm text-gray-500 dark:text-slate-400">No schedule today.</p>
+            {/* Loading / Empty / List */}
+            {loading ? (
+                <p className="text-sm text-gray-500">Loading schedule...</p>
+            ) : appointments.length === 0 ? (
+                <p className="text-sm text-gray-500">No schedule today.</p>
             ) : (
-                <ul className="divide-y divide-gray-100 dark:divide-slate-700 overflow-y-auto scroll-thin flex-1 pr-1">
-                    {todays.map((e) => {
-                        const startDate = new Date(e.start);
-                        const timeLabel = e.allDay ? "All day" : format(startDate, "h:mm a"); // 12-hour
-                        const color = e.backgroundColor || getServiceColor(e.serviceType);
-                        const title = e.title || e.serviceType || "Appointment";
+                <ul className="divide-y divide-gray-100 overflow-y-auto scroll-thin flex-1 pr-1">
+                    {appointments.map((appt) => {
+                        const timeLabel = appt.time
+                            ? format(new Date(`1970-01-01T${appt.time}`), "h:mm a")
+                            : "All day";
+                        const color = getServiceColor(appt.serviceName);
+                        const title = appt.serviceName || "Appointment";
 
                         return (
-                            <li key={e.id}>
+                            <li key={appt.id}>
                                 <button
                                     type="button"
-                                    onClick={() => onItemClick?.(e)}
-                                    className="w-full text-left py-3 border-b hover:bg-gray-50 dark:hover:bg-slate-700/40 dark:border-gray-600 px-2 transition"
+                                    onClick={() => onItemClick?.(appt)}
+                                    className="w-full text-left py-3 px-2 border-b border-gray-100 hover:bg-gray-50 transition"
                                 >
                                     <div className="grid grid-cols-[64px_5px_1fr] items-start gap-3">
-                                        {/* Time (first column) */}
-                                        <div className="text-xs text-gray-600 dark:text-slate-400 pt-0.5 whitespace-nowrap">
+                                        {/* Time */}
+                                        <div className="text-xs text-gray-600 pt-0.5 whitespace-nowrap">
                                             {timeLabel}
                                         </div>
 
-                                        {/* Dot (second column) */}
+                                        {/* Dot */}
                                         <div className="pt-1">
                                             <span
                                                 className="inline-block h-2.5 w-2.5 rounded-full"
@@ -55,13 +79,13 @@ export default function TodaySchedule({ appointments = [], date = new Date(), on
                                             />
                                         </div>
 
-                                        {/* Content (third column) */}
+                                        {/* Content */}
                                         <div className="min-w-0">
-                                            <div className="truncate font-medium text-slate-900 dark:text-slate-100">
+                                            <div className="truncate font-medium text-slate-900">
                                                 {title}
                                             </div>
-                                            <div className="text-xs text-gray-500 dark:text-slate-400 truncate">
-                                                {e.clientName || ""}
+                                            <div className="text-xs text-gray-500 truncate">
+                                                {appt.name || ""}
                                             </div>
                                         </div>
                                     </div>
@@ -75,7 +99,7 @@ export default function TodaySchedule({ appointments = [], date = new Date(), on
     );
 }
 
-/* same color map as calendar */
+/* 🎨 Color mapping per service */
 function getServiceColor(serviceType) {
     const colors = {
         Wedding: "#dc2626",
@@ -84,5 +108,5 @@ function getServiceColor(serviceType) {
         Confirmation: "#059669",
         Funeral: "#7c3aed",
     };
-    return colors[serviceType] || "#64748b"; // slate-500 fallback
+    return colors[serviceType] || "#64748b"; // slate fallback
 }

@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import {
   Calendar,
@@ -8,7 +10,7 @@ import {
 } from "lucide-react";
 import api from "@/api/api";
 
-// 🎨 Map icons & colors per type
+// 🎨 Icon & color mapping per KPI type
 const ICON_MAP = {
   pending: { icon: Clock, color: "text-yellow-600 dark:text-yellow-400" },
   approved: { icon: CheckCircle2, color: "text-green-600 dark:text-green-400" },
@@ -22,49 +24,34 @@ export default function Card() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await api.get("/admin/dashboard/kpis?period=Month");
+        // ✅ Use new controller for calendar KPIs
+        const res = await api.get("/admin/dashboard/calendar/kpis");
         if (res.data.success) {
-          const row = res.data.data || [];
+          const rows = res.data.data || [];
 
-          const pending = row.find((r) => r.id === "pending")?.current || 0;
-          const approved = row.find((r) => r.id === "approved")?.current || 0;
-          const completed = row.find((r) => r.id === "completed")?.current || 0;
+          const cards = rows.map((item) => {
+            const { id, title, current, previous } = item;
+            const iconInfo = ICON_MAP[id] || {};
 
-          const cards = [
-            {
-              id: "pending",
-              title: "Pending",
-              count: pending,
-              change: 0,
-              ...ICON_MAP.pending,
-            },
-            {
-              id: "approved",
-              title: "Approved",
-              count: approved,
-              change: 0,
-              ...ICON_MAP.approved,
-            },
-            {
-              id: "completed",
-              title: "Completed",
-              count: completed,
-              change: 0,
-              ...ICON_MAP.completed,
-            },
-            {
-              id: "upcoming",
-              title: "Upcoming Events",
-              count: 2, // TODO: Replace with real "upcoming" events
-              change: 0,
-              ...ICON_MAP.upcoming,
-            },
-          ];
+            // 📊 Compute percentage change safely
+            let change = 0;
+            if (previous && previous !== 0) {
+              change = ((current - previous) / previous) * 100;
+            }
+
+            return {
+              id,
+              title,
+              count: current || 0,
+              change: Math.round(change),
+              ...iconInfo,
+            };
+          });
 
           setStats(cards);
         }
       } catch (err) {
-        console.error("❌ Failed to fetch KPI stats:", err);
+        console.error("❌ Failed to fetch Calendar KPI stats:", err);
       }
     };
 
@@ -87,18 +74,22 @@ export default function Card() {
   );
 }
 
-// 🟢 Inner reusable card component
+// 🟢 Reusable stat card component
 function StatCard({ icon: Icon, title, count, change = 0, iconColor }) {
   const isPositive = change >= 0;
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 transition-all duration-200 hover:shadow-md">
+      {/* Title */}
       <h3 className="text-sm font-medium text-gray-600 mb-3">{title}</h3>
+
       <div className="flex items-center justify-between gap-4">
+        {/* Left side (numbers + trend) */}
         <div className="flex flex-col gap-2">
           <div className="text-2xl font-bold text-slate-900">
             {typeof count === "number" ? count.toLocaleString() : count}
           </div>
+
           <div className="flex items-center gap-1">
             {isPositive ? (
               <ArrowUpRight size={14} className="text-green-600" />
@@ -106,15 +97,16 @@ function StatCard({ icon: Icon, title, count, change = 0, iconColor }) {
               <ArrowDownRight size={14} className="text-red-600" />
             )}
             <span
-              className={`text-xs font-medium ${
-                isPositive ? "text-green-600" : "text-red-600"
-              }`}
+              className={`text-xs font-medium ${isPositive ? "text-green-600" : "text-red-600"
+                }`}
             >
               {Math.abs(change)}%
             </span>
             <span className="text-xs text-gray-500">vs last period</span>
           </div>
         </div>
+
+        {/* Right side (icon) */}
         <div className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 bg-slate-50">
           <Icon className={`w-6 h-6 ${iconColor}`} />
         </div>

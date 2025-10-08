@@ -10,7 +10,7 @@ const pool = mysql.createPool({
   host: process.env.DB_HOST || "localhost",
   user: process.env.DB_USER || "root",
   password: process.env.DB_PASSWORD || "",
-  database: process.env.DB_NAME || "auth_system",
+  database: process.env.DB_NAME || "olpgvp",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -50,19 +50,40 @@ async function ensureSchema(conn) {
     isDev && String(process.env.DB_RESET).toLowerCase() === "true";
 
   if (!doReset) {
-    console.warn("⚠️  DB_RESET=true → Dropping existing tables (dev only)...");
+    console.warn("⚠️  DB_RESET=true → Dropping all tables except 'users'...");
     await conn.execute("SET FOREIGN_KEY_CHECKS = 0");
-    await conn.execute("DROP TABLE IF EXISTS baptism_sponsors");
-    await conn.execute("DROP TABLE IF EXISTS baptism_details");
-    await conn.execute("DROP TABLE IF EXISTS appointment_requirements");
-    await conn.execute("DROP TABLE IF EXISTS appointments");
-    await conn.execute("DROP TABLE IF EXISTS rules");
-    await conn.execute("DROP TABLE IF EXISTS church_hours");
-    await conn.execute("DROP TABLE IF EXISTS requirements");
-    await conn.execute("DROP TABLE IF EXISTS services");
-    await conn.execute("SET FOREIGN_KEY_CHECKS = 1");
-  }
 
+    // 🔹 Drop only dependent / related tables — but keep `users`
+    const tablesToDrop = [
+      "confirmation_details",
+      "confirmation_sponsors",
+      "baptism_sponsors",
+      "baptism_details",
+      "document_requests",
+      "appointment_requirements",
+      "appointments",
+      "rules",
+      "church_hours",
+      "requirements",
+      "services",
+      "email_verification_tokens",
+      "password_resets",
+      "change_email_requests",
+      "events",
+      "advisories",
+      "announcements",
+      "notifications",
+    ];
+
+    for (const tbl of tablesToDrop) {
+      await conn.execute(`DROP TABLE IF EXISTS ${tbl}`);
+    }
+
+    await conn.execute("SET FOREIGN_KEY_CHECKS = 1");
+    console.log("✅ Reset complete — all tables dropped except 'users'.");
+  } else {
+    console.log("ℹ️ DB_RESET not set — skipping drop (keeping existing data).");
+  }
   // ---- Users
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS users (
@@ -76,7 +97,7 @@ async function ensureSchema(conn) {
       phone VARCHAR(32) NULL,
       gender VARCHAR(32) NULL,
       dob DATE NULL,
-      location VARCHAR(255) NULL,
+      location VARCHAR(255) NULL, 
       avatarUrl VARCHAR(500) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -158,28 +179,32 @@ async function ensureSchema(conn) {
     )
   `);
 
-  // ---- Appointments (cleaned up: no in_progress, no failed)
+  // ---- Appointments
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS appointments (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NULL,
-      service_id INT NOT NULL,
-      name VARCHAR(255) NOT NULL,
-      email VARCHAR(255) NULL,
-      contactNumber VARCHAR(32),
-      address VARCHAR(500) NULL,
-      date DATE NOT NULL,
-      time TIME NOT NULL,
-      party_size INT NOT NULL DEFAULT 1,
-      status ENUM('pending','approved','completed','cancelled','rejected','archived') DEFAULT 'pending',
-      notes TEXT, -- ✅ single notes field here
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      CONSTRAINT fk_appt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-      CONSTRAINT fk_appt_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
-      INDEX idx_service (service_id, date, time, status)
-    )
-  `);
+  CREATE TABLE IF NOT EXISTS appointments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    service_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NULL,
+    contactNumber VARCHAR(32),
+    address VARCHAR(500) NULL,
+    date DATE NOT NULL,
+    time TIME NOT NULL,
+    party_size INT NOT NULL DEFAULT 1,
+    status ENUM('pending','approved','completed','cancelled','rejected','archived') DEFAULT 'pending',
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    approved_at TIMESTAMP NULL DEFAULT NULL,
+    completed_at TIMESTAMP NULL DEFAULT NULL,
+    cancelled_at TIMESTAMP NULL DEFAULT NULL,
+    requirements_completed_at DATETIME NULL,   -- ✅ Add this here
+    CONSTRAINT fk_appt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_appt_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+    INDEX idx_service (service_id, date, time, status)
+  )
+`);
 
   // ---- Appointment requirements (cleaned up: removed status column)
   await conn.execute(`
@@ -258,6 +283,38 @@ async function ensureSchema(conn) {
     )
   `);
 
+  // ---- Confirmation (Kumpil) details
+  await conn.execute(`
+  CREATE TABLE IF NOT EXISTS confirmation_details (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    appointment_id INT NOT NULL,
+    confirmandName VARCHAR(255) NOT NULL,
+    edad INT NOT NULL,
+    fatherName VARCHAR(255) NOT NULL,
+    motherMaidenName VARCHAR(255) NOT NULL,
+    parishOrigin VARCHAR(255) NOT NULL,
+    baptizedAt VARCHAR(255) NOT NULL,
+    baptizedOn DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_confirmation_appt FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+  )
+`);
+
+  // ---- Confirmation (Kumpil) sponsors
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS confirmation_sponsors (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      confirmation_id INT NOT NULL,
+      role ENUM('Ninong','Ninang') NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      address VARCHAR(500) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      CONSTRAINT fk_confirmation_sponsor FOREIGN KEY (confirmation_id) REFERENCES confirmation_details(id) ON DELETE CASCADE
+    )
+  `);
+
   // ---- Events & News
   await conn.execute(`
   CREATE TABLE IF NOT EXISTS events (
@@ -298,6 +355,46 @@ async function ensureSchema(conn) {
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
+
+  await conn.execute(`
+CREATE TABLE IF NOT EXISTS notifications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  type ENUM('system','appointment','announcement','event','advisory','document') DEFAULT 'system',
+  reference_id INT NULL,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+)
+`);
+
+  await conn.execute(`
+  CREATE TABLE IF NOT EXISTS document_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    request_code VARCHAR(50) NOT NULL UNIQUE,           -- e.g. "REQ-001"
+    user_id INT NULL,                                   -- ✅ allow NULL for public requests
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone VARCHAR(30),
+    address TEXT,
+    document_type ENUM(
+      'baptism', 'confirmation', 'marriage',
+      'first-communion', 'death', 'membership', 'other'
+    ) NOT NULL,
+    purpose TEXT NOT NULL,
+    copies INT DEFAULT 1 CHECK (copies >= 1 AND copies <= 10),
+    additional_info TEXT NULL,
+    status ENUM('pending', 'processing', 'completed', 'rejected') DEFAULT 'pending',
+created_at DATETIME DEFAULT CURRENT_TIMESTAMP,    
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_doc_user (user_id),
+    INDEX idx_doc_type (document_type),
+    INDEX idx_doc_status (status)
+  )
+`);
 }
 
 /* ===========================
@@ -335,5 +432,15 @@ async function seedAdmin(conn) {
     baptismServiceId = services[0].id;
   }
 
-  
+  const [confirmationServices] = await conn.execute(
+    "SELECT id FROM services WHERE name=?",
+    ["Kumpil"]
+  );
+  if (confirmationServices.length === 0) {
+    await conn.execute(
+      "INSERT INTO services (name, description, form_type) VALUES (?, ?, ?)",
+      ["Kumpil", "Sakrament ng Kumpil (Confirmation Rite)", "confirmation"]
+    );
+    console.log("✅ Kumpil (Confirmation) service seeded");
+  }
 }

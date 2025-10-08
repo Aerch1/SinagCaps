@@ -1,5 +1,5 @@
-// src/controllers/admin/admin.announcements.controller.js
 import pool from "../../config/db.js";
+import { createNotification } from "../../utils/createNotification.js"; // ✅ Import helper
 
 /* ==================================================
    VALIDATION
@@ -14,22 +14,25 @@ function validateAnnouncement(data) {
 }
 
 /* ==================================================
-   CREATE
+   CREATE (neutral + concise notification with random templates)
 ================================================== */
 export async function createAnnouncement(req, res) {
+  const conn = await pool.getConnection();
   try {
     const { title, category, text, date, status = "active" } = req.body;
     const errors = validateAnnouncement(req.body);
     if (Object.keys(errors).length)
       return res.status(400).json({ success: false, errors });
 
-    // ✅ Author from logged-in user
-    const [userRows] = await pool.query("SELECT name FROM users WHERE id=?", [
+    // ✅ Author from logged-in admin
+    const [userRows] = await conn.query("SELECT name FROM users WHERE id=?", [
       req.userId,
     ]);
     const author = userRows[0]?.name || "Admin User";
 
-    const [result] = await pool.query(
+    await conn.beginTransaction();
+
+    const [result] = await conn.query(
       `
       INSERT INTO announcements (title, category, author, text, date, status)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -37,10 +40,43 @@ export async function createAnnouncement(req, res) {
       [title, category, author, text, date, status]
     );
 
-    res.json({ success: true, id: result.insertId });
+    const announcementId = result.insertId;
+
+    /* ✅ Notify all verified public users */
+    const [users] = await conn.query(
+      `SELECT id FROM users WHERE role='user' AND isVerified=1`
+    );
+
+    /* ✅ Message templates — neutral, concise, varied */
+    const templates = [
+      `There's a new announcement: "${title}". Check it out in the Announcements section.`,
+      `A new parish announcement titled "${title}" has just been posted. Visit the Announcements page for details.`,
+      `Stay informed! "${title}" has been added as a new announcement. View it in the Announcements section.`,
+      `📢 "${title}" has been announced. Head to the Announcements page for more information.`,
+      `New announcement alert: "${title}". See what’s new in the Announcements section.`,
+    ];
+
+    for (const u of users) {
+      const message = templates[Math.floor(Math.random() * templates.length)];
+
+      await createNotification({
+        user_id: u.id,
+        title: "📢 New Announcement",
+        message,
+        type: "announcement",
+        reference_id: announcementId,
+      });
+    }
+
+    await conn.commit();
+
+    res.json({ success: true, id: announcementId });
   } catch (err) {
+    await conn.rollback();
     console.error("❌ CREATE ANNOUNCEMENT ERROR:", err);
     res.status(500).json({ success: false, error: "Server error" });
+  } finally {
+    conn.release();
   }
 }
 

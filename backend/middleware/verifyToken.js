@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 
 export const verifyToken = (req, res, next) => {
   try {
-    const token = req.cookies?.token;
+    const token = req.cookies?.accessToken || req.cookies?.token;
 
     if (!token) {
       return res.status(401).json({
@@ -21,7 +21,11 @@ export const verifyToken = (req, res, next) => {
       });
     }
 
+    // ✅ Fix: make both available
     req.userId = decoded.userId;
+    req.user = { id: decoded.userId }; // <— this line fixes your 401
+    // middleware/verifyToken.js
+
     next();
   } catch (error) {
     console.error("Token verification error:", error);

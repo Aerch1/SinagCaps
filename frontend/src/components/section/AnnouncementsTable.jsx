@@ -42,6 +42,10 @@ export default function AnnouncementsTable() {
 
     const { user } = useAuthStore();
 
+    // Pagination
+    const [page, setPage] = useState(1);
+    const pageSize = 6;
+
     const fetchAnnouncements = async () => {
         try {
             setLoading(true);
@@ -70,6 +74,13 @@ export default function AnnouncementsTable() {
         }
         return [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
     }, [announcements, query]);
+
+    // Pagination logic
+    const totalPages = Math.ceil(filtered.length / pageSize);
+    const paginatedData = useMemo(() => {
+        const start = (page - 1) * pageSize;
+        return filtered.slice(start, start + pageSize);
+    }, [filtered, page, pageSize]);
 
     const handleSave = async (formData) => {
         try {
@@ -109,14 +120,14 @@ export default function AnnouncementsTable() {
     };
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-3 md:p-6 space-y-4 md:space-y-6 w-full overflow-hidden">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 md:gap-3">
                 <div>
-                    <h2 className="text-lg font-semibold text-gray-900">
+                    <h2 className="text-base md:text-lg font-semibold text-gray-900">
                         Announcements Management
                     </h2>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs md:text-sm text-gray-500">
                         Manage parish announcements and bulletins.
                     </p>
                 </div>
@@ -125,100 +136,155 @@ export default function AnnouncementsTable() {
                         setEditItem(null);
                         setOpenModal(true);
                     }}
-                    className="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg"
+                    className="inline-flex items-center gap-1.5 md:gap-2 bg-gray-900 hover:bg-gray-800 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm whitespace-nowrap"
                 >
-                    <Plus className="h-4 w-4" /> New Announcement
+                    <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" /> New Announcement
                 </button>
             </div>
 
             {/* Search */}
-            <div className="relative w-full sm:w-72">
+            <div className="relative w-full sm:w-64 md:w-72">
                 <input
                     type="text"
                     value={query}
-                    onChange={(e) => setQuery(e.target.value)}
+                    onChange={(e) => {
+                        setQuery(e.target.value);
+                        setPage(1);
+                    }}
                     placeholder="Search announcements..."
-                    className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-3 text-sm text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-gray-200 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-300 bg-white py-1.5 md:py-2 pl-2.5 md:pl-3 pr-2.5 md:pr-3 text-xs md:text-sm text-gray-900 placeholder:text-gray-500 focus:ring-2 focus:ring-gray-200 focus:outline-none"
                 />
             </div>
 
             {/* Table */}
-            <div className="overflow-hidden border border-gray-200 rounded-xl bg-white">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            {["Title", "Category", "Author", "Date", "Actions"].map((h) => (
-                                <th
-                                    key={h}
-                                    className="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500 tracking-wider"
-                                >
-                                    {h}
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {filtered.length === 0 ? (
+            <div className="overflow-hidden border border-gray-200 rounded-lg md:rounded-xl bg-white">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 text-xs md:text-sm">
+                        <thead className="bg-gray-50">
                             <tr>
-                                <td
-                                    colSpan={5}
-                                    className="text-center py-10 text-gray-500 text-sm"
-                                >
-                                    No announcements found.
-                                </td>
+                                {["Title", "Category", "Author", "Date", "Actions"].map((h) => (
+                                    <th
+                                        key={h}
+                                        className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs font-medium uppercase text-gray-500 tracking-wider whitespace-nowrap"
+                                    >
+                                        {h}
+                                    </th>
+                                ))}
                             </tr>
-                        ) : (
-                            filtered.map((item) => (
-                                <tr key={item.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 font-medium text-gray-900">
-                                        {item.title}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span
-                                            className={`text-xs font-medium px-2 py-1 rounded-full ${categoryColor(
-                                                item.category
-                                            )}`}
-                                        >
-                                            {item.category}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-gray-700">{item.author}</td>
-                                    <td className="px-6 py-4 text-gray-700">
-                                        {new Date(item.date).toLocaleDateString("en-US", {
-                                            year: "numeric",
-                                            month: "short",
-                                            day: "numeric",
-                                        })}
-                                    </td>
-                                    <td className="px-6 py-4 text-right space-x-2">
-                                        <button
-                                            onClick={() => setViewItem(item)}
-                                            className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-xs"
-                                        >
-                                            <Eye className="h-4 w-4" /> View
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setEditItem(item);
-                                                setOpenModal(true);
-                                            }}
-                                            className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-xs"
-                                        >
-                                            <Edit2 className="h-4 w-4" /> Edit
-                                        </button>
-                                        <button
-                                            onClick={() => confirmDelete(item)}
-                                            className="inline-flex items-center gap-1 px-3 py-1.5 border border-red-300 rounded-md text-red-600 hover:bg-red-50 text-xs"
-                                        >
-                                            <Trash2 className="h-4 w-4" /> Delete
-                                        </button>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={5} className="text-center py-8 md:py-10 text-gray-500 text-xs md:text-sm">
+                                        Loading…
                                     </td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                            ) : paginatedData.length === 0 ? (
+                                <tr>
+                                    <td
+                                        colSpan={5}
+                                        className="text-center py-8 md:py-10 text-gray-500 text-xs md:text-sm"
+                                    >
+                                        No announcements found.
+                                    </td>
+                                </tr>
+                            ) : (
+                                paginatedData.map((item) => (
+                                    <tr key={item.id} className="hover:bg-gray-50">
+                                        <td className="px-3 md:px-6 py-3 md:py-4 font-medium text-gray-900 max-w-[200px] truncate">
+                                            {item.title}
+                                        </td>
+                                        <td className="px-3 md:px-6 py-3 md:py-4">
+                                            <span
+                                                className={`text-[10px] md:text-xs font-medium px-1.5 md:px-2 py-0.5 md:py-1 rounded-full whitespace-nowrap ${categoryColor(
+                                                    item.category
+                                                )}`}
+                                            >
+                                                {item.category}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 md:px-6 py-3 md:py-4 text-gray-700 max-w-[150px] truncate">
+                                            {item.author}
+                                        </td>
+                                        <td className="px-3 md:px-6 py-3 md:py-4 text-gray-700 whitespace-nowrap">
+                                            {new Date(item.date).toLocaleDateString("en-US", {
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                            })}
+                                        </td>
+                                        <td className="px-3 md:px-6 py-3 md:py-4">
+                                            <div className="flex justify-end gap-1 md:gap-2 flex-wrap">
+                                                <button
+                                                    onClick={() => setViewItem(item)}
+                                                    className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-1 md:py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-[10px] md:text-xs whitespace-nowrap"
+                                                >
+                                                    <Eye className="h-3 w-3 md:h-4 md:w-4" /> View
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setEditItem(item);
+                                                        setOpenModal(true);
+                                                    }}
+                                                    className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-1 md:py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-[10px] md:text-xs whitespace-nowrap"
+                                                >
+                                                    <Edit2 className="h-3 w-3 md:h-4 md:w-4" /> Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => confirmDelete(item)}
+                                                    className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-1 md:py-1.5 border border-red-300 rounded-md text-red-600 hover:bg-red-50 text-[10px] md:text-xs whitespace-nowrap"
+                                                >
+                                                    <Trash2 className="h-3 w-3 md:h-4 md:w-4" /> Delete
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row justify-between items-center border-t border-gray-200 pt-3 md:pt-4 gap-3">
+                    <div className="text-xs md:text-sm text-gray-600">
+                        Showing {(page - 1) * pageSize + 1} to{" "}
+                        {Math.min(page * pageSize, filtered.length)} of {filtered.length}
+                    </div>
+
+                    <div className="flex items-center gap-1 md:gap-2">
+                        <button
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="h-8 w-8 md:h-9 md:w-9 rounded-md border bg-white text-xs md:text-sm hover:bg-gray-50 disabled:opacity-50"
+                        >
+                            ‹
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => (
+                            <button
+                                key={i}
+                                onClick={() => setPage(i + 1)}
+                                className={`h-8 w-8 md:h-9 md:w-9 rounded-md border text-xs md:text-sm ${
+                                    page === i + 1
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-white hover:bg-gray-50"
+                                }`}
+                            >
+                                {i + 1}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={page === totalPages}
+                            className="h-8 w-8 md:h-9 md:w-9 rounded-md border bg-white text-xs md:text-sm hover:bg-gray-50 disabled:opacity-50"
+                        >
+                            ›
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Create/Edit Modal */}
             <Modal
@@ -245,17 +311,17 @@ export default function AnnouncementsTable() {
                 className="max-w-2xl"
             >
                 {viewItem && (
-                    <div className="space-y-5 text-gray-800 text-sm max-h-[70vh] overflow-y-auto p-2">
+                    <div className="space-y-4 md:space-y-5 text-gray-800 text-xs md:text-sm max-h-[70vh] overflow-y-auto p-1 md:p-2">
                         <div className="flex items-center justify-between flex-wrap gap-2">
                             <span
-                                className={`px-3 py-1 text-xs font-medium rounded-full ${categoryColor(
+                                className={`px-2 md:px-3 py-0.5 md:py-1 text-[10px] md:text-xs font-medium rounded-full ${categoryColor(
                                     viewItem.category
                                 )}`}
                             >
                                 {viewItem.category}
                             </span>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                                <CalendarDays className="w-4 h-4" />
+                            <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-gray-500">
+                                <CalendarDays className="w-3 h-3 md:w-4 md:h-4" />
                                 {new Date(viewItem.date).toLocaleDateString("en-US", {
                                     year: "numeric",
                                     month: "short",
@@ -264,21 +330,23 @@ export default function AnnouncementsTable() {
                             </div>
                         </div>
 
-                        <h3 className="text-xl font-semibold leading-snug text-gray-900">
+                        <h3 className="text-lg md:text-xl font-semibold leading-snug text-gray-900">
                             {viewItem.title}
                         </h3>
-                        <p className="text-sm text-gray-500 mb-2">By {viewItem.author}</p>
+                        <p className="text-xs md:text-sm text-gray-500 mb-1 md:mb-2">
+                            By {viewItem.author}
+                        </p>
 
-                        <div className="border-t border-gray-200 pt-3 text-gray-700 whitespace-pre-line leading-relaxed">
+                        <div className="border-t border-gray-200 pt-2 md:pt-3 text-gray-700 whitespace-pre-line leading-relaxed">
                             {viewItem.text}
                         </div>
 
-                        <div className="flex justify-end pt-4">
+                        <div className="flex justify-end pt-3 md:pt-4">
                             <button
                                 onClick={() => confirmDelete(viewItem)}
-                                className="inline-flex items-center gap-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 md:py-2 bg-red-600 hover:bg-red-700 text-white text-xs md:text-sm font-medium rounded-md"
                             >
-                                <Trash2 className="h-4 w-4" /> Delete
+                                <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" /> Delete
                             </button>
                         </div>
                     </div>
@@ -353,20 +421,20 @@ function AnnouncementForm({ editItem, onSave, onCancel }) {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+        <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4 mt-1 md:mt-2">
             <div>
-                <label className="text-sm font-medium text-gray-700">Title</label>
+                <label className="text-xs md:text-sm font-medium text-gray-700">Title</label>
                 <input
                     name="title"
                     value={form.title}
                     onChange={handleChange}
-                    className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm"
+                    className="mt-1 w-full rounded-md border border-gray-300 p-1.5 md:p-2 text-xs md:text-sm"
                 />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 <div>
-                    <label className="text-sm font-medium text-gray-700">Category</label>
+                    <label className="text-xs md:text-sm font-medium text-gray-700">Category</label>
                     <Dropdown
                         value={form.category}
                         onChange={(v) => setForm((f) => ({ ...f, category: v }))}
@@ -377,24 +445,24 @@ function AnnouncementForm({ editItem, onSave, onCancel }) {
                     <button
                         type="button"
                         onClick={() => setShowNewCategory(true)}
-                        className="mt-2 text-xs text-gray-600 hover:text-gray-900 inline-flex items-center gap-1"
+                        className="mt-1.5 md:mt-2 text-[10px] md:text-xs text-gray-600 hover:text-gray-900 inline-flex items-center gap-0.5 md:gap-1"
                     >
                         <Plus className="w-3 h-3" /> Add Category
                     </button>
 
                     {showNewCategory && (
-                        <div className="mt-2 flex items-center gap-2">
+                        <div className="mt-1.5 md:mt-2 flex items-center gap-1.5 md:gap-2">
                             <input
                                 type="text"
                                 value={newCategory}
                                 onChange={(e) => setNewCategory(e.target.value)}
                                 placeholder="New category name"
-                                className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
+                                className="w-full border border-gray-300 rounded-md px-2 py-1 text-xs md:text-sm"
                             />
                             <button
                                 type="button"
                                 onClick={handleAddCategory}
-                                className="px-3 py-1 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"
+                                className="px-2 md:px-3 py-1 text-xs md:text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 whitespace-nowrap"
                             >
                                 Add
                             </button>
@@ -403,39 +471,39 @@ function AnnouncementForm({ editItem, onSave, onCancel }) {
                 </div>
 
                 <div>
-                    <label className="text-sm font-medium text-gray-700">Date</label>
+                    <label className="text-xs md:text-sm font-medium text-gray-700">Date</label>
                     <input
                         type="date"
                         name="date"
                         value={form.date}
                         onChange={handleChange}
-                        className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm"
+                        className="mt-1 w-full rounded-md border border-gray-300 p-1.5 md:p-2 text-xs md:text-sm"
                     />
                 </div>
             </div>
 
             <div>
-                <label className="text-sm font-medium text-gray-700">Content</label>
+                <label className="text-xs md:text-sm font-medium text-gray-700">Content</label>
                 <textarea
                     name="text"
                     rows={4}
                     value={form.text}
                     onChange={handleChange}
-                    className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm"
+                    className="mt-1 w-full rounded-md border border-gray-300 p-1.5 md:p-2 text-xs md:text-sm"
                 />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-1.5 md:gap-2 pt-1 md:pt-2">
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="px-4 py-2 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                    className="px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
                 >
                     Cancel
                 </button>
                 <button
                     type="submit"
-                    className="px-4 py-2 text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"
+                    className="px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm bg-gray-900 text-white rounded-md hover:bg-gray-800"
                 >
                     Save
                 </button>

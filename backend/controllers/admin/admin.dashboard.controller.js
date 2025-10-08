@@ -8,9 +8,6 @@ export async function getKpiData(req, res) {
   const { period = "Month" } = req.query;
 
   try {
-    // -------------------------
-    // Date range filters
-    // -------------------------
     let currentWhere, previousWhere;
     if (period === "Week") {
       currentWhere = "YEARWEEK(date, 1) = YEARWEEK(CURDATE(), 1)";
@@ -26,9 +23,7 @@ export async function getKpiData(req, res) {
         "YEAR(date) = YEAR(CURDATE() - INTERVAL 1 MONTH) AND MONTH(date) = MONTH(CURDATE() - INTERVAL 1 MONTH)";
     }
 
-    // -------------------------
-    // Appointments (current vs previous)
-    // -------------------------
+    // ✅ Same as before for dashboard
     const [currentAppts] = await pool.query(
       `SELECT 
          COUNT(*) as total,
@@ -45,24 +40,14 @@ export async function getKpiData(req, res) {
        WHERE ${previousWhere}`
     );
 
-    // -------------------------
-    // Today vs Yesterday
-    // -------------------------
     const [today] = await pool.query(
-      `SELECT COUNT(*) as today 
-       FROM appointments 
-       WHERE DATE(date) = CURDATE()`
+      `SELECT COUNT(*) as today FROM appointments WHERE DATE(date) = CURDATE()`
     );
 
     const [yesterday] = await pool.query(
-      `SELECT COUNT(*) as yesterday 
-       FROM appointments 
-       WHERE DATE(date) = CURDATE() - INTERVAL 1 DAY`
+      `SELECT COUNT(*) as yesterday FROM appointments WHERE DATE(date) = CURDATE() - INTERVAL 1 DAY`
     );
 
-    // -------------------------
-    // Active Users
-    // -------------------------
     const [currentUsers] = await pool.query(
       `SELECT COUNT(*) as activeUsers
        FROM users
@@ -89,9 +74,6 @@ export async function getKpiData(req, res) {
          }`
     );
 
-    // -------------------------
-    // Final KPI response
-    // -------------------------
     const data = [
       {
         id: "total",
@@ -113,7 +95,7 @@ export async function getKpiData(req, res) {
       },
       {
         id: "activeUsers",
-        title: "Total Active Users",
+        title: "Active Users",
         current: currentUsers[0].activeUsers || 0,
         previous: previousUsers[0].activeUsers || 0,
       },
@@ -219,5 +201,60 @@ export async function getBarChartData(req, res) {
     res
       .status(500)
       .json({ success: false, message: "Failed to fetch bar chart data" });
+  }
+}
+/* ==================================================
+   GET /api/admin/calendar/kpis
+   → Returns KPI for Calendar Analytics Page
+================================================== */
+export async function getCalendarKpis(req, res) {
+  try {
+    const [currentAppts] = await pool.query(`
+      SELECT 
+        SUM(status='pending') as pending,
+        SUM(status='approved') as approved,
+        SUM(status='completed') as completed
+      FROM appointments
+    `);
+
+    const [upcomingEvents] = await pool.query(`
+      SELECT COUNT(*) as upcoming
+      FROM events
+      WHERE type='event' 
+        AND status='Active'
+        AND date >= CURDATE()
+    `);
+
+    const data = [
+      {
+        id: "pending",
+        title: "Pending Appointments",
+        current: currentAppts[0].pending || 0,
+        previous: 0,
+      },
+      {
+        id: "approved",
+        title: "Approved Appointments",
+        current: currentAppts[0].approved || 0,
+        previous: 0,
+      },
+      {
+        id: "completed",
+        title: "Completed Appointments",
+        current: currentAppts[0].completed || 0,
+        previous: 0,
+      },
+      {
+        id: "upcoming",
+        title: "Upcoming Events",
+        current: upcomingEvents[0].upcoming || 0,
+        previous: 0,
+      },
+    ];
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error("❌ getCalendarKpis error:", err);
+    res.status(500).json({ success: false, message: "Failed to fetch calendar KPIs" });
   }
 }

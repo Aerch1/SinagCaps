@@ -1,12 +1,32 @@
 "use client";
 import { useState } from "react";
-import { User, Mail, Lock, Trash2, ChevronRight } from "lucide-react";
+import { Mail, Lock, Trash2, ChevronRight } from "lucide-react";
 import { useAuthStore } from "../../../../store/authStore.js";
 import PasswordConfirmModal from "../../../../components/ui/PasswordConfirmModal.jsx";
 import ChangeEmailModal from "../../../../components/ui/ChangeEmailModal.jsx";
 import ResetPasswordModal from "../../../../components/ui/ResetPasswordModal.jsx";
 import DeleteAccountModal from "../../../../components/ui/DeleteAccountModal.jsx";
 
+/* ==================================================
+   Utility: Mask Email (e.g. archi********@g****.com)
+================================================== */
+function maskEmail(email) {
+    if (!email || !email.includes("@")) return "********@********";
+    const [local, domain] = email.split("@");
+    const domainParts = domain.split(".");
+    const maskedLocal =
+        local.slice(0, 5) + "*".repeat(Math.max(local.length - 5, 4));
+    const maskedDomain =
+        domainParts[0].slice(0, 1) +
+        "*".repeat(Math.max(domainParts[0].length - 1, 3)) +
+        "." +
+        (domainParts[1] || "com");
+    return `${maskedLocal}@${maskedDomain}`;
+}
+
+/* ==================================================
+   UI Components
+================================================== */
 function ActionButton({ children, onClick, variant = "default", disabled }) {
     const cls =
         variant === "danger"
@@ -22,14 +42,21 @@ function ActionButton({ children, onClick, variant = "default", disabled }) {
         </button>
     );
 }
+
 function Row({ icon, title, description, action, rightChevron = false }) {
     return (
         <div className="flex items-center justify-between gap-6 px-6 py-6 border-b border-gray-200">
             <div className="flex min-w-0 items-center gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full">{icon}</div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full">
+                    {icon}
+                </div>
                 <div className="min-w-0">
                     <div className="text-sm font-medium text-gray-900">{title}</div>
-                    {description ? <div className="mt-0.5 text-sm text-gray-600 truncate">{description}</div> : null}
+                    {description ? (
+                        <div className="mt-0.5 text-sm text-gray-600 truncate">
+                            {description}
+                        </div>
+                    ) : null}
                 </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">
@@ -40,34 +67,42 @@ function Row({ icon, title, description, action, rightChevron = false }) {
     );
 }
 
+/* ==================================================
+   Main Component
+================================================== */
 export default function AccountSecurityPanel() {
-    const { user, reauthPassword, requestEmailChange, confirmEmailChange, changePassword, deleteAccount } =
-        useAuthStore();
+    const {
+        user,
+        reauthPassword,
+        requestEmailChange,
+        confirmEmailChange,
+        changePassword,
+        deleteAccount,
+    } = useAuthStore();
 
-    // password modal (for change-email)
+    // Password modal (confirm before email change)
     const [pwdOpen, setPwdOpen] = useState(false);
     const [pwdLoading, setPwdLoading] = useState(false);
     const [pwdError, setPwdError] = useState("");
 
-    // change email modal
+    // Change email modal
     const [emailOpen, setEmailOpen] = useState(false);
     const [emailLoading, setEmailLoading] = useState(false);
     const [sendingCode, setSendingCode] = useState(false);
     const [emailErr, setEmailErr] = useState("");
     const [codeErr, setCodeErr] = useState("");
 
-    // reset password modal
+    // Reset password modal
     const [resetOpen, setResetOpen] = useState(false);
     const [resetBusy, setResetBusy] = useState(false);
-    const [curErr, setCurErr] = useState("");
-    const [newErr, setNewErr] = useState("");
-    const [conErr, setConErr] = useState("");
 
-    //delete modal
+    // Delete account modal
     const [delOpen, setDelOpen] = useState(false);
     const [delBusy, setDelBusy] = useState(false);
 
-    // --- change email flow ---
+    /* ==================================================
+       Change Email Flow
+    ================================================== */
     const handleConfirmPassword = async (password) => {
         setPwdLoading(true);
         setPwdError("");
@@ -77,6 +112,7 @@ export default function AccountSecurityPanel() {
         setPwdOpen(false);
         setEmailOpen(true);
     };
+
     const handleSendCode = async (newEmail) => {
         setSendingCode(true);
         setEmailErr("");
@@ -84,6 +120,7 @@ export default function AccountSecurityPanel() {
         setSendingCode(false);
         if (!res.ok) setEmailErr(res.message);
     };
+
     const handleConfirmEmail = async ({ email, code }) => {
         setEmailLoading(true);
         setEmailErr("");
@@ -98,66 +135,74 @@ export default function AccountSecurityPanel() {
         setEmailOpen(false);
     };
 
-    // --- reset password flow ---
-    const handleResetSubmit = async ({ current, next, logoutOthers }) => {
-        // local checks (extra UX safety)
-        setCurErr("");
-        setNewErr("");
-        setConErr("");
-        if (!current) {
-            setCurErr("Enter your current password.");
-            return;
-        }
-        if (next.length < 6) {
-            setNewErr("Password must be at least 6 characters.");
-            return;
-        }
-        // the modal already prevents mismatch, but double-check:
-        // (no field here because modal already guards OK button)
+    /* ==================================================
+       Reset Password Flow
+    ================================================== */
+    const handleResetSubmit = async ({ current, next }) => {
         setResetBusy(true);
-        const res = await changePassword(current, next, logoutOthers);
+        const res = await changePassword(current, next);
         setResetBusy(false);
-        if (!res.ok) {
-            if (res.field === "current") setCurErr(res.message);
-            else if (res.field === "new") setNewErr(res.message);
-            else setConErr(res.message);
-            return;
-        }
-        setResetOpen(false);
+        if (res.ok) setResetOpen(false);
+        return res;
     };
 
     return (
         <section className="bg-white">
             <div className="max-w-4xl mx-auto py-2">
-                <div className="overflow-hidden">
-                    <Row
-                        icon={<User className="h-5 w-5 text-sky-600" />}
-                        title="Login ID"
-                        description={user?.name || "—"}
-                        action={<ActionButton disabled>Change</ActionButton>}
-                    />
+                <div className="overflow-hidden border-gray-200">
+                    {/* Email row with masked display */}
                     <Row
                         icon={<Mail className="h-5 w-5 text-amber-600" />}
                         title="Email address"
-                        description={user?.email || "—"}
-                        action={<ActionButton onClick={() => setPwdOpen(true)} disabled={!user}>Change</ActionButton>}
+                        description={
+                            user?.email
+                                ? maskEmail(user.email)
+                                : "No email address linked yet."
+                        }
+                        action={
+                            <ActionButton
+                                onClick={() => setPwdOpen(true)}
+                                disabled={!user}
+                            >
+                                Change
+                            </ActionButton>
+                        }
                     />
+
+                    {/* Reset password */}
                     <Row
                         icon={<Lock className="h-5 w-5 text-amber-600" />}
                         title="Reset password"
                         description="Set a new password for your account."
-                        action={<ActionButton onClick={() => setResetOpen(true)} disabled={!user}>Reset</ActionButton>}
+                        action={
+                            <ActionButton
+                                onClick={() => setResetOpen(true)}
+                                disabled={!user}
+                            >
+                                Reset
+                            </ActionButton>
+                        }
                     />
+
+                    {/* Delete account */}
                     <Row
                         icon={<Trash2 className="h-5 w-5 text-rose-600" />}
                         title="Delete account"
                         description="Permanently delete your account and related data."
-                        action={<ActionButton variant="danger" onClick={() => setDelOpen(true)} disabled={!user}>Delete</ActionButton>}
+                        action={
+                            <ActionButton
+                                variant="danger"
+                                onClick={() => setDelOpen(true)}
+                                disabled={!user}
+                            >
+                                Delete
+                            </ActionButton>
+                        }
                     />
                 </div>
             </div>
 
-            {/* change-email password confirm */}
+            {/* Modals */}
             <PasswordConfirmModal
                 open={pwdOpen}
                 email={user?.email}
@@ -171,7 +216,6 @@ export default function AccountSecurityPanel() {
                 onSubmit={handleConfirmPassword}
             />
 
-            {/* change email */}
             <ChangeEmailModal
                 open={emailOpen}
                 initialEmail=""
@@ -190,18 +234,11 @@ export default function AccountSecurityPanel() {
                 onSubmit={handleConfirmEmail}
             />
 
-            {/* reset password */}
             <ResetPasswordModal
                 open={resetOpen}
                 loading={resetBusy}
                 onClose={() => setResetOpen(false)}
-                onSubmit={async ({ current, next }) => {
-                    setResetBusy(true);
-                    const res = await changePassword(current, next); // no logoutOthers arg
-                    setResetBusy(false);
-                    if (res.ok) setResetOpen(false);
-                    return res;
-                }}
+                onSubmit={handleResetSubmit}
             />
 
             <DeleteAccountModal
@@ -213,15 +250,10 @@ export default function AccountSecurityPanel() {
                     setDelBusy(true);
                     const res = await deleteAccount(password);
                     setDelBusy(false);
-                    if (res.ok) {
-                        setDelOpen(false);
-                        // optional: redirect or hard refresh
-                        // window.location.href = "/";
-                    }
+                    if (res.ok) setDelOpen(false);
                     return res;
                 }}
             />
-
         </section>
     );
 }

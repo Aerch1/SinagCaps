@@ -1,4 +1,3 @@
-// src/routes/admin.routes.js
 import { Router } from "express";
 import {
   getAppointments,
@@ -7,6 +6,8 @@ import {
   updateAppointmentAdmin,
   getAppointmentById,
   exportAppointments,
+  getTodayAppointments,
+  getAppointmentConflicts, // ✅ Add this import
 } from "../controllers/admin/admin.appointments.controller.js";
 
 import {
@@ -26,13 +27,16 @@ const router = Router();
 /* ---------------- Appointment Management ---------------- */
 router.get("/appointments", verifyToken, isAdmin, getAppointments);
 router.post("/appointments/filter", verifyToken, isAdmin, filterAppointments);
+router.get("/appointments/today", verifyToken, isAdmin, getTodayAppointments);
 router.get("/appointments/export", verifyToken, isAdmin, exportAppointments);
 router.post("/appointments", verifyToken, isAdmin, createAppointmentAdmin);
+router.get("/appointments/conflicts", verifyToken, isAdmin, getAppointmentConflicts);
 router.patch("/appointments/:id", verifyToken, isAdmin, updateAppointmentAdmin);
 router.get("/appointments/:id", verifyToken, isAdmin, getAppointmentById);
 
+// ✅ Add this route — used by useConflictCheck.js
+
 /* ---------------- Appointment Processing ---------------- */
-// ✅ these now only deal with `completed`, no status column in appointment_requirements
 router.get(
   "/appointments/:id/requirements",
   verifyToken,

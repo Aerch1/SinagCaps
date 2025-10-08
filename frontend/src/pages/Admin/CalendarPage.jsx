@@ -6,16 +6,11 @@ import Calendar from "../../components/common/Calendar";
 import TodaySchedule from "../../components/common/TodaySchedule";
 import UpcomingEvents from "../../components/common/UpcomingEvents";
 import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal";
-import useChurchHours from "@/hooks/useChurchHours"; // ✅ dynamic hours
+import useChurchHours from "@/hooks/useChurchHours";
 
 export default function CalendarPage() {
-  // Appointments shown on calendar + TodaySchedule
   const [appointments, setAppointments] = useState([]);
-
-  // Independent upcoming events (fiesta, holy week, etc.)
   const [events, setEvents] = useState([]);
-
-  // ViewAppointmentModal (page-level)
   const [viewOpen, setViewOpen] = useState(false);
   const [viewAppt, setViewAppt] = useState(null);
 
@@ -26,59 +21,59 @@ export default function CalendarPage() {
     setViewOpen(true);
   };
 
-  // ✅ Use church hours to build available time slots dynamically
+  // Dynamic available times based on church hours
   const fetchAvailableTimes = async (date) => {
     if (!date) return [];
     const day = new Date(date).getDay(); // 0=Sunday
     const hours = churchHours[day];
     if (!hours || hours.is_closed) return [];
-
-    return generateTimes(hours.open_time, hours.close_time, 30); // every 30 min
+    return generateTimes(hours.open_time, hours.close_time, 30);
   };
 
   return (
-    <div className="w-full max-w-full space-y-4 md:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 md:gap-6 sm:flex-row sm:items-center sm:justify-between px-2 sm:px-4">
+    <div className="w-full max-w-7xl mx-auto space-y-6 sm:space-y-8 lg:space-y-10  pb-8">
+      {/* ---------- Header ---------- */}
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">Calendar</h1>
-          <p className="text-xs md:text-sm text-gray-500 mt-1">
-            Manage appointments and schedules
+          <h1 className="text-2xl font-bold text-slate-900">Calendar</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Manage appointments, schedules, and upcoming parish events
           </p>
         </div>
-      </div>
+      </header>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6 px-2 sm:px-4">
+      {/* ---------- KPI Cards ---------- */}
+      <section className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-4">
         <Card />
-      </div>
+      </section>
 
-      {/* Calendar + Right Column */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-4 px-2 sm:px-4">
-        {/* Calendar */}
-        <div className="w-full">
+      {/* ---------- Main Grid: Calendar + Right Column ---------- */}
+      <main className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-5 lg:gap-6">
+        {/* Left: Calendar */}
+        <div className="w-full bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 md:p-5">
           <Calendar
             appointments={appointments}
             onAppointmentsChange={setAppointments}
           />
         </div>
 
-        {/* Right column */}
-        <div className="grid grid-cols-1 gap-4 md:grid-rows-2 w-full">
+        {/* Right: Today Schedule + Upcoming Events */}
+        <aside className="flex flex-col gap-4 sm:gap-3">
           <TodaySchedule
             appointments={appointments}
             onItemClick={handleTodayItemClick}
-            className="h-[50vh]"
+            className="flex-1 min-h-[300px] md:min-h-[45vh]"
           />
+
           <UpcomingEvents
             events={events}
             onItemClick={(evt) => console.log("Clicked Upcoming:", evt)}
-            className="h-[50vh]"
+            className="flex-1 min-h-[300px] md:min-h-[45vh]"
           />
-        </div>
-      </div>
+        </aside>
+      </main>
 
-      {/* ViewAppointmentModal */}
+      {/* ---------- Appointment View Modal ---------- */}
       <ViewAppointmentModal
         isOpen={viewOpen}
         onClose={() => setViewOpen(false)}
@@ -94,7 +89,6 @@ export default function CalendarPage() {
     </div>
   );
 
-
   /* Utility to generate time slots */
   function generateTimes(startHHmm = "08:00", endHHmm = "17:30", everyMin = 30) {
     const [sh, sm] = startHHmm.split(":").map(Number);
@@ -103,9 +97,7 @@ export default function CalendarPage() {
     let h = sh,
       m = sm;
     while (h < eh || (h === eh && m <= em)) {
-      out.push(
-        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
-      );
+      out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
       m += everyMin;
       while (m >= 60) {
         m -= 60;

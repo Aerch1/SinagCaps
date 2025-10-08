@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useState, useMemo } from "react";
 import { CalendarDays, Clock, Edit2, Trash2, X, Plus } from "lucide-react";
 import { formatDate, to12h } from "@/utils/availabilityUtils";
 
@@ -15,6 +15,24 @@ const StatusChip = ({ status }) => {
       className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color}`}
     >
       {status}
+    </span>
+  );
+};
+
+/* ---------- Type Indicator ---------- */
+const TypeChip = ({ type }) => {
+  if (!type) return null;
+  const isEvent = type.toLowerCase() === "event";
+  const color = isEvent
+    ? "bg-blue-50 text-blue-700 ring-1 ring-blue-600/20"
+    : "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20";
+  const label = isEvent ? "Event" : "News";
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color}`}
+    >
+      {label}
     </span>
   );
 };
@@ -51,7 +69,10 @@ function EventCard({ item, onEdit, onDelete, onPreview }) {
             <h3 className="text-lg font-semibold text-slate-900 leading-tight line-clamp-2 flex-1 group-hover:text-slate-700 transition-colors">
               {item.title}
             </h3>
-            <StatusChip status={item.status} />
+            <div className="flex flex-col items-end gap-1">
+              <TypeChip type={item.type} />
+              <StatusChip status={item.status} />
+            </div>
           </div>
 
           {item.description && (
@@ -138,9 +159,14 @@ function EventPreviewModal({ item, onClose }) {
 
           <div className="p-8 space-y-6">
             <div className="flex justify-between items-start gap-4">
-              <h2 className="text-3xl font-bold text-slate-900 leading-tight">
-                {item.title}
-              </h2>
+              <div>
+                <h2 className="text-3xl font-bold text-slate-900 leading-tight">
+                  {item.title}
+                </h2>
+                <div className="mt-2">
+                  <TypeChip type={item.type} />
+                </div>
+              </div>
               <StatusChip status={item.status} />
             </div>
 
@@ -176,13 +202,23 @@ function EventPreviewModal({ item, onClose }) {
 /* ---------- Main Grid ---------- */
 export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) {
   const [previewItem, setPreviewItem] = useState(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 6;
+
+  const totalPages = Math.ceil(events.length / pageSize);
+  const visibleEvents = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return events.slice(start, start + pageSize);
+  }, [events, page, pageSize]);
 
   return (
     <div className="p-6 space-y-8">
-      {/* ✅ Header and Button same line */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Event & News Management</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Event & News Management
+          </h2>
           <p className="mt-1 text-sm text-gray-500">
             Manage church events and news displayed on the public homepage.
           </p>
@@ -198,9 +234,9 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
       </div>
 
       {/* Grid */}
-      {events.length > 0 ? (
+      {visibleEvents.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {events.map((item) => (
+          {visibleEvents.map((item) => (
             <EventCard
               key={item.id}
               item={item}
@@ -224,8 +260,43 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
         </div>
       )}
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 pt-4 border-t border-gray-100">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="h-9 w-9 rounded-md border bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            ‹
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i + 1)}
+              className={`h-9 w-9 rounded-md border text-sm ${page === i + 1
+                  ? "bg-blue-600 text-white"
+                  : "bg-white hover:bg-gray-50"
+                }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="h-9 w-9 rounded-md border bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            ›
+          </button>
+        </div>
+      )}
+
       {/* Preview Modal */}
-      <EventPreviewModal item={previewItem} onClose={() => setPreviewItem(null)} />
+      <EventPreviewModal
+        item={previewItem}
+        onClose={() => setPreviewItem(null)}
+      />
     </div>
   );
 }

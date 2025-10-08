@@ -1,11 +1,12 @@
 import BaptismForm from "./BaptismForm.jsx";
+import ConfirmationForm from "./ConfirmationForm.jsx";
 import DefaultForm from "./DefaultForm.jsx";
 // Future: import WeddingForm from "./WeddingForm.jsx";
 
 export const formRegistry = {
   baptism: BaptismForm,
   wedding: DefaultForm, // swap later with WeddingForm
-  confirmation: DefaultForm,
+  confirmation: ConfirmationForm, // ✅ now points to your new Kumpil form
   confession: DefaultForm,
   anointing: DefaultForm,
   funeral: DefaultForm,

@@ -25,12 +25,10 @@ export const getServices = async (req, res) => {
     res.json({ success: true, services });
   } catch (err) {
     console.error("❌ getServices error:", err);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: err.message || "Failed to fetch services",
-      });
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to fetch services",
+    });
   }
 };
 
@@ -109,12 +107,10 @@ export const createService = async (req, res) => {
       });
     }
 
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: err.message || "Failed to create service",
-      });
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to create service",
+    });
   } finally {
     conn.release();
   }
@@ -191,12 +187,10 @@ export const updateService = async (req, res) => {
       });
     }
 
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: err.message || "Failed to update service",
-      });
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to update service",
+    });
   } finally {
     conn.release();
   }
@@ -227,12 +221,83 @@ export const deleteService = async (req, res) => {
       });
     }
 
-    res
-      .status(500)
-      .json({
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to delete service",
+    });
+  }
+};
+
+/* ---------------- ADD requirement to existing service ---------------- */
+export const addServiceRequirement = async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const { serviceId } = req.params;
+    const { name, description = null, is_mandatory = true } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({
         success: false,
-        message: err.message || "Failed to delete service",
+        message: "Requirement name is required",
       });
+    }
+
+    // Ensure service exists
+    const [[service]] = await conn.query(
+      "SELECT id FROM services WHERE id = ? LIMIT 1",
+      [serviceId]
+    );
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    const trimmedName = name.trim();
+
+    // ✅ Prevent duplicate requirement names for this service (case-insensitive)
+    const [existing] = await conn.query(
+      `SELECT id FROM requirements 
+       WHERE service_id = ? AND LOWER(name) = LOWER(?) 
+       LIMIT 1`,
+      [serviceId, trimmedName]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "This requirement already exists for the selected service.",
+      });
+    }
+
+    // ✅ Insert new requirement under this service
+    const [result] = await conn.query(
+      `INSERT INTO requirements (service_id, name, description, is_mandatory)
+       VALUES (?, ?, ?, ?)`,
+      [serviceId, trimmedName, description, !!is_mandatory]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Requirement added successfully",
+      requirement: {
+        id: result.insertId,
+        service_id: Number(serviceId),
+        name: trimmedName,
+        description,
+        is_mandatory: !!is_mandatory,
+        created_at: new Date(),
+      },
+    });
+  } catch (err) {
+    console.error("❌ addServiceRequirement error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to add requirement",
+    });
+  } finally {
+    conn.release();
   }
 };
 

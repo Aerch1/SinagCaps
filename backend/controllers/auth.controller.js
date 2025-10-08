@@ -29,6 +29,8 @@ import {
   sendResponse,
 } from "../utils/errorHandler.js";
 
+import { createNotification } from "../utils/createNotification.js";
+
 /**
  * POST /auth/signup
  * - Creates unverified user
@@ -137,7 +139,6 @@ export const signup = handleAsyncError(async (req, res) => {
   }
 });
 
-
 /**
  * POST /auth/resend-verification
  * - Resends the verification code for unverified users
@@ -196,8 +197,6 @@ export const resendVerification = handleAsyncError(async (req, res) => {
   }
 });
 
-
-
 /**
  * POST /auth/verify-email
  * - Validates 6-digit code
@@ -227,22 +226,51 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
 
     if (!rows.length)
       throw new AppError("Invalid or expired verification code", 400);
+
     const evt = rows[0];
 
+    // ✅ Mark user verified
     await conn.execute("UPDATE users SET isVerified = TRUE WHERE id = ?", [
       evt.user_id,
     ]);
+
     await conn.execute(
       "UPDATE email_verification_tokens SET consumed_at = NOW() WHERE id = ?",
       [evt.id]
     );
 
+    // ✅ Send welcome email (non-fatal)
     try {
       await sendWelcomeEmail(evt.email, evt.name);
     } catch (e) {
       console.error("Welcome email failed:", e.message);
     }
 
+    // ✅ Create welcome notification (randomized templates)
+    try {
+      const welcomeTemplates = [
+        "🎉 Welcome aboard, :name! Your account is now verified — you can start booking appointments anytime.",
+        "🙏 Hello :name, thank you for verifying your account. We’re excited to have you as part of our parish family!",
+        "✨ Welcome to the system, :name! Your account has been successfully verified. Enjoy exploring our services.",
+        "🌟 Hi :name! Verification complete — you’re all set to schedule appointments and receive parish updates.",
+        "🎊 Welcome, :name! Your email has been verified. You may now access all features available to our parish members.",
+      ];
+
+      const message = welcomeTemplates[
+        Math.floor(Math.random() * welcomeTemplates.length)
+      ].replace(":name", evt.name);
+
+      await createNotification({
+        user_id: evt.user_id,
+        title: "Welcome to Our Lady of Peace and Good Voyage - Lodlod, Lipa City",
+        message,
+        type: "announcement",
+      });
+    } catch (err) {
+      console.error("Failed to create welcome notification:", err.message);
+    }
+
+    // ✅ Issue auth token
     generateTokenAndSetCookie(res, evt.user_id);
 
     return sendResponse(res, 200, true, "Email verified successfully", {

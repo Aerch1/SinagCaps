@@ -12,13 +12,18 @@ import {
     X,
     BellRing,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion";
+import api from "@/api/api"; // ✅ ADDED: import your centralized axios instance
 
-
+/* ===================================================
+   🧭 USER MENU COMPONENT
+=================================================== */
 function UserMenu({ user, onLogout, compact = false }) {
     const [open, setOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
     const ref = useRef(null);
 
+    /* 🔸 Close dropdown on outside click / Escape */
     useEffect(() => {
         function onDocClick(e) {
             if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -34,45 +39,96 @@ function UserMenu({ user, onLogout, compact = false }) {
         };
     }, []);
 
+    /* 🔸 Fetch unread count initially + refresh every 30s */
+    useEffect(() => {
+        if (!user) return;
+        async function fetchUnread() {
+            try {
+                const res = await api.get("/notifications/my");
+                if (res.data.success && Array.isArray(res.data.notifications)) {
+                    const unread = res.data.notifications.filter((n) => !n.isRead).length;
+                    setUnreadCount(unread);
+                    // ✅ keep localStorage synced so NotificationPanel can clear it
+                    localStorage.setItem("unreadCount", unread);
+                }
+            } catch (err) {
+                console.warn("⚠️ Failed to load unread notifications:", err.message);
+            }
+        }
+        fetchUnread();
+        const interval = setInterval(fetchUnread, 30000); // recheck every 30s
+        return () => clearInterval(interval);
+    }, [user]);
+
+    /* 🔸 🔁 Live sync from NotificationPanel */
+    useEffect(() => {
+        function handleUnreadUpdate() {
+            const count = Number(localStorage.getItem("unreadCount") || 0);
+            setUnreadCount(count);
+        }
+        window.addEventListener("unread-updated", handleUnreadUpdate);
+        return () => window.removeEventListener("unread-updated", handleUnreadUpdate);
+    }, []);
+
     const initial = user?.name ? String(user.name).charAt(0).toUpperCase() : null;
+    const hasNotifications = unreadCount > 0;
 
     return (
         <div className="relative" ref={ref}>
+            {/* 🔹 Avatar + Indicator */}
             <button
                 type="button"
-                className={`flex items-center gap-2 rounded-md px-2 py-1.5 
-          bg-white hover:bg-gray-50 text-gray-700 hover:text-secondary
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40
-          ${compact ? "w-full justify-between" : ""}`}
+                className={`relative flex items-center gap-2.5 rounded-md px-3 py-2 text-[14px] leading-tight
+                    bg-white hover:bg-gray-50 text-gray-700 hover:text-secondary 
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40
+                    ${compact ? "w-full justify-between" : ""}`}
                 aria-haspopup="menu"
                 aria-expanded={open}
                 onClick={() => setOpen((v) => !v)}
             >
-                <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                <div className="relative h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center overflow-visible">
                     {user?.avatarUrl ? (
                         <img
                             src={user.avatarUrl}
                             alt={user.name || "User avatar"}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full rounded-full object-cover"
                         />
                     ) : initial ? (
                         <span className="text-sm font-medium text-gray-700">{initial}</span>
                     ) : (
                         <User className="h-4 w-4 text-gray-600" />
                     )}
+
+                    {/* 🔴 Notification bubble (outside avatar corner) */}
+                    {hasNotifications && (
+                        <span
+                            className="absolute -top-[6px] -right-[6px]
+                                flex items-center justify-center
+                                h-[18px] min-w-[18px] px-[4px]
+                                text-[10px] font-bold text-white
+                                bg-red-500 rounded-full
+                                border-[1.5px] border-white
+                                shadow-sm z-20"
+                        >
+                            {unreadCount > 9 ? "9+" : unreadCount}
+                        </span>
+                    )}
                 </div>
-                <span className="text-sm max-w-[10rem] truncate">{user?.name || "User"}</span>
+
+                <span className="text-[14px] max-w-[10rem] truncate">{user?.name || "User"}</span>
                 <ChevronDown className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`} />
             </button>
 
+            {/* ▼ Dropdown */}
             <div
-                className={`absolute right-0 mt-2 w-80 rounded-md bg-white shadow-xl border border-gray-200 origin-top-right transform transition
-          ${open ? "opacity-100 scale-100 z-50" : "pointer-events-none opacity-0 scale-95"}`}
+                className={`absolute right-0 mt-3 w-72 rounded-lg bg-white shadow-lg border border-gray-200 origin-top-right transform transition
+                    ${open ? "opacity-100 scale-100 z-50" : "pointer-events-none opacity-0 scale-95"}`}
                 role="menu"
             >
                 {user ? (
                     <div className="py-3">
-                        <div className="flex items-center  gap-3 px-4">
+                        {/* User Info */}
+                        <div className="flex items-center gap-3 px-4">
                             <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
                                 {user?.avatarUrl ? (
                                     <img
@@ -86,12 +142,12 @@ function UserMenu({ user, onLogout, compact = false }) {
                                     </span>
                                 )}
                             </div>
-                            <div className="min-w-0 ">
-                                <p className="text-sm font-medium  text-gray-900 truncate">
+                            <div className="min-w-0">
+                                <p className="text-[14px] font-medium text-gray-900 truncate">
                                     {user?.name || "User"}
                                 </p>
                                 {user?.title && (
-                                    <p className="text-xs  text-gray-500 truncate">{user.title}</p>
+                                    <p className="text-[13px] text-gray-500 truncate">{user.title}</p>
                                 )}
                             </div>
                         </div>
@@ -100,7 +156,7 @@ function UserMenu({ user, onLogout, compact = false }) {
 
                         <NavLink
                             to="/settings/profile"
-                            className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
+                            className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
                             <User className="h-4 w-4" /> Profile
@@ -108,7 +164,7 @@ function UserMenu({ user, onLogout, compact = false }) {
 
                         <NavLink
                             to="/settings/security"
-                            className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
+                            className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
                             <Settings className="h-4 w-4" /> Account & Security
@@ -118,20 +174,33 @@ function UserMenu({ user, onLogout, compact = false }) {
 
                         <NavLink
                             to="/settings/appointments"
-                            className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
+                            className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
                             <MessageSquare className="h-4 w-4" /> My Appointments
                         </NavLink>
 
+                        {/* 🔔 Notifications with dynamic count */}
                         <NavLink
                             to="/settings/notification"
-                            className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:text-secondary hover:bg-gray-50"
-                            onClick={() => setOpen(false)}
+                            className="relative flex items-center justify-between px-4 py-2.5 text-[14px] text-gray-700 hover:text-secondary hover:bg-gray-50"
+                            onClick={() => {
+                                setUnreadCount(0);
+                                localStorage.setItem("unreadCount", 0);
+                                window.dispatchEvent(new Event("unread-updated"));
+                                setOpen(false);
+                            }}
                         >
-                            <BellRing className="h-4 w-4" /> Notifications
+                            <div className="flex items-center gap-3">
+                                <BellRing className="h-4 w-4" />
+                                <span>Notifications</span>
+                            </div>
+                            {hasNotifications && (
+                                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[11px] font-medium text-white bg-red-500 rounded-full">
+                                    {unreadCount > 9 ? "9+" : unreadCount}
+                                </span>
+                            )}
                         </NavLink>
-
 
                         <div className="my-3 h-px bg-gray-200" />
 
@@ -142,7 +211,7 @@ function UserMenu({ user, onLogout, compact = false }) {
                                     await onLogout?.();
                                 } catch { }
                             }}
-                            className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[14px] text-red-600 hover:bg-red-50"
                         >
                             <LogOut className="h-4 w-4" /> Log Out
                         </button>
@@ -152,7 +221,7 @@ function UserMenu({ user, onLogout, compact = false }) {
                         <NavLink
                             to="/login"
                             className={({ isActive }) =>
-                                `flex items-center gap-2 px-4 py-2 text-sm transition ${isActive
+                                `flex items-center gap-2 px-4 py-2.5 text-[14px] transition ${isActive
                                     ? "text-secondary font-medium"
                                     : "text-gray-700 hover:text-secondary hover:bg-gray-50"
                                 }`
@@ -164,7 +233,7 @@ function UserMenu({ user, onLogout, compact = false }) {
                         <NavLink
                             to="/signup"
                             className={({ isActive }) =>
-                                `flex items-center gap-2 px-4 py-2 text-sm transition ${isActive
+                                `flex items-center gap-2 px-4 py-2.5 text-[14px] transition ${isActive
                                     ? "text-secondary font-medium"
                                     : "text-gray-700 hover:text-secondary hover:bg-gray-50"
                                 }`
@@ -180,23 +249,25 @@ function UserMenu({ user, onLogout, compact = false }) {
     );
 }
 
+
+/* ===================================================
+   🌟 HEADER COMPONENT
+=================================================== */
 export default function Header({ user, onLogout }) {
     const location = useLocation();
     const [mobileOpen, setMobileOpen] = useState(false);
     const [servicesOpen, setServicesOpen] = useState(false);
     const [aboutOpen, setAboutOpen] = useState(false);
 
-    // Close mobile menu on route change
     useEffect(() => {
         setMobileOpen(false);
         setServicesOpen(false);
         setAboutOpen(false);
     }, [location.pathname]);
 
-    // Optional: close mobile menu when viewport becomes desktop
     useEffect(() => {
         const onResize = () => {
-            if (window.innerWidth >= 1024) setMobileOpen(false); // lg breakpoint
+            if (window.innerWidth >= 1024) setMobileOpen(false);
         };
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
@@ -223,7 +294,8 @@ export default function Header({ user, onLogout }) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
-            >                <div className="flex items-center justify-between py-4">
+            >
+                <div className="flex items-center justify-between py-5 lg:py-6">
                     {/* Logo */}
                     <Link to="/" className="flex items-center space-x-3">
                         <img
@@ -233,26 +305,28 @@ export default function Header({ user, onLogout }) {
                         />
                     </Link>
 
-                    {/* Desktop nav */}
-                    <nav className="hidden lg:flex items-center gap-6 relative">
+                    {/* Desktop Nav */}
+                    <nav className="hidden lg:flex items-center gap-7 xl:gap-8 relative text-[15px] leading-relaxed">
                         <NavLink to="/" end className={navLinkClass}>
                             Home
                         </NavLink>
 
-                        {/* Services dropdown (desktop hover) */}
                         <div className="relative group">
                             <button
                                 type="button"
-                                className={`flex items-center gap-1 ${servicesActive ? activeLink : "text-gray-700"} transition group-hover:text-secondary`}
+                                className={`flex items-center gap-1 ${servicesActive ? activeLink : "text-gray-700"
+                                    } transition group-hover:text-secondary`}
                             >
                                 <span>Services</span>
                                 <ChevronDown className="w-4 h-4 transform transition-transform duration-200 group-hover:rotate-180" />
                             </button>
-                            <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md border border-gray-200 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition duration-200 z-20">
+                            <div className="absolute right-0 mt-3 w-52 bg-white shadow-md rounded-lg border border-gray-200 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition duration-200 z-20">
                                 <NavLink
                                     to="/services/generalinfo"
                                     className={({ isActive }) =>
-                                        `block px-4 py-2 text-sm transition ${isActive ? "bg-gray-50 text-secondary" : "hover:bg-gray-50 hover:text-secondary"
+                                        `block px-4 py-2.5 text-[14px] leading-relaxed transition ${isActive
+                                            ? "bg-gray-50 text-secondary"
+                                            : "hover:bg-gray-50 hover:text-secondary"
                                         }`
                                     }
                                 >
@@ -261,7 +335,9 @@ export default function Header({ user, onLogout }) {
                                 <NavLink
                                     to="/services/appointments/terms"
                                     className={({ isActive }) =>
-                                        `block px-4 py-2 text-sm transition ${isActive ? "bg-gray-50 text-secondary" : "hover:bg-gray-50 hover:text-secondary"
+                                        `block px-4 py-2.5 text-[14px] leading-relaxed transition ${isActive
+                                            ? "bg-gray-50 text-secondary"
+                                            : "hover:bg-gray-50 hover:text-secondary"
                                         }`
                                     }
                                 >
@@ -270,7 +346,9 @@ export default function Header({ user, onLogout }) {
                                 <NavLink
                                     to="/document-request"
                                     className={({ isActive }) =>
-                                        `block px-4 py-2 text-sm transition ${isActive ? "bg-gray-50 text-secondary" : "hover:bg-gray-50 hover:text-secondary"
+                                        `block px-4 py-2.5 text-[14px] leading-relaxed transition ${isActive
+                                            ? "bg-gray-50 text-secondary"
+                                            : "hover:bg-gray-50 hover:text-secondary"
                                         }`
                                     }
                                 >
@@ -279,28 +357,24 @@ export default function Header({ user, onLogout }) {
                             </div>
                         </div>
 
-                        {/* About dropdown (desktop hover) */}
                         <NavLink to="/about" className={navLinkClass}>
                             About
                         </NavLink>
-
 
                         <NavLink to="/contact" className={navLinkClass}>
                             Contact
                         </NavLink>
 
-                        {/* 🔧 renamed "Events" → "Events & News" */}
                         <NavLink to="/event" className={navLinkClass}>
                             Events & News
                         </NavLink>
 
-                        {/* 🔧 new "Announcements" page link */}
                         <NavLink to="/announcements" className={navLinkClass}>
                             Announcements
                         </NavLink>
                     </nav>
 
-                    {/* Desktop auth */}
+                    {/* Desktop Auth */}
                     <div className="hidden lg:flex items-center gap-4">
                         {user ? (
                             <UserMenu user={user} onLogout={onLogout} />
@@ -308,13 +382,13 @@ export default function Header({ user, onLogout }) {
                             <>
                                 <NavLink
                                     to="/login"
-                                    className="text-sm text-gray-700 hover:text-secondary"
+                                    className="text-[14px] text-gray-700 hover:text-secondary"
                                 >
                                     Login
                                 </NavLink>
                                 <Link
                                     to="/signup"
-                                    className="bg-secondary text-white px-4 py-2 rounded-md text-sm hover:opacity-90"
+                                    className="bg-secondary text-white px-4 py-2 rounded-md text-[14px] hover:opacity-90"
                                 >
                                     Sign Up
                                 </Link>
@@ -322,7 +396,7 @@ export default function Header({ user, onLogout }) {
                         )}
                     </div>
 
-                    {/* Mobile toggle */}
+                    {/* Mobile Toggle */}
                     <button
                         className="lg:hidden inline-flex items-center justify-center p-2 rounded-md hover:bg-gray-100"
                         onClick={() => setMobileOpen((v) => !v)}
@@ -334,9 +408,7 @@ export default function Header({ user, onLogout }) {
                 </div>
             </motion.div>
 
-
-
-            {/* Mobile panel (full-width, no rounded corners) */}
+            {/* Mobile Panel */}
             <AnimatePresence>
                 {mobileOpen && (
                     <motion.div
@@ -347,36 +419,40 @@ export default function Header({ user, onLogout }) {
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.25, ease: "easeOut" }}
                     >
-                        <nav className="px-4 py-4">
-                            {/* Primary links */}
+                        <nav className="px-4 py-4 text-[15px] leading-relaxed">
                             <NavLink
                                 to="/"
                                 end
                                 onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
-                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                    `block px-3 py-2.5 ${isActive
+                                        ? "text-secondary font-medium"
+                                        : "text-gray-700 hover:text-secondary"
                                     }`
                                 }
                             >
                                 Home
                             </NavLink>
 
-                            {/* Services accordion */}
+                            {/* Services Accordion */}
                             <button
                                 type="button"
                                 onClick={() => setServicesOpen((o) => !o)}
-                                className="flex w-full items-center justify-between px-2 py-2 text-base text-gray-700 hover:text-secondary"
-                                aria-expanded={servicesOpen}
+                                className="flex w-full items-center justify-between px-3 py-2.5 text-gray-700 hover:text-secondary"
                             >
                                 <span>Services</span>
-                                <ChevronDown className={`h-5 w-5 transition ${servicesOpen ? "rotate-180" : ""}`} />
+                                <ChevronDown
+                                    className={`h-5 w-5 transition ${servicesOpen ? "rotate-180" : ""}`}
+                                />
                             </button>
                             <div className={`${servicesOpen ? "block" : "hidden"} pl-4`}>
                                 <NavLink
                                     to="/services/generalinfo"
                                     onClick={() => setMobileOpen(false)}
                                     className={({ isActive }) =>
-                                        `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                        `block px-3 py-2.5 text-[14px] ${isActive
+                                            ? "text-secondary font-medium"
+                                            : "text-gray-700 hover:text-secondary"
                                         }`
                                     }
                                 >
@@ -386,7 +462,9 @@ export default function Header({ user, onLogout }) {
                                     to="/services/appointments/book"
                                     onClick={() => setMobileOpen(false)}
                                     className={({ isActive }) =>
-                                        `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                        `block px-3 py-2.5 text-[14px] ${isActive
+                                            ? "text-secondary font-medium"
+                                            : "text-gray-700 hover:text-secondary"
                                         }`
                                     }
                                 >
@@ -396,65 +474,47 @@ export default function Header({ user, onLogout }) {
                                     to="/document-request"
                                     onClick={() => setMobileOpen(false)}
                                     className={({ isActive }) =>
-                                        `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                        `block px-3 py-2.5 text-[14px] ${isActive
+                                            ? "text-secondary font-medium"
+                                            : "text-gray-700 hover:text-secondary"
                                         }`
                                     }
                                 >
                                     Request Document
                                 </NavLink>
-
                             </div>
 
                             <NavLink
                                 to="/about"
                                 onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
-                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                    `block px-3 py-2.5 ${isActive
+                                        ? "text-secondary font-medium"
+                                        : "text-gray-700 hover:text-secondary"
                                     }`
                                 }
                             >
                                 About
                             </NavLink>
 
-                            <div className={`${aboutOpen ? "block" : "hidden"} pl-4`}>
-                                <NavLink
-                                    to="/about/mission"
-                                    onClick={() => setMobileOpen(false)}
-                                    className={({ isActive }) =>
-                                        `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
-                                        }`
-                                    }
-                                >
-                                    Our Mission
-                                </NavLink>
-                                <NavLink
-                                    to="/about/team"
-                                    onClick={() => setMobileOpen(false)}
-                                    className={({ isActive }) =>
-                                        `block px-2 py-2 text-sm ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
-                                        }`
-                                    }
-                                >
-                                    Our Team
-                                </NavLink>
-                            </div>
-
-                            {/* Other links */}
                             <NavLink
                                 to="/contact"
                                 onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
-                                    `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                    `block px-3 py-2.5 ${isActive
+                                        ? "text-secondary font-medium"
+                                        : "text-gray-700 hover:text-secondary"
                                     }`
                                 }
                             >
                                 Contact
                             </NavLink>
+
                             <NavLink
                                 to="/event"
                                 onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
-                                    `block px-2 py-2 text-base ${isActive
+                                    `block px-3 py-2.5 ${isActive
                                         ? "text-secondary font-medium"
                                         : "text-gray-700 hover:text-secondary"
                                     }`
@@ -463,12 +523,11 @@ export default function Header({ user, onLogout }) {
                                 Events & News
                             </NavLink>
 
-                            {/* 🔧 added new announcements link */}
                             <NavLink
                                 to="/announcements"
                                 onClick={() => setMobileOpen(false)}
                                 className={({ isActive }) =>
-                                    `block px-2 py-2 text-base ${isActive
+                                    `block px-3 py-2.5 ${isActive
                                         ? "text-secondary font-medium"
                                         : "text-gray-700 hover:text-secondary"
                                     }`
@@ -477,17 +536,18 @@ export default function Header({ user, onLogout }) {
                                 Announcements
                             </NavLink>
 
-
                             <div className="my-3 h-px bg-gray-200" />
 
-                            {/* Auth area (mobile) */}
                             {user ? (
                                 <>
                                     <NavLink
                                         to="/settings/profile"
                                         onClick={() => setMobileOpen(false)}
                                         className={({ isActive }) =>
-                                            `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"}`
+                                            `block px-3 py-2.5 ${isActive
+                                                ? "text-secondary font-medium"
+                                                : "text-gray-700 hover:text-secondary"
+                                            }`
                                         }
                                     >
                                         Profile
@@ -496,17 +556,23 @@ export default function Header({ user, onLogout }) {
                                         to="/settings/security"
                                         onClick={() => setMobileOpen(false)}
                                         className={({ isActive }) =>
-                                            `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"}`
+                                            `block px-3 py-2.5 ${isActive
+                                                ? "text-secondary font-medium"
+                                                : "text-gray-700 hover:text-secondary"
+                                            }`
                                         }
                                     >
                                         Account & Security
                                     </NavLink>
-
                                     <button
                                         onClick={async () => {
-                                            try { await onLogout?.(); } finally { setMobileOpen(false); }
+                                            try {
+                                                await onLogout?.();
+                                            } finally {
+                                                setMobileOpen(false);
+                                            }
                                         }}
-                                        className="block w-full text-left px-2 py-2 text-base text-red-600 hover:bg-red-50"
+                                        className="block w-full text-left px-3 py-2.5 text-red-600 hover:bg-red-50"
                                     >
                                         Log Out
                                     </button>
@@ -517,7 +583,9 @@ export default function Header({ user, onLogout }) {
                                         to="/login"
                                         onClick={() => setMobileOpen(false)}
                                         className={({ isActive }) =>
-                                            `block px-2 py-2 text-base ${isActive ? "text-secondary font-medium" : "text-gray-700 hover:text-secondary"
+                                            `block px-3 py-2.5 ${isActive
+                                                ? "text-secondary font-medium"
+                                                : "text-gray-700 hover:text-secondary"
                                             }`
                                         }
                                     >
@@ -526,7 +594,7 @@ export default function Header({ user, onLogout }) {
                                     <NavLink
                                         to="/signup"
                                         onClick={() => setMobileOpen(false)}
-                                        className="block px-2 py-2 text-base text-white bg-secondary rounded-md text-center mt-2"
+                                        className="block px-3 py-2.5 text-white bg-secondary rounded-md text-center mt-2"
                                     >
                                         Sign Up
                                     </NavLink>

@@ -1,12 +1,13 @@
-import { useEffect, useLayoutEffect } from "react";
+"use client";
+import { useLayoutEffect } from "react";
 import { useAuthStore } from "../../store/authStore.js";
 import LoadingSpinner from "../common/LoadingSpinner.jsx";
 
 export default function AuthChecker({ children }) {
     const { hasCheckedAuth, isCheckingAuth, checkAuth } = useAuthStore();
 
-    // Run before paint so the app doesn't flash unauthenticated UI
-    useEffect(() => {
+    // Run before paint → avoids flashing logged-out view
+    useLayoutEffect(() => {
         if (!hasCheckedAuth) {
             checkAuth();
         }
@@ -17,7 +18,7 @@ export default function AuthChecker({ children }) {
     if (!authReady) {
         // Full-screen lightweight splash while bootstrapping auth
         return (
-            <div className="fixed inset-0 z-[9999] grid place-items-center bg-black/40">
+            <div className="fixed inset-0 z-[9999] grid place-items-center bg-white">
                 <LoadingSpinner />
             </div>
         );

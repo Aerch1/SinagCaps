@@ -30,8 +30,6 @@ const occurrencesBetween = (start, end, everyMins) => {
     return total <= 0 ? 0 : Math.floor(total / everyMins);
 };
 
-
-
 export default function WeeklyRulesPanel({ serviceId }) {
     const { rules, addRule, updateRule, deleteRule, toggleBlockWeekday } =
         useAdminAvailabilityStore();
@@ -157,7 +155,6 @@ export default function WeeklyRulesPanel({ serviceId }) {
         await toggleBlockWeekday(serviceId, weekday, blocked);
     };
 
-
     /* ---------- Apply AllDay ---------- */
     const applyAllDay = async (weekday) => {
         const hours = churchHours?.[weekday];
@@ -250,15 +247,15 @@ export default function WeeklyRulesPanel({ serviceId }) {
 
     return (
         <>
-            <div className="space-y-3">
+            <div className="space-y-2 md:space-y-3 w-full overflow-hidden">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                        <Settings className="h-4 w-4 text-gray-600" />
-                        Weekly Schedule Rules
+                    <h3 className="text-sm md:text-base font-semibold text-gray-900 flex items-center gap-1.5 md:gap-2">
+                        <Settings className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-600" />
+                        <span className="truncate">Weekly Schedule Rules</span>
                     </h3>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5 md:space-y-2">
                     {WEEKDAYS.map(({ value, label }) => {
                         const rulesForDay = (rules || []).filter((r) => r.weekday === value);
                         const expanded = expandedDays[value];
@@ -270,18 +267,18 @@ export default function WeeklyRulesPanel({ serviceId }) {
                         return (
                             <div
                                 key={value}
-                                className="bg-white border border-gray-200 rounded-lg"
+                                className="bg-white border border-gray-200 rounded-md md:rounded-lg overflow-hidden"
                             >
-                                <div className="p-3 flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
-                                            <Calendar className="h-4 w-4 text-gray-600" />
+                                <div className="p-2 md:p-3 flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-1.5 md:gap-2 min-w-0 flex-1">
+                                        <div className="h-7 w-7 md:h-8 md:w-8 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
+                                            <Calendar className="h-3 w-3 md:h-4 md:w-4 text-gray-600" />
                                         </div>
-                                        <div>
-                                            <div className="text-sm font-semibold text-gray-900">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-xs md:text-sm font-semibold text-gray-900 truncate">
                                                 {label}
                                             </div>
-                                            <div className="text-xs text-gray-500">
+                                            <div className="text-[10px] md:text-xs text-gray-500 truncate">
                                                 {hasAllDay
                                                     ? "All Day"
                                                     : rulesForDay.length
@@ -292,7 +289,7 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                     </div>
 
                                     {/* Block Toggle */}
-                                    <div className="flex items-center justify-center gap-2">
+                                    <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
                                         <label className="relative inline-flex cursor-pointer items-center">
                                             <input
                                                 type="checkbox"
@@ -302,11 +299,11 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                     handleToggleBlock(value, e.target.checked)
                                                 }
                                             />
-                                            <div className="peer h-6 w-11 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-red-500" />
-                                            <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out peer-checked:translate-x-5" />
+                                            <div className="peer h-5 w-9 md:h-6 md:w-11 rounded-full bg-gray-300 transition-colors duration-200 peer-checked:bg-red-500" />
+                                            <span className="absolute top-0.5 left-0.5 h-4 w-4 md:h-5 md:w-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-in-out peer-checked:translate-x-4 md:peer-checked:translate-x-5" />
                                         </label>
                                         <span
-                                            className={`text-xs font-medium ${isBlocked ? "text-red-600" : "text-gray-600"
+                                            className={`text-[10px] md:text-xs font-medium whitespace-nowrap ${isBlocked ? "text-red-600" : "text-gray-600"
                                                 }`}
                                         >
                                             {isBlocked ? "Blocked" : "Open"}
@@ -314,19 +311,19 @@ export default function WeeklyRulesPanel({ serviceId }) {
 
                                         <button
                                             onClick={() => toggleExpand(value)}
-                                            className="p-1.5 hover:bg-gray-100 rounded"
+                                            className="p-1 md:p-1.5 hover:bg-gray-100 rounded"
                                         >
                                             {expanded ? (
-                                                <ChevronUp className="h-4 w-4 text-gray-500" />
+                                                <ChevronUp className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-500" />
                                             ) : (
-                                                <ChevronDown className="h-4 w-4 text-gray-500" />
+                                                <ChevronDown className="h-3.5 w-3.5 md:h-4 md:w-4 text-gray-500" />
                                             )}
                                         </button>
                                     </div>
                                 </div>
 
                                 {expanded && (
-                                    <div className="px-3 pb-3 space-y-2">
+                                    <div className="px-2 md:px-3 pb-2 md:pb-3 space-y-1.5 md:space-y-2">
                                         {rulesForDay.map((rule) => {
                                             const hours = churchHours?.[value];
                                             const isAllDay = rule.type === "allday";
@@ -336,16 +333,16 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                             return (
                                                 <div
                                                     key={rule.id}
-                                                    className="flex items-start justify-between bg-gray-50 px-3 py-2 rounded border"
+                                                    className="flex items-start justify-between bg-gray-50 px-2 md:px-3 py-1.5 md:py-2 rounded border gap-2"
                                                 >
-                                                    <div className="text-sm">
+                                                    <div className="text-xs md:text-sm min-w-0 flex-1">
                                                         {isAllDay ? (
                                                             isBlocked ? (
                                                                 <div className="font-semibold text-red-600">
                                                                     Blocked
                                                                 </div>
                                                             ) : (
-                                                                <div className="font-semibold text-emerald-700">
+                                                                <div className="font-semibold text-emerald-700 truncate">
                                                                     {to12h(rule.start || hours?.open_time) || "—"}{" "}
                                                                     – {to12h(rule.end || hours?.close_time) || "—"}{" "}
                                                                     Available
@@ -353,11 +350,11 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                             )
                                                         ) : rule.type === "recurring" ? (
                                                             <>
-                                                                <div className="font-mono font-medium">
+                                                                <div className="font-mono font-medium text-[10px] md:text-xs truncate">
                                                                     {to12h(rule.start)} – {to12h(rule.end)} every{" "}
                                                                     {rule.interval_mins}m
                                                                 </div>
-                                                                <div className="text-xs text-gray-700">
+                                                                <div className="text-[10px] md:text-xs text-gray-700">
                                                                     {rule.slots == null
                                                                         ? "• Available"
                                                                         : `• ${rule.slots} slots`}
@@ -365,10 +362,10 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <div className="font-mono font-medium">
+                                                                <div className="font-mono font-medium text-[10px] md:text-xs">
                                                                     {to12h(rule.time)}
                                                                 </div>
-                                                                <div className="text-xs text-gray-700">
+                                                                <div className="text-[10px] md:text-xs text-gray-700">
                                                                     {rule.slots == null
                                                                         ? "• Available"
                                                                         : `• ${rule.slots} slots`}
@@ -376,20 +373,20 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                             </>
                                                         )}
                                                     </div>
-                                                    <div className="flex items-center gap-1">
+                                                    <div className="flex items-center gap-0.5 md:gap-1 flex-shrink-0">
                                                         {!isAllDay && !isBlocked && (
                                                             <button
                                                                 onClick={() => editRule(value, rule)}
                                                                 className="p-1 text-blue-600 hover:bg-blue-100 rounded"
                                                             >
-                                                                <Edit2 className="h-3.5 w-3.5" />
+                                                                <Edit2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
                                                             </button>
                                                         )}
                                                         <button
                                                             onClick={() => removeRule(rule)}
                                                             className="p-1 text-red-600 hover:bg-red-100 rounded"
                                                         >
-                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                            <Trash2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -398,36 +395,36 @@ export default function WeeklyRulesPanel({ serviceId }) {
 
                                         {/* Add/Edit Form */}
                                         {editingForDay === value && (
-                                            <div className="mt-2 border rounded bg-blue-50 p-3 space-y-3">
-                                                <div className="flex items-center gap-4 text-sm">
-                                                    <label>
+                                            <div className="mt-1.5 md:mt-2 border rounded bg-blue-50 p-2 md:p-3 space-y-2 md:space-y-3">
+                                                <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm">
+                                                    <label className="flex items-center gap-1">
                                                         <input
                                                             type="radio"
                                                             checked={mode === "single"}
                                                             onChange={() => setMode("single")}
                                                         />{" "}
-                                                        Single Slot
+                                                        <span className="whitespace-nowrap">Single Slot</span>
                                                     </label>
-                                                    <label>
+                                                    <label className="flex items-center gap-1">
                                                         <input
                                                             type="radio"
                                                             checked={mode === "recurring"}
                                                             onChange={() => setMode("recurring")}
                                                         />{" "}
-                                                        Recurring
+                                                        <span className="whitespace-nowrap">Recurring</span>
                                                     </label>
-                                                    <label>
+                                                    <label className="flex items-center gap-1">
                                                         <input
                                                             type="radio"
                                                             checked={mode === "allday"}
                                                             onChange={() => setMode("allday")}
                                                         />{" "}
-                                                        All Day
+                                                        <span className="whitespace-nowrap">All Day</span>
                                                     </label>
                                                 </div>
 
                                                 {mode === "single" && (
-                                                    <div className="grid grid-cols-2 gap-3 items-start">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 items-start">
                                                         <TimeSelector
                                                             value={time}
                                                             onChange={setTime}
@@ -436,7 +433,7 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                             label="Pick a Time"
                                                         />
                                                         <div className="w-full">
-                                                            <label className="block text-sm font-medium mb-1">
+                                                            <label className="block text-xs md:text-sm font-medium mb-1">
                                                                 Slots (optional)
                                                             </label>
                                                             <input
@@ -445,7 +442,7 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                                 min="1"
                                                                 onChange={(e) => setSlots(e.target.value)}
                                                                 placeholder="e.g. 5"
-                                                                className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
+                                                                className="w-full px-2 md:px-3 py-1.5 md:py-2 border rounded-lg text-xs md:text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
                                                             />
                                                         </div>
                                                     </div>
@@ -453,7 +450,7 @@ export default function WeeklyRulesPanel({ serviceId }) {
 
                                                 {mode === "recurring" && (
                                                     <>
-                                                        <div className="grid grid-cols-2 gap-3 items-start">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 items-start">
                                                             <TimeSelector
                                                                 value={start}
                                                                 onChange={setStart}
@@ -469,9 +466,9 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                                 label="End Time"
                                                             />
                                                         </div>
-                                                        <div className="grid grid-cols-2 gap-3 items-start mt-2">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3 items-start">
                                                             <div>
-                                                                <label className="block text-sm font-medium mb-1">
+                                                                <label className="block text-xs md:text-sm font-medium mb-1">
                                                                     Interval (mins)
                                                                 </label>
                                                                 <input
@@ -482,11 +479,11 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                                     onChange={(e) =>
                                                                         setEvery(Number(e.target.value))
                                                                     }
-                                                                    className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
+                                                                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border rounded-lg text-xs md:text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
                                                                 />
                                                             </div>
                                                             <div>
-                                                                <label className="block text-sm font-medium mb-1">
+                                                                <label className="block text-xs md:text-sm font-medium mb-1">
                                                                     Slots (optional)
                                                                 </label>
                                                                 <input
@@ -495,19 +492,19 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                                     min="1"
                                                                     onChange={(e) => setSlots(e.target.value)}
                                                                     placeholder="e.g. 5"
-                                                                    className="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
+                                                                    className="w-full px-2 md:px-3 py-1.5 md:py-2 border rounded-lg text-xs md:text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-0"
                                                                 />
                                                             </div>
                                                         </div>
-                                                        <div className="text-xs text-gray-600 mt-2">
+                                                        <div className="text-[10px] md:text-xs text-gray-600">
                                                             Possible occurrences:{" "}
                                                             <span className="font-medium">
                                                                 {occInfo.occ}
                                                             </span>
                                                             {occInfo.warn && (
-                                                                <span className="ml-2 text-amber-700 inline-flex items-center gap-1">
-                                                                    <AlertTriangle className="h-3 w-3" />{" "}
-                                                                    {occInfo.warn}
+                                                                <span className="ml-1 md:ml-2 text-amber-700 inline-flex items-center gap-0.5 md:gap-1">
+                                                                    <AlertTriangle className="h-2.5 w-2.5 md:h-3 md:w-3" />{" "}
+                                                                    <span className="break-words">{occInfo.warn}</span>
                                                                 </span>
                                                             )}
                                                         </div>
@@ -515,25 +512,25 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                                 )}
 
                                                 {mode === "allday" && (
-                                                    <div className="text-sm text-gray-800">
+                                                    <div className="text-xs md:text-sm text-gray-800">
                                                         {to12h(churchHours?.[value]?.open_time) || "—"} –{" "}
                                                         {to12h(churchHours?.[value]?.close_time) || "—"}
-                                                        <div className="text-xs text-gray-500">
+                                                        <div className="text-[10px] md:text-xs text-gray-500 mt-0.5">
                                                             Entire day available within working hours.
                                                         </div>
                                                     </div>
                                                 )}
 
-                                                <div className="flex justify-end gap-2">
+                                                <div className="flex justify-end gap-1.5 md:gap-2">
                                                     <button
                                                         onClick={resetEditor}
-                                                        className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded"
+                                                        className="px-2 md:px-3 py-1 text-xs md:text-sm text-gray-600 hover:bg-gray-100 rounded"
                                                     >
                                                         Cancel
                                                     </button>
                                                     <button
                                                         onClick={() => saveRule(editingForDay)}
-                                                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                                                        className="px-2 md:px-3 py-1 text-xs md:text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
                                                     >
                                                         {editRuleData ? "Update" : "Save"}
                                                     </button>
@@ -544,9 +541,9 @@ export default function WeeklyRulesPanel({ serviceId }) {
                                         {!hasAllDay && editingForDay == null && (
                                             <button
                                                 onClick={() => setEditingForDay(value)}
-                                                className="w-full text-xs text-blue-600 hover:bg-blue-50 rounded py-1.5 font-medium"
+                                                className="w-full text-[10px] md:text-xs text-blue-600 hover:bg-blue-50 rounded py-1 md:py-1.5 font-medium"
                                             >
-                                                <Plus className="h-3.5 w-3.5 inline mr-1" />
+                                                <Plus className="h-3 w-3 md:h-3.5 md:w-3.5 inline mr-0.5 md:mr-1" />
                                                 Add Time Slot / All Day
                                             </button>
                                         )}
@@ -569,7 +566,6 @@ export default function WeeklyRulesPanel({ serviceId }) {
                 }}
                 onCancel={() => setShowConfirm(false)}
             />
-
         </>
     );
 }

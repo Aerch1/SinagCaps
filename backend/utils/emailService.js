@@ -18,7 +18,7 @@ export const sendVerificationEmail = async (email, verificationCode) => {
   try {
     const mailOptions = {
       from: {
-        name: "Your App Team",
+        name: "Our Lady of Peace and Good Voyage - Lodlod,Lipa City",
         address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       },
       to: email,
@@ -48,7 +48,7 @@ export const sendWelcomeEmail = async (email, name) => {
   try {
     const mailOptions = {
       from: {
-        name: "Your App Team",
+        name: "Our Lady of Peace and Good Voyage - Lodlod,Lipa City",
         address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       },
       to: email,
@@ -74,7 +74,7 @@ export const sendPasswordResetEmail = async (email, resetURL) => {
   try {
     const mailOptions = {
       from: {
-        name: "Your App Team",
+        name: "Our Lady of Peace and Good Voyage - Lodlod,Lipa City",
         address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       },
       to: email,
@@ -100,7 +100,7 @@ export const sendPasswordResetSuccessEmail = async (email) => {
   try {
     const mailOptions = {
       from: {
-        name: "Your App Team",
+        name: "Our Lady of Peace and Good Voyage - Lodlod,Lipa City",
         address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       },
       to: email,

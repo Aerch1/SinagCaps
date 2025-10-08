@@ -7,7 +7,7 @@ const META = [
     { match: /^\/settings\/profile/, title: "Personal information", desc: "Update your basic details and contact info." },
     { match: /^\/settings\/security/, title: "Account & security", desc: "Manage your login methods and keep your account safe." },
     { match: /^\/settings\/appointments/, title: "Appointments", desc: "View and manage your scheduled visits." },
-    { match: /^\/settings\/messages/, title: "Messages", desc: "Read and reply to your conversations." },
+    { match: /^\/settings\/notification/, title: "Notifications", desc: "Stay updated on your appointments, messages, and parish announcements." },
 ];
 
 export default function SettingsPage() {

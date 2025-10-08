@@ -1,4 +1,3 @@
-// src/pages/Public/settings/panels/NotificationPanel.jsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -14,64 +13,17 @@ import {
     ChevronRight,
     Trash2,
     X,
+    Tag,
 } from "lucide-react";
+import api from "@/api/api";
+import toast from "react-hot-toast";
 
-// ---------- Demo data (replace with API later) ----------
-const DEMO_NOTIFS = [
-    {
-        id: "n-001",
-        type: "appointment-approved",
-        title: "Appointment approved",
-        body: "Your baptism appointment on May 4, 2025 is approved.",
-        createdAt: "2025-04-15T08:10:00.000Z",
-        read: false,
-        ref: "000085752257",
-    },
-    {
-        id: "n-002",
-        type: "appointment-rescheduled",
-        title: "Appointment rescheduled",
-        body: "Your wedding appointment has been moved to June 12, 2025, 2:00 PM.",
-        createdAt: "2025-04-16T10:30:00.000Z",
-        read: false,
-        ref: "000085799001",
-    },
-    {
-        id: "n-003",
-        type: "announcement",
-        title: "Parish announcement",
-        body: "There will be a short maintenance of the booking system tonight.",
-        createdAt: "2025-04-12T14:00:00.000Z",
-        read: true,
-    },
-    {
-        id: "n-004",
-        type: "appointment-cancelled",
-        title: "Appointment cancelled",
-        body: "Your funeral mass request was cancelled by admin.",
-        createdAt: "2025-04-11T09:00:00.000Z",
-        read: true,
-        ref: "000085745678",
-    },
-    ...Array.from({ length: 12 }).map((_, i) => ({
-        id: `n-more-${i + 1}`,
-        type: i % 3 ? "announcement" : "reminder",
-        title: i % 3 ? "Parish update" : "Reminder",
-        body: i % 3
-            ? "Community activity this weekend. Check the parish board for details."
-            : "Don’t forget to complete your profile before your scheduled date.",
-        createdAt: new Date(Date.now() - (i + 1) * 3600_000).toISOString(),
-        read: i % 4 === 0,
-    })),
-];
-
-// ---------- Utils ----------
+/* ---------- Helpers ---------- */
 const cn = (...c) => c.filter(Boolean).join(" ");
 
 function timeAgo(iso) {
     const d = new Date(iso);
-    const now = Date.now();
-    const diff = Math.max(0, now - d.getTime());
+    const diff = Date.now() - d.getTime();
     const min = Math.floor(diff / 60000);
     if (min < 1) return "just now";
     if (min < 60) return `${min}m ago`;
@@ -89,27 +41,71 @@ function formatDateTime(iso) {
         month: "long",
         day: "numeric",
         year: "numeric",
-    })} • ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+    })} • ${d.toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+    })}`;
 }
 
+/* ✅ Prettify "2025-10-13 at 13:00" → "October 13, 2025 at 1:00 PM" */
+function prettifyMessageText(message = "") {
+    return message.replace(
+        /(\d{4})-(\d{2})-(\d{2})\s*at\s*(\d{2}):(\d{2})/g,
+        (_, y, m, d, hh, mm) => {
+            const date = new Date(`${y}-${m}-${d}T${hh}:${mm}:00`);
+            const dateStr = date.toLocaleDateString(undefined, {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+            });
+            const timeStr = date.toLocaleTimeString(undefined, {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+            });
+            return `${dateStr} at ${timeStr}`;
+        }
+    );
+}
+
+/* ---------- Icon and Color Map ---------- */
 function iconFor(notif) {
     switch (notif.type) {
-        case "appointment-approved":
+        case "appointment":
             return { Icon: CalendarCheck2, tone: "text-emerald-600", bg: "bg-emerald-50" };
-        case "appointment-rescheduled":
-            return { Icon: RefreshCcw, tone: "text-amber-600", bg: "bg-amber-50" };
-        case "appointment-cancelled":
-            return { Icon: XCircle, tone: "text-rose-600", bg: "bg-rose-50" };
-        case "reminder":
-            return { Icon: Clock, tone: "text-sky-600", bg: "bg-sky-50" };
         case "announcement":
             return { Icon: Church, tone: "text-indigo-600", bg: "bg-indigo-50" };
+        case "event":
+            return { Icon: Clock, tone: "text-sky-600", bg: "bg-sky-50" };
+        case "advisory":
+            return { Icon: RefreshCcw, tone: "text-amber-600", bg: "bg-amber-50" };
+        case "document":
+            return { Icon: XCircle, tone: "text-rose-600", bg: "bg-rose-50" };
         default:
             return { Icon: Bell, tone: "text-gray-600", bg: "bg-gray-50" };
     }
 }
 
-// ---------- Row ----------
+/* ---------- Badge Colors ---------- */
+function getBadgeClass(type) {
+    switch (type) {
+        case "announcement":
+            return "bg-indigo-100 text-indigo-700 border border-indigo-200";
+        case "event":
+            return "bg-sky-100 text-sky-700 border border-sky-200";
+        case "advisory":
+            return "bg-amber-100 text-amber-700 border border-amber-200";
+        case "document":
+            return "bg-rose-100 text-rose-700 border border-rose-200";
+        case "appointment":
+            return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+        default:
+            return "bg-gray-100 text-gray-700 border border-gray-200";
+    }
+}
+
+/* ---------- Row ---------- */
 function NotificationRow({ notif, onClick }) {
     const { Icon, tone, bg } = iconFor(notif);
     return (
@@ -117,41 +113,44 @@ function NotificationRow({ notif, onClick }) {
             type="button"
             onClick={onClick}
             className={cn(
-                "w-full text-left px-6 py-4 flex items-start gap-4 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/40",
-                "transition"
+                "w-full text-left px-6 py-4 flex items-start gap-4 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
             )}
         >
-            {/* icon */}
             <div className={cn("h-10 w-10 rounded-full grid place-items-center shrink-0", bg)}>
                 <Icon className={cn("h-5 w-5", tone)} />
             </div>
 
-            {/* text */}
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                    <div className={cn("text-sm font-medium", notif.read ? "text-gray-800" : "text-gray-900")}>
+                    <div className={cn("text-sm font-medium", notif.isRead ? "text-gray-800" : "text-gray-900")}>
                         {notif.title}
                     </div>
-                    {!notif.read && <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />}
+                    {!notif.isRead && <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />}
                 </div>
-                <div className="mt-0.5 text-sm text-gray-600 line-clamp-2">{notif.body}</div>
-                {notif.ref && (
-                    <div className="mt-1 text-xs text-gray-500">
-                        Reference: <span className="font-mono">{notif.ref}</span>
-                    </div>
-                )}
+                {/* ✅ category/status badge under title */}
+                <div
+                    className={cn(
+                        "inline-flex items-center gap-1 text-[12px] font-medium mt-1 px-2 py-0.5 rounded-full",
+                        getBadgeClass(notif.type)
+                    )}
+                >
+                    <Tag className="h-3 w-3 opacity-70" />
+                    {notif.type.charAt(0).toUpperCase() + notif.type.slice(1)}
+                </div>
+
+                <div className="mt-1.5 text-sm text-gray-600 line-clamp-2">
+                    {prettifyMessageText(notif.message)}
+                </div>
             </div>
 
-            {/* meta */}
             <div className="ml-4 shrink-0 text-xs text-gray-500">{timeAgo(notif.createdAt)}</div>
         </button>
     );
 }
 
-// ---------- Modal ----------
+/* ---------- Modal ---------- */
 function NotificationModal({ open, notif, onClose, onDelete, onMarkRead }) {
     const overlayRef = useRef(null);
-
     useEffect(() => {
         if (!open) return;
         const onKey = (e) => e.key === "Escape" && onClose();
@@ -165,7 +164,6 @@ function NotificationModal({ open, notif, onClose, onDelete, onMarkRead }) {
     }, [open, onClose]);
 
     if (!open || !notif) return null;
-
     const { Icon, tone, bg } = iconFor(notif);
 
     return (
@@ -173,70 +171,70 @@ function NotificationModal({ open, notif, onClose, onDelete, onMarkRead }) {
             ref={overlayRef}
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
             onMouseDown={(e) => {
                 if (e.target === overlayRef.current) onClose();
             }}
         >
-            {/* backdrop */}
-            <div className="absolute inset-0 bg-black/20" />
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
 
-            {/* panel */}
-            <div className="relative z-10 w-full max-w-lg rounded-xl border border-gray-200 bg-white shadow-xl">
-                {/* header */}
-                <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200">
+            <div className="relative z-10 w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden">
+                {/* Header */}
+                <div className="flex items-start justify-between px-6 sm:px-8 py-5 border-b border-gray-200">
                     <div className="flex items-center gap-3">
-                        <div className={cn("h-10 w-10 rounded-full grid place-items-center", bg)}>
+                        <div className={cn("h-11 w-11 rounded-full grid place-items-center", bg)}>
                             <Icon className={cn("h-5 w-5", tone)} />
                         </div>
                         <div>
-                            <div className="text-sm font-medium text-gray-900">{notif.title}</div>
-                            <div className="text-xs text-gray-600">{formatDateTime(notif.createdAt)}</div>
+                            <div className="text-base font-semibold text-gray-900">{notif.title}</div>
+
+                            {/* ✅ Category label under title */}
+                            <div
+                                className={cn(
+                                    "inline-flex items-center gap-1 mt-1 text-xs font-medium px-2 py-0.5 rounded-full",
+                                    getBadgeClass(notif.type)
+                                )}
+                            >
+                                <Tag className="h-3 w-3 opacity-70" />
+                                {notif.type.charAt(0).toUpperCase() + notif.type.slice(1)}
+                            </div>
+
+                            <div className="text-xs text-gray-600 mt-1">{formatDateTime(notif.createdAt)}</div>
                         </div>
                     </div>
-
                     <button
                         type="button"
                         onClick={onClose}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-50"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
                         aria-label="Close"
                     >
                         <X className="h-4 w-4" />
                     </button>
                 </div>
 
-                {/* body */}
-                <div className="px-6 py-5 max-h-[60vh] overflow-y-auto scroll-thin">
-                    <p className="text-sm text-gray-800 leading-6">{notif.body}</p>
-
-                    <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                        <div className="text-gray-600">Type</div>
-                        <div className="text-gray-900">{notif.type}</div>
-
-                        {notif.ref && (
-                            <>
-                                <div className="text-gray-600">Reference</div>
-                                <div className="text-gray-900 font-mono">{notif.ref}</div>
-                            </>
-                        )}
-                    </div>
+                {/* Body */}
+                <div className="px-6 sm:px-8 py-6 max-h-[60vh] overflow-y-auto scroll-thin leading-relaxed">
+                    <p className="text-[15px] text-gray-800 whitespace-pre-line">
+                        {prettifyMessageText(notif.message)}
+                    </p>
                 </div>
 
-                {/* footer */}
-                <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-200">
-                    <div className="text-xs text-gray-500">{notif.read ? "Marked as read" : "Unread"}</div>
-                    <div className="flex items-center gap-2">
-                        {!notif.read && (
+                {/* Footer */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 sm:px-8 py-5 border-t border-gray-200 bg-gray-50">
+                    <div className="text-xs text-gray-500">
+                        {notif.isRead ? "Marked as read" : "Unread"}
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                        {!notif.isRead && (
                             <button
                                 type="button"
                                 onClick={() => onMarkRead(notif.id)}
-                                className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                className="inline-flex items-center gap-2 rounded-md bg-white border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                             >
                                 <Check className="h-4 w-4" />
                                 Mark as read
                             </button>
                         )}
-
                         <button
                             type="button"
                             onClick={() => onDelete(notif.id)}
@@ -252,13 +250,27 @@ function NotificationModal({ open, notif, onClose, onDelete, onMarkRead }) {
     );
 }
 
-// ---------- Panel ----------
+/* ---------- Main Panel ---------- */
+/* ---------- Main Panel ---------- */
 const PAGE_SIZE = 8;
 
 export default function NotificationPanel() {
-    const [items, setItems] = useState(() => DEMO_NOTIFS);
+    const [items, setItems] = useState([]);
     const [page, setPage] = useState(1);
     const [openId, setOpenId] = useState(null);
+
+    useEffect(() => {
+        async function fetchData() {
+            try {
+                const res = await api.get("/notifications/my");
+                if (res.data.success) setItems(res.data.notifications);
+            } catch (err) {
+                console.error("❌ Failed to fetch notifications:", err);
+                toast.error("Failed to load notifications");
+            }
+        }
+        fetchData();
+    }, []);
 
     const total = items.length;
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -274,34 +286,71 @@ export default function NotificationPanel() {
 
     const hasPagination = total > PAGE_SIZE;
 
-    const markAllRead = () => {
-        setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    /* ✅ When a notification is opened, mark it read automatically */
+    const handleOpen = async (id) => {
+        setOpenId(id);
+        const notif = items.find((n) => n.id === id);
+        if (notif && !notif.isRead) {
+            try {
+                await api.patch(`/notifications/${id}/read`);
+                setItems((prev) =>
+                    prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+                );
+            } catch {
+                console.warn("⚠️ Failed to auto-mark notification as read");
+            }
+        }
     };
 
-    const onRowClick = (id) => {
-        // open only; do NOT auto-mark
-        setOpenId(id);
+    /* ✅ Mark as read manually (still kept for footer button) */
+    const handleMarkRead = async (id) => {
+        try {
+            await api.patch(`/notifications/${id}/read`);
+            setItems((prev) =>
+                prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+            );
+        } catch {
+            toast.error("Failed to mark as read");
+        }
+    };
+
+    /* ✅ Delete notification */
+    const handleDelete = async (id) => {
+        try {
+            await api.delete(`/notifications/${id}`);
+            setItems((prev) => prev.filter((n) => n.id !== id));
+            setOpenId(null);
+        } catch {
+            toast.error("Failed to delete notification");
+        }
+    };
+
+    /* ✅ Mark all read */
+    const markAllRead = async () => {
+        try {
+            await Promise.all(items.map((n) => api.patch(`/notifications/${n.id}/read`)));
+            setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
+        } catch {
+            toast.error("Failed to mark all as read");
+        }
     };
 
     const selected = items.find((n) => n.id === openId) || null;
 
-    const handleClose = () => setOpenId(null);
-
-    const handleMarkRead = (id) => {
-        setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    };
-
-    const handleDelete = (id) => {
-        setItems((prev) => prev.filter((n) => n.id !== id));
-        setOpenId(null);
-    };
+    /* ✅ Count unread to sync with avatar indicator globally */
+    const unreadCount = items.filter((n) => !n.isRead).length;
+    useEffect(() => {
+        // Notify global store or localStorage if you track unread in header
+        localStorage.setItem("unreadCount", unreadCount);
+        window.dispatchEvent(new Event("unread-updated"));
+    }, [unreadCount]);
 
     return (
         <section className="bg-white">
-            <div className="max-w-4xl mx-auto py-2">
-                <div className="mt-3 rounded-xl border border-gray-200">
-                    {/* header */}
-                    <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200">
+            <div className="max-w-4xl mx-auto py-4">
+                <div className="mt-3 rounded-xl border border-gray-200 shadow-sm">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200 bg-gray-50">
                         <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-full grid place-items-center bg-emerald-50">
                                 <Bell className="h-5 w-5 text-emerald-600" />
@@ -309,48 +358,54 @@ export default function NotificationPanel() {
                             <div>
                                 <div className="text-sm font-medium text-gray-900">Notifications</div>
                                 <div className="text-xs text-gray-600">
-                                    You have <span className="font-medium">{items.filter((n) => !n.read).length}</span> unread
+                                    You have{" "}
+                                    <span className="font-medium">{unreadCount}</span> unread
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={markAllRead}
-                                className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                            >
-                                <Check className="h-4 w-4" />
-                                Mark all as read
-                            </button>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={markAllRead}
+                            className="inline-flex items-center gap-2 rounded-md bg-white border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                            <Check className="h-4 w-4" />
+                            Mark all as read
+                        </button>
                     </div>
 
-                    {/* list area (fixed height + scroll) */}
+                    {/* List */}
                     <div className="h-[480px] overflow-y-auto scroll-thin">
                         {paged.length === 0 ? (
-                            <div className="px-6 py-12 text-center text-sm text-gray-600">No notifications yet.</div>
+                            <div className="px-6 py-12 text-center text-sm text-gray-600">
+                                No notifications yet.
+                            </div>
                         ) : (
                             <div className="divide-y divide-gray-200">
                                 {paged.map((n) => (
-                                    <NotificationRow key={n.id} notif={n} onClick={() => onRowClick(n.id)} />
+                                    <NotificationRow
+                                        key={n.id}
+                                        notif={n}
+                                        onClick={() => handleOpen(n.id)}
+                                    />
                                 ))}
                             </div>
                         )}
                     </div>
 
-                    {/* footer / pagination (only when needed) */}
+                    {/* Pagination */}
                     {hasPagination && (
-                        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+                        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
                             <div className="text-xs text-gray-600">
-                                Page <span className="font-medium">{page}</span> of <span className="font-medium">{totalPages}</span>
+                                Page <span className="font-medium">{page}</span> of{" "}
+                                <span className="font-medium">{totalPages}</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
                                     type="button"
                                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                                     disabled={page === 1}
-                                    className="inline-flex items-center gap-1 rounded-md bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                    className="inline-flex items-center gap-1 rounded-md bg-white border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
                                 >
                                     <ChevronLeft className="h-4 w-4" />
                                     Prev
@@ -359,7 +414,7 @@ export default function NotificationPanel() {
                                     type="button"
                                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                                     disabled={page === totalPages}
-                                    className="inline-flex items-center gap-1 rounded-md bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                    className="inline-flex items-center gap-1 rounded-md bg-white border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
                                 >
                                     Next
                                     <ChevronRight className="h-4 w-4" />
@@ -370,11 +425,11 @@ export default function NotificationPanel() {
                 </div>
             </div>
 
-            {/* modal */}
+            {/* Modal */}
             <NotificationModal
                 open={!!selected}
                 notif={selected}
-                onClose={handleClose}
+                onClose={() => setOpenId(null)}
                 onDelete={handleDelete}
                 onMarkRead={handleMarkRead}
             />

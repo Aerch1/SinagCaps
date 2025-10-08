@@ -6,6 +6,9 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 
 import { User, Clock, Shield, Database } from "lucide-react";
 import ChurchHoursSettings from ".././../components/common/availability/ChurchHoursSettings";
+import AdminProfile from "../../components/section/AdminProfile";
+import AdminSecuritySettings from "../../components/section/AdminSecuritySettings";
+
 
 export default function SettingsPage() {
     const [searchParams] = useSearchParams();
@@ -62,14 +65,7 @@ export default function SettingsPage() {
 
                 {/* Content */}
                 <div className="md:col-span-3 space-y-6">
-                    {active === "personal_info" && (
-                        <div className="p-4 md:p-6 border rounded-lg">
-                            <h2 className="text-base font-semibold mb-3">Personal Info</h2>
-                            <p className="text-sm text-gray-600">
-                                Placeholder – form for updating name, email, contact details, etc.
-                            </p>
-                        </div>
-                    )}
+                    {active === "personal_info" && <AdminProfile />}
 
                     {active === "church_hours" && <ChurchHoursSettings />}
 
@@ -82,14 +78,8 @@ export default function SettingsPage() {
                         </div>
                     )}
 
-                    {active === "security" && (
-                        <div className="p-4 md:p-6 border rounded-lg">
-                            <h2 className="text-base font-semibold mb-3">Security</h2>
-                            <p className="text-sm text-gray-600">
-                                Placeholder – change password, enable 2FA, etc.
-                            </p>
-                        </div>
-                    )}
+                    {active === "security" && <AdminSecuritySettings />}
+
                 </div>
             </div>
         </div>

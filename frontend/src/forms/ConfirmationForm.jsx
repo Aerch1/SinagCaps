@@ -1,208 +1,464 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { User, MapPin, CalendarDays } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { parseISO, format } from "date-fns";
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Church,
+  BookOpen,
+} from "lucide-react";
+
 import Input from "../components/ui/Input.jsx";
+import Dropdown from "../components/ui/Dropdown1.jsx";
 import DateInput from "../components/ui/DateInput.jsx";
 
+/* ---------- Small Helpers ---------- */
 const RequiredIndicator = () => <span className="text-red-500 ml-1">*</span>;
 const SectionHeader = ({ title, description }) => (
-    <div className="pb-3 border-b border-gray-100">
-        <h4 className="text-sm font-medium text-gray-900">{title}</h4>
-        {description && (
-            <p className="text-xs text-gray-600 mt-1">{description}</p>
-        )}
-    </div>
+  <div className="pb-3 border-b border-gray-100">
+    <h4 className="text-sm font-medium text-gray-900">{title}</h4>
+    {description && (
+      <p className="text-xs text-gray-600 mt-1">{description}</p>
+    )}
+  </div>
 );
 
 export default function ConfirmationForm({
-    formData,
-    setFormData,
-    registerValidator,
-    formErrors = {},
+  formData,
+  setFormData,
+  registerValidator,
+  formErrors = {},
 }) {
-    const updateField = (field, value) => {
-        setFormData((prev) => ({ ...prev, [field]: value }));
+  const firstErrorRef = useRef(null);
+
+  /* ---------- Initialize Sponsors ---------- */
+  useEffect(() => {
+    if (!formData.sponsors || formData.sponsors.length < 2) {
+      setFormData((prev) => ({
+        ...prev,
+        sponsors: [
+          { role: "Ninong", name: "", address: "" },
+          { role: "Ninang", name: "", address: "" },
+        ],
+      }));
+    }
+  }, []);
+
+  /* ---------- Field Updates ---------- */
+  const updateField = (field, value) =>
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
+  const updateSponsor = (idx, field, value) => {
+    const sponsors = [...(formData.sponsors || [])];
+    sponsors[idx][field] = value;
+    setFormData((prev) => ({ ...prev, sponsors }));
+  };
+
+  /* ======================================================
+     ✅ Validation (Block Step 4 if incomplete)
+  ====================================================== */
+  useEffect(() => {
+    if (!registerValidator) return;
+
+    const validator = () => {
+      const errs = {};
+      const required = [
+        "confirmandName",
+        "fatherName",
+        "motherMaidenName",
+        "age",
+        "parishOrigin",
+        "baptizedAt",
+        "baptizedOn",
+        "phone",
+        "email",
+        "address",
+      ];
+
+      // Required fields
+      for (const f of required) {
+        const val = formData[f]?.toString().trim();
+        if (!val) errs[f] = "This field is required.";
+      }
+
+      // Phone
+      const phoneRegex = /^09\d{9}$/;
+      if (formData.phone && !phoneRegex.test(formData.phone.trim())) {
+        errs.phone = "Phone must start with 09 and contain 11 digits.";
+      }
+
+      // Email
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+      if (formData.email && !emailRegex.test(formData.email.trim())) {
+        errs.email = "Email must be a valid @gmail.com address.";
+      }
+
+      // Sponsors
+      formData.sponsors?.forEach((s, i) => {
+        if (!s.role?.trim()) errs[`sponsor_${i}_role`] = "Role required.";
+        if (!s.name?.trim()) errs[`sponsor_${i}_name`] = "Name required.";
+        if (!s.address?.trim())
+          errs[`sponsor_${i}_address`] = "Address required.";
+      });
+
+      // 🔽 Smooth scroll to first invalid input
+      if (Object.keys(errs).length > 0 && firstErrorRef.current) {
+        firstErrorRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
+
+      return Object.keys(errs).length === 0 ? true : errs;
     };
 
-    // --- validator
-    useEffect(() => {
-        if (!registerValidator) return;
+    // ✅ Register validator for Step 3
+    registerValidator(3, validator);
+  }, [formData, registerValidator]);
 
-        const validator = () => {
-            const errs = {};
-            const required = [
-                "confirmantName",
-                "fatherName",
-                "motherName",
-                "parishOrigin",
-                "baptizedAt",
-                "baptizedOn",
-                "sponsor1",
-                "sponsor2",
-            ];
-            for (const f of required) {
-                if (!formData[f]) errs[f] = "This field is required";
+  /* ---------- Schedule Label ---------- */
+  const scheduleLabel = useMemo(() => {
+    if (!formData.preferredDate) return "";
+    try {
+      const d = parseISO(formData.preferredDate);
+      const dateStr = format(d, "EEE, MMM d, yyyy");
+      return formData.preferredTime
+        ? `${dateStr} • ${formData.preferredTime}`
+        : dateStr;
+    } catch {
+      return formData.preferredDate;
+    }
+  }, [formData.preferredDate, formData.preferredTime]);
+
+  /* ======================================================
+     🧱 UI Layout
+  ====================================================== */
+  return (
+    <div className="max-w-7xl mx-auto space-y-6" noValidate>
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
+        <h3 className="text-base font-medium">
+          Confirmation (Kumpil) Application
+        </h3>
+        {scheduleLabel && (
+          <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-800">
+            Selected schedule: {scheduleLabel}
+          </span>
+        )}
+      </div>
+
+      {/* Confirmand Info */}
+      <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
+        <SectionHeader
+          title="Confirmand Information"
+          description="Impormasyon ng Kukumpilan"
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+          <div
+            ref={
+              formErrors.confirmandName && !firstErrorRef.current
+                ? firstErrorRef
+                : null
             }
-            return Object.keys(errs).length === 0 ? true : errs;
-        };
+          >
+            <label className="block text-xs font-medium text-gray-900 mb-1">
+              Buong Pangalan ng Kukumpilan <RequiredIndicator />
+            </label>
+            <Input
+              icon={User}
+              placeholder="Juan Dela Cruz"
+              value={formData.confirmandName || ""}
+              onChange={(e) => updateField("confirmandName", e.target.value)}
+              className={
+                formErrors.confirmandName ? "border-red-500 focus:ring-red-500" : ""
+              }
+            />
+            {formErrors.confirmandName && (
+              <p className="text-red-500 text-xs mt-1">
+                {formErrors.confirmandName}
+              </p>
+            )}
+          </div>
 
-        registerValidator(1, validator);
-    }, [formData, registerValidator]);
-
-    return (
-        <div className="max-w-4xl mx-auto space-y-6" noValidate>
-            {/* Header */}
-            <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
-                <h3 className="text-base font-medium">
-                    Confirmation (Kumpil) Application Form
-                </h3>
-            </div>
-
-            {/* Confirmation Info */}
-            <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
-                <SectionHeader
-                    title="Confirmation Information"
-                    description="Please fill out this form using PRINTED CAPITAL LETTERS"
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                    <div className="md:col-span-2">
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
-                            Ngalan ng Kukumpilan <RequiredIndicator />
-                        </label>
-                        <Input
-                            icon={User}
-                            placeholder="Buong Pangalan"
-                            value={formData.confirmantName || ""}
-                            onChange={(e) => updateField("confirmantName", e.target.value)}
-                        />
-                        {formErrors.confirmantName && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.confirmantName}
-                            </p>
-                        )}
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
-                            Ngalan ng Ama <RequiredIndicator />
-                        </label>
-                        <Input
-                            icon={User}
-                            placeholder="Pangalan ng Ama"
-                            value={formData.fatherName || ""}
-                            onChange={(e) => updateField("fatherName", e.target.value)}
-                        />
-                        {formErrors.fatherName && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.fatherName}
-                            </p>
-                        )}
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
-                            Ngalan ng Ina <RequiredIndicator />
-                        </label>
-                        <Input
-                            icon={User}
-                            placeholder="Pangalan ng Ina"
-                            value={formData.motherName || ""}
-                            onChange={(e) => updateField("motherName", e.target.value)}
-                        />
-                        {formErrors.motherName && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.motherName}
-                            </p>
-                        )}
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
-                            Pinagmulan ng Parokya <RequiredIndicator />
-                        </label>
-                        <Input
-                            icon={MapPin}
-                            placeholder="Hal. Sto. Niño Parish, Lipa City"
-                            value={formData.parishOrigin || ""}
-                            onChange={(e) => updateField("parishOrigin", e.target.value)}
-                        />
-                        {formErrors.parishOrigin && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.parishOrigin}
-                            </p>
-                        )}
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
-                            Biniyagan sa (Lugar) <RequiredIndicator />
-                        </label>
-                        <Input
-                            icon={MapPin}
-                            placeholder="Simbahan o Lugar ng Binyag"
-                            value={formData.baptizedAt || ""}
-                            onChange={(e) => updateField("baptizedAt", e.target.value)}
-                        />
-                        {formErrors.baptizedAt && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.baptizedAt}
-                            </p>
-                        )}
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
-                            Biniyagan noong (Petsa) <RequiredIndicator />
-                        </label>
-                        <DateInput
-                            icon={CalendarDays}
-                            value={formData.baptizedOn || ""}
-                            onDateChange={(val) => updateField("baptizedOn", val)}
-                        />
-                        {formErrors.baptizedOn && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.baptizedOn}
-                            </p>
-                        )}
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
-                            Sponsor 1 <RequiredIndicator />
-                        </label>
-                        <Input
-                            icon={User}
-                            placeholder="Buong Pangalan ng Sponsor 1"
-                            value={formData.sponsor1 || ""}
-                            onChange={(e) => updateField("sponsor1", e.target.value)}
-                        />
-                        {formErrors.sponsor1 && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.sponsor1}
-                            </p>
-                        )}
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
-                            Sponsor 2 <RequiredIndicator />
-                        </label>
-                        <Input
-                            icon={User}
-                            placeholder="Buong Pangalan ng Sponsor 2"
-                            value={formData.sponsor2 || ""}
-                            onChange={(e) => updateField("sponsor2", e.target.value)}
-                        />
-                        {formErrors.sponsor2 && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.sponsor2}
-                            </p>
-                        )}
-                    </div>
-                </div>
-            </section>
+          <div>
+            <label className="block text-xs font-medium text-gray-900 mb-1">
+              Edad <RequiredIndicator />
+            </label>
+            <Input
+              type="number"
+              placeholder="Hal. 18"
+              value={formData.age || ""}
+              onChange={(e) => updateField("age", e.target.value)}
+              className={
+                formErrors.age ? "border-red-500 focus:ring-red-500" : ""
+              }
+            />
+            {formErrors.age && (
+              <p className="text-red-500 text-xs mt-1">{formErrors.age}</p>
+            )}
+          </div>
         </div>
-    );
+      </section>
+
+      {/* Parents Info */}
+      <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
+        <SectionHeader
+          title="Parents Information"
+          description="Impormasyon ng mga Magulang"
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-900 mb-1">
+              Pangalan ng Ama <RequiredIndicator />
+            </label>
+            <Input
+              icon={User}
+              placeholder="Father's complete name"
+              value={formData.fatherName || ""}
+              onChange={(e) => updateField("fatherName", e.target.value)}
+              className={
+                formErrors.fatherName ? "border-red-500 focus:ring-red-500" : ""
+              }
+            />
+            {formErrors.fatherName && (
+              <p className="text-red-500 text-xs mt-1">
+                {formErrors.fatherName}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-900 mb-1">
+              Pangalan ng Ina <RequiredIndicator />
+            </label>
+            <Input
+              icon={User}
+              placeholder="Mother's complete name"
+              value={formData.motherMaidenName || ""}
+              onChange={(e) =>
+                updateField("motherMaidenName", e.target.value)
+              }
+              className={
+                formErrors.motherMaidenName
+                  ? "border-red-500 focus:ring-red-500"
+                  : ""
+              }
+            />
+            {formErrors.motherMaidenName && (
+              <p className="text-red-500 text-xs mt-1">
+                {formErrors.motherMaidenName}
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Baptism Record */}
+      <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
+        <SectionHeader
+          title="Baptism Record"
+          description="Impormasyon ng Binyag ng Kukumpilan"
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-900 mb-1">
+              Biniyagan sa (Lugar) <RequiredIndicator />
+            </label>
+            <Input
+              icon={Church}
+              placeholder="Parish or Church Name"
+              value={formData.baptizedAt || ""}
+              onChange={(e) => updateField("baptizedAt", e.target.value)}
+              className={
+                formErrors.baptizedAt ? "border-red-500 focus:ring-red-500" : ""
+              }
+            />
+            {formErrors.baptizedAt && (
+              <p className="text-red-500 text-xs mt-1">
+                {formErrors.baptizedAt}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-900 mb-1">
+              Biniyagan noong (Petsa) <RequiredIndicator />
+            </label>
+            <DateInput
+              value={formData.baptizedOn || ""}
+              onDateChange={(val) => updateField("baptizedOn", val)}
+              className={
+                formErrors.baptizedOn ? "border-red-500 focus:ring-red-500" : ""
+              }
+            />
+            {formErrors.baptizedOn && (
+              <p className="text-red-500 text-xs mt-1">
+                {formErrors.baptizedOn}
+              </p>
+            )}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-xs font-medium text-gray-900 mb-1">
+              Pinagmulan ng Parokya <RequiredIndicator />
+            </label>
+            <Input
+              icon={BookOpen}
+              placeholder="Hal. Sto. Niño Parish, Lipa City"
+              value={formData.parishOrigin || ""}
+              onChange={(e) => updateField("parishOrigin", e.target.value)}
+              className={
+                formErrors.parishOrigin
+                  ? "border-red-500 focus:ring-red-500"
+                  : ""
+              }
+            />
+            {formErrors.parishOrigin && (
+              <p className="text-red-500 text-xs mt-1">
+                {formErrors.parishOrigin}
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Info */}
+      <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
+        <SectionHeader
+          title="Contact & Address"
+          description="Impormasyon sa Pakikipag-ugnayan"
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+          <Input
+            label="Contact No."
+            icon={Phone}
+            type="tel"
+            placeholder="09XXXXXXXXX"
+            value={formData.phone || ""}
+            onChange={(e) => updateField("phone", e.target.value)}
+            className={
+              formErrors.phone ? "border-red-500 focus:ring-red-500" : ""
+            }
+          />
+          <Input
+            label="Email"
+            icon={Mail}
+            type="email"
+            placeholder="name@gmail.com"
+            value={formData.email || ""}
+            onChange={(e) => updateField("email", e.target.value)}
+            className={
+              formErrors.email ? "border-red-500 focus:ring-red-500" : ""
+            }
+          />
+        </div>
+        {formErrors.phone && (
+          <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
+        )}
+        {formErrors.email && (
+          <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+        )}
+
+        <Input
+          label="Complete Address"
+          icon={MapPin}
+          placeholder="House No., Street, Barangay, City"
+          value={formData.address || ""}
+          onChange={(e) => updateField("address", e.target.value)}
+          className={
+            formErrors.address ? "border-red-500 focus:ring-red-500" : ""
+          }
+        />
+        {formErrors.address && (
+          <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
+        )}
+      </section>
+
+      {/* Sponsors */}
+      <section className="bg-white rounded-2xl border border-gray-100 p-6">
+        <SectionHeader
+          title="Sponsors (Ninong/Ninang)"
+          description="Dalawang sponsor lamang"
+        />
+        <div className="space-y-6 pt-4">
+          {(formData.sponsors || []).map((s, idx) => (
+            <div key={idx} className="rounded-xl border border-gray-200 p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-900 mb-2">
+                    Role <RequiredIndicator />
+                  </label>
+                  <Dropdown
+                    value={s.role}
+                    onChange={(val) => updateSponsor(idx, "role", val)}
+                    options={["Ninong", "Ninang"]}
+                    placeholder="Select role"
+                    className={`h-12 ${
+                      formErrors[`sponsor_${idx}_role`]
+                        ? "border-red-500 focus:ring-red-500"
+                        : ""
+                    }`}
+                  />
+                  {formErrors[`sponsor_${idx}_role`] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {formErrors[`sponsor_${idx}_role`]}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-900 mb-2">
+                    Full Name <RequiredIndicator />
+                  </label>
+                  <Input
+                    icon={User}
+                    placeholder="Complete name"
+                    value={s.name}
+                    onChange={(e) =>
+                      updateSponsor(idx, "name", e.target.value)
+                    }
+                    className={`h-12 text-base ${
+                      formErrors[`sponsor_${idx}_name`]
+                        ? "border-red-500 focus:ring-red-500"
+                        : ""
+                    }`}
+                  />
+                  {formErrors[`sponsor_${idx}_name`] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {formErrors[`sponsor_${idx}_name`]}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-900 mb-2">
+                    Address <RequiredIndicator />
+                  </label>
+                  <Input
+                    icon={MapPin}
+                    placeholder="Complete address"
+                    value={s.address}
+                    onChange={(e) =>
+                      updateSponsor(idx, "address", e.target.value)
+                    }
+                    className={`h-12 text-base ${
+                      formErrors[`sponsor_${idx}_address`]
+                        ? "border-red-500 focus:ring-red-500"
+                        : ""
+                    }`}
+                  />
+                  {formErrors[`sponsor_${idx}_address`] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {formErrors[`sponsor_${idx}_address`]}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }

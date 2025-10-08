@@ -1,4 +1,6 @@
-// src/pages/Public/HomePage.jsx
+"use client";
+
+import { motion } from "framer-motion";
 import Hero from "../../components/section/Hero";
 import PublicAdvisory from "../../components/section/PublicAdvisory";
 import ChurchBulletin from "../../components/section/ChurchBulletin";
@@ -8,9 +10,6 @@ import TwoFeatureCards from "../../components/section/TwoFeatureCards";
 import AppointmentQuickLinks from "../../components/section/AppointmentQuickLinks";
 import ChurchUpdates from "../../components/section/ChurchUpdates";
 import AppointmentChatbot from "../../components/common/AppointmentChatbot";
-
-// ✅ Animation wrapper
-import FadeInWhenVisible from "../../components/common/FadeInWhenVisible";
 
 const slides = [
     {
@@ -44,40 +43,82 @@ const slides = [
 
 export default function HomePage() {
     return (
-        <>
-            {/* Hero - no animation wrapper */}
+        <main className="bg-white">
+            {/* 🕊 Hero (no animation wrapper) */}
             <Hero slides={slides} />
 
-            {/* ✅ Lightweight sections */}
-            <FadeInWhenVisible>
-                <PublicAdvisory
+            {/* 🩵 Public Advisory */}
+            <motion.section
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                viewport={{ once: true }}
+            >
+                <PublicAdvisory />
+            </motion.section>
 
-
-                />
-            </FadeInWhenVisible>
-
-            <FadeInWhenVisible>
+            {/* 📜 Church Bulletin */}
+            <motion.section
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                viewport={{ once: true }}
+            >
                 <ChurchBulletin />
-            </FadeInWhenVisible>
+            </motion.section>
 
-            <FadeInWhenVisible>
+            {/* 🙏 About Section */}
+            <motion.section
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                viewport={{ once: true }}
+            >
                 <AboutSection />
-            </FadeInWhenVisible>
+            </motion.section>
 
-            <FadeInWhenVisible>
+            {/* 💬 Info Banner */}
+            <motion.section
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                viewport={{ once: true }}
+            >
                 <InfoBanner />
-            </FadeInWhenVisible>
+            </motion.section>
 
-            {/* ❌ Heavy sections animate inside themselves */}
-            <ChurchUpdates />
-            <TwoFeatureCards />
+            {/* 🕊 Church Updates */}
+            <motion.section
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                viewport={{ once: true }}
+            >
+                <ChurchUpdates />
+            </motion.section>
 
-            <FadeInWhenVisible>
+            {/* ✨ Feature Cards */}
+            <motion.section
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                viewport={{ once: true }}
+            >
+                <TwoFeatureCards />
+            </motion.section>
+
+            {/* ⚡ Quick Links */}
+            <motion.section
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                viewport={{ once: true }}
+            >
                 <AppointmentQuickLinks />
-            </FadeInWhenVisible>
+            </motion.section>
 
+            {/* 💬 Chatbot (no animation) */}
             <AppointmentChatbot />
-
-        </>
+        </main>
     );
 }

@@ -5,6 +5,7 @@ const Input = ({
   error,
   className = "",
   onFocus,
+  as = "input", // can be "textarea"
   ...props
 }) => {
   const baseStyle =
@@ -19,25 +20,29 @@ const Input = ({
 
   const hasIcon = !!Icon;
   const paddingLeft = hasIcon ? "pl-10" : "pl-3";
+  const Component = as === "textarea" ? "textarea" : "input";
 
   return (
     <div className="space-y-1">
       <div className="relative">
         {/* Optional Icon */}
         {hasIcon && (
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <div
+            className={`absolute left-0 flex items-center pl-3 pointer-events-none
+              ${as === "textarea" ? "top-3" : "inset-y-0"}`}
+          >
             <Icon className={`size-5 ${iconStyle}`} />
           </div>
         )}
 
-        {/* Input Field */}
-        <input
+        {/* Input or Textarea */}
+        <Component
           {...props}
           onFocus={onFocus}
           aria-invalid={!!error}
           className={`${baseStyle} ${paddingLeft} ${textStyle} ${
             error ? errorStyle : focusStyle
-          } ${className}`}
+          } ${className} ${as === "textarea" ? "min-h-[100px] py-3" : ""}`}
         />
       </div>
 

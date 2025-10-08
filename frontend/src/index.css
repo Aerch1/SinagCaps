@@ -240,76 +240,6 @@ input:-webkit-autofill:focus {
 }
 
 
-
-/* =========================
-   FullCalendar Theme (yours)
-   ========================= */
-.fullcalendar-container .fc {
-  --fc-border-color: rgb(226 232 240);
-  --fc-button-text-color: rgb(71 85 105);
-  --fc-button-bg-color: transparent;
-  --fc-button-border-color: rgb(226 232 240);
-  --fc-button-hover-bg-color: rgb(248 250 252);
-  --fc-button-active-bg-color: rgb(59 130 246);
-  --fc-button-active-border-color: rgb(59 130 246);
-  --fc-today-bg-color: rgb(239 246 255);
-}
-
-
-
-
-
-/* =========================
-   Admin Calendar: layout-only
-   (no height forcing)
-   ========================= */
-.admin-calendar {
-  width: 100%;
-  overflow: hidden;
-}
-
-/* Let the calendar follow its container width */
-.admin-calendar .fc {
-  width: 100% !important;
-  max-width: none !important;
-  /* DO NOT set height here; height is controlled by the React prop */
-}
-
-/* Keep harness width-friendly only */
-.admin-calendar .fc-view-harness {
-  width: 100% !important;
-}
-
-/* (Optional) these are safe width helpers; not required but harmless */
-.admin-calendar .fc-scrollgrid,
-.admin-calendar .fc-scrollgrid-section,
-.admin-calendar .fc-scrollgrid-section > td {
-  width: 100% !important;
-}
-
-/* Do NOT force min-width on bodies; it can cause overflow issues */
-/* Cosmetic spacing */
-.admin-calendar .fc-header-toolbar {
-  margin-bottom: 1rem;
-}
-.admin-calendar .fc-daygrid-day-frame {
-  min-height: 80px;
-}
-
-/* Ensure grid/flex column can shrink to fit */
-.calendar-page-container .calendar-container {
-  width: 100%;
-  min-width: 0;
-}
-
-/* Smooth width transitions when sidebar animates */
-.admin-calendar .fc,
-.admin-calendar .fc-view-harness {
-  transition: width 0.3s ease-in-out;
-}
-
-
-
 .recharts-wrapper:focus,
 .recharts-surface:focus { outline: none; }
 
@@ -318,4 +248,234 @@ input:-webkit-autofill:focus {
 .recharts-surface:focus-visible { outline: none; }
 .recharts-wrapper, .recharts-surface { -webkit-tap-highlight-color: transparent; }
 
-/* Custom theme colors */
+
+
+/* FullCalendar Base Styles */
+.fc {
+  font-family: inherit;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-color: #e2e8f0;
+}
+
+/* Header Styles */
+.fc-col-header-cell {
+  padding: 10px 4px;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: #475569;
+  background: #f8fafc;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* Day Number Styles */
+.fc-daygrid-day-number {
+  padding: 6px 8px;
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.fc-day-today {
+  background-color: #f1f5f9 !important;
+}
+
+.fc-day-today .fc-daygrid-day-number {
+  color: #0f172a;
+  font-weight: 700;
+  background: red;
+  color: white;
+  border-radius: 6px;
+  padding: 4px 8px;
+  display: inline-block;
+}
+
+/* Time Grid Styles */
+.fc-timegrid-slot {
+  height: 3.5rem;
+  border-color: #f1f5f9;
+}
+
+.fc-timegrid-slot-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 500;
+  padding: 0 8px;
+}
+
+.fc-timegrid-axis {
+  width: 60px;
+}
+
+/* Event Styles */
+.fc-event {
+  border: none !important;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.fc-event:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Day Grid Events */
+.fc-daygrid-event {
+  padding: 0;
+  background: #64748b !important;
+  border-radius: 4px;
+  margin: 2px 3px;
+  min-height: 24px;
+}
+
+.fc-daygrid-event-dot {
+  display: none;
+}
+
+/* Time Grid Events - Prevent Overlap */
+.fc-timegrid-event {
+  background: #64748b !important;
+  border-radius: 4px;
+  overflow: hidden;
+  min-height: 28px;
+  border-left: 3px solid #475569 !important;
+}
+
+.fc-timegrid-event .fc-event-main {
+  padding: 0;
+  overflow: hidden;
+}
+
+.fc-timegrid-event .fc-event-main-frame {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Prevent Event Overlap - Key Fix */
+.fc-timegrid-event-harness {
+  margin-right: 4px !important;
+}
+
+.fc-timegrid-event-harness-inset {
+  left: 2px !important;
+  right: 2px !important;
+}
+
+.fc-timegrid-col-events {
+  margin: 0 2px !important;
+}
+
+/* Short Events */
+.fc-timegrid-event-short {
+  min-height: 26px !important;
+}
+
+.fc-timegrid-event-short .fc-event-time {
+  display: none;
+}
+
+/* Event Title */
+.fc-event-title {
+  font-weight: 500;
+  font-size: 0.8125rem;
+}
+
+/* More Link */
+.fc-more-link {
+  font-size: 0.75rem;
+  color: #475569;
+  font-weight: 600;
+  padding: 2px 6px;
+  margin: 2px 3px;
+  border-radius: 3px;
+  background: #f1f5f9;
+}
+
+.fc-more-link:hover {
+  background: #e2e8f0;
+  text-decoration: none;
+}
+
+/* Popover */
+.fc-popover {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  background: white;
+}
+
+.fc-popover-header {
+  background: #f8fafc;
+  padding: 8px 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+/* Now Indicator */
+.fc-timegrid-now-indicator-line {
+  border-color: #ef4444;
+  border-width: 2px;
+}
+
+.fc-timegrid-now-indicator-arrow {
+  border-color: #ef4444;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .fc-col-header-cell {
+    padding: 8px 2px;
+    font-size: 0.75rem;
+  }
+
+  .fc-daygrid-day-number {
+    font-size: 0.8125rem;
+    padding: 4px 6px;
+  }
+
+  .fc-timegrid-slot {
+    height: 3rem;
+  }
+
+  .fc-timegrid-slot-label {
+    font-size: 0.6875rem;
+  }
+
+  .fc-timegrid-axis {
+    width: 50px;
+  }
+
+  .fc-event-title {
+    font-size: 0.75rem;
+  }
+
+  .fc-daygrid-event {
+    min-height: 22px;
+  }
+}
+
+/* Scrollbar Styling */
+.fc-scroller::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.fc-scroller::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

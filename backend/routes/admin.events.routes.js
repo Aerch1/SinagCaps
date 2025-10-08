@@ -10,6 +10,8 @@ import {
   getAllEvents,
   updateEvent,
   deleteEvent,
+    getUpcomingEvents, // ✅ import
+
 } from "../controllers/admin/admin.events.controller.js";
 
 const router = express.Router();
@@ -41,6 +43,8 @@ const upload = multer({ storage });
    ROUTES
 ================================================== */
 router.get("/", getAllEvents);
+router.get("/upcoming", getUpcomingEvents); // ✅ add this line
+
 router.post("/", upload.single("image"), createEvent);
 router.put("/:id", upload.single("image"), updateEvent);
 router.delete("/:id", deleteEvent);

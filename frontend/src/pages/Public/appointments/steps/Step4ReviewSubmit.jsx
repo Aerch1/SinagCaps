@@ -1,38 +1,45 @@
-
 import { useMemo } from "react";
 import { parseISO, format } from "date-fns";
-import { Link, useNavigate } from "react-router-dom"; // ✅ add useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import {
   CheckCircle2,
   FileText,
   Calendar,
   User,
   Mail,
-  Phone,
   Clock,
 } from "lucide-react";
 
 /* ---------- Labels ---------- */
 const LABELS = {
-  service_id: "Service",
-  serviceName: "Service",
-  preferredDate: "Date",
-  preferredTime: "Time",
-  childFullName: "Child's Full Name",
-  childDob: "Child's Date of Birth",
-  childBirthplace: "Child's Birthplace",
-  fatherName: "Father's Name",
-  motherMaidenName: "Mother's Maiden Name",
-  parentsMarriageType: "Parents' Marriage Status",
-  phone: "Contact No.",
+  service_id: "Serbisyo",
+  serviceName: "Serbisyo",
+  preferredDate: "Petsa",
+  preferredTime: "Oras",
+  childFullName: "Buong Pangalan ng Bata",
+  childDob: "Petsa ng Kapanganakan",
+  childBirthplace: "Lugar ng Kapanganakan",
+  fatherName: "Pangalan ng Ama",
+  motherMaidenName: "Pangalan ng Ina (Bago ikasal)",
+  parentsMarriageType: "Kalagayan ng Kasal ng mga Magulang",
+  phone: "Numero ng Telepono",
   email: "Email",
-  address: "Address",
-  sponsors: "Sponsors",
-  firstName: "First Name",
-  lastName: "Last Name",
-  purpose: "Purpose / Reason",
-  notes: "Notes",
-  additionalNotes: "Additional Notes",
+  address: "Tirahan",
+  sponsors: "Mga Ninong/Ninang",
+  firstName: "Unang Pangalan",
+  lastName: "Apelyido",
+  purpose: "Layunin / Dahilan",
+  notes: "Mga Tala",
+  additionalNotes: "Karagdagang Tala",
+
+  // ✅ Confirmation (Kumpil)
+  confirmandName: "Buong Pangalan ng Kukumpilan",
+  age: "Edad",
+  fatherNameConfirmand: "Pangalan ng Ama",
+  motherMaidenNameConfirmand: "Pangalan ng Ina",
+  parishOrigin: "Parokya ng Pinagmulan",
+  baptizedAt: "Biniyagan sa (Lugar)",
+  baptizedOn: "Biniyagan noong (Petsa)",
 };
 
 /* ---------- Skip keys ---------- */
@@ -53,7 +60,7 @@ export default function Step4ReviewSubmit({
   onSuccess,
   resetForm,
 }) {
-  const navigate = useNavigate(); // ✅ for navigation
+  const navigate = useNavigate();
 
   const formatKey = (key) => LABELS[key] || key;
 
@@ -64,12 +71,12 @@ export default function Step4ReviewSubmit({
       return value
         .map(
           (s, i) =>
-            `${i + 1}. ${s.role || "-"} — ${s.name || "-"} (${s.address || "-"})`
+            `${i + 1}. ${s.name || "-"} (${s.role || "-"})\n${s.address || "-"}`
         )
-        .join("\n");
+        .join("\n\n");
     }
 
-    if (key === "preferredDate" || key === "childDob") {
+    if (["preferredDate", "childDob", "baptizedOn"].includes(key)) {
       try {
         const d = parseISO(value);
         return format(d, "EEE, MMM d, yyyy");
@@ -91,7 +98,6 @@ export default function Step4ReviewSubmit({
 
     if (Array.isArray(value)) return value.join(", ");
     if (typeof value === "object") return JSON.stringify(value);
-
     return String(value);
   };
 
@@ -124,19 +130,22 @@ export default function Step4ReviewSubmit({
       }
     }
 
-    // merge schedule into one line
+    // merge schedule line
     if (sections.Schedule.length === 2) {
-      const date = sections.Schedule.find((f) => f.label === "Date")?.value;
-      const time = sections.Schedule.find((f) => f.label === "Time")?.value;
+      const date = sections.Schedule.find((f) => f.label === "Petsa")?.value;
+      const time = sections.Schedule.find((f) => f.label === "Oras")?.value;
       sections.Schedule = [
-        { label: "Schedule", value: date && time ? `${date} • ${time}` : date || time },
+        {
+          label: "Iskedyul",
+          value: date && time ? `${date} • ${time}` : date || time,
+        },
       ];
     }
 
     return sections;
   }, [formData]);
 
-  /* ---------- Success modal ---------- */
+  /* ---------- ✅ English Success Modal ---------- */
   if (showSuccess) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
@@ -146,12 +155,13 @@ export default function Step4ReviewSubmit({
               <CheckCircle2 className="w-7 h-7 text-green-600" />
             </div>
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Appointment Submitted!</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            Appointment Submitted Successfully!
+          </h2>
 
-          {/* ✅ Appointment ID */}
           {formData.appointmentId && (
             <p className="text-sm text-gray-700 mb-4">
-              Your Appointment ID:{" "}
+              Appointment ID:{" "}
               <span className="font-mono font-semibold text-green-700">
                 {formData.appointmentId}
               </span>
@@ -159,7 +169,8 @@ export default function Step4ReviewSubmit({
           )}
 
           <p className="text-gray-600 text-sm mb-6">
-            The parish office will contact you within 24–48 hours to confirm.
+            The parish office will contact you within 24–48 hours to confirm
+            your appointment. Please keep your phone and email open.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -178,7 +189,7 @@ export default function Step4ReviewSubmit({
               onClick={() => {
                 onSuccess(false);
                 resetForm();
-                navigate("/"); // ✅ redirect home
+                navigate("/");
               }}
               className="bg-gray-100 text-gray-700 px-5 py-2 rounded-lg text-sm font-medium hover:bg-gray-200"
             >
@@ -189,21 +200,22 @@ export default function Step4ReviewSubmit({
       </div>
     );
   }
-  /* ---------- Review state ---------- */
+
+  /* ---------- Review Section (Tagalog stays) ---------- */
   return (
     <div className="max-w-4xl mx-auto space-y-5">
-      {/* Compact header */}
       <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex gap-3">
         <CheckCircle2 className="w-6 h-6 text-blue-600 mt-0.5" />
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Review Your Details</h3>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Suriin ang Iyong Mga Detalye
+          </h3>
           <p className="text-sm text-gray-600">
-            Make sure everything below is correct before submitting.
+            Siguraduhing tama ang lahat ng impormasyon bago isumite.
           </p>
         </div>
       </div>
 
-      {/* Sections */}
       <div className="space-y-3">
         {Object.entries(grouped).map(([section, fields]) => {
           if (fields.length === 0) return null;
@@ -230,52 +242,58 @@ export default function Step4ReviewSubmit({
         })}
       </div>
 
-      {/* Disclaimer */}
       <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
         <p className="mb-2">
-          By submitting this appointment request, you confirm that you agree to the
-          parish guidelines.
+          Sa pag-submit ng appointment, sumasang-ayon ka sa mga patakaran ng
+          parokya.
         </p>
         <Link
           to="/services/generalinfo"
           className="text-blue-600 hover:text-blue-700 underline text-sm"
         >
-          View General Information & Guidelines
+          Tingnan ang Pangkalahatang Impormasyon at Gabay
         </Link>
       </div>
 
-      {/* Submit button */}
       <div className="flex justify-end">
         <button
           type="submit"
           disabled={isSubmitting}
           className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
         >
-          {isSubmitting ? "Submitting..." : "Submit Appointment"}
+          {isSubmitting ? "Ipinapasa..." : "Isumite ang Appointment"}
         </button>
       </div>
 
-      {/* Reminders */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
         <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-blue-600" /> Reminders
+          <Clock className="w-4 h-4 text-blue-600" /> Paalala
         </h4>
         <ul className="list-disc pl-5 space-y-1 text-gray-700">
-          <li>Keep your phone and email accessible for our contact.</li>
-          <li>If you don't hear from us within 48 hours, please call the parish office</li>
-          <li>Prepare all required documents ready for your appointment.</li>
-          <li>Arrive 15–30 minutes early on your appointment day.</li>
+          <li>Panatilihing bukas ang iyong telepono at email para sa aming mensahe.</li>
+          <li>Kung walang tugon sa loob ng 48 oras, tawagan ang opisina ng parokya.</li>
+          <li>Ihanda ang lahat ng kinakailangang dokumento bago pumunta.</li>
+          <li>Dumating 15–30 minuto bago ang itinakdang oras.</li>
         </ul>
       </div>
+
       <div className="border-t border-blue-200 pt-4">
-        <p className="text-sm font-medium text-gray-900 mb-2">Need immediate assistance?</p>
+        <p className="text-sm font-medium text-gray-900 mb-2">
+          Kailangan ng agarang tulong?
+        </p>
         <p className="text-sm text-gray-700">
-          Call the parish office at{" "}
-          <a href="tel:5551234567" className="font-medium text-blue-600 hover:text-blue-700">
+          Tumawag sa{" "}
+          <a
+            href="tel:5551234567"
+            className="font-medium text-blue-600 hover:text-blue-700"
+          >
             (555) 123-4567
           </a>{" "}
-          or email{" "}
-          <a href="mailto:appointments@parish.org" className="font-medium text-blue-600 hover:text-blue-700">
+          o mag-email sa{" "}
+          <a
+            href="mailto:appointments@parish.org"
+            className="font-medium text-blue-600 hover:text-blue-700"
+          >
             appointments@parish.org
           </a>
         </p>

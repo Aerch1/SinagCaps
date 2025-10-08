@@ -12,24 +12,22 @@ import Step1Service from "./steps/Step1ServiceDate.jsx";
 import Step2DateTime from "./steps/Step2DateTime.jsx";
 import Step3Form from "./steps/Step3Forms.jsx";
 import Step4ReviewSubmit from "./steps/Step4ReviewSubmit.jsx";
+import { useAuthStore } from "@/store/authStore.js";
 
 const HERO_IMG = "/forgot.jpg";
 
 export default function AppointmentPage() {
-  const [currentStep, setCurrentStep] = useState(() => {
-    return parseInt(localStorage.getItem("appointmentStep")) || 1;
-  });
-  const [formData, setFormData] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("appointmentData")) || {};
-    } catch {
-      return {};
-    }
-  });
+  const { user } = useAuthStore();
 
+  /* ---------- State ---------- */
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState({});
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const validatorsRef = useRef({});
+
+  const registerValidator = (step, fn) => (validatorsRef.current[step] = fn);
 
   const steps = [
     { number: 1, title: "Select Service", description: "Choose the type of appointment" },
@@ -38,37 +36,102 @@ export default function AppointmentPage() {
     { number: 4, title: "Review & Submit", description: "Confirm and send your request" },
   ];
 
-  /* ---------- Scroll & persistence ---------- */
-  useEffect(() => {
-    if (showSuccess) window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [showSuccess]);
+  /* =====================================================
+     🧠 LocalStorage Isolation per Service (Safe Version)
+  ===================================================== */
+  const getStorageKey = (suffix) => {
+    const type = formData.formType || "default";
+    return `appointment_${type}_${suffix}`;
+  };
 
+  // ✅ Load and validate saved data
   useEffect(() => {
-    if (!showSuccess) localStorage.setItem("appointmentStep", currentStep);
-  }, [currentStep, showSuccess]);
+    const loadSavedData = async () => {
+      const savedType = localStorage.getItem("appointment_activeType");
+      if (!savedType) return;
 
+      const stepKey = `appointment_${savedType}_step`;
+      const dataKey = `appointment_${savedType}_data`;
+      const savedStep = parseInt(localStorage.getItem(stepKey)) || 1;
+      const savedData = JSON.parse(localStorage.getItem(dataKey) || "{}");
+
+      try {
+        // ✅ Fetch valid service IDs to validate saved data
+        const { data } = await api.get("/public/services");
+        const validIds = data?.services?.map((s) => s.id) || [];
+
+        if (!savedData.service_id || !validIds.includes(savedData.service_id)) {
+          console.warn("⚠️ Outdated or invalid saved appointment data cleared.");
+          localStorage.removeItem(dataKey);
+          localStorage.removeItem(stepKey);
+          localStorage.removeItem("appointment_activeType");
+          return;
+        }
+
+        setFormData(savedData);
+        setCurrentStep(savedStep);
+      } catch (err) {
+        console.warn("⚠️ Failed to validate saved service:", err.message);
+      }
+    };
+
+    loadSavedData();
+  }, []);
+
+  // ✅ Persist per-service data & step
   useEffect(() => {
-    if (!showSuccess) localStorage.setItem("appointmentData", JSON.stringify(formData));
-  }, [formData, showSuccess]);
+    if (!formData.formType) return;
+    localStorage.setItem("appointment_activeType", formData.formType);
+    localStorage.setItem(getStorageKey("step"), currentStep);
+    localStorage.setItem(getStorageKey("data"), JSON.stringify(formData));
+  }, [formData, currentStep]);
 
+  // ✅ Reset local storage for the current form type
+  const resetStorage = (type) => {
+    const keyPrefix = `appointment_${type || formData.formType}`;
+    localStorage.removeItem(`${keyPrefix}_data`);
+    localStorage.removeItem(`${keyPrefix}_step`);
+  };
+
+  // ✅ Auto-clear all when successfully submitted
   useEffect(() => {
     if (showSuccess) {
-      localStorage.removeItem("appointmentStep");
-      localStorage.removeItem("appointmentData");
+      resetStorage(formData.formType);
+      localStorage.removeItem("appointment_activeType");
     }
   }, [showSuccess]);
 
-  /* ---------- Validation handling ---------- */
-  const validatorsRef = useRef({});
-  const registerValidator = (step, fn) => (validatorsRef.current[step] = fn);
+  /* =====================================================
+     🔄 Auto Reset When Switching Service Type
+  ===================================================== */
+  const prevTypeRef = useRef(null);
+  useEffect(() => {
+    if (!formData.formType) return;
+    const currentType = formData.formType;
+    const prevType = prevTypeRef.current;
 
+    // When user switches from one service (baptism → confirmation), clear previous type storage
+    if (prevType && prevType !== currentType) {
+      resetStorage(prevType);
+      setFormData({
+        formType: currentType,
+        service_id: formData.service_id,
+        serviceName: formData.serviceName,
+      });
+      setCurrentStep(1);
+    }
+
+    prevTypeRef.current = currentType;
+  }, [formData.formType]);
+
+  /* =====================================================
+     🧩 Validation Handling
+  ===================================================== */
   const runStepValidation = () => {
     let errs = {};
 
     if (currentStep === 1) {
-      if (!formData.service_id) {
-        errs.service_id = "Please select a service";
-      }
+      if (!formData.service_id) errs.service_id = "Please select a service";
     }
 
     if (currentStep === 2) {
@@ -77,13 +140,10 @@ export default function AppointmentPage() {
     }
 
     if (currentStep === 3) {
-      // Call BaptismForm’s validator if registered
       const validator = validatorsRef.current[3];
       if (validator) {
         const result = validator();
-        if (result !== true) {
-          errs = { ...errs, ...result }; // merge all returned field errors
-        }
+        if (result !== true) errs = { ...errs, ...result };
       }
     }
 
@@ -91,6 +151,9 @@ export default function AppointmentPage() {
     return Object.keys(errs).length === 0;
   };
 
+  /* =====================================================
+     ⚙️ Step Navigation
+  ===================================================== */
   const next = () => {
     if (!runStepValidation()) return;
     setCurrentStep((s) => Math.min(s + 1, steps.length));
@@ -104,15 +167,16 @@ export default function AppointmentPage() {
   };
 
   const resetForm = () => {
+    resetStorage(formData.formType);
     setFormData({});
     setFormErrors({});
     setCurrentStep(1);
     setShowSuccess(false);
-    localStorage.removeItem("appointmentStep");
-    localStorage.removeItem("appointmentData");
   };
 
-  /* ---------- Submit ---------- */
+  /* =====================================================
+     🚀 Submit Handler
+  ===================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (currentStep !== 4) return;
@@ -126,23 +190,39 @@ export default function AppointmentPage() {
         date: formData.preferredDate,
         time: formData.preferredTime,
         name:
-          formData.firstName && formData.lastName
-            ? `${formData.firstName} ${formData.lastName}`
-            : `${formData.fatherName || ""} ${formData.motherMaidenName || ""}`.trim(),
-        email: formData.email,
+          user?.fullName ||
+          user?.name ||
+          user?.email?.split("@")[0] ||
+          "Guest",
+        email: formData.email || user?.email,
         contactNumber: formData.phone,
         address: formData.address,
         notes: formData.notes || formData.additionalNotes || null,
       };
 
       if (formData.formType === "baptism") {
-        payload.childFullName = formData.childFullName;
-        payload.childDob = formData.childDob;
-        payload.childBirthplace = formData.childBirthplace;
-        payload.fatherName = formData.fatherName;
-        payload.motherMaidenName = formData.motherMaidenName;
-        payload.parentsMarriageType = formData.parentsMarriageType;
-        payload.sponsors = formData.sponsors || [];
+        Object.assign(payload, {
+          childFullName: formData.childFullName,
+          childDob: formData.childDob,
+          childBirthplace: formData.childBirthplace,
+          fatherName: formData.fatherName,
+          motherMaidenName: formData.motherMaidenName,
+          parentsMarriageType: formData.parentsMarriageType,
+          sponsors: formData.sponsors || [],
+        });
+      }
+
+      if (formData.formType === "confirmation") {
+        Object.assign(payload, {
+          confirmandName: formData.confirmandName,
+          age: formData.age,
+          fatherName: formData.fatherName,
+          motherMaidenName: formData.motherMaidenName,
+          parishOrigin: formData.parishOrigin,
+          baptizedAt: formData.baptizedAt,
+          baptizedOn: formData.baptizedOn,
+          sponsors: formData.sponsors || [],
+        });
       }
 
       const { data } = await api.post("/appointments", payload);
@@ -157,7 +237,6 @@ export default function AppointmentPage() {
       setShowSuccess(true);
     } catch (error) {
       toast.dismiss(toastId);
-
       if (error?.response?.data?.errors) {
         const fieldErrors = {};
         error.response.data.errors.forEach(({ field, message }) => {
@@ -172,12 +251,27 @@ export default function AppointmentPage() {
     }
   };
 
+  /* =====================================================
+     🧱 Step Content Renderer
+  ===================================================== */
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return <Step1Service formData={formData} setFormData={setFormData} formErrors={formErrors} />;
+        return (
+          <Step1Service
+            formData={formData}
+            setFormData={setFormData}
+            formErrors={formErrors}
+          />
+        );
       case 2:
-        return <Step2DateTime formData={formData} setFormData={setFormData} formErrors={formErrors} />;
+        return (
+          <Step2DateTime
+            formData={formData}
+            setFormData={setFormData}
+            formErrors={formErrors}
+          />
+        );
       case 3:
         return (
           <Step3Form
@@ -202,14 +296,19 @@ export default function AppointmentPage() {
     }
   };
 
+  /* =====================================================
+     🖥️ Layout
+  ===================================================== */
   return (
     <main className="bg-gray-50 min-h-screen">
       <HeroBanner title="Book an Appointment" imageSrc={HERO_IMG} />
       <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8">
         {!showSuccess && <Stepper steps={steps} currentStep={currentStep} />}
+
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden mt-8">
           <form noValidate onSubmit={handleSubmit}>
             <div className="p-6 md:p-8">{renderStepContent()}</div>
+
             {!showSuccess && currentStep <= steps.length && (
               <div className="px-6 md:px-8 py-6 bg-gray-50 border-t flex flex-col sm:flex-row justify-between gap-4">
                 <button
@@ -233,6 +332,7 @@ export default function AppointmentPage() {
             )}
           </form>
         </div>
+
         <div className="mt-6 text-center">
           <Link
             to="/services/generalinfo"

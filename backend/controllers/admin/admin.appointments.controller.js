@@ -20,7 +20,11 @@ import {
 import {
   sendAppointmentCreatedEmail,
   sendAppointmentUpdatedEmail,
+  sendAppointmentRescheduledEmail,
+  sendAppointmentCancelledEmail,
 } from "../../utils/appointmentEmails.js";
+
+import { createNotification } from "../../utils/createNotification.js";
 
 // ✅ Updated statuses (removed in_progress)
 // ✅ Updated statuses (added archived)
@@ -71,7 +75,26 @@ export const createAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // duplicate booking check
+    // 🔹 Conflict check
+    const [conflicts] = await conn.query(
+      `SELECT id, name, time, status
+       FROM appointments
+       WHERE service_id=? AND date=? 
+         AND status IN ('pending','approved')
+         AND ABS(TIME_TO_SEC(TIMEDIFF(time, ?))) < 3600`,
+      [service_id, date, t]
+    );
+    if (conflicts.length && !override) {
+      await conn.rollback();
+      return res.status(409).json({
+        success: false,
+        code: "TIME_CONFLICT",
+        message: `There is another appointment near ${t}. Do you want to continue anyway?`,
+        conflicts,
+      });
+    }
+
+    // 🔹 Duplicate booking check
     if (
       await hasDuplicateBooking({
         service_id,
@@ -89,10 +112,10 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // slot availability
+    // 🔹 Slot validation
     const dayAvail = await getDayAvailability(service_id, date);
     const slot = findSlot(dayAvail, t);
-    if (slot && slot.unavailable) {
+    if (slot && slot.unavailable && !override) {
       await conn.rollback();
       return res.status(400).json({
         success: false,
@@ -101,6 +124,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
+    // 🔹 Church schedule confirmation
     const confirm = needsConfirmationForAdmin({
       availability: dayAvail,
       timeHHMM: t,
@@ -111,27 +135,10 @@ export const createAppointmentAdmin = async (req, res) => {
         success: false,
         code: "CONFIRM_REQUIRED",
         message: confirm.reasonText,
-        confirmNeeded: true,
-        meta: { reason: confirm.reasonText, reasonCode: confirm.reasonCode },
       });
     }
 
-    if (slot) {
-      const alreadyBooked = await countBookedAt({ service_id, date, time: t });
-      const remaining = Math.max(
-        0,
-        slot.remaining ?? slot.capacity - alreadyBooked
-      );
-      if (remaining <= 0 && !override) {
-        await conn.rollback();
-        return res.status(400).json({
-          success: false,
-          code: "FULLY_BOOKED",
-          message: "This time is already fully booked.",
-        });
-      }
-    }
-
+    // ✅ Create appointment
     const newId = await insertAppointment({
       user_id: req.userId || null,
       name,
@@ -142,11 +149,11 @@ export const createAppointmentAdmin = async (req, res) => {
       date,
       time: t,
       status,
-      notes: notes || null,
+      notes,
     });
-
     await conn.commit();
 
+    // 🔹 Send email confirmation
     try {
       const [[service]] = await conn.query(
         "SELECT name FROM services WHERE id=?",
@@ -160,15 +167,40 @@ export const createAppointmentAdmin = async (req, res) => {
         appointmentId: newId,
       });
     } catch (e) {
-      console.error("sendAppointmentCreatedEmail failed (admin):", e.message);
+      console.error("sendAppointmentCreatedEmail failed:", e.message);
+    }
+
+    // ✅ Notify all admins with reference ID + Transaction ID
+    try {
+      const [admins] = await conn.query(
+        "SELECT id FROM users WHERE role='admin'"
+      );
+      const [[service]] = await conn.query(
+        "SELECT name FROM services WHERE id=?",
+        [service_id]
+      );
+      const message = `${name} booked a ${
+        service?.name || "service"
+      } on ${date} at ${t}.`;
+
+      for (const admin of admins) {
+        await createNotification({
+          user_id: admin.id,
+          title: "New Appointment Created",
+          message,
+          type: "appointment",
+          reference_id: newId,
+          transaction_id: `APT-${String(newId).padStart(5, "0")}`,
+        });
+      }
+    } catch (err) {
+      console.warn("⚠️ Failed to create admin notification:", err.message);
     }
 
     return res.status(201).json({
       success: true,
-      message: override
-        ? "Appointment created with override"
-        : "Appointment created successfully",
-      appointmentId: newId, // ✅ keep simple (DataTable doesn’t need full row)
+      message: "Appointment created successfully",
+      appointmentId: newId,
     });
   } catch (err) {
     if (conn) await conn.rollback();
@@ -183,7 +215,7 @@ export const createAppointmentAdmin = async (req, res) => {
 
 /* ==================================================
    PATCH /api/admin/appointments/:id
-   (approve / reject / cancel / update)
+   (approve / reject / cancel / reschedule / update)
 ================================================== */
 export const updateAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
@@ -202,30 +234,51 @@ export const updateAppointmentAdmin = async (req, res) => {
       override = false,
     } = req.body;
 
-    // strict status validation
-    if (status && !STATUSES.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        code: "INVALID_STATUS",
-        message: "Invalid status value",
-      });
-    }
-
     const t = time ? normalizeTime(time) : null;
-    const errors = validateUpdate({ status, date, time: t });
-    if (t === null && time) errors.push("Invalid time format (HH:mm).");
-    if (errors.length) {
-      return res
-        .status(400)
-        .json({ success: false, code: "VALIDATION_ERROR", errors });
+    const schedulingStatuses = ["approved", "completed"];
+    if (schedulingStatuses.includes(status)) {
+      const errors = validateUpdate({ status, date, time: t });
+      if (t === null && time) errors.push("Invalid time format (HH:mm).");
+      if (errors.length)
+        return res
+          .status(400)
+          .json({ success: false, code: "VALIDATION_ERROR", errors });
     }
 
     await conn.beginTransaction();
+
+    // Conflict / Availability check
+    if (date && t && status !== "rejected" && status !== "cancelled") {
+      const [conflicts] = await conn.query(
+        `SELECT id FROM appointments
+         WHERE service_id=? AND date=? AND status IN ('pending','approved')
+         AND id != ? AND ABS(TIME_TO_SEC(TIMEDIFF(time, ?))) < 3600`,
+        [service_id, date, id, t]
+      );
+      if (conflicts.length && !override) {
+        await conn.rollback();
+        return res
+          .status(409)
+          .json({
+            success: false,
+            code: "TIME_CONFLICT",
+            message: "Conflict detected.",
+          });
+      }
+    }
+
+    // Fetch old data
+    const [[oldAppt]] = await conn.query(
+      "SELECT date, time FROM appointments WHERE id=?",
+      [id]
+    );
+
+    // Apply update
     await applyUpdate({
       id,
       status,
-      date: date ?? null,
-      time: t ?? null,
+      date: date ?? oldAppt?.date ?? null,
+      time: t ?? oldAppt?.time ?? null,
       notes: notes || null,
       name,
       email,
@@ -235,32 +288,102 @@ export const updateAppointmentAdmin = async (req, res) => {
     });
     await conn.commit();
 
-    // notify client if email provided
+    // 🔹 Notification logic
+    try {
+      const [[service]] = await conn.query(
+        "SELECT name FROM services WHERE id=?",
+        [service_id]
+      );
+      const serviceName = service?.name || "Selected Service";
+      const baseMsg = `${name}'s ${serviceName} appointment`;
+
+      let title, message;
+      if (status === "approved") {
+        title = "Appointment Approved";
+        message = `${baseMsg} was approved for ${date} at ${t}.`;
+      } else if (status === "cancelled") {
+        title = "Appointment Cancelled";
+        message = `${baseMsg} has been cancelled.`;
+      } else if (status === "rejected") {
+        title = "Appointment Rejected";
+        message = `${baseMsg} was rejected by the admin.`;
+      } else if (date && t && (oldAppt.date !== date || oldAppt.time !== t)) {
+        title = "Appointment Rescheduled";
+        message = `${baseMsg} was rescheduled to ${date} at ${t}.`;
+      } else if (status === "completed") {
+        title = "Appointment Completed";
+        message = `${baseMsg} has been marked as completed.`;
+      }
+
+      if (title) {
+        await createNotification({
+          user_id: req.userId || null,
+          title,
+          message,
+          type: "appointment",
+          reference_id: id,
+          transaction_id: `APT-${String(id).padStart(5, "0")}`,
+        });
+      }
+    } catch (err) {
+      console.warn("⚠️ Failed to create update notification:", err.message);
+    }
+
+    // 🔹 Send emails (unchanged)
     try {
       if (email) {
         const [[service]] = await conn.query(
           "SELECT name FROM services WHERE id=?",
           [service_id]
         );
-        await sendAppointmentUpdatedEmail(email, {
-          name,
-          serviceName: service?.name || "Selected Service",
-          date,
-          time: t,
-          status,
-          appointmentId: id,
-        });
+        const serviceName = service?.name || "Selected Service";
+
+        if (
+          date &&
+          t &&
+          (oldAppt.date !== date || oldAppt.time !== t) &&
+          status !== "cancelled" &&
+          status !== "rejected"
+        ) {
+          await sendAppointmentRescheduledEmail(email, {
+            name,
+            serviceName,
+            oldDate: oldAppt.date,
+            oldTime: oldAppt.time,
+            newDate: date,
+            newTime: t,
+          });
+        } else if (status === "cancelled" || status === "rejected") {
+          await sendAppointmentCancelledEmail(email, {
+            status,
+            name,
+            serviceName,
+            date: date ?? oldAppt.date,
+            time: t ?? oldAppt.time,
+            reason:
+              notes ||
+              (status === "cancelled"
+                ? "Appointment was cancelled by the parish office."
+                : "Appointment was rejected by the parish office."),
+          });
+        } else {
+          await sendAppointmentUpdatedEmail(email, {
+            name,
+            serviceName,
+            date: date ?? oldAppt.date,
+            time: t ?? oldAppt.time,
+            status,
+            appointmentId: id,
+          });
+        }
       }
     } catch (e) {
-      console.error("sendAppointmentUpdatedEmail failed:", e.message);
+      console.error("⚠️ sendAppointmentEmail failed:", e.message);
     }
 
     return res.json({
       success: true,
-      message:
-        override && status
-          ? `Appointment ${status} with override`
-          : `Appointment ${status || "updated"} successfully`,
+      message: `Appointment ${status || "updated"} successfully`,
     });
   } catch (err) {
     if (conn) await conn.rollback();
@@ -310,6 +433,7 @@ export const getAppointmentById = async (req, res) => {
     let details = null;
     let sponsors = [];
 
+    /* ---------- Baptism details ---------- */
     if (appt.form_type === "baptism") {
       [[details]] = await pool.execute(
         `SELECT 
@@ -337,6 +461,35 @@ export const getAppointmentById = async (req, res) => {
       }
     }
 
+    /* ---------- Confirmation (Kumpil) details ---------- */
+    if (appt.form_type === "confirmation") {
+      [[details]] = await pool.execute(
+        `SELECT 
+       confirmandName,
+       edad,
+       fatherName,
+       motherMaidenName,
+       parishOrigin,
+       baptizedAt,
+       baptizedOn
+     FROM confirmation_details 
+     WHERE appointment_id=?`,
+        [id]
+      );
+
+      if (details) {
+        const [sponsorRows] = await pool.execute(
+          `SELECT role, name, address
+       FROM confirmation_sponsors 
+       WHERE confirmation_id = (
+         SELECT id FROM confirmation_details WHERE appointment_id=? LIMIT 1
+       )`,
+          [id]
+        );
+        sponsors = sponsorRows;
+      }
+    }
+
     return res.json({
       success: true,
       appointment: appt,
@@ -356,6 +509,143 @@ export const getAppointmentById = async (req, res) => {
 ================================================== */
 export const getAppointments = async (req, res) => {
   try {
+    /* =======================================================
+       🔹 1️⃣ Auto-mark old approved appointments as completed
+    ======================================================= */
+    const [outdated] = await pool.query(`
+      UPDATE appointments
+      SET status = 'completed'
+      WHERE status = 'approved'
+        AND TIMESTAMP(date, time) < NOW() - INTERVAL 3 DAY
+    `);
+    if (outdated.affectedRows > 0) {
+      console.log(
+        `✅ Auto-completed ${outdated.affectedRows} old appointments`
+      );
+    }
+
+    /* =======================================================
+       🔹 2️⃣ Fetch today's and tomorrow's appointments
+    ======================================================= */
+    const [todayRows] = await pool.query(`
+      SELECT COUNT(*) AS count 
+      FROM appointments 
+      WHERE DATE(date) = CURDATE() 
+        AND status IN ('pending','approved')
+    `);
+
+    const [tomorrowRows] = await pool.query(`
+      SELECT COUNT(*) AS count 
+      FROM appointments 
+      WHERE DATE(date) = CURDATE() + INTERVAL 1 DAY
+        AND status IN ('pending','approved')
+    `);
+
+    const todayCount = todayRows[0].count || 0;
+    const tomorrowCount = tomorrowRows[0].count || 0;
+
+    /* =======================================================
+       🔹 3️⃣ Generate randomized messages
+    ======================================================= */
+    const todayMessages = [
+      `You have ${todayCount} appointment${
+        todayCount > 1 ? "s" : ""
+      } scheduled for today.`,
+      `${todayCount} appointment${
+        todayCount > 1 ? "s" : ""
+      } are lined up for today — make sure to review them.`,
+      `Heads up! ${todayCount} appointment${
+        todayCount > 1 ? "s" : ""
+      } happening today.`,
+      `Today’s schedule includes ${todayCount} appointment${
+        todayCount > 1 ? "s" : ""
+      }.`,
+      `${todayCount} appointment${
+        todayCount > 1 ? "s" : ""
+      } awaiting attention today.`,
+    ];
+
+    const tomorrowMessages = [
+      `You have ${tomorrowCount} appointment${
+        tomorrowCount > 1 ? "s" : ""
+      } scheduled for tomorrow.`,
+      `Reminder: ${tomorrowCount} appointment${
+        tomorrowCount > 1 ? "s" : ""
+      } happening tomorrow.`,
+      `Prepare ahead — ${tomorrowCount} appointment${
+        tomorrowCount > 1 ? "s" : ""
+      } set for tomorrow.`,
+      `Tomorrow’s schedule has ${tomorrowCount} appointment${
+        tomorrowCount > 1 ? "s" : ""
+      }.`,
+      `Upcoming notice: ${tomorrowCount} appointment${
+        tomorrowCount > 1 ? "s" : ""
+      } tomorrow.`,
+    ];
+
+    const randomTodayMessage =
+      todayCount > 0
+        ? todayMessages[Math.floor(Math.random() * todayMessages.length)]
+        : null;
+    const randomTomorrowMessage =
+      tomorrowCount > 0
+        ? tomorrowMessages[Math.floor(Math.random() * tomorrowMessages.length)]
+        : null;
+
+    /* =======================================================
+   🔹 4️⃣ Notify all admins (avoid duplicates for the same day)
+======================================================= */
+    if (todayCount > 0 || tomorrowCount > 0) {
+      const [admins] = await pool.query(
+        "SELECT id FROM users WHERE role='admin'"
+      );
+
+      for (const admin of admins) {
+        // 🧩 Prevent duplicate notification for today
+        if (todayCount > 0 && randomTodayMessage) {
+          const [existsToday] = await pool.query(
+            `SELECT id FROM notifications
+         WHERE user_id=? AND title=? 
+         AND DATE(created_at)=CURDATE()`,
+            [admin.id, "Today's Appointments"]
+          );
+
+          if (existsToday.length === 0) {
+            await createNotification({
+              user_id: admin.id,
+              title: "Today's Appointments",
+              message: randomTodayMessage,
+              type: "appointment",
+            });
+          }
+        }
+
+        // 🧩 Prevent duplicate notification for tomorrow
+        if (tomorrowCount > 0 && randomTomorrowMessage) {
+          const [existsTomorrow] = await pool.query(
+            `SELECT id FROM notifications
+         WHERE user_id=? AND title=? 
+         AND DATE(created_at)=CURDATE()`,
+            [admin.id, "Upcoming Appointments"]
+          );
+
+          if (existsTomorrow.length === 0) {
+            await createNotification({
+              user_id: admin.id,
+              title: "Upcoming Appointments",
+              message: randomTomorrowMessage,
+              type: "appointment",
+            });
+          }
+        }
+      }
+
+      console.log(`🔔 Admin notifications checked — no duplicates created`);
+    }
+
+    /* =======================================================
+       🔹 5️⃣ Continue with normal pagination + response
+    ======================================================= */
     const page = Number(req.query.page || 1);
     const pageSize = Number(req.query.pageSize || 10);
     const offset = (page - 1) * pageSize;
@@ -403,6 +693,38 @@ export const getAppointments = async (req, res) => {
     res
       .status(500)
       .json({ success: false, error: "Failed to fetch appointments" });
+  }
+};
+
+/* ==================================================
+   GET /api/admin/appointments/conflicts
+   → Quick conflict preview (for admin timepicker modal)
+================================================== */
+export const getAppointmentConflicts = async (req, res) => {
+  try {
+    const { service_id, date, time } = req.query;
+    if (!service_id || !date || !time) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing required query params" });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, name, time, status
+       FROM appointments
+       WHERE service_id = ? AND date = ?
+         AND status IN ('pending','approved')
+         AND ABS(TIME_TO_SEC(TIMEDIFF(time, ?))) < 3600
+       ORDER BY time ASC`,
+      [service_id, date, time]
+    );
+
+    return res.json({ success: true, conflicts: rows });
+  } catch (err) {
+    console.error("❌ getAppointmentConflicts error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch conflicts" });
   }
 };
 
@@ -506,6 +828,42 @@ export const filterAppointments = async (req, res) => {
     res
       .status(500)
       .json({ success: false, error: "Failed to filter appointments" });
+  }
+};
+
+/* ==================================================
+   GET /api/admin/appointments/today
+   → Returns today's appointments for admin dashboard
+================================================== */
+export const getTodayAppointments = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT 
+         a.id, 
+         a.name, 
+         a.contactNumber,
+         a.email,
+         a.date,
+         a.time,
+         a.status,
+         s.name AS serviceName
+       FROM appointments a
+       JOIN services s ON a.service_id = s.id
+       WHERE DATE(a.date) = CURDATE()
+       ORDER BY a.time ASC`
+    );
+
+    res.json({
+      success: true,
+      data: rows,
+      count: rows.length,
+    });
+  } catch (err) {
+    console.error("❌ getTodayAppointments error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch today's appointments",
+    });
   }
 };
 
