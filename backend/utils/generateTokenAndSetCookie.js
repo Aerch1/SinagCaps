@@ -1,4 +1,4 @@
-// backend/utils/generateTokenAndSetCookie.js
+// utils/generateTokenAndSetCookie.js
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
@@ -7,8 +7,8 @@ const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
 
 const cookieBase = {
   httpOnly: true,
-  secure: isProd, // HTTPS required in prod
-  sameSite: isProd ? "strict" : "lax", // friendlier in dev
+  secure: isProd, // only HTTPS in prod
+  sameSite: isProd ? "none" : "lax", // ✅ 'none' allows cross-domain cookies
   path: "/",
   ...(cookieDomain ? { domain: cookieDomain } : {}),
 };
@@ -27,6 +27,7 @@ export const generateTokenAndSetCookie = (res, userId) => {
     jwtid: jtiRefresh,
   });
 
+  // ✅ Use same cookie settings for both
   res.cookie("token", accessToken, {
     ...cookieBase,
     maxAge: 15 * 60 * 1000,
