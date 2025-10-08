@@ -37,13 +37,13 @@ const __dirname = path.resolve();
 
 
 const allowedOrigins = [
-  process.env.CLIENT_URL, // from Railway env (should be https://sinag-caps.vercel.app)
+  process.env.CLIENT_URL, // should be https://www.olpgvp.com
   "http://localhost:5173",
   "http://localhost:5174",
   "https://sinagcaps.vercel.app",
   "https://sinag-caps.vercel.app",
-  "https://www.olopgv.org",
-  "https://olopgv.org",
+  "https://www.olpgvp.com",
+  "https://olpgvp.com",
 ];
 app.use(
   cors({
