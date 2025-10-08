@@ -4,27 +4,18 @@ import dotenv from "dotenv";
 dotenv.config();
 
 /* ===========================
-   CREATE POOL (LOCAL or RAILWAY)
+   CREATE MYSQL POOL
 =========================== */
-let pool;
-
-if (process.env.DATABASE_URL) {
-  // ✅ Use Railway internal connection (private network)
-  pool = mysql.createPool(process.env.DATABASE_URL);
-  console.log("🔗 Using Railway internal DATABASE_URL connection");
-} else {
-  // ✅ Fallback for local development
-  pool = mysql.createPool({
-    host: process.env.DB_HOST || "localhost",
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "",
-    database: process.env.DB_NAME || "olpgvp",
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-  });
-  console.log("💻 Using local MySQL connection");
-}
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT || 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+});
 
 export default pool;
 
@@ -35,16 +26,9 @@ export const connectDB = async () => {
   let conn;
   try {
     conn = await pool.getConnection();
-    await ensureSchema(conn);
-
-    if (process.env.NODE_ENV === "development") {
-      await seedAdmin(conn);
-      console.log("✅ Database schema ensured & admin seeded");
-    } else {
-      console.log("✅ Database schema ensured");
-    }
-  } catch (e) {
-    console.error("❌ Database connection failed:", e.message);
+    console.log("✅ Successfully connected to MySQL database");
+  } catch (err) {
+    console.error("❌ Database connection failed:", err.message);
     process.exit(1);
   } finally {
     if (conn) conn.release();
