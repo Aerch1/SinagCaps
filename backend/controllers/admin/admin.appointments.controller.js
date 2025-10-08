@@ -75,7 +75,7 @@ export const createAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // 🔹 Conflict check
+    /* 🔹 Conflict check */
     const [conflicts] = await conn.query(
       `SELECT id, name, time, status
        FROM appointments
@@ -94,7 +94,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // 🔹 Duplicate booking check
+    /* 🔹 Duplicate booking check */
     if (
       await hasDuplicateBooking({
         service_id,
@@ -112,7 +112,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // 🔹 Slot validation
+    /* 🔹 Slot validation */
     const dayAvail = await getDayAvailability(service_id, date);
     const slot = findSlot(dayAvail, t);
     if (slot && slot.unavailable && !override) {
@@ -124,7 +124,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // 🔹 Church schedule confirmation
+    /* 🔹 Church schedule confirmation */
     const confirm = needsConfirmationForAdmin({
       availability: dayAvail,
       timeHHMM: t,
@@ -138,7 +138,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // ✅ Create appointment
+    /* ✅ Create appointment */
     const newId = await insertAppointment({
       user_id: req.userId || null,
       name,
@@ -151,9 +151,11 @@ export const createAppointmentAdmin = async (req, res) => {
       status,
       notes,
     });
+
+    /* ✅ Commit main insert first */
     await conn.commit();
 
-    // 🔹 Send email confirmation
+    /* 🔹 Send email confirmation (non-blocking) */
     try {
       const [[service]] = await conn.query(
         "SELECT name FROM services WHERE id=?",
@@ -170,7 +172,7 @@ export const createAppointmentAdmin = async (req, res) => {
       console.error("sendAppointmentCreatedEmail failed:", e.message);
     }
 
-    // ✅ Notify all admins with reference ID + Transaction ID
+    /* 🔹 Notify all admins */
     try {
       const [admins] = await conn.query(
         "SELECT id FROM users WHERE role='admin'"
@@ -197,10 +199,22 @@ export const createAppointmentAdmin = async (req, res) => {
       console.warn("⚠️ Failed to create admin notification:", err.message);
     }
 
+    /* ✅ Fetch the full newly created appointment for frontend */
+    const [[newAppt]] = await conn.query(
+      `SELECT 
+         a.id, a.name, a.email, a.contactNumber, a.address,
+         a.status, DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
+         a.time, a.notes, s.name AS serviceName
+       FROM appointments a
+       JOIN services s ON a.service_id = s.id
+       WHERE a.id = ?`,
+      [newId]
+    );
+
     return res.status(201).json({
       success: true,
       message: "Appointment created successfully",
-      appointmentId: newId,
+      appointment: newAppt, // ✅ return full data, not just ID
     });
   } catch (err) {
     if (conn) await conn.rollback();
@@ -247,7 +261,7 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // Conflict / Availability check
+    // 🔹 Conflict / Availability check
     if (date && t && status !== "rejected" && status !== "cancelled") {
       const [conflicts] = await conn.query(
         `SELECT id FROM appointments
@@ -257,23 +271,21 @@ export const updateAppointmentAdmin = async (req, res) => {
       );
       if (conflicts.length && !override) {
         await conn.rollback();
-        return res
-          .status(409)
-          .json({
-            success: false,
-            code: "TIME_CONFLICT",
-            message: "Conflict detected.",
-          });
+        return res.status(409).json({
+          success: false,
+          code: "TIME_CONFLICT",
+          message: "Conflict detected.",
+        });
       }
     }
 
-    // Fetch old data
+    // 🔹 Fetch old data
     const [[oldAppt]] = await conn.query(
       "SELECT date, time FROM appointments WHERE id=?",
       [id]
     );
 
-    // Apply update
+    // 🔹 Apply update
     await applyUpdate({
       id,
       status,
@@ -381,9 +393,22 @@ export const updateAppointmentAdmin = async (req, res) => {
       console.error("⚠️ sendAppointmentEmail failed:", e.message);
     }
 
+    /* ✅ Fetch and return the latest updated record */
+    const [[updatedAppt]] = await conn.query(
+      `SELECT 
+         a.id, a.name, a.email, a.contactNumber, a.address,
+         a.status, DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
+         a.time, a.notes, s.name AS serviceName
+       FROM appointments a
+       JOIN services s ON a.service_id = s.id
+       WHERE a.id = ?`,
+      [id]
+    );
+
     return res.json({
       success: true,
       message: `Appointment ${status || "updated"} successfully`,
+      appointment: updatedAppt, // ✅ return for frontend sync
     });
   } catch (err) {
     if (conn) await conn.rollback();
@@ -519,7 +544,9 @@ export const getAppointments = async (req, res) => {
         AND TIMESTAMP(date, time) < NOW() - INTERVAL 3 DAY
     `);
     if (outdated.affectedRows > 0) {
-      console.log(`✅ Auto-completed ${outdated.affectedRows} old appointments`);
+      console.log(
+        `✅ Auto-completed ${outdated.affectedRows} old appointments`
+      );
     }
 
     /* =======================================================
@@ -546,19 +573,39 @@ export const getAppointments = async (req, res) => {
        🔹 3️⃣ Generate randomized messages
     ======================================================= */
     const todayMessages = [
-      `You have ${todayCount} appointment${todayCount > 1 ? "s" : ""} scheduled for today.`,
-      `${todayCount} appointment${todayCount > 1 ? "s" : ""} are lined up for today — make sure to review them.`,
-      `Heads up! ${todayCount} appointment${todayCount > 1 ? "s" : ""} happening today.`,
-      `Today’s schedule includes ${todayCount} appointment${todayCount > 1 ? "s" : ""}.`,
-      `${todayCount} appointment${todayCount > 1 ? "s" : ""} awaiting attention today.`,
+      `You have ${todayCount} appointment${
+        todayCount > 1 ? "s" : ""
+      } scheduled for today.`,
+      `${todayCount} appointment${
+        todayCount > 1 ? "s" : ""
+      } are lined up for today — make sure to review them.`,
+      `Heads up! ${todayCount} appointment${
+        todayCount > 1 ? "s" : ""
+      } happening today.`,
+      `Today’s schedule includes ${todayCount} appointment${
+        todayCount > 1 ? "s" : ""
+      }.`,
+      `${todayCount} appointment${
+        todayCount > 1 ? "s" : ""
+      } awaiting attention today.`,
     ];
 
     const tomorrowMessages = [
-      `You have ${tomorrowCount} appointment${tomorrowCount > 1 ? "s" : ""} scheduled for tomorrow.`,
-      `Reminder: ${tomorrowCount} appointment${tomorrowCount > 1 ? "s" : ""} happening tomorrow.`,
-      `Prepare ahead — ${tomorrowCount} appointment${tomorrowCount > 1 ? "s" : ""} set for tomorrow.`,
-      `Tomorrow’s schedule has ${tomorrowCount} appointment${tomorrowCount > 1 ? "s" : ""}.`,
-      `Upcoming notice: ${tomorrowCount} appointment${tomorrowCount > 1 ? "s" : ""} tomorrow.`,
+      `You have ${tomorrowCount} appointment${
+        tomorrowCount > 1 ? "s" : ""
+      } scheduled for tomorrow.`,
+      `Reminder: ${tomorrowCount} appointment${
+        tomorrowCount > 1 ? "s" : ""
+      } happening tomorrow.`,
+      `Prepare ahead — ${tomorrowCount} appointment${
+        tomorrowCount > 1 ? "s" : ""
+      } set for tomorrow.`,
+      `Tomorrow’s schedule has ${tomorrowCount} appointment${
+        tomorrowCount > 1 ? "s" : ""
+      }.`,
+      `Upcoming notice: ${tomorrowCount} appointment${
+        tomorrowCount > 1 ? "s" : ""
+      } tomorrow.`,
     ];
 
     const randomTodayMessage =
@@ -625,10 +672,8 @@ export const getAppointments = async (req, res) => {
        🔹 5️⃣ Pagination + status filter support
     ======================================================= */
     const status = req.query.status || "all"; // ✅ added
-    const whereStatus =
-      status && status !== "all" ? `WHERE a.status = ?` : "";
-    const statusParam =
-      status && status !== "all" ? [status] : [];
+    const whereStatus = status && status !== "all" ? `WHERE a.status = ?` : "";
+    const statusParam = status && status !== "all" ? [status] : [];
 
     const page = Number(req.query.page || 1);
     const pageSize = Number(req.query.pageSize || 10);
@@ -687,7 +732,6 @@ export const getAppointments = async (req, res) => {
       .json({ success: false, error: "Failed to fetch appointments" });
   }
 };
-
 
 /* ==================================================
    GET /api/admin/appointments/conflicts

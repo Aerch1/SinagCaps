@@ -598,10 +598,17 @@ export default function DataTable({
                 onClose={() => setShowRejectModal(false)}
                 type="reject"
                 appointment={selectedAppointment}
-                onSuccess={() => {
+                onSuccess={(updated) => {
                     setShowRejectModal(false);
-                    fetchData(); // reload updated data
+                    if (updated?.id) {
+                        setRows((prev) =>
+                            prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r))
+                        );
+                    } else {
+                        fetchData(); // fallback if backend didn’t return appointment
+                    }
                 }}
+
             />
 
             {/* Cancel Modal */}
@@ -610,9 +617,15 @@ export default function DataTable({
                 onClose={() => setShowCancelModal(false)}
                 type="cancel"
                 appointment={selectedAppointment}
-                onSuccess={() => {
+                onSuccess={(updated) => {
                     setShowCancelModal(false);
-                    fetchData(); // reload updated data
+                    if (updated?.id) {
+                        setRows((prev) =>
+                            prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r))
+                        );
+                    } else {
+                        fetchData();
+                    }
                 }}
             />
 
