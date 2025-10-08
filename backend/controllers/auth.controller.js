@@ -15,13 +15,8 @@ import {
   sendChangeEmailCode, // NEW
   sendEmailChangedNotice, // NEW
 } from "../utils/emailService.js";
-import {
-  validateSignup,
-  validateVerifyEmail,
-  validateResetPassword,
-  validateLogin,
-  validateForgotPassword,
-} from "../../backend/shared/validation.js";
+
+import { validateSignup, validateVerifyEmail, validateLogin, validateForgotPassword } from "../shared/validation.js";
 
 import {
   AppError,
