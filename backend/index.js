@@ -35,22 +35,16 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
+
 /* ===============================
-   CORS
-=============================== */
-/* ===============================
-   CORS (Fixed)
-=============================== */
-/* ===============================
-   CORS (Fixed for Deployment)
+   CORS (Final Production-Safe)
 =============================== */
 const allowedOrigins = [
-  process.env.CLIENT_URL,
-  "http://localhost:5173",
+  process.env.CLIENT_URL,                 // main production frontend
+  "http://localhost:5173",                // local dev
   "http://localhost:5174",
-  "https://sinag-caps.vercel.app",
-  "https://sinagcaps.vercel.app",
-  "https://sinag-caps-evdqgw99y-archievalllamas17-4054s-projects.vercel.app", // ✅ add your preview domain
+  "https://sinagcaps.vercel.app",         // main Vercel domain
+  "https://sinag-caps.vercel.app",        // alt (in case you renamed project)
   "https://www.olopgv.org",
   "https://olopgv.org",
 ];
@@ -58,8 +52,13 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true); // ✅ allow
+      // ✅ Allow requests from whitelisted origins OR any *.vercel.app preview domain
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        /\.vercel\.app$/.test(new URL(origin).hostname)
+      ) {
+        callback(null, true);
       } else {
         console.warn("❌ Blocked by CORS:", origin);
         callback(new Error("Not allowed by CORS"));
@@ -68,6 +67,7 @@ app.use(
     credentials: true,
   })
 );
+
 
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "10mb" }));
