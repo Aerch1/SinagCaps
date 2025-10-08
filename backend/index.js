@@ -35,14 +35,14 @@ const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
 /* ===============================
-   ✅ CORS (Safe + Preview Friendly)
+   ✅ FIXED CORS CONFIGURATION
 =============================== */
 const allowedOrigins = [
-  process.env.CLIENT_URL, // Production Frontend (Vercel)
-  "http://localhost:5173", // Local Dev
+  process.env.CLIENT_URL, // from Railway env (should be https://sinag-caps.vercel.app)
+  "http://localhost:5173",
   "http://localhost:5174",
-  "https://sinagcaps.vercel.app", // old naming
-  "https://sinag-caps.vercel.app", // ✅ correct official
+  "https://sinagcaps.vercel.app",
+  "https://sinag-caps.vercel.app",
   "https://www.olopgv.org",
   "https://olopgv.org",
 ];
@@ -50,46 +50,34 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      try {
-        const isAllowed =
-          !origin ||
-          allowedOrigins.includes(origin) ||
-          /\.vercel\.app$/i.test(origin || ""); // allow all vercel preview links
-
-        if (isAllowed) callback(null, true);
-        else {
-          console.warn("❌ Blocked by CORS:", origin);
-          callback(new Error("Not allowed by CORS"));
-        }
-      } catch (err) {
-        console.error("⚠️ CORS Origin Parse Error:", err.message);
-        callback(null, true); // safe fallback
+      // Allow requests from your main frontend and Vercel preview deployments
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        /\.vercel\.app$/i.test(origin)
+      ) {
+        callback(null, true);
+      } else {
+        console.warn("❌ Blocked by CORS:", origin);
+        callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "x-csrf-token",
-    ],
+    allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"],
   })
 );
 
-// ✅ Ensure preflight OPTIONS requests are handled globally
+// ✅ Handle preflight (OPTIONS) requests globally
 app.options("*", cors());
 
-/* ===============================
-   Middleware
-=============================== */
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
 /* ===============================
-   Routes
+   ROUTES
 =============================== */
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
@@ -115,7 +103,7 @@ app.use("/api/admin/security", adminSecurityRoutes);
 app.use("/api/admin/reports", reportRoutes);
 
 /* ===============================
-   Health Check
+   HEALTH CHECK
 =============================== */
 app.get("/api/health", (req, res) => {
   res.json({
@@ -128,7 +116,7 @@ app.get("/api/health", (req, res) => {
 });
 
 /* ===============================
-   Error Handling
+   ERROR HANDLING
 =============================== */
 app.use((err, req, res, next) => {
   console.error("Global error handler:", err);
@@ -153,7 +141,7 @@ app.use((err, req, res, next) => {
 });
 
 /* ===============================
-   Start Server
+   START SERVER
 =============================== */
 app.listen(PORT, () => {
   connectDB();
@@ -164,7 +152,7 @@ app.listen(PORT, () => {
 });
 
 /* ===============================
-   Safety Handlers
+   SAFETY HANDLERS
 =============================== */
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Promise Rejection:", err.message);
