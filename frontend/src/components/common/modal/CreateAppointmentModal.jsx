@@ -1,3 +1,4 @@
+// src/components/common/modal/CreateAppointmentModal.jsx
 "use client";
 
 import { format, parse } from "date-fns";
@@ -10,180 +11,182 @@ import ConfirmDialog from "../../ui/ConfirmDialog";
 import useConflictCheck from "@/hooks/useConflictCheck";
 
 export default function CreateAppointmentModal({
-  isOpen,
-  onClose,
-  onSave,
-  selectedDate,
+    isOpen,
+    onClose,
+    onSave,
+    selectedDate,
 }) {
-  const defaultDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
-  const [serverErrors, setServerErrors] = useState({});
-  const [confirmData, setConfirmData] = useState(null);
-  const [confirmMessage, setConfirmMessage] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+    const defaultDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
+    const [serverErrors, setServerErrors] = useState({});
+    const [confirmData, setConfirmData] = useState(null);
+    const [confirmMessage, setConfirmMessage] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
 
-  // ✅ Conflict checker hook
-  const { checkConflicts } = useConflictCheck();
+    const { checkConflicts } = useConflictCheck();
 
-  // Reset errors when modal opens
-  useEffect(() => {
-    if (isOpen) setServerErrors({});
-  }, [isOpen]);
+    useEffect(() => {
+        if (isOpen) {
+            setServerErrors({});
+            setConfirmData(null);
+            setConfirmMessage(null);
+            setSubmitting(false);
+        }
+    }, [isOpen]);
 
-  /* ----------------------------------------------------------------
-     FORM SUBMIT HANDLER — includes conflict pre-check
-  ---------------------------------------------------------------- */
-  const handleFormSubmit = async (formData) => {
-    setSubmitting(true);
-    const toastId = toast.loading("⏳ Checking schedule...");
+    /* =====================================================
+       HANDLE FORM SUBMIT (Step 1: pre-check conflicts)
+    ===================================================== */
+    const handleFormSubmit = async (formData) => {
+        setSubmitting(true);
+        const toastId = toast.loading("⏳ Checking schedule...");
 
-    try {
-      // ✅ 1. Check for time conflicts before creating appointment
-      const found = await checkConflicts(
-        formData.service_id,
-        formData.date,
-        formData.time
-      );
+        try {
+            const found = await checkConflicts(
+                formData.service_id,
+                formData.date,
+                formData.time
+            );
 
-      if (found.length) {
-        toast.dismiss(toastId);
-        setConfirmData(formData);
+            if (found.length) {
+                toast.dismiss(toastId);
+                setSubmitting(false); // 🧩 FIXED flicker issue
+                setConfirmData(formData);
 
-        // 🕒 Format times like “8:30 AM, 9:00 AM”
-        const nearbyTimes = found
-          .map((c) => {
-            try {
-              const parsed = parse(c.time, "HH:mm:ss", new Date());
-              return format(parsed, "h:mm a");
-            } catch {
-              return c.time;
+                // Format conflict times
+                const nearbyTimes = found
+                    .map((c) => {
+                        try {
+                            const parsed = parse(c.time, "HH:mm:ss", new Date());
+                            return format(parsed, "h:mm a");
+                        } catch {
+                            return c.time;
+                        }
+                    })
+                    .join(", ");
+
+                setConfirmMessage(
+                    found.length === 1
+                        ? `There’s another appointment scheduled around ${nearbyTimes}. Do you still want to continue?`
+                        : `There are ${found.length} other appointments near these times: ${nearbyTimes}. Continue anyway?`
+                );
+
+                return; // Wait for confirmation
             }
-          })
-          .join(", ");
 
-        // 🗣️ Natural, human-friendly message
-        setConfirmMessage(
-          found.length === 1
-            ? `There’s another appointment scheduled around ${nearbyTimes}. Do you still want to continue?`
-            : `There are ${found.length} other appointments near these times: ${nearbyTimes}. Do you still want to continue?`
-        );
+            await createAppointment(formData, toastId);
+        } catch (err) {
+            handleError(err, toastId);
+        }
+    };
 
-        return; // stop and wait for user confirmation
-      }
+    /* =====================================================
+       ACTUAL CREATE CALL (used by both normal + override)
+    ===================================================== */
+    const createAppointment = async (data, toastId, override = false) => {
+        try {
+            const res = await api.post("/admin/appointments", {
+                ...data,
+                override,
+            });
 
-      // ✅ 2. Proceed normally if no conflicts
-      const res = await api.post("/admin/appointments", formData);
+            toast.dismiss(toastId);
+            toast.success(res.data?.message || "✅ Appointment created successfully");
 
-      // 🧩 FIXED: close loading toast first
-      toast.dismiss(toastId);
+            setServerErrors({});
+            setConfirmData(null);
+            setConfirmMessage(null);
+            onSave?.();
+            onClose();
+        } catch (err) {
+            handleError(err, toastId);
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
-      // 🧩 FIXED: show clean success toast
-      toast.success(res.data?.message || "✅ Appointment created successfully");
+    /* =====================================================
+       HANDLE ERROR (centralized)
+    ===================================================== */
+    const handleError = (err, toastId) => {
+        toast.dismiss(toastId);
+        setSubmitting(false);
 
-      // 🧩 FIXED: reset state and refresh table
-      setServerErrors({});
-      onSave?.(); // parent should re-fetch table
-      onClose();
-    } catch (err) {
-      const { status, data } = err.response || {};
-      toast.dismiss(toastId);
+        const { status, data } = err.response || {};
 
-      // 🔸 409 conflict that requires confirmation (e.g. override)
-      if (status === 409 && data?.confirmNeeded) {
-        setConfirmData(formData);
-        setConfirmMessage(data.message || "This action needs confirmation.");
-        return;
-      }
+        if (status === 409 && data?.code === "TIME_CONFLICT") {
+            // backend-level conflict, ask again for override
+            setConfirmData(data?.formData || {});
+            setConfirmMessage(data.message || "Conflict detected. Continue?");
+            return;
+        }
 
-      // 🔸 Validation errors
-      if (status === 400 && Array.isArray(data?.errors)) {
-        const mapped = {};
-        data.errors.forEach((e) => {
-          if (typeof e === "string") mapped._general = e;
-          else if (e.field) mapped[e.field] = e.message;
-        });
-        setServerErrors(mapped);
-        return;
-      }
+        if (status === 400 && Array.isArray(data?.errors)) {
+            const mapped = {};
+            data.errors.forEach((e) => {
+                if (typeof e === "string") mapped._general = e;
+                else if (e.field) mapped[e.field] = e.message;
+            });
+            setServerErrors(mapped);
+            return;
+        }
 
-      // 🔸 Generic error
-      toast.error(data?.message || "❌ Failed to create appointment");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+        toast.error(data?.message || "❌ Failed to create appointment");
+    };
 
-  /* ----------------------------------------------------------------
-     CONFIRMATION HANDLERS
-  ---------------------------------------------------------------- */
-  const handleConfirm = async () => {
-    if (!confirmData) return;
-    setSubmitting(true);
-    const toastId = toast.loading("⏳ Creating with override...");
+    /* =====================================================
+       CONFIRM HANDLERS
+    ===================================================== */
+    const handleConfirm = async () => {
+        if (!confirmData) return;
+        setSubmitting(true);
+        const toastId = toast.loading("⏳ Creating appointment (override)...");
 
-    try {
-      const res = await api.post("/admin/appointments", {
-        ...confirmData,
-        override: true,
-      });
+        await createAppointment(confirmData, toastId, true);
+    };
 
-      toast.dismiss(toastId);
-      toast.success(res.data?.message || "✅ Appointment created with override");
+    const handleCancelConfirm = () => {
+        if (submitting) return;
+        setConfirmData(null);
+        setConfirmMessage(null);
+    };
 
-      // reset + refresh
-      setConfirmData(null);
-      setConfirmMessage(null);
-      onSave?.();
-      onClose();
-    } catch (err) {
-      toast.dismiss(toastId);
-      toast.error(
-        err.response?.data?.message || "❌ Failed to override appointment"
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    /* =====================================================
+       RENDER
+    ===================================================== */
+    return (
+        <>
+            <Modal
+                open={isOpen}
+                onClose={onClose}
+                title="Create Appointment"
+                className="max-w-2xl"
+            >
+                <div className="max-h-[85vh] overflow-y-auto custom-scrollbar">
+                    <div className="max-w-full px-2">
+                        <CreateAppointmentForm
+                            defaultDate={defaultDate}
+                            onSubmit={handleFormSubmit}
+                            onCancel={onClose}
+                            serverErrors={serverErrors}
+                            submitting={submitting}
+                        />
+                    </div>
+                </div>
+            </Modal>
 
-  const handleCancelConfirm = () => {
-    if (submitting) return;
-    setConfirmData(null);
-    setConfirmMessage(null);
-  };
-
-  /* ----------------------------------------------------------------
-     RENDER
-  ---------------------------------------------------------------- */
-  return (
-    <>
-      <Modal
-        open={isOpen}
-        onClose={onClose}
-        title="Create Appointment"
-        className="max-w-2xl"
-      >
-        <div className="max-h-[85vh] overflow-y-auto custom-scrollbar">
-          <div className="max-w-full px-2">
-            <CreateAppointmentForm
-              defaultDate={defaultDate}
-              onSubmit={handleFormSubmit}
-              onCancel={onClose}
-              serverErrors={serverErrors}
-              submitting={submitting}
-            />
-          </div>
-        </div>
-      </Modal>
-
-      {confirmData && confirmMessage && (
-        <ConfirmDialog
-          open
-          title="Confirmation Required"
-          message={confirmMessage}
-          onConfirm={handleConfirm}
-          onCancel={handleCancelConfirm}
-          submitting={submitting}
-        />
-      )}
-    </>
-  );
+            {/* ✅ FIX: always render above modal (z-index higher) */}
+            {confirmData && confirmMessage && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+                    <ConfirmDialog
+                        open
+                        title="Confirmation Required"
+                        message={confirmMessage}
+                        onConfirm={handleConfirm}
+                        onCancel={handleCancelConfirm}
+                        submitting={submitting}
+                    />
+                </div>
+            )}
+        </>
+    );
 }
