@@ -35,16 +35,15 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
-
 /* ===============================
    CORS (Final Production-Safe)
 =============================== */
 const allowedOrigins = [
-  process.env.CLIENT_URL,                 // main production frontend
-  "http://localhost:5173",                // local dev
+  process.env.CLIENT_URL, // main production frontend
+  "http://localhost:5173", // local dev
   "http://localhost:5174",
-  "https://sinagcaps.vercel.app",         // main Vercel domain
-  "https://sinag-caps.vercel.app",        // alt (in case you renamed project)
+  "https://sinagcaps.vercel.app", // main Vercel domain
+  "https://sinag-caps.vercel.app", // alt (in case you renamed project)
   "https://www.olopgv.org",
   "https://olopgv.org",
 ];
@@ -52,22 +51,30 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // ✅ Allow requests from whitelisted origins OR any *.vercel.app preview domain
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        /\.vercel\.app$/.test(new URL(origin).hostname)
-      ) {
+      try {
+        if (
+          !origin ||
+          allowedOrigins.includes(origin) ||
+          /\.vercel\.app$/.test(new URL(origin).hostname)
+        ) {
+          callback(null, true);
+        } else {
+          console.warn("❌ Blocked by CORS:", origin);
+          callback(new Error("Not allowed by CORS"));
+        }
+      } catch (err) {
+        // Fallback if origin is invalid (like undefined during some preflights)
         callback(null, true);
-      } else {
-        console.warn("❌ Blocked by CORS:", origin);
-        callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // ✅ ensures all methods are allowed
+    allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token"], // ✅ adds safer default
   })
 );
 
+// ✅ Explicitly handle OPTIONS preflights
+app.options("*", cors());
 
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "10mb" }));
