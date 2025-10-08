@@ -75,7 +75,7 @@ export const createAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
-    /* 🔹 Conflict check */
+    // 🔹 Conflict check
     const [conflicts] = await conn.query(
       `SELECT id, name, time, status
        FROM appointments
@@ -94,7 +94,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    /* 🔹 Duplicate booking check */
+    // 🔹 Duplicate booking check
     if (
       await hasDuplicateBooking({
         service_id,
@@ -112,7 +112,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    /* 🔹 Slot validation */
+    // 🔹 Slot validation
     const dayAvail = await getDayAvailability(service_id, date);
     const slot = findSlot(dayAvail, t);
     if (slot && slot.unavailable && !override) {
@@ -124,7 +124,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    /* 🔹 Church schedule confirmation */
+    // 🔹 Church schedule confirmation
     const confirm = needsConfirmationForAdmin({
       availability: dayAvail,
       timeHHMM: t,
@@ -138,7 +138,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    /* ✅ Create appointment */
+    // ✅ Create appointment
     const newId = await insertAppointment({
       user_id: req.userId || null,
       name,
@@ -151,11 +151,9 @@ export const createAppointmentAdmin = async (req, res) => {
       status,
       notes,
     });
-
-    /* ✅ Commit main insert first */
     await conn.commit();
 
-    /* 🔹 Send email confirmation (non-blocking) */
+    // 🔹 Send email confirmation
     try {
       const [[service]] = await conn.query(
         "SELECT name FROM services WHERE id=?",
@@ -172,7 +170,7 @@ export const createAppointmentAdmin = async (req, res) => {
       console.error("sendAppointmentCreatedEmail failed:", e.message);
     }
 
-    /* 🔹 Notify all admins */
+    // ✅ Notify all admins with reference ID + Transaction ID
     try {
       const [admins] = await conn.query(
         "SELECT id FROM users WHERE role='admin'"
@@ -199,22 +197,10 @@ export const createAppointmentAdmin = async (req, res) => {
       console.warn("⚠️ Failed to create admin notification:", err.message);
     }
 
-    /* ✅ Fetch the full newly created appointment for frontend */
-    const [[newAppt]] = await conn.query(
-      `SELECT 
-         a.id, a.name, a.email, a.contactNumber, a.address,
-         a.status, DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
-         a.time, a.notes, s.name AS serviceName
-       FROM appointments a
-       JOIN services s ON a.service_id = s.id
-       WHERE a.id = ?`,
-      [newId]
-    );
-
     return res.status(201).json({
       success: true,
       message: "Appointment created successfully",
-      appointment: newAppt, // ✅ return full data, not just ID
+      appointmentId: newId,
     });
   } catch (err) {
     if (conn) await conn.rollback();
@@ -261,7 +247,7 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // 🔹 Conflict / Availability check
+    // Conflict / Availability check
     if (date && t && status !== "rejected" && status !== "cancelled") {
       const [conflicts] = await conn.query(
         `SELECT id FROM appointments
@@ -271,21 +257,23 @@ export const updateAppointmentAdmin = async (req, res) => {
       );
       if (conflicts.length && !override) {
         await conn.rollback();
-        return res.status(409).json({
-          success: false,
-          code: "TIME_CONFLICT",
-          message: "Conflict detected.",
-        });
+        return res
+          .status(409)
+          .json({
+            success: false,
+            code: "TIME_CONFLICT",
+            message: "Conflict detected.",
+          });
       }
     }
 
-    // 🔹 Fetch old data
+    // Fetch old data
     const [[oldAppt]] = await conn.query(
       "SELECT date, time FROM appointments WHERE id=?",
       [id]
     );
 
-    // 🔹 Apply update
+    // Apply update
     await applyUpdate({
       id,
       status,
@@ -393,22 +381,9 @@ export const updateAppointmentAdmin = async (req, res) => {
       console.error("⚠️ sendAppointmentEmail failed:", e.message);
     }
 
-    /* ✅ Fetch and return the latest updated record */
-    const [[updatedAppt]] = await conn.query(
-      `SELECT 
-         a.id, a.name, a.email, a.contactNumber, a.address,
-         a.status, DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
-         a.time, a.notes, s.name AS serviceName
-       FROM appointments a
-       JOIN services s ON a.service_id = s.id
-       WHERE a.id = ?`,
-      [id]
-    );
-
     return res.json({
       success: true,
       message: `Appointment ${status || "updated"} successfully`,
-      appointment: updatedAppt, // ✅ return for frontend sync
     });
   } catch (err) {
     if (conn) await conn.rollback();
@@ -618,20 +593,20 @@ export const getAppointments = async (req, res) => {
         : null;
 
     /* =======================================================
-       🔹 4️⃣ Notify all admins (avoid duplicates for the same day)
-    ======================================================= */
+   🔹 4️⃣ Notify all admins (avoid duplicates for the same day)
+======================================================= */
     if (todayCount > 0 || tomorrowCount > 0) {
       const [admins] = await pool.query(
         "SELECT id FROM users WHERE role='admin'"
       );
 
       for (const admin of admins) {
-        // Prevent duplicate notification for today
+        // 🧩 Prevent duplicate notification for today
         if (todayCount > 0 && randomTodayMessage) {
           const [existsToday] = await pool.query(
             `SELECT id FROM notifications
-             WHERE user_id=? AND title=? 
-             AND DATE(created_at)=CURDATE()`,
+         WHERE user_id=? AND title=? 
+         AND DATE(created_at)=CURDATE()`,
             [admin.id, "Today's Appointments"]
           );
 
@@ -645,12 +620,12 @@ export const getAppointments = async (req, res) => {
           }
         }
 
-        // Prevent duplicate notification for tomorrow
+        // 🧩 Prevent duplicate notification for tomorrow
         if (tomorrowCount > 0 && randomTomorrowMessage) {
           const [existsTomorrow] = await pool.query(
             `SELECT id FROM notifications
-             WHERE user_id=? AND title=? 
-             AND DATE(created_at)=CURDATE()`,
+         WHERE user_id=? AND title=? 
+         AND DATE(created_at)=CURDATE()`,
             [admin.id, "Upcoming Appointments"]
           );
 
@@ -669,12 +644,8 @@ export const getAppointments = async (req, res) => {
     }
 
     /* =======================================================
-       🔹 5️⃣ Pagination + status filter support
+       🔹 5️⃣ Continue with normal pagination + response
     ======================================================= */
-    const status = req.query.status || "all"; // ✅ added
-    const whereStatus = status && status !== "all" ? `WHERE a.status = ?` : "";
-    const statusParam = status && status !== "all" ? [status] : [];
-
     const page = Number(req.query.page || 1);
     const pageSize = Number(req.query.pageSize || 10);
     const offset = (page - 1) * pageSize;
@@ -685,12 +656,8 @@ export const getAppointments = async (req, res) => {
     const safeKey = SORTABLE.has(sortBy) ? `a.${sortBy}` : "a.id";
     const safeDir = sortDir === "ASC" ? "ASC" : "DESC";
 
-    /* =======================================================
-       🔹 6️⃣ Count + rows query (with filter)
-    ======================================================= */
     const [countRows] = await pool.query(
-      `SELECT COUNT(*) as total FROM appointments a ${whereStatus}`,
-      statusParam
+      `SELECT COUNT(*) as total FROM appointments`
     );
     const total = countRows[0].total;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -705,19 +672,15 @@ export const getAppointments = async (req, res) => {
          a.time, a.notes
        FROM appointments a
        JOIN services s ON a.service_id = s.id
-       ${whereStatus}
        ORDER BY ${safeKey} ${safeDir}
        LIMIT ? OFFSET ?`,
-      [...statusParam, pageSize, offset]
+      [pageSize, offset]
     );
 
     const [serviceRows] = await pool.query(
       `SELECT id, name FROM services WHERE active = TRUE ORDER BY name ASC`
     );
 
-    /* =======================================================
-       🔹 7️⃣ Response
-    ======================================================= */
     res.json({
       success: true,
       data: rows,
