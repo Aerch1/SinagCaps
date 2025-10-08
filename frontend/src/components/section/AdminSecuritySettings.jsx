@@ -184,7 +184,7 @@ export default function AdminSecuritySettings() {
 
       {/* Forgot Password Modal */}
       {showForgotModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999]">
           <div className="bg-white w-[90%] max-w-md rounded-lg shadow-lg p-5 md:p-6">
             <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-1">
               Forgot Password
@@ -201,7 +201,7 @@ export default function AdminSecuritySettings() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-0"
                 />
               </div>
 
