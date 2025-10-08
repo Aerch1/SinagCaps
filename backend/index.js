@@ -35,9 +35,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
-/* ===================================================
-   ✅ CORS (Secure + Preview-Friendly)
-=================================================== */
+
 const allowedOrigins = [
   process.env.CLIENT_URL, // e.g. https://sinag-caps.vercel.app
   "https://sinagcaps.vercel.app",
@@ -47,27 +45,36 @@ const allowedOrigins = [
   "https://olopgv.org",
 ];
 
+// ✅ safer check — avoid regex crash in Express v5+
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // allow server-to-server / health check
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const url = new URL(origin);
+    return url.hostname.endsWith(".vercel.app"); // ✅ allow all Vercel previews
+  } catch {
+    return false;
+  }
+}
+
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (
-        !origin || // allow server-to-server / health checks
-        allowedOrigins.includes(origin) || // exact allowed URLs
-        /\.vercel\.app$/i.test(origin) // ✅ allow all Vercel preview URLs
-      ) {
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
         callback(null, true);
       } else {
         console.warn("❌ Blocked by CORS:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
-    credentials: true, // ✅ allow cookies (JWT)
+    credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 
-app.options("*", cors()); // ✅ handle preflight requests
+// ✅ handle preflight requests
+app.options("*", cors());
 
 /* ===================================================
    Middleware
