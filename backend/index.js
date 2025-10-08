@@ -41,18 +41,29 @@ const __dirname = path.resolve();
 /* ===============================
    CORS (Fixed)
 =============================== */
+/* ===============================
+   CORS (Fixed for Deployment)
+=============================== */
 const allowedOrigins = [
-  process.env.CLIENT_URL,
-  "http://localhost:5173",
+  process.env.CLIENT_URL, // dynamic from .env
+  "http://localhost:5173", // local dev
   "http://localhost:5174",
-  "https://sinagcaps.vercel.app",
+  "https://sinag-caps.vercel.app", // ✅ your Vercel domain
+  "https://sinagcaps.vercel.app", // ✅ extra safety (dashless typo)
   "https://www.olopgv.org",
   "https://olopgv.org",
 ];
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true); // ✅ allow
+      } else {
+        console.warn("❌ Blocked by CORS:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
