@@ -118,26 +118,31 @@ export async function getAreaChartData(req, res) {
   const { period = "Month" } = req.query;
 
   try {
-    let groupBy, label;
+    let groupBy, label, dateFilter;
 
     if (period === "Week") {
       groupBy = "DAYOFWEEK(a.date)";
       label = "DATE_FORMAT(a.date, '%a')";
+      dateFilter = "YEARWEEK(a.date, 1) = YEARWEEK(CURDATE(), 1)";
     } else if (period === "Year") {
       groupBy = "MONTH(a.date)";
       label = "DATE_FORMAT(a.date, '%b')";
+      dateFilter = "YEAR(a.date) = YEAR(CURDATE())";
     } else {
       groupBy = "FLOOR((DAY(a.date) - 1) / 7) + 1";
       label = "CONCAT('Week ', FLOOR((DAY(a.date) - 1) / 7) + 1)";
+      dateFilter =
+        "YEAR(a.date) = YEAR(CURDATE()) AND MONTH(a.date) = MONTH(CURDATE())";
     }
 
     const [rows] = await pool.query(
-      `SELECT ${label} as name,
-              s.name as serviceName,
-              COUNT(*) as count
+      `SELECT ${label} AS name,
+              s.name AS serviceName,
+              COUNT(*) AS count
        FROM appointments a
        JOIN services s ON a.service_id = s.id
-       GROUP BY ${groupBy}, s.id
+       WHERE a.date IS NOT NULL AND ${dateFilter}
+       GROUP BY ${groupBy}, s.id, ${label}
        ORDER BY MIN(a.date)`
     );
 
@@ -164,26 +169,31 @@ export async function getBarChartData(req, res) {
   const { period = "Month" } = req.query;
 
   try {
-    let groupBy, label;
+    let groupBy, label, dateFilter;
 
     if (period === "Week") {
       groupBy = "DAYOFWEEK(a.date)";
       label = "DAYNAME(a.date)";
+      dateFilter = "YEARWEEK(a.date, 1) = YEARWEEK(CURDATE(), 1)";
     } else if (period === "Year") {
       groupBy = "MONTH(a.date)";
       label = "MONTHNAME(a.date)";
+      dateFilter = "YEAR(a.date) = YEAR(CURDATE())";
     } else {
       groupBy = "FLOOR((DAY(a.date) - 1) / 7) + 1";
       label = "CONCAT('Week ', FLOOR((DAY(a.date) - 1) / 7) + 1)";
+      dateFilter =
+        "YEAR(a.date) = YEAR(CURDATE()) AND MONTH(a.date) = MONTH(CURDATE())";
     }
 
     const [rows] = await pool.query(
-      `SELECT ${label} as name,
-              s.name as serviceName,
-              COUNT(*) as count
+      `SELECT ${label} AS name,
+              s.name AS serviceName,
+              COUNT(*) AS count
        FROM appointments a
        JOIN services s ON a.service_id = s.id
-       GROUP BY ${groupBy}, s.id
+       WHERE a.date IS NOT NULL AND ${dateFilter}
+       GROUP BY ${groupBy}, s.id, ${label}
        ORDER BY MIN(a.date)`
     );
 
@@ -203,6 +213,7 @@ export async function getBarChartData(req, res) {
       .json({ success: false, message: "Failed to fetch bar chart data" });
   }
 }
+
 /* ==================================================
    GET /api/admin/calendar/kpis
    → Returns KPI for Calendar Analytics Page
@@ -255,6 +266,8 @@ export async function getCalendarKpis(req, res) {
     res.json({ success: true, data });
   } catch (err) {
     console.error("❌ getCalendarKpis error:", err);
-    res.status(500).json({ success: false, message: "Failed to fetch calendar KPIs" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch calendar KPIs" });
   }
 }
