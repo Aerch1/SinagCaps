@@ -38,7 +38,7 @@ export default function CreateAppointmentModal({
         const toastId = toast.loading("⏳ Checking schedule...");
 
         try {
-            // ✅ 1. Check for time conflicts before creating appointment
+            // ✅ 1. Pre-check for conflicts before submission
             const found = await checkConflicts(
                 formData.service_id,
                 formData.date,
@@ -61,14 +61,13 @@ export default function CreateAppointmentModal({
                     })
                     .join(", ");
 
-                // 🗣️ Natural, human-friendly message
                 setConfirmMessage(
                     found.length === 1
                         ? `There’s another appointment scheduled around ${nearbyTimes}. Do you still want to continue?`
                         : `There are ${found.length} other appointments near these times: ${nearbyTimes}. Do you still want to continue?`
                 );
 
-                return;
+                return; // ❗ stop here — wait for admin confirmation
             }
 
             // ✅ 2. Proceed normally if no conflicts
@@ -81,10 +80,10 @@ export default function CreateAppointmentModal({
             const { status, data } = err.response || {};
             toast.dismiss(toastId);
 
-            // 🔸 409 conflict that requires confirmation (e.g. override)
-            if (status === 409 && data?.confirmNeeded) {
+            // 🔸 Handle 409 conflict returned by backend (needs confirmation)
+            if (status === 409 && data?.message) {
                 setConfirmData(formData);
-                setConfirmMessage(data.message || "This action needs confirmation.");
+                setConfirmMessage(data.message);
                 return;
             }
 
@@ -144,6 +143,7 @@ export default function CreateAppointmentModal({
     ---------------------------------------------------------------- */
     return (
         <>
+            {/* Main appointment modal */}
             <Modal
                 open={isOpen}
                 onClose={onClose}
@@ -163,15 +163,18 @@ export default function CreateAppointmentModal({
                 </div>
             </Modal>
 
+            {/* Confirmation dialog always overlays above */}
             {confirmData && confirmMessage && (
-                <ConfirmDialog
-                    open
-                    title="Confirmation Required"
-                    message={confirmMessage}
-                    onConfirm={handleConfirm}
-                    onCancel={handleCancelConfirm}
-                    submitting={submitting}
-                />
+                <div className="relative z-[9999]">
+                    <ConfirmDialog
+                        open
+                        title="Confirmation Required"
+                        message={confirmMessage}
+                        onConfirm={handleConfirm}
+                        onCancel={handleCancelConfirm}
+                        submitting={submitting}
+                    />
+                </div>
             )}
         </>
     );

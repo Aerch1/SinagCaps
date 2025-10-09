@@ -1,4 +1,3 @@
-// src/components/ui/ConfirmDialog.jsx
 "use client";
 import React from "react";
 import { AlertTriangle } from "lucide-react";
@@ -14,8 +13,8 @@ export default function ConfirmDialog({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/40 z-[102] flex items-center justify-center">
-            <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-lg shadow-2xl border border-gray-200 max-w-sm w-full p-6 relative">
                 <div className="flex items-center gap-2 text-red-600 mb-3">
                     <AlertTriangle className="h-5 w-5" />
                     <h3 className="font-semibold text-base">{title}</h3>
