@@ -250,6 +250,7 @@ export const updateAppointmentAdmin = async (req, res) => {
        FROM appointments WHERE id = ?`,
       [id]
     );
+
     if (!oldAppt) {
       await conn.rollback();
       return res
@@ -289,7 +290,8 @@ export const updateAppointmentAdmin = async (req, res) => {
     // ❌ Rescheduling allowed only if approved
     const isRescheduling =
       (date || time) &&
-      (oldAppt.date !== safeDate || oldAppt.time !== safeTime);
+      (oldAppt.date !== safeDate || oldAppt.time !== safeTime) &&
+      !["cancelled", "rejected"].includes(newStatus);
 
     if (isRescheduling && oldStatus !== "approved") {
       await conn.rollback();
@@ -303,7 +305,7 @@ export const updateAppointmentAdmin = async (req, res) => {
     // ======================================================
     // 🧭 Conflict validation
     // ======================================================
-    if (isRescheduling && !["cancelled", "rejected"].includes(newStatus)) {
+    if (isRescheduling) {
       const [conflicts] = await conn.query(
         `SELECT id FROM appointments
          WHERE service_id = ?
