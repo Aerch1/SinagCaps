@@ -234,6 +234,7 @@ export const updateAppointmentAdmin = async (req, res) => {
       override = false,
     } = req.body;
 
+    // ✅ Require reason for cancel or reject
     if ((status === "cancelled" || status === "rejected") && !notes?.trim()) {
       return res.status(400).json({
         success: false,
@@ -243,12 +244,12 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
+    // 🔹 Fetch old appointment
     const [[oldAppt]] = await conn.query(
-      `SELECT id, service_id, date, time, status, name, email, contactNumber, address, was_rescheduled 
+      `SELECT id, service_id, date, time, status, name, email, contactNumber, address, was_rescheduled
        FROM appointments WHERE id = ?`,
       [id]
     );
-
     if (!oldAppt) {
       await conn.rollback();
       return res
@@ -259,13 +260,36 @@ export const updateAppointmentAdmin = async (req, res) => {
     const sid = service_id || oldAppt.service_id;
     const safeDate = date ? normalizeDateForMySQL(date) : oldAppt.date;
     const safeTime = time ? normalizeTime(time) : oldAppt.time;
+    const oldStatus = oldAppt.status;
+    const newStatus = status || oldStatus;
 
-    // 🔹 Only approved appointments can be rescheduled
-    if (
+    // ======================================================
+    // ✅ Enforce business rules
+    // ======================================================
+    // ❌ Rejecting allowed only if pending
+    if (newStatus === "rejected" && oldStatus !== "pending") {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "You can only reject pending appointments.",
+      });
+    }
+
+    // ❌ Cancelling allowed only if approved
+    if (newStatus === "cancelled" && oldStatus !== "approved") {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "You can only cancel approved appointments.",
+      });
+    }
+
+    // ❌ Rescheduling allowed only if approved
+    const isRescheduling =
       (date || time) &&
-      oldAppt.status !== "approved" &&
-      status !== "approved"
-    ) {
+      (oldAppt.date !== safeDate || oldAppt.time !== safeTime);
+
+    if (isRescheduling && oldStatus !== "approved") {
       await conn.rollback();
       return res.status(400).json({
         success: false,
@@ -274,16 +298,14 @@ export const updateAppointmentAdmin = async (req, res) => {
       });
     }
 
-    const isRescheduling =
-      (date || time) &&
-      (oldAppt.date !== safeDate || oldAppt.time !== safeTime);
-
-    // 🔹 Conflict validation
-    if (isRescheduling && !["cancelled", "rejected"].includes(status)) {
+    // ======================================================
+    // 🧭 Conflict validation
+    // ======================================================
+    if (isRescheduling && !["cancelled", "rejected"].includes(newStatus)) {
       const [conflicts] = await conn.query(
         `SELECT id FROM appointments
-         WHERE service_id = ? 
-           AND date = ? 
+         WHERE service_id = ?
+           AND date = ?
            AND status IN ('pending', 'approved')
            AND id != ?
            AND ABS(TIME_TO_SEC(TIMEDIFF(time, ?))) < 3600`,
@@ -301,9 +323,9 @@ export const updateAppointmentAdmin = async (req, res) => {
       }
     }
 
-    const newStatus = status || oldAppt.status;
-
-    // ✅ Apply update and persist was_rescheduled flag
+    // ======================================================
+    // 📝 Update appointment
+    // ======================================================
     await applyUpdate({
       id,
       status: newStatus,
@@ -326,7 +348,9 @@ export const updateAppointmentAdmin = async (req, res) => {
       was_rescheduled: isRescheduling,
     });
 
-    /* 🔔 Post-commit: Send emails only */
+    // ======================================================
+    // 📩 Post-commit emails & notifications
+    // ======================================================
     runAsyncPostCommit(async () => {
       const [[service]] = await pool.query(
         "SELECT name FROM services WHERE id = ?",
@@ -337,7 +361,8 @@ export const updateAppointmentAdmin = async (req, res) => {
       const targetEmail = email || oldAppt.email;
       if (!targetEmail) return;
 
-      if (isRescheduling && oldAppt.status === "approved") {
+      // ✅ Email logic cleanly separated
+      if (isRescheduling) {
         await sendAppointmentRescheduledEmail(targetEmail, {
           name: finalName,
           serviceName,
@@ -367,6 +392,33 @@ export const updateAppointmentAdmin = async (req, res) => {
           time: safeTime,
           status: newStatus,
           appointmentId: id,
+        });
+      }
+
+      // 🛎️ Notifications
+      let title, message;
+      if (newStatus === "approved") {
+        title = "Appointment Approved";
+        message = `${finalName}'s ${serviceName} appointment was approved for ${safeDate} at ${safeTime}.`;
+      } else if (newStatus === "rejected") {
+        title = "Appointment Rejected";
+        message = `${finalName}'s ${serviceName} appointment was rejected.`;
+      } else if (newStatus === "cancelled") {
+        title = "Appointment Cancelled";
+        message = `${finalName}'s ${serviceName} appointment was cancelled.`;
+      } else if (isRescheduling) {
+        title = "Appointment Rescheduled";
+        message = `${finalName}'s ${serviceName} appointment was rescheduled to ${safeDate} at ${safeTime}.`;
+      }
+
+      if (title) {
+        await createNotification({
+          user_id: req.userId || null,
+          title,
+          message,
+          type: "appointment",
+          reference_id: id,
+          transaction_id: `APT-${String(id).padStart(5, "0")}`,
         });
       }
     });
@@ -414,7 +466,9 @@ export const getAppointmentById = async (req, res) => {
     );
 
     if (!appt)
-      return res.status(404).json({ success: false, message: "Appointment not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Appointment not found" });
 
     let details = null;
     let sponsors = [];
@@ -476,7 +530,9 @@ export const getAppointmentById = async (req, res) => {
     return res.json({ success: true, appointment: appt, details, sponsors });
   } catch (err) {
     console.error("❌ getAppointmentById error:", err);
-    res.status(500).json({ success: false, message: "Failed to fetch appointment" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch appointment" });
   }
 };
 /* =======================================================
