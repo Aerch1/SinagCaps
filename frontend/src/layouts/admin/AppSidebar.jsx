@@ -47,7 +47,6 @@ const sections = [
         ],
       },
       { name: "Documents", path: "/admin/documents", icon: <FileArchive size={18} />, key: "documents" },
-      { name: "Messages", path: "/admin/messages", icon: <MessageCircle size={18} />, key: "messages" },
     ],
   },
   {
@@ -64,7 +63,6 @@ const sections = [
     key: "others",
     title: "Others",
     items: [
-      { name: "Profile", path: "/admin/profile", icon: <UserCircle size={18} />, key: "profile" },
       { name: "Settings", path: "/admin/settings", icon: <Settings size={18} />, key: "settings" },
       { name: "Logout", icon: <LogOut size={18} />, isLogout: true, key: "logout" },
     ],

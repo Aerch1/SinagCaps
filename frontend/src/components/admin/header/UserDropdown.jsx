@@ -58,10 +58,8 @@ const UserDropdown = ({ user: propUser }) => {
     };
 
     const menuItems = [
-        { icon: User, label: "Profile", path: "/admin/profile", description: "Manage your account" },
-        { icon: Mail, label: "Messages", path: "/admin/messages", description: "View your messages" },
+        { icon: User, label: "Profile", path: "/admin/settings?tab=personal_info", description: "Manage your account" },
         { icon: Settings, label: "Settings", path: "/admin/settings", description: "Account preferences" },
-        { icon: HelpCircle, label: "Help & Support", path: "/admin/help", description: "Get help and support" },
     ];
 
     return (
