@@ -8,8 +8,6 @@ import api from "@/api/api";
 import toast from "react-hot-toast";
 
 const HERO_IMG = "/forgot.jpg";
-
-// ✨ Notice the trailing space after Batangas — DO NOT REMOVE
 const PLACE_NAME =
   "Our Lady of Peace and Good Voyage Parish - Lodlod, Lipa City, Batangas ";
 const PLACE_LINK =
@@ -21,43 +19,42 @@ const MAP_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(
 export default function Contact() {
   const [isSending, setIsSending] = useState(false);
 
-  /* 🧼 Form Validation */
+  // 🧪 Basic front-end validation
   const validateForm = (data) => {
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!data.firstName?.trim()) return "First name is required.";
     if (!data.lastName?.trim()) return "Last name is required.";
     if (!data.email?.trim()) return "Email address is required.";
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(data.email)) return "Please enter a valid email address.";
     if (!data.subject?.trim()) return "Subject is required.";
     if (!data.message?.trim()) return "Message is required.";
     return null;
   };
 
-  /* 📤 Form Submission */
+  // 📤 Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target).entries());
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
 
     const errorMsg = validateForm(data);
-    if (errorMsg) {
-      toast.error(errorMsg);
-      return;
-    }
+    if (errorMsg) return toast.error(errorMsg);
 
-    let toastId;
+    const toastId = toast.loading("Sending your message...");
+    setIsSending(true);
+
     try {
-      setIsSending(true);
-      toastId = toast.loading("Sending your message...");
-
       const res = await api.post("/public/contact", data);
-      if (res.data.success) {
-        toast.success("Message sent successfully!", { id: toastId });
+      const { success, message, error } = res.data;
+
+      if (success) {
+        toast.success(message || "Message sent successfully!", { id: toastId });
         e.target.reset();
       } else {
-        toast.error(res.data.error || "Something went wrong.", { id: toastId });
+        toast.error(error || "Something went wrong.", { id: toastId });
       }
     } catch (err) {
-      console.error(err);
+      console.error("❌ Contact form error:", err);
       toast.error("Failed to send message. Please try again later.", { id: toastId });
     } finally {
       setIsSending(false);
@@ -70,16 +67,14 @@ export default function Contact() {
       <HeroBanner title="Contact Us" imageSrc={HERO_IMG} />
 
       {/* Header Section */}
-      <section className="mx-auto max-w-7xl px-6 lg:px-8 py-10">
-        <div className="text-center">
-          <p className="text-amber-500 italic">Contact Us</p>
-          <h2 className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
-            Get In Touch With Our Parish
-          </h2>
-          <p className="mt-2 text-gray-600 max-w-2xl mx-auto">
-            Please fill out the form below and we’ll respond as soon as possible.
-          </p>
-        </div>
+      <section className="mx-auto max-w-7xl px-6 lg:px-8 py-10 text-center">
+        <p className="text-amber-500 italic">Contact Us</p>
+        <h2 className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
+          Get In Touch With Our Parish
+        </h2>
+        <p className="mt-2 text-gray-600 max-w-2xl mx-auto">
+          Please fill out the form below and we’ll respond as soon as possible.
+        </p>
       </section>
 
       {/* Form + Info Section */}
@@ -107,21 +102,22 @@ export default function Contact() {
 
               <Input icon={Tag} id="subject" name="subject" type="text" placeholder="Subject*" required />
 
-              <textarea
-                id="message"
-                name="message"
-                rows={6}
-                placeholder="Your Message here*"
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm shadow-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500"
-                required
-              />
+              <div>
+                <textarea
+                  id="message"
+                  name="message"
+                  rows={6}
+                  placeholder="Your Message here*"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm shadow-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500"
+                  required
+                />
+              </div>
 
               <button
                 type="submit"
                 disabled={isSending}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-black/40 ${
-                  isSending ? "bg-gray-400 cursor-not-allowed" : "bg-secondary/90 hover:bg-secondary"
-                }`}
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-black/40 ${isSending ? "bg-gray-400 cursor-not-allowed" : "bg-secondary/90 hover:bg-secondary"
+                  }`}
               >
                 {isSending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {isSending ? "Sending..." : "Submit"}
@@ -131,7 +127,6 @@ export default function Contact() {
 
           {/* RIGHT: Parish Info + Map */}
           <div className="h-full flex flex-col gap-6 py-6">
-            {/* Call Us */}
             <section className="flex items-start gap-4">
               <span className="inline-grid h-6 w-6 shrink-0 place-items-center mt-1">
                 <Phone className="h-5 w-5 text-blue-600" />
@@ -145,7 +140,6 @@ export default function Contact() {
               </div>
             </section>
 
-            {/* Visit Us */}
             <section className="flex items-start gap-4">
               <span className="inline-grid h-6 w-6 shrink-0 place-items-center mt-1">
                 <MapPin className="h-5 w-5 text-blue-600" />
@@ -166,7 +160,6 @@ export default function Contact() {
               </div>
             </section>
 
-            {/* Live Chat Info */}
             <section className="flex items-start gap-4">
               <span className="inline-grid h-6 w-6 shrink-0 place-items-center mt-1">
                 <ArrowRight className="h-5 w-5 text-blue-600" />
@@ -180,7 +173,6 @@ export default function Contact() {
               </div>
             </section>
 
-            {/* Google Map */}
             <div className="flex-1 rounded-xl overflow-hidden min-h-[280px] md:min-h-[360px]">
               <iframe
                 title="Parish location"
