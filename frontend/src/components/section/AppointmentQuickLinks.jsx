@@ -3,11 +3,9 @@ import { CalendarPlus, RefreshCcw, ClipboardList, FileText, HelpCircle, MapPin }
 
 // Keep this outside so it's not re-created on each render
 const LINKS = [
-    { title: "Schedule an Appointment", to: "/appointments/new", Icon: CalendarPlus },
-    { title: "Manage / Reschedule", to: "/appointments", Icon: RefreshCcw },
-    { title: "Requirements", to: "/requirements", Icon: ClipboardList },
-    { title: "Document Request", to: "/records", Icon: FileText },
-    { title: "FAQs", to: "/faqs", Icon: HelpCircle },
+    { title: "Schedule an Appointment", to: "/services/appointments/terms", Icon: CalendarPlus },
+    { title: "Requirements", to: "/services/generalinfo", Icon: ClipboardList },
+    { title: "Document Request", to: "/document-request", Icon: FileText },
     { title: "Office Hours & Location", to: "/contact", Icon: MapPin },
 ];
 

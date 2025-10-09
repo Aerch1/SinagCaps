@@ -51,7 +51,7 @@ export default function AboutPage() {
                         className="text-center"
                     >
                         <p className="text-2xl md:text-3xl font-light leading-relaxed text-gray-700">
-                            Since its establishment in 1944, Our Lady of Peace and Good Voyage Parish has been a beacon of faith in Barangay Lodlod. We strive to be a welcoming community where people of all walks of life can grow closer to Christ.  
+                            Since its establishment in 1944, Our Lady of Peace and Good Voyage Parish has been a beacon of faith in Barangay Lodlod. We strive to be a welcoming community where people of all walks of life can grow closer to Christ.
                         </p>
                     </motion.div>
                 </div>
@@ -238,7 +238,7 @@ export default function AboutPage() {
                             Whether you're new to faith, searching for purpose, or longing for a spiritual home, our doors are open to you.
                         </p>
                         <a
-                            href="/services/appointments/book"
+                            href="/signup"
                             className="inline-block border-2 border-white px-12 py-4 text-lg font-light hover:bg-white hover:text-gray-900 transition-all duration-300"
                         >
                             Join Our Community

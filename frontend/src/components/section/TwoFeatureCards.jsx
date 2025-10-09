@@ -10,7 +10,7 @@ const DEFAULT_CARDS = [
     {
         title: "WHAT’S HAPPENING @ OLOPGV?",
         cta: "FIND OUT MORE",
-        to: "/announcements",
+        to: "/event",
         image: "/card.webp",
         alt: "Colorful abstract background",
     },
@@ -18,7 +18,7 @@ const DEFAULT_CARDS = [
         title: "Our Mission & Vision",
         sub: "Who we are and where we’re headed",
         cta: "FIND OUT MORE",
-        to: "/missions",
+        to: "/about",
         image: "/card2.webp",
         alt: "Sunrise over the earth",
     },
