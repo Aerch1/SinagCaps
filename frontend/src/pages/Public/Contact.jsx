@@ -16,7 +16,7 @@ const MAP_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(PLACE_
 export default function Contact() {
   const [isSending, setIsSending] = useState(false);
 
-  // 🧹 Extract validation into a separate function
+  // 🧼 Validation helper
   const validateForm = (data) => {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!data.firstName?.trim()) return "First name is required.";
@@ -28,7 +28,7 @@ export default function Contact() {
     return null;
   };
 
-  // 📨 Form Submission
+  // 📨 Form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = Object.fromEntries(new FormData(e.target).entries());
@@ -44,8 +44,12 @@ export default function Contact() {
 
     try {
       const { data } = await api.post("/public/contact", formData);
+
       if (data.success) {
-        toast.success("Message sent successfully!", { id: toastId });
+        // ✅ Close the loading toast first
+        toast.dismiss(toastId);
+        // ✅ Show success message
+        toast.success("📩 Your message has been sent successfully! We’ll get back to you soon.");
         e.target.reset();
       } else {
         toast.error(data.error || "Something went wrong.", { id: toastId });
@@ -55,7 +59,6 @@ export default function Contact() {
       toast.error("Failed to send message. Please try again later.", { id: toastId });
     } finally {
       setIsSending(false);
-      toast.dismiss(toastId);
     }
   };
 
