@@ -37,11 +37,24 @@ const TypeChip = ({ type }) => {
   );
 };
 
+/* ---------- Helper: normalize date for edit ---------- */
+const normalizeDate = (value) => {
+  if (!value) return "";
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
+};
+
 /* ---------- Card Component ---------- */
 function EventCard({ item, onEdit, onDelete, onPreview }) {
   const optimizedImg = item.image_url?.includes("/upload/")
     ? item.image_url.replace("/upload/", "/upload/f_auto,q_auto,w_800/")
     : item.image_url;
+
+  // ✅ Wrap onEdit to normalize date value before passing
+  const handleEdit = () => {
+    const fixed = { ...item, date: normalizeDate(item.date) };
+    onEdit?.(fixed);
+  };
 
   return (
     <div
@@ -106,7 +119,7 @@ function EventCard({ item, onEdit, onDelete, onPreview }) {
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => onEdit?.(item)}
+              onClick={handleEdit}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors"
             >
               <Edit2 className="h-3.5 w-3.5" />
