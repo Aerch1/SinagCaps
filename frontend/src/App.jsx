@@ -58,9 +58,7 @@ const AdminAppointmentsPage = lazy(() => import("./pages/Admin/AppointmentsPage"
 const ContentManagement = lazy(() => import("./pages/Admin/ContentManagement"))
 const ReportsPage = lazy(() => import("./pages/Admin/ReportsPage"))
 const ManageAvailability = lazy(() => import("./pages/Admin/ManageAvailability"))
-const Profile = lazy(() => import("./pages/Admin/Profile"))
 const UserManagement = lazy(() => import("./pages/Admin/UserManagementaPage"))
-const MessagesPage = lazy(() => import("./pages/Admin/MessagesPage"))
 const SettingAdmin = lazy(() => import("./pages/Admin/SettingsPage"))
 const AdminDocumentManagement = lazy(() => import("./pages/Admin/AdminDocumentManagement"));
 
@@ -158,9 +156,7 @@ function App() {
                   <Route path="content" element={<ContentManagement />} />
                   <Route path="report" element={<ReportsPage />} />
                   <Route path="schedule" element={<ManageAvailability />} />
-                  <Route path="profile" element={<Profile />} />
                   <Route path="users" element={<UserManagement />} />
-                  <Route path="messages" element={<MessagesPage />} />
 
 
                   <Route path="*" element={<Navigate to="/admin" replace />} />
