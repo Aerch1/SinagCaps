@@ -4,22 +4,22 @@ dotenv.config();
 
 export const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT || 587,
-  secure: Number(process.env.SMTP_PORT) === 465, // Brevo uses 587 (TLS)
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: false, // use STARTTLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
   tls: {
-    rejectUnauthorized: false, // prevents self-signed cert issues in Brevo
+    rejectUnauthorized: false, // prevents cert errors in Railway
   },
 });
 
-// ✅ Verify connection on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ Email service configuration error:", error.message);
+// Optional: verify connection at startup
+transporter.verify((err, success) => {
+  if (err) {
+    console.error("❌ Email service configuration error:", err.message);
   } else {
-    console.log("✅ Brevo SMTP is ready to send emails");
+    console.log("✅ Brevo SMTP connected successfully");
   }
 });
