@@ -236,63 +236,76 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     const t = time ? normalizeTime(time) : null;
     const schedulingStatuses = ["approved", "completed"];
+
     if (schedulingStatuses.includes(status)) {
       const errors = validateUpdate({ status, date, time: t });
       if (t === null && time) errors.push("Invalid time format (HH:mm).");
       if (errors.length)
-        return res
-          .status(400)
-          .json({ success: false, code: "VALIDATION_ERROR", errors });
+        return res.status(400).json({
+          success: false,
+          code: "VALIDATION_ERROR",
+          errors,
+        });
     }
 
     await conn.beginTransaction();
 
-    // Conflict / Availability check
+    // 🔹 Fetch old appointment (used for fallback + email + notification)
+    const [[oldAppt]] = await conn.query(
+      "SELECT date, time, service_id FROM appointments WHERE id=?",
+      [id]
+    );
+    if (!oldAppt) {
+      await conn.rollback();
+      return res
+        .status(404)
+        .json({ success: false, message: "Appointment not found" });
+    }
+
+    // 🔹 Ensure service_id fallback
+    const sid = service_id || oldAppt.service_id;
+
+    // 🔹 Conflict / availability check (skip for reject/cancel)
     if (date && t && status !== "rejected" && status !== "cancelled") {
       const [conflicts] = await conn.query(
         `SELECT id FROM appointments
          WHERE service_id=? AND date=? AND status IN ('pending','approved')
          AND id != ? AND ABS(TIME_TO_SEC(TIMEDIFF(time, ?))) < 3600`,
-        [service_id, date, id, t]
+        [sid, date, id, t]
       );
       if (conflicts.length && !override) {
         await conn.rollback();
-        return res
-          .status(409)
-          .json({
-            success: false,
-            code: "TIME_CONFLICT",
-            message: "Conflict detected.",
-          });
+        return res.status(409).json({
+          success: false,
+          code: "TIME_CONFLICT",
+          message: "Conflict detected.",
+        });
       }
     }
 
-    // Fetch old data
-    const [[oldAppt]] = await conn.query(
-      "SELECT date, time FROM appointments WHERE id=?",
-      [id]
-    );
-
-    // Apply update
+    // 🔹 Apply update
     await applyUpdate({
       id,
       status,
-      date: date ?? oldAppt?.date ?? null,
-      time: t ?? oldAppt?.time ?? null,
+      date: date ?? oldAppt.date ?? null,
+      time: t ?? oldAppt.time ?? null,
       notes: notes || null,
       name,
       email,
       contactNumber,
       address,
-      service_id,
+      service_id: sid,
     });
+
     await conn.commit();
 
-    // 🔹 Notification logic
+    // =====================================================
+    // 🔔 Notifications
+    // =====================================================
     try {
       const [[service]] = await conn.query(
         "SELECT name FROM services WHERE id=?",
-        [service_id]
+        [sid]
       );
       const serviceName = service?.name || "Selected Service";
       const baseMsg = `${name}'s ${serviceName} appointment`;
@@ -306,7 +319,7 @@ export const updateAppointmentAdmin = async (req, res) => {
         message = `${baseMsg} has been cancelled.`;
       } else if (status === "rejected") {
         title = "Appointment Rejected";
-        message = `${baseMsg} was rejected by the admin.`;
+        message = `${baseMsg} was rejected by the parish office.`;
       } else if (date && t && (oldAppt.date !== date || oldAppt.time !== t)) {
         title = "Appointment Rescheduled";
         message = `${baseMsg} was rescheduled to ${date} at ${t}.`;
@@ -329,15 +342,18 @@ export const updateAppointmentAdmin = async (req, res) => {
       console.warn("⚠️ Failed to create update notification:", err.message);
     }
 
-    // 🔹 Send emails (unchanged)
+    // =====================================================
+    // ✉️ Send Email Notifications
+    // =====================================================
     try {
       if (email) {
         const [[service]] = await conn.query(
           "SELECT name FROM services WHERE id=?",
-          [service_id]
+          [sid]
         );
         const serviceName = service?.name || "Selected Service";
 
+        // Reschedule email
         if (
           date &&
           t &&
@@ -353,7 +369,9 @@ export const updateAppointmentAdmin = async (req, res) => {
             newDate: date,
             newTime: t,
           });
-        } else if (status === "cancelled" || status === "rejected") {
+        }
+        // Cancelled or rejected email
+        else if (status === "cancelled" || status === "rejected") {
           await sendAppointmentCancelledEmail(email, {
             status,
             name,
@@ -366,7 +384,9 @@ export const updateAppointmentAdmin = async (req, res) => {
                 ? "Appointment was cancelled by the parish office."
                 : "Appointment was rejected by the parish office."),
           });
-        } else {
+        }
+        // Generic update
+        else {
           await sendAppointmentUpdatedEmail(email, {
             name,
             serviceName,
@@ -396,9 +416,6 @@ export const updateAppointmentAdmin = async (req, res) => {
   }
 };
 
-/* ==================================================
-   GET /api/admin/appointments/:id
-================================================== */
 export const getAppointmentById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -696,10 +713,6 @@ export const getAppointments = async (req, res) => {
   }
 };
 
-/* ==================================================
-   GET /api/admin/appointments/conflicts
-   → Quick conflict preview (for admin timepicker modal)
-================================================== */
 export const getAppointmentConflicts = async (req, res) => {
   try {
     const { service_id, date, time } = req.query;
@@ -728,9 +741,6 @@ export const getAppointmentConflicts = async (req, res) => {
   }
 };
 
-/* ==================================================
-   POST /api/admin/appointments/filter
-================================================== */
 export const filterAppointments = async (req, res) => {
   try {
     const {
@@ -831,10 +841,6 @@ export const filterAppointments = async (req, res) => {
   }
 };
 
-/* ==================================================
-   GET /api/admin/appointments/today
-   → Returns today's appointments for admin dashboard
-================================================== */
 export const getTodayAppointments = async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -867,9 +873,6 @@ export const getTodayAppointments = async (req, res) => {
   }
 };
 
-/* ==================================================
-   GET /api/admin/appointments/export
-================================================== */
 export const exportAppointments = async (req, res) => {
   try {
     const [rows] = await pool.query(
