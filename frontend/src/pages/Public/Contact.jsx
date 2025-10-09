@@ -11,7 +11,10 @@ const HERO_IMG = "/forgot.jpg";
 const PLACE_NAME = "Our Lady of Peace and Good Voyage Parish - Lodlod, Lipa City, Batangas";
 const PLACE_LINK =
   "https://www.google.com/maps/place/Our+Lady+of+Peace+and+Good+Voyage+Parish+-+Lodlod,+Lipa+City,+Batangas+(Archdiocese+of+Lipa)/@13.9310824,121.1423383,17z";
-const MAP_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(PLACE_NAME)}&output=embed`;
+
+// 🧭 ✅ Stable Google Maps Embed URL (official iframe version)
+const MAP_EMBED_SRC =
+  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3871.87981412736!2d121.1423383!3d13.9310824!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x33bd6d01048fcb4b%3A0xe29c3f6fd8cf4b29!2sOur%20Lady%20of%20Peace%20and%20Good%20Voyage%20Parish%20-%20Lodlod%2C%20Lipa%20City%2C%20Batangas!5e0!3m2!1sen!2sph!4v1717351111000!5m2!1sen!2sph";
 
 export default function Contact() {
   const [isSending, setIsSending] = useState(false);
@@ -46,9 +49,7 @@ export default function Contact() {
       const { data } = await api.post("/public/contact", formData);
 
       if (data.success) {
-        // ✅ Close the loading toast first
         toast.dismiss(toastId);
-        // ✅ Show success message
         toast.success("📩 Your message has been sent successfully! We’ll get back to you soon.");
         e.target.reset();
       } else {
@@ -115,11 +116,10 @@ export default function Contact() {
               <button
                 type="submit"
                 disabled={isSending}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-black/40 ${
-                  isSending
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-black/40 ${isSending
                     ? "bg-gray-400 cursor-not-allowed"
                     : "bg-secondary/90 hover:bg-secondary"
-                }`}
+                  }`}
               >
                 {isSending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {isSending ? "Sending..." : "Submit"}
@@ -149,6 +149,8 @@ export default function Contact() {
               description="You can contact us through the chat widget when an admin is online or during working hours. If no one is available, please send your message using the form."
               extra={<p className="text-xs text-gray-500">Working hours: Mon – Sat, 9:00 – 5:00</p>}
             />
+
+            {/* ✅ Stable Google Map Embed */}
             <div className="flex-1 rounded-xl overflow-hidden min-h-[280px] md:min-h-[360px]">
               <iframe
                 title="Parish location"
