@@ -16,13 +16,13 @@ export default function Footer() {
                                 alt="Our Lady of Peace and Good Voyage"
                                 className="h-12 w-12 rounded-full object-contain"
                             />
-                            <h3 className="text-xl font-semibold text-white leading-tight">
+                            <h3 className="text-lg sm:text-xl md:text-2xl font-semibold text-white leading-tight">
                                 Our Lady of Peace and
                                 <br className="hidden sm:block" />
                                 Good Voyage
                             </h3>
                         </div>
-                        <p className="mt-3 text-sm leading-6 text-slate-400">
+                        <p className="mt-3 text-xs sm:text-sm md:text-base leading-6 text-slate-400">
                             A welcoming Catholic community dedicated to worship, service, and spiritual growth.
                         </p>
 
@@ -47,41 +47,65 @@ export default function Footer() {
 
                     {/* Schedule of Services */}
                     <div>
-                        <h4 className="text-lg font-semibold text-white">Schedule of Services</h4>
-                        <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                        <h4 className="text-base sm:text-lg md:text-xl font-semibold text-white">
+                            Schedule of Services
+                        </h4>
+                        <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 text-xs sm:text-sm md:text-base">
                             <div>
                                 <p className="font-semibold text-slate-200">Monday to Thursday</p>
-                                <p className="mt-1">6:30 am <span className="text-slate-400">| Daily Mass</span></p>
+                                <p className="mt-1">
+                                    6:30 am <span className="text-slate-400">| Daily Mass</span>
+                                </p>
                             </div>
                             <div>
                                 <p className="font-semibold text-slate-200">Saturday</p>
-                                <p className="mt-1">6:30 am <span className="text-slate-400">| Confession After</span></p>
-                                <p className="mt-1">7:00 pm <span className="text-slate-400">| Anticipated</span></p>
+                                <p className="mt-1">
+                                    6:30 am <span className="text-slate-400">| Confession After</span>
+                                </p>
+                                <p className="mt-1">
+                                    7:00 pm <span className="text-slate-400">| Anticipated</span>
+                                </p>
                             </div>
                             <div>
                                 <p className="font-semibold text-slate-200">Friday</p>
-                                <p className="mt-1">6:00 am <span className="text-slate-400">| First Friday</span></p>
-                                <p className="mt-1">5:00 pm <span className="text-slate-400">| Confession After</span></p>
+                                <p className="mt-1">
+                                    6:00 am <span className="text-slate-400">| First Friday</span>
+                                </p>
+                                <p className="mt-1">
+                                    5:00 pm <span className="text-slate-400">| Confession After</span>
+                                </p>
                             </div>
                             <div>
                                 <p className="font-semibold text-slate-200">Sunday</p>
-                                <p className="mt-1">6:30 am <span className="text-slate-400">| 7:00 am</span></p>
-                                <p className="mt-1">8:30 pm <span className="text-slate-400">| w/Fb Live</span></p>
+                                <p className="mt-1">
+                                    6:30 am <span className="text-slate-400">| 7:00 am</span>
+                                </p>
+                                <p className="mt-1">
+                                    8:30 pm <span className="text-slate-400">| w/Fb Live</span>
+                                </p>
                             </div>
                         </div>
                     </div>
 
                     {/* Contact Info */}
                     <div>
-                        <h4 className="text-lg font-semibold text-white">Contact Info</h4>
-                        <div className="mt-4 space-y-3 text-sm">
-                            <a href="tel:09668548848" className="flex items-center gap-3 hover:text-white">
+                        <h4 className="text-base sm:text-lg md:text-xl font-semibold text-white">
+                            Contact Info
+                        </h4>
+                        <div className="mt-4 space-y-3 text-xs sm:text-sm md:text-base">
+                            <a
+                                href="tel:09668548848"
+                                className="flex items-center gap-3 hover:text-white"
+                            >
                                 <span className="h-8 w-8 rounded-full border border-slate-600 flex items-center justify-center">
                                     <Phone className="h-4 w-4" />
                                 </span>
                                 <span>0966 854 8848</span>
                             </a>
-                            <a href="mailto:lodlod.olpgvp@gmail.com" className="flex items-center gap-3 hover:text-white">
+                            <a
+                                href="mailto:lodlod.olpgvp@gmail.com"
+                                className="flex items-center gap-3 hover:text-white"
+                            >
                                 <span className="h-8 w-8 rounded-full border border-slate-600 flex items-center justify-center">
                                     <Mail className="h-4 w-4" />
                                 </span>
@@ -98,7 +122,7 @@ export default function Footer() {
                 </div>
 
                 <div className="mt-8 border-t border-slate-700/60 pt-4">
-                    <p className="text-center text-xs text-slate-400">
+                    <p className="text-center text-[10px] sm:text-xs md:text-sm text-slate-400">
                         Copyright © {year} OLOPGV. All rights reserved.
                     </p>
                 </div>
