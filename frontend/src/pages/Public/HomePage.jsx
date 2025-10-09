@@ -19,7 +19,7 @@ const slides = [
             "Create your account to book counseling, ministry appointments, and keep up with services and events.",
         ctas: [
             { label: "Register", to: "/signup", variant: "primary" },
-            { label: "View Services", to: "/services", variant: "ghost" },
+            { label: "View Services", to: "/services/generalinfo", variant: "ghost" },
         ],
     },
     {
