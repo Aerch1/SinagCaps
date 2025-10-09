@@ -7,10 +7,9 @@ import {
   DOCUMENT_REJECTED_TEMPLATE,
 } from "../config/documentEmailTemplates.js";
 
-const FROM = {
-  name: "Our Lady of Peace and Good Voyage - Lodlod, Lipa City",
-  address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-};
+const FROM = `"Our Lady of Peace and Good Voyage Parish" <${
+  process.env.EMAIL_FROM || process.env.EMAIL_USER
+}>`;
 
 /* ==========================================================
    📩 Document Request Received

@@ -1,42 +1,37 @@
+// src/utils/email/email.js
 import { transporter } from "../config/nodemailer.js";
 import {
   VERIFICATION_EMAIL_TEMPLATE,
   PASSWORD_RESET_REQUEST_TEMPLATE,
   PASSWORD_RESET_SUCCESS_TEMPLATE,
   WELCOME_EMAIL_TEMPLATE,
-  CHANGE_EMAIL_CODE_TEMPLATE, // 👈 new
+  CHANGE_EMAIL_CODE_TEMPLATE,
   EMAIL_CHANGED_NOTICE_TEMPLATE,
 } from "../config/emailTemplates.js";
 
-const FROM = {
-  name: "Your App Team",
-  address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-};
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@example.com";
+const FROM = `"Our Lady of Peace and Good Voyage Parish" <${
+  process.env.EMAIL_FROM || process.env.EMAIL_USER
+}>`;
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@olpgvp.com";
 
+/* ==========================================================
+   📧 EMAIL: Verification
+========================================================== */
 export const sendVerificationEmail = async (email, verificationCode) => {
   try {
-    const mailOptions = {
-      from: {
-        name: "Our Lady of Peace and Good Voyage - Lodlod,Lipa City",
-        address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      },
+    const html = VERIFICATION_EMAIL_TEMPLATE.replace(
+      "{verificationCode}",
+      verificationCode
+    );
+
+    const info = await transporter.sendMail({
+      from: FROM,
       to: email,
       subject: "Verify Your Email Address",
-      html: VERIFICATION_EMAIL_TEMPLATE.replace(
-        "{verificationCode}",
-        verificationCode
-      ),
-    };
+      html,
+    });
 
-    const info = await transporter.sendMail(mailOptions);
     console.log("✅ Verification email sent:", info.messageId);
-
-    // For development with Ethereal, show preview URL
-    if (process.env.NODE_ENV === "development" && info.previewURL) {
-      console.log("📧 Preview URL:", info.previewURL);
-    }
-
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("❌ Error sending verification email:", error);
@@ -44,25 +39,21 @@ export const sendVerificationEmail = async (email, verificationCode) => {
   }
 };
 
+/* ==========================================================
+   🎉 EMAIL: Welcome
+========================================================== */
 export const sendWelcomeEmail = async (email, name) => {
   try {
-    const mailOptions = {
-      from: {
-        name: "Our Lady of Peace and Good Voyage - Lodlod,Lipa City",
-        address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      },
+    const html = WELCOME_EMAIL_TEMPLATE.replace("{name}", name);
+
+    const info = await transporter.sendMail({
+      from: FROM,
       to: email,
       subject: "Welcome to Our Platform!",
-      html: WELCOME_EMAIL_TEMPLATE.replace("{name}", name),
-    };
+      html,
+    });
 
-    const info = await transporter.sendMail(mailOptions);
     console.log("✅ Welcome email sent:", info.messageId);
-
-    if (process.env.NODE_ENV === "development" && info.previewURL) {
-      console.log("📧 Preview URL:", info.previewURL);
-    }
-
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("❌ Error sending welcome email:", error);
@@ -70,25 +61,24 @@ export const sendWelcomeEmail = async (email, name) => {
   }
 };
 
+/* ==========================================================
+   🔐 EMAIL: Password Reset Request
+========================================================== */
 export const sendPasswordResetEmail = async (email, resetURL) => {
   try {
-    const mailOptions = {
-      from: {
-        name: "Our Lady of Peace and Good Voyage - Lodlod,Lipa City",
-        address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      },
+    const html = PASSWORD_RESET_REQUEST_TEMPLATE.replace(
+      "{resetURL}",
+      resetURL
+    );
+
+    const info = await transporter.sendMail({
+      from: FROM,
       to: email,
       subject: "Reset Your Password",
-      html: PASSWORD_RESET_REQUEST_TEMPLATE.replace("{resetURL}", resetURL),
-    };
+      html,
+    });
 
-    const info = await transporter.sendMail(mailOptions);
     console.log("✅ Password reset email sent:", info.messageId);
-
-    if (process.env.NODE_ENV === "development" && info.previewURL) {
-      console.log("📧 Preview URL:", info.previewURL);
-    }
-
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("❌ Error sending password reset email:", error);
@@ -96,25 +86,19 @@ export const sendPasswordResetEmail = async (email, resetURL) => {
   }
 };
 
+/* ==========================================================
+   ✅ EMAIL: Password Reset Successful
+========================================================== */
 export const sendPasswordResetSuccessEmail = async (email) => {
   try {
-    const mailOptions = {
-      from: {
-        name: "Our Lady of Peace and Good Voyage - Lodlod,Lipa City",
-        address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      },
+    const info = await transporter.sendMail({
+      from: FROM,
       to: email,
       subject: "Password Reset Successful",
       html: PASSWORD_RESET_SUCCESS_TEMPLATE,
-    };
+    });
 
-    const info = await transporter.sendMail(mailOptions);
     console.log("✅ Password reset success email sent:", info.messageId);
-
-    if (process.env.NODE_ENV === "development" && info.previewURL) {
-      console.log("📧 Preview URL:", info.previewURL);
-    }
-
     return { success: true, messageId: info.messageId };
   } catch (error) {
     console.error("❌ Error sending password reset success email:", error);
@@ -124,7 +108,10 @@ export const sendPasswordResetSuccessEmail = async (email) => {
   }
 };
 
-export async function sendChangeEmailCode(toEmail, code) {
+/* ==========================================================
+   ✉️ EMAIL: Change Email (Send Code)
+========================================================== */
+export const sendChangeEmailCode = async (toEmail, code) => {
   try {
     const html = CHANGE_EMAIL_CODE_TEMPLATE.replaceAll(
       "{code}",
@@ -139,17 +126,17 @@ export async function sendChangeEmailCode(toEmail, code) {
     });
 
     console.log("✅ Change-email code sent:", info.messageId);
-    if (process.env.NODE_ENV === "development" && info.previewURL) {
-      console.log("📧 Preview URL:", info.previewURL);
-    }
     return { success: true, messageId: info.messageId };
-  } catch (err) {
-    console.error("❌ Error sending change-email code:", err);
-    throw new Error(`Failed to send change-email code: ${err.message}`);
+  } catch (error) {
+    console.error("❌ Error sending change-email code:", error);
+    throw new Error(`Failed to send change-email code: ${error.message}`);
   }
-}
+};
 
-export async function sendEmailChangedNotice(oldEmail, newEmail) {
+/* ==========================================================
+   🔄 EMAIL: Email Changed Notice
+========================================================== */
+export const sendEmailChangedNotice = async (oldEmail, newEmail) => {
   try {
     const html = EMAIL_CHANGED_NOTICE_TEMPLATE.replaceAll(
       "{oldEmail}",
@@ -158,7 +145,6 @@ export async function sendEmailChangedNotice(oldEmail, newEmail) {
       .replaceAll("{newEmail}", newEmail)
       .replaceAll("{supportEmail}", SUPPORT_EMAIL);
 
-    // Notify the previous address (primary), and optionally the new one.
     const [toOld, toNew] = await Promise.all([
       transporter.sendMail({
         from: FROM,
@@ -170,7 +156,7 @@ export async function sendEmailChangedNotice(oldEmail, newEmail) {
         from: FROM,
         to: newEmail,
         subject: "Your account email is now updated",
-        html, // same body is OK; subjects differ
+        html,
       }),
     ]);
 
@@ -179,20 +165,13 @@ export async function sendEmailChangedNotice(oldEmail, newEmail) {
       toOld.messageId,
       toNew.messageId
     );
-    if (process.env.NODE_ENV === "development") {
-      if (toOld.previewURL)
-        console.log("📧 Old-email preview:", toOld.previewURL);
-      if (toNew.previewURL)
-        console.log("📧 New-email preview:", toNew.previewURL);
-    }
-
     return {
       success: true,
       oldMessageId: toOld.messageId,
       newMessageId: toNew.messageId,
     };
-  } catch (err) {
-    console.error("❌ Error sending email-changed notice:", err);
-    throw new Error(`Failed to send email-changed notice: ${err.message}`);
+  } catch (error) {
+    console.error("❌ Error sending email-changed notice:", error);
+    throw new Error(`Failed to send email-changed notice: ${error.message}`);
   }
-}
+};
