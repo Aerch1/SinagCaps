@@ -71,10 +71,10 @@ export default function CreateAppointmentModal({
             }
 
             // ✅ 2. Proceed normally if no conflicts
-            await api.post("/admin/appointments", formData);
+            const { data: created } = await api.post("/admin/appointments", formData);
             toast.success("✅ Appointment created successfully", { id: toastId });
             setServerErrors({});
-            onSave?.();
+            onSave?.(created); // 👈 pass new appointment back to table
             onClose();
         } catch (err) {
             const { status, data } = err.response || {};
@@ -104,23 +104,20 @@ export default function CreateAppointmentModal({
         }
     };
 
-    /* ----------------------------------------------------------------
-       CONFIRMATION HANDLERS
-    ---------------------------------------------------------------- */
     const handleConfirm = async () => {
         if (!confirmData) return;
         setSubmitting(true);
         const toastId = toast.loading("⏳ Creating with override...");
 
         try {
-            await api.post("/admin/appointments", {
+            const { data: created } = await api.post("/admin/appointments", {
                 ...confirmData,
                 override: true,
             });
             toast.success("✅ Appointment created with override", { id: toastId });
             setConfirmData(null);
             setConfirmMessage(null);
-            onSave?.();
+            onSave?.(created); // 👈 same here
             onClose();
         } catch (err) {
             toast.error(
@@ -137,7 +134,6 @@ export default function CreateAppointmentModal({
         setConfirmData(null);
         setConfirmMessage(null);
     };
-
     /* ----------------------------------------------------------------
        RENDER
     ---------------------------------------------------------------- */

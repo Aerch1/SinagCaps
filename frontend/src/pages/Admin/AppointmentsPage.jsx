@@ -126,11 +126,10 @@ export default function AppointmentsPage() {
                 onSave={(newAppt) => {
                     setCreateOpen(false);
                     toast.success("Appointment created");
-
-                    // Optimistically prepend new appointment
-                    setRows((prev) => [newAppt, ...prev]);
+                    setRows((prev) => [newAppt, ...prev]); // ✅ instant update
                 }}
             />
+
         </div>
     );
 }

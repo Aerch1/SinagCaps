@@ -66,7 +66,7 @@ export default function DataTable({
         endDate: null,
     });
 
-    const [loading, setLoading] = useState(false);
+const [loading, setLoading] = useState(false);
 
     /* ---------------- Tab & Range Effects ---------------- */
     useEffect(() => {
