@@ -7,6 +7,7 @@ import { User, Mail, Phone, Tag, MapPin, ArrowRight, Loader2 } from "lucide-reac
 import api from "@/api/api";
 import toast from "react-hot-toast";
 
+// 🖼 Hero Banner + Map location constants
 const HERO_IMG = "/forgot.jpg";
 const PLACE_NAME =
   "Our Lady of Peace and Good Voyage Parish - Lodlod, Lipa City, Batangas ";
@@ -19,26 +20,34 @@ const MAP_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(
 export default function Contact() {
   const [isSending, setIsSending] = useState(false);
 
-  // 🧪 Basic front-end validation
+  /* --------------------------------------------
+     🧪 Simple Client-Side Validation
+  ---------------------------------------------*/
   const validateForm = (data) => {
     if (!data.firstName?.trim()) return "First name is required.";
     if (!data.lastName?.trim()) return "Last name is required.";
     if (!data.email?.trim()) return "Email address is required.";
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailPattern.test(data.email)) return "Please enter a valid email address.";
+    if (!emailPattern.test(data.email))
+      return "Please enter a valid email address.";
     if (!data.subject?.trim()) return "Subject is required.";
     if (!data.message?.trim()) return "Message is required.";
     return null;
   };
 
-  // 📤 Submit handler
+  /* --------------------------------------------
+     📤 Submit Handler
+  ---------------------------------------------*/
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
 
     const errorMsg = validateForm(data);
-    if (errorMsg) return toast.error(errorMsg);
+    if (errorMsg) {
+      toast.error(errorMsg);
+      return;
+    }
 
     const toastId = toast.loading("Sending your message...");
     setIsSending(true);
@@ -62,6 +71,9 @@ export default function Contact() {
     }
   };
 
+  /* --------------------------------------------
+     🧱 UI Layout
+  ---------------------------------------------*/
   return (
     <main className="bg-white">
       <HeroBanner title="Contact Us" imageSrc={HERO_IMG} />
@@ -80,6 +92,7 @@ export default function Contact() {
       {/* Form + Info Section */}
       <section className="mx-auto max-w-7xl px-6 lg:px-8 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+
           {/* LEFT: Contact Form */}
           <div className="self-start bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 p-6 sm:p-8">
             <header className="mb-6">
@@ -91,16 +104,50 @@ export default function Contact() {
 
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input icon={User} id="firstName" name="firstName" type="text" placeholder="First Name*" required />
-                <Input icon={User} id="lastName" name="lastName" type="text" placeholder="Last Name*" required />
+                <Input
+                  icon={User}
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  placeholder="First Name*"
+                  required
+                />
+                <Input
+                  icon={User}
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  placeholder="Last Name*"
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input icon={Mail} id="email" name="email" type="email" placeholder="Email Address*" required />
-                <Input icon={Phone} id="phone" name="phone" type="tel" placeholder="Phone Number" />
+                <Input
+                  icon={Mail}
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="Email Address*"
+                  required
+                />
+                <Input
+                  icon={Phone}
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  placeholder="Phone Number"
+                />
               </div>
 
-              <Input icon={Tag} id="subject" name="subject" type="text" placeholder="Subject*" required />
+              <Input
+                icon={Tag}
+                id="subject"
+                name="subject"
+                type="text"
+                placeholder="Subject*"
+                required
+              />
 
               <div>
                 <textarea
@@ -116,7 +163,9 @@ export default function Contact() {
               <button
                 type="submit"
                 disabled={isSending}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-black/40 ${isSending ? "bg-gray-400 cursor-not-allowed" : "bg-secondary/90 hover:bg-secondary"
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-black/40 ${isSending
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-secondary/90 hover:bg-secondary"
                   }`}
               >
                 {isSending && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -125,8 +174,9 @@ export default function Contact() {
             </form>
           </div>
 
-          {/* RIGHT: Parish Info + Map */}
+          {/* RIGHT: Parish Info + Static Map */}
           <div className="h-full flex flex-col gap-6 py-6">
+            {/* Call Us */}
             <section className="flex items-start gap-4">
               <span className="inline-grid h-6 w-6 shrink-0 place-items-center mt-1">
                 <Phone className="h-5 w-5 text-blue-600" />
@@ -140,6 +190,7 @@ export default function Contact() {
               </div>
             </section>
 
+            {/* Visit Us */}
             <section className="flex items-start gap-4">
               <span className="inline-grid h-6 w-6 shrink-0 place-items-center mt-1">
                 <MapPin className="h-5 w-5 text-blue-600" />
@@ -160,6 +211,7 @@ export default function Contact() {
               </div>
             </section>
 
+            {/* Live Chat Info */}
             <section className="flex items-start gap-4">
               <span className="inline-grid h-6 w-6 shrink-0 place-items-center mt-1">
                 <ArrowRight className="h-5 w-5 text-blue-600" />
@@ -173,6 +225,7 @@ export default function Contact() {
               </div>
             </section>
 
+            {/* Static Google Map Embed */}
             <div className="flex-1 rounded-xl overflow-hidden min-h-[280px] md:min-h-[360px]">
               <iframe
                 title="Parish location"
