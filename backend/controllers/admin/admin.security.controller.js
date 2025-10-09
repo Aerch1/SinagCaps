@@ -136,6 +136,10 @@ export const changeAdminPassword = handleAsyncError(async (req, res) => {
    POST /api/admin/security/forgot-password
    → Send reset link via email
 ================================================== */
+/* ==================================================
+   POST /api/admin/security/forgot-password
+   → Send reset link via email (Admin only)
+================================================== */
 export const forgotAdminPassword = handleAsyncError(async (req, res) => {
   const { email } = req.body;
   if (!email?.trim()) throw new AppError("Email is required", 400);
@@ -147,36 +151,41 @@ export const forgotAdminPassword = handleAsyncError(async (req, res) => {
       [email.trim().toLowerCase()]
     );
     if (!rows.length) throw new AppError("Account not found", 404);
+
     const user = rows[0];
+
+    // ✅ Ensure only admins can send and receive reset links
+    if (user.role !== "admin") {
+      throw new AppError(
+        "Access denied: only admins can request password resets",
+        403
+      );
+    }
 
     // Generate secure token
     const token = crypto.randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiry
 
-    // Store in password_resets table
+    // Store token
     await conn.execute(
       "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
       [user.id, token, expires]
     );
 
-    // Determine reset URL (admin vs public)
+    // Build admin reset link
     const baseURL = process.env.FRONTEND_URL || "http://localhost:5174";
-    const resetPath =
-      user.role === "admin"
-        ? `/admin/reset-password/${token}`
-        : `/reset-password/${token}`;
-    const resetURL = `${baseURL}${resetPath}`;
+    const resetURL = `${baseURL}/admin/reset-password/${token}`;
 
-    console.log("🔗 Reset link:", resetURL);
+    console.log("🔗 Admin reset link:", resetURL);
 
-    // Send reset email
+    // Send reset email via Brevo
     await sendPasswordResetEmail(user.email, resetURL);
 
     return sendResponse(
       res,
       200,
       true,
-      "Password reset link sent to your email address"
+      "Admin password reset link sent to your email address"
     );
   } finally {
     conn.release();
