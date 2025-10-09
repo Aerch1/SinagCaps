@@ -76,8 +76,19 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
       setLoading(true);
       try {
         const res = await api.get(`/admin/appointments/${appointmentId}`);
+        const appt = res.data?.appointment || {};
         setLocal({
-          ...res.data?.appointment,
+          id: appt.id,
+          name: appt.name,
+          email: appt.email,
+          contactNumber: appt.contactNumber,
+          address: appt.address,
+          service_id: appt.service_id,
+          serviceName: appt.serviceName,
+          date: appt.date,
+          time: appt.time,
+          status: appt.status,
+          notes: appt.notes,
           details: res.data?.details || null,
           sponsors: res.data?.sponsors || [],
         });
@@ -95,17 +106,31 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
     fetchDetails();
   }, [isOpen, appointmentId]);
 
-  /* 🔹 Handle status update */
+  /* 🔹 Handle status update (approve, cancel, complete, archive) */
   const handleStatusChange = async (newStatus) => {
+    if (!appointmentId) return;
     const toastId = toast.loading("Updating appointment...");
     try {
-      await api.patch(`/admin/appointments/${appointmentId}`, { status: newStatus });
-      toast.success("Appointment updated successfully!", { id: toastId });
-      onUpdate?.();
+      await api.patch(`/admin/appointments/${appointmentId}`, {
+        status: newStatus,
+        service_id: local?.service_id,
+        date: local?.date,
+        time: local?.time,
+        name: local?.name,
+        email: local?.email,
+        contactNumber: local?.contactNumber,
+        address: local?.address,
+        notes: local?.notes || "",
+      });
+
       setLocal((prev) => ({ ...prev, status: newStatus }));
+      toast.success("Appointment updated successfully!", { id: toastId });
+
+      // Slight delay before refreshing parent DataTable
+      setTimeout(() => onUpdate?.(), 200);
     } catch (err) {
       console.error("❌ update failed:", err);
-      toast.error("Failed to update", { id: toastId });
+      toast.error("Failed to update appointment", { id: toastId });
     }
   };
 
@@ -128,6 +153,15 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
   }, [local?.name]);
 
   if (!isOpen && !showProcess) return null;
+
+  if (!local && !loading)
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-[999]">
+        <div className="bg-white px-6 py-4 rounded-lg shadow">
+          <p className="text-sm text-gray-700">No appointment selected</p>
+        </div>
+      </div>
+    );
 
   const status = local?.status?.toLowerCase();
   const isAdminCreated = local?.createdBy === "admin" || local?.role === "admin";
@@ -186,7 +220,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
                     <div className="flex-1">
                       <p className="text-xs text-gray-500 uppercase mb-1">Client</p>
                       <h3 className="text-lg font-semibold text-gray-900">
-                        {local?.name}
+                        {local?.name || "—"}
                       </h3>
                     </div>
                   </div>
@@ -300,24 +334,22 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
           <footer className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-lg">
             {/* ✅ LEFT SIDE */}
             <div>
-              {status === "approved" &&
-                (() => {
-                  const now = new Date();
-                  const apptDateTime = new Date(`${local?.date}T${local?.time}`);
-                  const isPast = now > apptDateTime;
-
-                  if (isPast) {
-                    return (
-                      <button
-                        onClick={() => handleStatusChange("completed")}
-                        className="px-3 py-2 text-sm rounded-md border border-green-600 text-green-700 hover:bg-green-50 flex items-center gap-1"
-                      >
-                        <Check className="w-4 h-4" /> Mark Completed
-                      </button>
-                    );
-                  }
-                  return null;
-                })()}
+              {status === "approved" && local?.date && local?.time && (() => {
+                const now = new Date();
+                const apptDateTime = new Date(`${local.date}T${local.time}`);
+                const isPast = now > apptDateTime;
+                if (isPast) {
+                  return (
+                    <button
+                      onClick={() => handleStatusChange("completed")}
+                      className="px-3 py-2 text-sm rounded-md border border-green-600 text-green-700 hover:bg-green-50 flex items-center gap-1"
+                    >
+                      <Check className="w-4 h-4" /> Mark Completed
+                    </button>
+                  );
+                }
+                return null;
+              })()}
             </div>
 
             {/* ✅ RIGHT SIDE */}
@@ -366,7 +398,6 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
               )}
             </div>
           </footer>
-
         </aside>
       )}
 
@@ -429,7 +460,9 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
               const reqs = reqRes.data?.requirements || [];
               const done = reqs.filter((r) => r.completed).length;
               setReqProgress({ done, total: reqs.length });
-            } catch { }
+            } catch {
+              /* ignore */
+            }
             setShowProcess(false);
             setHidePanel(false);
           }}
@@ -461,7 +494,9 @@ function Detail({ icon: Icon, label, value }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>
-        <p className="text-sm font-medium text-gray-900 break-words">{value || "—"}</p>
+        <p className="text-sm font-medium text-gray-900 break-words">
+          {value || "—"}
+        </p>
       </div>
     </div>
   );
