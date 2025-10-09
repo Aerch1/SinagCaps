@@ -9,10 +9,12 @@ import {
   EMAIL_CHANGED_NOTICE_TEMPLATE,
 } from "../config/emailTemplates.js";
 
-const FROM = `"Our Lady of Peace and Good Voyage Parish" <${
-  process.env.EMAIL_FROM || process.env.EMAIL_USER
-}>`;
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@olpgvp.com";
+const FROM = {
+  name:
+    process.env.EMAIL_FROM_NAME || "Our Lady of Peace and Good Voyage Parish",
+  address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+};
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@olopgv.org";
 
 /* ==========================================================
    📧 EMAIL: Verification
@@ -32,7 +34,7 @@ export const sendVerificationEmail = async (email, verificationCode) => {
     });
 
     console.log("✅ Verification email sent:", info.messageId);
-    return { success: true, messageId: info.messageId };
+    return { success: true };
   } catch (error) {
     console.error("❌ Error sending verification email:", error);
     throw new Error(`Failed to send verification email: ${error.message}`);
@@ -54,7 +56,7 @@ export const sendWelcomeEmail = async (email, name) => {
     });
 
     console.log("✅ Welcome email sent:", info.messageId);
-    return { success: true, messageId: info.messageId };
+    return { success: true };
   } catch (error) {
     console.error("❌ Error sending welcome email:", error);
     throw new Error(`Failed to send welcome email: ${error.message}`);
@@ -79,7 +81,7 @@ export const sendPasswordResetEmail = async (email, resetURL) => {
     });
 
     console.log("✅ Password reset email sent:", info.messageId);
-    return { success: true, messageId: info.messageId };
+    return { success: true };
   } catch (error) {
     console.error("❌ Error sending password reset email:", error);
     throw new Error(`Failed to send password reset email: ${error.message}`);
@@ -99,7 +101,7 @@ export const sendPasswordResetSuccessEmail = async (email) => {
     });
 
     console.log("✅ Password reset success email sent:", info.messageId);
-    return { success: true, messageId: info.messageId };
+    return { success: true };
   } catch (error) {
     console.error("❌ Error sending password reset success email:", error);
     throw new Error(
@@ -109,7 +111,7 @@ export const sendPasswordResetSuccessEmail = async (email) => {
 };
 
 /* ==========================================================
-   ✉️ EMAIL: Change Email (Send Code)
+   ✉️ EMAIL: Change Email Code
 ========================================================== */
 export const sendChangeEmailCode = async (toEmail, code) => {
   try {
@@ -125,10 +127,10 @@ export const sendChangeEmailCode = async (toEmail, code) => {
       html,
     });
 
-    console.log("✅ Change-email code sent:", info.messageId);
-    return { success: true, messageId: info.messageId };
+    console.log("✅ Change email code sent:", info.messageId);
+    return { success: true };
   } catch (error) {
-    console.error("❌ Error sending change-email code:", error);
+    console.error("❌ Error sending change email code:", error);
     throw new Error(`Failed to send change-email code: ${error.message}`);
   }
 };
@@ -145,7 +147,7 @@ export const sendEmailChangedNotice = async (oldEmail, newEmail) => {
       .replaceAll("{newEmail}", newEmail)
       .replaceAll("{supportEmail}", SUPPORT_EMAIL);
 
-    const [toOld, toNew] = await Promise.all([
+    await Promise.all([
       transporter.sendMail({
         from: FROM,
         to: oldEmail,
@@ -160,18 +162,10 @@ export const sendEmailChangedNotice = async (oldEmail, newEmail) => {
       }),
     ]);
 
-    console.log(
-      "✅ Email-changed notices sent:",
-      toOld.messageId,
-      toNew.messageId
-    );
-    return {
-      success: true,
-      oldMessageId: toOld.messageId,
-      newMessageId: toNew.messageId,
-    };
+    console.log("✅ Email change notices sent");
+    return { success: true };
   } catch (error) {
-    console.error("❌ Error sending email-changed notice:", error);
-    throw new Error(`Failed to send email-changed notice: ${error.message}`);
+    console.error("❌ Error sending email change notice:", error);
+    throw new Error(`Failed to send email change notice: ${error.message}`);
   }
 };
