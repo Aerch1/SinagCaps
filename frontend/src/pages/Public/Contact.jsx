@@ -8,18 +8,20 @@ import api from "@/api/api";
 import toast from "react-hot-toast";
 
 const HERO_IMG = "/forgot.jpg";
-const PLACE_NAME = "Our Lady of Peace and Good Voyage Parish - Lodlod, Lipa City, Batangas";
+
+// ✨ Notice the trailing space after Batangas — DO NOT REMOVE
+const PLACE_NAME =
+  "Our Lady of Peace and Good Voyage Parish - Lodlod, Lipa City, Batangas ";
 const PLACE_LINK =
   "https://www.google.com/maps/place/Our+Lady+of+Peace+and+Good+Voyage+Parish+-+Lodlod,+Lipa+City,+Batangas+(Archdiocese+of+Lipa)/@13.9310824,121.1423383,17z";
-
-// 🧭 ✅ Stable Google Maps Embed URL (official iframe version)
-const MAP_EMBED_SRC =
-  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3871.87981412736!2d121.1423383!3d13.9310824!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x33bd6d01048fcb4b%3A0xe29c3f6fd8cf4b29!2sOur%20Lady%20of%20Peace%20and%20Good%20Voyage%20Parish%20-%20Lodlod%2C%20Lipa%20City%2C%20Batangas!5e0!3m2!1sen!2sph!4v1717351111000!5m2!1sen!2sph";
+const MAP_EMBED_SRC = `https://www.google.com/maps?q=${encodeURIComponent(
+  PLACE_NAME
+)}&output=embed`;
 
 export default function Contact() {
   const [isSending, setIsSending] = useState(false);
 
-  // 🧼 Validation helper
+  /* 🧼 Form Validation */
   const validateForm = (data) => {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!data.firstName?.trim()) return "First name is required.";
@@ -31,35 +33,35 @@ export default function Contact() {
     return null;
   };
 
-  // 📨 Form submission
+  /* 📤 Form Submission */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const formData = Object.fromEntries(new FormData(e.target).entries());
+    const data = Object.fromEntries(new FormData(e.target).entries());
 
-    const errorMsg = validateForm(formData);
+    const errorMsg = validateForm(data);
     if (errorMsg) {
       toast.error(errorMsg);
       return;
     }
 
-    const toastId = toast.loading("Sending your message...");
-    setIsSending(true);
-
+    let toastId;
     try {
-      const { data } = await api.post("/public/contact", formData);
+      setIsSending(true);
+      toastId = toast.loading("Sending your message...");
 
-      if (data.success) {
-        toast.dismiss(toastId);
-        toast.success("📩 Your message has been sent successfully! We’ll get back to you soon.");
+      const res = await api.post("/public/contact", data);
+      if (res.data.success) {
+        toast.success("Message sent successfully!", { id: toastId });
         e.target.reset();
       } else {
-        toast.error(data.error || "Something went wrong.", { id: toastId });
+        toast.error(res.data.error || "Something went wrong.", { id: toastId });
       }
     } catch (err) {
-      console.error("❌ Contact form error:", err);
+      console.error(err);
       toast.error("Failed to send message. Please try again later.", { id: toastId });
     } finally {
       setIsSending(false);
+      toast.dismiss(toastId);
     }
   };
 
@@ -68,20 +70,21 @@ export default function Contact() {
       <HeroBanner title="Contact Us" imageSrc={HERO_IMG} />
 
       {/* Header Section */}
-      <section className="mx-auto max-w-7xl px-6 lg:px-8 py-10 text-center">
-        <p className="text-amber-500 italic">Contact Us</p>
-        <h2 className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
-          Get In Touch With Our Parish
-        </h2>
-        <p className="mt-2 text-gray-600 max-w-2xl mx-auto">
-          Please fill out the form below and we’ll respond as soon as possible.
-        </p>
+      <section className="mx-auto max-w-7xl px-6 lg:px-8 py-10">
+        <div className="text-center">
+          <p className="text-amber-500 italic">Contact Us</p>
+          <h2 className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
+            Get In Touch With Our Parish
+          </h2>
+          <p className="mt-2 text-gray-600 max-w-2xl mx-auto">
+            Please fill out the form below and we’ll respond as soon as possible.
+          </p>
+        </div>
       </section>
 
       {/* Form + Info Section */}
       <section className="mx-auto max-w-7xl px-6 lg:px-8 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-
           {/* LEFT: Contact Form */}
           <div className="self-start bg-white rounded-2xl shadow-sm ring-1 ring-gray-200 p-6 sm:p-8">
             <header className="mb-6">
@@ -116,10 +119,9 @@ export default function Contact() {
               <button
                 type="submit"
                 disabled={isSending}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-black/40 ${isSending
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-secondary/90 hover:bg-secondary"
-                  }`}
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-black/40 ${
+                  isSending ? "bg-gray-400 cursor-not-allowed" : "bg-secondary/90 hover:bg-secondary"
+                }`}
               >
                 {isSending && <Loader2 className="h-4 w-4 animate-spin" />}
                 {isSending ? "Sending..." : "Submit"}
@@ -129,28 +131,56 @@ export default function Contact() {
 
           {/* RIGHT: Parish Info + Map */}
           <div className="h-full flex flex-col gap-6 py-6">
-            <ContactInfo
-              icon={Phone}
-              title="Call Us"
-              description="Reach us during working hours for quick assistance."
-              link="tel:+639358841922"
-              linkText="(+63) 935 884 1922"
-            />
-            <ContactInfo
-              icon={MapPin}
-              title="Visit Us"
-              description="You can visit the parish office at the address below."
-              link={PLACE_LINK}
-              linkText={PLACE_NAME}
-            />
-            <ContactInfo
-              icon={ArrowRight}
-              title="Live Chat"
-              description="You can contact us through the chat widget when an admin is online or during working hours. If no one is available, please send your message using the form."
-              extra={<p className="text-xs text-gray-500">Working hours: Mon – Sat, 9:00 – 5:00</p>}
-            />
+            {/* Call Us */}
+            <section className="flex items-start gap-4">
+              <span className="inline-grid h-6 w-6 shrink-0 place-items-center mt-1">
+                <Phone className="h-5 w-5 text-blue-600" />
+              </span>
+              <div className="space-y-2">
+                <h3 className="text-base text-gray-900">Call Us</h3>
+                <p className="text-sm text-gray-600">Reach us during working hours for quick assistance.</p>
+                <a href="tel:+639358841922" className="block text-sm text-blue-600 hover:underline">
+                  (+63) 935 884 1922
+                </a>
+              </div>
+            </section>
 
-            {/* ✅ Stable Google Map Embed */}
+            {/* Visit Us */}
+            <section className="flex items-start gap-4">
+              <span className="inline-grid h-6 w-6 shrink-0 place-items-center mt-1">
+                <MapPin className="h-5 w-5 text-blue-600" />
+              </span>
+              <div className="space-y-2">
+                <h3 className="text-base text-gray-900">Visit Us</h3>
+                <p className="text-sm text-gray-600">
+                  You can visit the parish office at the address below.
+                </p>
+                <a
+                  href={PLACE_LINK}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-sm text-blue-600 hover:underline"
+                >
+                  {PLACE_NAME}
+                </a>
+              </div>
+            </section>
+
+            {/* Live Chat Info */}
+            <section className="flex items-start gap-4">
+              <span className="inline-grid h-6 w-6 shrink-0 place-items-center mt-1">
+                <ArrowRight className="h-5 w-5 text-blue-600" />
+              </span>
+              <div className="space-y-2">
+                <h3 className="text-base text-gray-900">Live Chat</h3>
+                <p className="text-sm text-gray-600">
+                  You can contact us through the chat widget when an admin is online or during working hours. If no one is available, please send your message using the form.
+                </p>
+                <p className="text-xs text-gray-500">Working hours: Mon – Sat, 9:00 – 5:00</p>
+              </div>
+            </section>
+
+            {/* Google Map */}
             <div className="flex-1 rounded-xl overflow-hidden min-h-[280px] md:min-h-[360px]">
               <iframe
                 title="Parish location"
@@ -165,31 +195,5 @@ export default function Contact() {
         </div>
       </section>
     </main>
-  );
-}
-
-// 🧭 Reusable Info Block
-function ContactInfo({ icon: Icon, title, description, link, linkText, extra }) {
-  return (
-    <section className="flex items-start gap-4">
-      <span className="inline-grid h-6 w-6 shrink-0 place-items-center mt-1">
-        <Icon className="h-5 w-5 text-blue-600" />
-      </span>
-      <div className="space-y-2">
-        <h3 className="text-base text-gray-900">{title}</h3>
-        <p className="text-sm text-gray-600">{description}</p>
-        {link && (
-          <a
-            href={link}
-            target={link.startsWith("http") ? "_blank" : undefined}
-            rel="noopener noreferrer"
-            className="block text-sm text-blue-600 hover:underline"
-          >
-            {linkText}
-          </a>
-        )}
-        {extra}
-      </div>
-    </section>
   );
 }
