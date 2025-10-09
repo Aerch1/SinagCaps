@@ -217,6 +217,7 @@ export const createAppointmentAdmin = async (req, res) => {
    PATCH /api/admin/appointments/:id
    (approve / reject / cancel / reschedule / update)
 ================================================== */
+// ✅ Safe and corrected version of updateAppointmentAdmin
 export const updateAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -241,16 +242,14 @@ export const updateAppointmentAdmin = async (req, res) => {
       const errors = validateUpdate({ status, date, time: t });
       if (t === null && time) errors.push("Invalid time format (HH:mm).");
       if (errors.length)
-        return res.status(400).json({
-          success: false,
-          code: "VALIDATION_ERROR",
-          errors,
-        });
+        return res
+          .status(400)
+          .json({ success: false, code: "VALIDATION_ERROR", errors });
     }
 
     await conn.beginTransaction();
 
-    // 🔹 Fetch old appointment (used for fallback + email + notification)
+    // 🔹 Fetch old appointment
     const [[oldAppt]] = await conn.query(
       "SELECT date, time, service_id FROM appointments WHERE id=?",
       [id]
@@ -262,10 +261,10 @@ export const updateAppointmentAdmin = async (req, res) => {
         .json({ success: false, message: "Appointment not found" });
     }
 
-    // 🔹 Ensure service_id fallback
+    // ✅ Safe fallback
     const sid = service_id || oldAppt.service_id;
 
-    // 🔹 Conflict / availability check (skip for reject/cancel)
+    // 🔹 Skip conflict check for cancel/reject
     if (date && t && status !== "rejected" && status !== "cancelled") {
       const [conflicts] = await conn.query(
         `SELECT id FROM appointments
@@ -287,8 +286,8 @@ export const updateAppointmentAdmin = async (req, res) => {
     await applyUpdate({
       id,
       status,
-      date: date ?? oldAppt.date ?? null,
-      time: t ?? oldAppt.time ?? null,
+      date: date ?? oldAppt.date,
+      time: t ?? oldAppt.time,
       notes: notes || null,
       name,
       email,
@@ -299,9 +298,7 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     await conn.commit();
 
-    // =====================================================
-    // 🔔 Notifications
-    // =====================================================
+    // 🔹 Notifications + emails (same logic but safe sid)
     try {
       const [[service]] = await conn.query(
         "SELECT name FROM services WHERE id=?",
@@ -338,22 +335,9 @@ export const updateAppointmentAdmin = async (req, res) => {
           transaction_id: `APT-${String(id).padStart(5, "0")}`,
         });
       }
-    } catch (err) {
-      console.warn("⚠️ Failed to create update notification:", err.message);
-    }
 
-    // =====================================================
-    // ✉️ Send Email Notifications
-    // =====================================================
-    try {
+      // ✉️ Send email (same pattern)
       if (email) {
-        const [[service]] = await conn.query(
-          "SELECT name FROM services WHERE id=?",
-          [sid]
-        );
-        const serviceName = service?.name || "Selected Service";
-
-        // Reschedule email
         if (
           date &&
           t &&
@@ -369,9 +353,7 @@ export const updateAppointmentAdmin = async (req, res) => {
             newDate: date,
             newTime: t,
           });
-        }
-        // Cancelled or rejected email
-        else if (status === "cancelled" || status === "rejected") {
+        } else if (status === "cancelled" || status === "rejected") {
           await sendAppointmentCancelledEmail(email, {
             status,
             name,
@@ -384,9 +366,7 @@ export const updateAppointmentAdmin = async (req, res) => {
                 ? "Appointment was cancelled by the parish office."
                 : "Appointment was rejected by the parish office."),
           });
-        }
-        // Generic update
-        else {
+        } else {
           await sendAppointmentUpdatedEmail(email, {
             name,
             serviceName,
@@ -397,8 +377,8 @@ export const updateAppointmentAdmin = async (req, res) => {
           });
         }
       }
-    } catch (e) {
-      console.error("⚠️ sendAppointmentEmail failed:", e.message);
+    } catch (err) {
+      console.warn("⚠️ Notification/email section failed:", err.message);
     }
 
     return res.json({
