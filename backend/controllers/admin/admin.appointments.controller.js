@@ -24,6 +24,8 @@ import {
   sendAppointmentCancelledEmail,
 } from "../../utils/appointmentEmails.js";
 
+import { createNotification } from "../../utils/createNotification.js";
+
 /* =======================================================
    Constants
 ======================================================= */
