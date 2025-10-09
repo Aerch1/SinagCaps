@@ -7,6 +7,9 @@ const LINKS = [
     { title: "Requirements", to: "/services/generalinfo", Icon: ClipboardList },
     { title: "Document Request", to: "/document-request", Icon: FileText },
     { title: "Office Hours & Location", to: "/contact", Icon: MapPin },
+     { title: "Events ", to: "/event", Icon: MapPin },
+    { title: "Manage Appointment", to: "/settings/appointments", Icon: RefreshCcw },
+
 ];
 
 export default function AppointmentQuickLinks({ items = LINKS }) {
