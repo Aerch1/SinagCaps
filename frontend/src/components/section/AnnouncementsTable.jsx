@@ -75,7 +75,6 @@ export default function AnnouncementsTable() {
         return [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
     }, [announcements, query]);
 
-    // Pagination logic
     const totalPages = Math.ceil(filtered.length / pageSize);
     const paginatedData = useMemo(() => {
         const start = (page - 1) * pageSize;
@@ -181,10 +180,7 @@ export default function AnnouncementsTable() {
                                 </tr>
                             ) : paginatedData.length === 0 ? (
                                 <tr>
-                                    <td
-                                        colSpan={5}
-                                        className="text-center py-8 md:py-10 text-gray-500 text-xs md:text-sm"
-                                    >
+                                    <td colSpan={5} className="text-center py-8 md:py-10 text-gray-500 text-xs md:text-sm">
                                         No announcements found.
                                     </td>
                                 </tr>
@@ -253,7 +249,6 @@ export default function AnnouncementsTable() {
                         Showing {(page - 1) * pageSize + 1} to{" "}
                         {Math.min(page * pageSize, filtered.length)} of {filtered.length}
                     </div>
-
                     <div className="flex items-center gap-1 md:gap-2">
                         <button
                             onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -266,11 +261,10 @@ export default function AnnouncementsTable() {
                             <button
                                 key={i}
                                 onClick={() => setPage(i + 1)}
-                                className={`h-8 w-8 md:h-9 md:w-9 rounded-md border text-xs md:text-sm ${
-                                    page === i + 1
+                                className={`h-8 w-8 md:h-9 md:w-9 rounded-md border text-xs md:text-sm ${page === i + 1
                                         ? "bg-blue-600 text-white"
                                         : "bg-white hover:bg-gray-50"
-                                }`}
+                                    }`}
                             >
                                 {i + 1}
                             </button>
@@ -378,7 +372,12 @@ function AnnouncementForm({ editItem, onSave, onCancel }) {
     const [newCategory, setNewCategory] = useState("");
 
     useEffect(() => {
-        if (editItem) setForm(editItem);
+        if (editItem) {
+            setForm({
+                ...editItem,
+                date: new Date(editItem.date).toISOString().split("T")[0], // ✅ Proper date format for <input type="date">
+            });
+        }
     }, [editItem]);
 
     const handleChange = (e) => {
