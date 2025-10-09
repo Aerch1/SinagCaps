@@ -1,11 +1,11 @@
-import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import Brevo from "@getbrevo/brevo";
 
 dotenv.config();
 
 /* ==================================================
    📩 POST /api/public/contact
-   → Sends message to parish Gmail & confirmation to sender
+   → Sends message to parish email & confirmation to sender
 ================================================== */
 export async function sendContactMessage(req, res) {
   const { firstName, lastName, email, phone, subject, message } = req.body;
@@ -18,41 +18,40 @@ export async function sendContactMessage(req, res) {
         .json({ success: false, error: "All required fields must be filled." });
     }
 
-    // ✅ Create Gmail transporter
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER, // your Gmail (App Password enabled)
-        pass: process.env.EMAIL_PASS, // Gmail App Password
-      },
-    });
+    // ✅ Configure Brevo API client
+    const apiInstance = new Brevo.TransactionalEmailsApi();
+    apiInstance.setApiKey(
+      Brevo.TransactionalEmailsApiApiKeys.apiKey,
+      process.env.BREVO_API_KEY
+    );
 
-    /* ==================================================
-       1️⃣ Send message to the parish Gmail inbox
-    ================================================== */
+    // ✅ Parish email details
+    const parishEmail = process.env.PARISH_EMAIL || process.env.EMAIL_USER;
+
+    // ==================================================
+    // 1️⃣ Send message to parish inbox
+    // ==================================================
     const parishMail = {
-      from: `"${firstName} ${lastName}" <${process.env.EMAIL_USER}>`,
-      replyTo: email,
-      to: process.env.PARISH_EMAIL || process.env.EMAIL_USER,
-      subject: `Parish Inquiry ${subject}`,
-      html: `
+      sender: { name: `${firstName} ${lastName}`, email: parishEmail },
+      replyTo: { email },
+      to: [{ email: parishEmail }],
+      subject: `Parish Inquiry: ${subject}`,
+      htmlContent: `
         <div style="font-family: Arial, sans-serif; color: #333; background: #fff; padding: 20px;">
           <h2 style="text-align: center; margin-bottom: 20px;">📩 New Contact Message</h2>
 
           <div style="margin-bottom: 16px;">
-            <p style="margin: 4px 0;"><strong>Name:</strong> ${firstName} ${lastName}</p>
-            <p style="margin: 4px 0;"><strong>Email:</strong> <a href="mailto:${email}" style="color:#1d4ed8;">${email}</a></p>
-            <p style="margin: 4px 0;"><strong>Phone:</strong> ${
-              phone || "N/A"
-            }</p>
-            <p style="margin: 4px 0;"><strong>Subject:</strong> ${subject}</p>
+            <p><strong>Name:</strong> ${firstName} ${lastName}</p>
+            <p><strong>Email:</strong> <a href="mailto:${email}" style="color:#1d4ed8;">${email}</a></p>
+            <p><strong>Phone:</strong> ${phone || "N/A"}</p>
+            <p><strong>Subject:</strong> ${subject}</p>
           </div>
 
           <hr style="border:none; border-top:1px solid #ddd; margin:16px 0;">
 
-          <div style="margin-top: 16px;">
+          <div>
             <p style="margin-bottom: 8px;"><strong>Message:</strong></p>
-            <p style="white-space: pre-line; line-height: 1.6; margin: 0;">${message}</p>
+            <p style="white-space: pre-line; line-height: 1.6;">${message}</p>
           </div>
 
           <hr style="border:none; border-top:1px solid #ddd; margin:20px 0;">
@@ -64,16 +63,19 @@ export async function sendContactMessage(req, res) {
       `,
     };
 
-    await transporter.sendMail(parishMail);
+    await apiInstance.sendTransacEmail(parishMail);
 
-    /* ==================================================
-       2️⃣ Send confirmation email to the sender
-    ================================================== */
+    // ==================================================
+    // 2️⃣ Send confirmation to the sender
+    // ==================================================
     const confirmationMail = {
-      from: `"Our Lady of Peace and Good Voyage Parish" <${process.env.PARISH_EMAIL}>`,
-      to: email,
+      sender: {
+        name: "Our Lady of Peace and Good Voyage Parish",
+        email: parishEmail,
+      },
+      to: [{ email }],
       subject: "Thank you for contacting OLOPGV Parish",
-      html: `
+      htmlContent: `
         <div style="font-family: Arial, sans-serif; color: #333; background: #fff; padding: 20px;">
           <h2 style="text-align: center; margin-bottom: 16px;">🙏 Thank You, ${firstName}!</h2>
           <p style="margin-bottom: 12px;">
@@ -85,13 +87,13 @@ export async function sendContactMessage(req, res) {
             God bless you,<br>
             <strong>Our Lady of Peace and Good Voyage Parish</strong><br>
             Lodlod, Lipa City, Batangas<br>
-            <a href="mailto:${process.env.PARISH_EMAIL}" style="color:#1d4ed8;">${process.env.PARISH_EMAIL}</a>
+            <a href="mailto:${parishEmail}" style="color:#1d4ed8;">${parishEmail}</a>
           </p>
         </div>
       `,
     };
 
-    await transporter.sendMail(confirmationMail);
+    await apiInstance.sendTransacEmail(confirmationMail);
 
     // ✅ Success response
     res.json({
