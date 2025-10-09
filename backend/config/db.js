@@ -156,6 +156,8 @@ async function ensureSchema(conn) {
       party_size INT NOT NULL DEFAULT 1,
       status ENUM('pending','approved','completed','cancelled','rejected','archived') DEFAULT 'pending',
       notes TEXT,
+          was_rescheduled BOOLEAN DEFAULT FALSE,          -- ✅ NEW COLUMN
+
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       approved_at TIMESTAMP NULL DEFAULT NULL,

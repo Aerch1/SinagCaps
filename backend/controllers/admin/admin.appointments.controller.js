@@ -4,7 +4,7 @@ import pool from "../../config/db.js";
 import {
   normalizeTime,
   validateCreate,
-  validateUpdate, // kept import to preserve external API; not used directly here
+  validateUpdate,
 } from "../../utils/validateAppointment.js";
 import {
   getDayAvailability,
@@ -13,7 +13,7 @@ import {
 } from "../../services/availability.service.js";
 import {
   hasDuplicateBooking,
-  countBookedAt, // kept import (used elsewhere in codebase), not used here
+  countBookedAt,
   insertAppointment,
   updateAppointment as applyUpdate,
 } from "../../services/appointments.service.js";
@@ -23,12 +23,10 @@ import {
   sendAppointmentRescheduledEmail,
   sendAppointmentCancelledEmail,
 } from "../../utils/appointmentEmails.js";
-import { createNotification } from "../../utils/createNotification.js";
 
 /* =======================================================
    Constants
 ======================================================= */
-// ✅ Updated statuses (removed in_progress / added archived)
 const STATUSES = [
   "pending",
   "approved",
@@ -39,19 +37,15 @@ const STATUSES = [
 ];
 
 /* =======================================================
-   Small Utilities (perf + safety)
+   Small Utilities
 ======================================================= */
-
-// Normalize ISO string → MySQL DATE (YYYY-MM-DD)
 function normalizeDateForMySQL(date) {
   if (!date) return null;
   if (typeof date === "string" && date.includes("T")) return date.split("T")[0];
   return date;
 }
 
-// Fire-and-forget after we’ve responded (non-blocking, won’t delay HTTP)
 function runAsyncPostCommit(fn) {
-  // Use nextTick to schedule after event loop returns, avoiding overlap
   process.nextTick(async () => {
     try {
       await fn();
@@ -61,7 +55,6 @@ function runAsyncPostCommit(fn) {
   });
 }
 
-// Safe sort guards
 function normalizeSort(sortByRaw, sortDirRaw, prefix = "a.") {
   const SORTABLE = new Set(["id", "name", "date", "status"]);
   const key = SORTABLE.has(String(sortByRaw))
@@ -110,10 +103,9 @@ export const createAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // 🔹 Conflict check (within 1 hour window)
+    // 🔹 Conflict check
     const [conflicts] = await conn.query(
-      `SELECT id, name, time, status
-       FROM appointments
+      `SELECT id FROM appointments
        WHERE service_id=? AND date=? 
          AND status IN ('pending','approved')
          AND ABS(TIME_TO_SEC(TIMEDIFF(time, ?))) < 3600`,
@@ -125,11 +117,10 @@ export const createAppointmentAdmin = async (req, res) => {
         success: false,
         code: "TIME_CONFLICT",
         message: `There is another appointment near ${t}. Do you want to continue anyway?`,
-        conflicts,
       });
     }
 
-    // 🔹 Duplicate booking check
+    // 🔹 Duplicate check
     if (
       await hasDuplicateBooking({
         service_id,
@@ -147,7 +138,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // 🔹 Slot validation + Church schedule validation
+    // 🔹 Slot availability
     const dayAvail = await getDayAvailability(service_id, date);
     const slot = findSlot(dayAvail, t);
     if (slot && slot.unavailable && !override) {
@@ -188,14 +179,13 @@ export const createAppointmentAdmin = async (req, res) => {
 
     await conn.commit();
 
-    // Respond immediately — do not block on emails/notifications
     res.status(201).json({
       success: true,
       message: "Appointment created successfully",
       appointmentId: newId,
     });
 
-    // 🔔 ✉️ Post-commit tasks (non-blocking)
+    // ✉️ Post-commit: email only (no admin notifications)
     runAsyncPostCommit(async () => {
       const [[service]] = await pool.query(
         "SELECT name FROM services WHERE id=?",
@@ -203,7 +193,6 @@ export const createAppointmentAdmin = async (req, res) => {
       );
       const serviceName = service?.name || "Selected Service";
 
-      // Email
       await sendAppointmentCreatedEmail(email, {
         name,
         serviceName,
@@ -212,24 +201,6 @@ export const createAppointmentAdmin = async (req, res) => {
         appointmentId: newId,
       }).catch((e) =>
         console.error("sendAppointmentCreatedEmail failed:", e.message)
-      );
-
-      // Notifications (admins)
-      const [admins] = await pool.query(
-        "SELECT id FROM users WHERE role='admin'"
-      );
-      const msg = `${name} booked a ${serviceName} on ${date} at ${t}.`;
-      await Promise.allSettled(
-        admins.map((admin) =>
-          createNotification({
-            user_id: admin.id,
-            title: "New Appointment Created",
-            message: msg,
-            type: "appointment",
-            reference_id: newId,
-            transaction_id: `APT-${String(newId).padStart(5, "0")}`,
-          })
-        )
       );
     });
   } catch (err) {
@@ -243,6 +214,9 @@ export const createAppointmentAdmin = async (req, res) => {
   }
 };
 
+/* =======================================================
+   PATCH /api/admin/appointments/:id
+======================================================= */
 export const updateAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -260,7 +234,6 @@ export const updateAppointmentAdmin = async (req, res) => {
       override = false,
     } = req.body;
 
-    // 🔸 Require reason for cancel or reject
     if ((status === "cancelled" || status === "rejected") && !notes?.trim()) {
       return res.status(400).json({
         success: false,
@@ -270,9 +243,8 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // 🔹 Fetch current appointment
     const [[oldAppt]] = await conn.query(
-      `SELECT id, service_id, date, time, status, name, email, contactNumber, address 
+      `SELECT id, service_id, date, time, status, name, email, contactNumber, address, was_rescheduled 
        FROM appointments WHERE id = ?`,
       [id]
     );
@@ -288,7 +260,7 @@ export const updateAppointmentAdmin = async (req, res) => {
     const safeDate = date ? normalizeDateForMySQL(date) : oldAppt.date;
     const safeTime = time ? normalizeTime(time) : oldAppt.time;
 
-    // 🧩 Prevent rescheduling if not approved (only when changing date/time)
+    // 🔹 Only approved appointments can be rescheduled
     if (
       (date || time) &&
       oldAppt.status !== "approved" &&
@@ -302,12 +274,11 @@ export const updateAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // 🧩 Determine if this operation is a reschedule
     const isRescheduling =
       (date || time) &&
       (oldAppt.date !== safeDate || oldAppt.time !== safeTime);
 
-    // 🔹 Conflict check (only for actual reschedules)
+    // 🔹 Conflict validation
     if (isRescheduling && !["cancelled", "rejected"].includes(status)) {
       const [conflicts] = await conn.query(
         `SELECT id FROM appointments
@@ -330,10 +301,9 @@ export const updateAppointmentAdmin = async (req, res) => {
       }
     }
 
-    // 🔹 Determine new status
     const newStatus = status || oldAppt.status;
 
-    // 🔹 Apply update
+    // ✅ Apply update and persist was_rescheduled flag
     await applyUpdate({
       id,
       status: newStatus,
@@ -345,20 +315,18 @@ export const updateAppointmentAdmin = async (req, res) => {
       contactNumber: contactNumber || oldAppt.contactNumber,
       address: address || oldAppt.address,
       service_id: sid,
+      was_rescheduled: isRescheduling ? true : oldAppt.was_rescheduled,
     });
 
     await conn.commit();
 
-    // ✅ include flag for frontend-only display
     res.json({
       success: true,
       message: `Appointment ${newStatus} successfully`,
       was_rescheduled: isRescheduling,
     });
 
-    /* =====================================================
-       ✅ Post-commit async notifications/emails
-    ===================================================== */
+    /* 🔔 Post-commit: Send emails only */
     runAsyncPostCommit(async () => {
       const [[service]] = await pool.query(
         "SELECT name FROM services WHERE id = ?",
@@ -366,73 +334,40 @@ export const updateAppointmentAdmin = async (req, res) => {
       );
       const serviceName = service?.name || "Selected Service";
       const finalName = name || oldAppt.name;
-      const baseMsg = `${finalName}'s ${serviceName} appointment`;
-
-      let title = "";
-      let message = "";
-
-      if (newStatus === "approved") {
-        title = "Appointment Approved";
-        message = `${baseMsg} was approved for ${safeDate} at ${safeTime}.`;
-      } else if (newStatus === "cancelled") {
-        title = "Appointment Cancelled";
-        message = `${baseMsg} has been cancelled.`;
-      } else if (newStatus === "rejected") {
-        title = "Appointment Rejected";
-        message = `${baseMsg} was rejected by the parish office.`;
-      } else if (isRescheduling && oldAppt.status === "approved") {
-        title = "Appointment Rescheduled";
-        message = `${baseMsg} was rescheduled to ${safeDate} at ${safeTime}.`;
-      } else if (newStatus === "completed") {
-        title = "Appointment Completed";
-        message = `${baseMsg} has been marked as completed.`;
-      }
-
-      if (title) {
-        await createNotification({
-          user_id: req.userId || null,
-          title,
-          message,
-          type: "appointment",
-          reference_id: id,
-          transaction_id: `APT-${String(id).padStart(5, "0")}`,
-        });
-      }
-
       const targetEmail = email || oldAppt.email;
-      if (targetEmail) {
-        if (isRescheduling && oldAppt.status === "approved") {
-          await sendAppointmentRescheduledEmail(targetEmail, {
-            name: finalName,
-            serviceName,
-            oldDate: oldAppt.date,
-            oldTime: oldAppt.time,
-            newDate: safeDate,
-            newTime: safeTime,
-          });
-        } else if (newStatus === "cancelled" || newStatus === "rejected") {
-          await sendAppointmentCancelledEmail(targetEmail, {
-            status: newStatus,
-            name: finalName,
-            serviceName,
-            date: safeDate || oldAppt.date,
-            time: safeTime || oldAppt.time,
-            reason:
-              notes?.trim() ||
-              (newStatus === "cancelled"
-                ? "Appointment was cancelled by the parish office."
-                : "Appointment was rejected by the parish office."),
-          });
-        } else {
-          await sendAppointmentUpdatedEmail(targetEmail, {
-            name: finalName,
-            serviceName,
-            date: safeDate,
-            time: safeTime,
-            status: newStatus,
-            appointmentId: id,
-          });
-        }
+      if (!targetEmail) return;
+
+      if (isRescheduling && oldAppt.status === "approved") {
+        await sendAppointmentRescheduledEmail(targetEmail, {
+          name: finalName,
+          serviceName,
+          oldDate: oldAppt.date,
+          oldTime: oldAppt.time,
+          newDate: safeDate,
+          newTime: safeTime,
+        });
+      } else if (newStatus === "cancelled" || newStatus === "rejected") {
+        await sendAppointmentCancelledEmail(targetEmail, {
+          status: newStatus,
+          name: finalName,
+          serviceName,
+          date: safeDate || oldAppt.date,
+          time: safeTime || oldAppt.time,
+          reason:
+            notes?.trim() ||
+            (newStatus === "cancelled"
+              ? "Appointment was cancelled by the parish office."
+              : "Appointment was rejected by the parish office."),
+        });
+      } else {
+        await sendAppointmentUpdatedEmail(targetEmail, {
+          name: finalName,
+          serviceName,
+          date: safeDate,
+          time: safeTime,
+          status: newStatus,
+          appointmentId: id,
+        });
       }
     });
   } catch (err) {
@@ -748,6 +683,37 @@ export const getAppointmentConflicts = async (req, res) => {
 };
 
 /* =======================================================
+   GET /api/admin/appointments/today
+======================================================= */
+export const getTodayAppointments = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT 
+         a.id, 
+         a.name, 
+         a.contactNumber,
+         a.email,
+         a.date,
+         a.time,
+         a.status,
+         s.name AS serviceName
+       FROM appointments a
+       JOIN services s ON a.service_id = s.id
+       WHERE DATE(a.date) = CURDATE()
+       ORDER BY a.time ASC`
+    );
+
+    res.json({ success: true, data: rows, count: rows.length });
+  } catch (err) {
+    console.error("❌ getTodayAppointments error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch today's appointments",
+    });
+  }
+};
+
+/* =======================================================
    POST /api/admin/appointments/filter
 ======================================================= */
 export const filterAppointments = async (req, res) => {
@@ -837,37 +803,6 @@ export const filterAppointments = async (req, res) => {
     res
       .status(500)
       .json({ success: false, error: "Failed to filter appointments" });
-  }
-};
-
-/* =======================================================
-   GET /api/admin/appointments/today
-======================================================= */
-export const getTodayAppointments = async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT 
-         a.id, 
-         a.name, 
-         a.contactNumber,
-         a.email,
-         a.date,
-         a.time,
-         a.status,
-         s.name AS serviceName
-       FROM appointments a
-       JOIN services s ON a.service_id = s.id
-       WHERE DATE(a.date) = CURDATE()
-       ORDER BY a.time ASC`
-    );
-
-    res.json({ success: true, data: rows, count: rows.length });
-  } catch (err) {
-    console.error("❌ getTodayAppointments error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch today's appointments",
-    });
   }
 };
 

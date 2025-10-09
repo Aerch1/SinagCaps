@@ -88,8 +88,6 @@ export default function DataTable({
     const fetchData = async () => {
         try {
             setLoading(true);
-
-            // 🧩 Build payload dynamically based on active filters
             const payload = { page, pageSize, sortBy: sort.key, sortDir: sort.dir };
             if (query) payload.query = query;
             if (selectedStatuses.length) payload.status = selectedStatuses;
@@ -99,7 +97,6 @@ export default function DataTable({
                 payload.endDate = endDate;
             }
 
-            // 🧩 Choose between filtered or normal endpoint
             let res;
             if (
                 query ||
@@ -113,11 +110,10 @@ export default function DataTable({
                 res = await getAppointments(payload);
             }
 
-            // 🧩 Normalize data and preserve reschedule state
             const cleanData = (res.data || [])
                 .map((a) => ({
                     ...a,
-                    was_rescheduled: Boolean(a.was_rescheduled), // ✅ ensure consistent flag
+                    was_rescheduled: Boolean(a.was_rescheduled),
                 }))
                 .filter((r) =>
                     activeTab === "archived"
@@ -125,18 +121,12 @@ export default function DataTable({
                         : r.status !== "archived"
                 );
 
-            // 🧩 Update table data + meta
             setRows(cleanData);
             setTotal(cleanData.length);
             setTotalPages(res.totalPages || 1);
-
             setServiceOptions(
-                (res.meta?.services || []).map((s) => ({
-                    value: s.id,
-                    label: s.name,
-                }))
+                (res.meta?.services || []).map((s) => ({ value: s.id, label: s.name }))
             );
-
             setStatusOptions(
                 (res.meta?.statuses || []).map((s) => ({
                     value: s,
@@ -151,10 +141,9 @@ export default function DataTable({
         }
     };
 
-
     useEffect(() => {
         fetchData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line
     }, [
         page,
         pageSize,
@@ -166,7 +155,6 @@ export default function DataTable({
         endDate,
         activeTab,
     ]);
-
     /* ---------------- Debounced Search ---------------- */
     useEffect(() => {
         const delay = setTimeout(() => {
@@ -518,8 +506,6 @@ export default function DataTable({
                                                     <div>{formatDate(r.date)}</div>
                                                     <div className="text-xs text-gray-500 flex items-center gap-1">
                                                         {formatTime(r.time)}
-
-                                                        {/* ✅ Reschedule indicator (keeps same layout/animation) */}
                                                         {r.was_rescheduled && (
                                                             <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-full">
                                                                 <RefreshCcw className="w-3 h-3" />
