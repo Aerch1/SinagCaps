@@ -245,6 +245,7 @@ export const createAppointmentAdmin = async (req, res) => {
 
 /* =======================================================
    PATCH /api/admin/appointments/:id
+   🧭 Updated: must be approved before rescheduling
 ======================================================= */
 export const updateAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
@@ -263,7 +264,7 @@ export const updateAppointmentAdmin = async (req, res) => {
       override = false,
     } = req.body;
 
-    // Require reason on cancel/reject (same behavior)
+    // 🔸 Require reason for cancel or reject
     if ((status === "cancelled" || status === "rejected") && !notes?.trim()) {
       return res.status(400).json({
         success: false,
@@ -273,13 +274,13 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // Fetch current appointment (single query)
+    // 🔹 Fetch current appointment
     const [[oldAppt]] = await conn.query(
-      `SELECT date, time, service_id, status, name, email, contactNumber, address
-       FROM appointments
-       WHERE id=?`,
+      `SELECT id, service_id, date, time, status, name, email, contactNumber, address 
+       FROM appointments WHERE id = ?`,
       [id]
     );
+
     if (!oldAppt) {
       await conn.rollback();
       return res
@@ -288,10 +289,24 @@ export const updateAppointmentAdmin = async (req, res) => {
     }
 
     const sid = service_id || oldAppt.service_id;
-    const safeDate = normalizeDateForMySQL(date ?? oldAppt.date);
-    const safeTime = time ? normalizeTime(time) : oldAppt.time ?? null;
+    const safeDate = date ? normalizeDateForMySQL(date) : oldAppt.date;
+    const safeTime = time ? normalizeTime(time) : oldAppt.time;
 
-    // Conflict check (skip for cancel/reject)
+    // 🧩 Prevent rescheduling if not approved (only when changing date/time)
+    if (
+      (date || time) &&
+      oldAppt.status !== "approved" &&
+      status !== "approved"
+    ) {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        message:
+          "You can only reschedule appointments that are already approved.",
+      });
+    }
+
+    // 🔹 Conflict check (skip for cancel/reject)
     if (
       status !== "cancelled" &&
       status !== "rejected" &&
@@ -299,29 +314,33 @@ export const updateAppointmentAdmin = async (req, res) => {
       safeTime
     ) {
       const [conflicts] = await conn.query(
-        `SELECT id
-         FROM appointments
-         WHERE service_id=? AND date=? 
-           AND status IN ('pending','approved')
+        `SELECT id FROM appointments
+         WHERE service_id = ? 
+           AND date = ? 
+           AND status IN ('pending', 'approved')
            AND id != ?
            AND ABS(TIME_TO_SEC(TIMEDIFF(time, ?))) < 3600`,
         [sid, safeDate, id, safeTime]
       );
+
       if (conflicts.length && !override) {
         await conn.rollback();
         return res.status(409).json({
           success: false,
           code: "TIME_CONFLICT",
           confirmNeeded: true,
-          message: "Conflict detected with another appointment.",
+          message: `There’s another appointment near ${safeTime}. Proceed anyway?`,
         });
       }
     }
 
-    // Apply update (service layer handles SQL)
+    // 🔹 Determine new status
+    const newStatus = status || oldAppt.status;
+
+    // 🔹 Apply update
     await applyUpdate({
       id,
-      status: status || oldAppt.status,
+      status: newStatus,
       date: safeDate,
       time: safeTime,
       notes: notes?.trim() || null,
@@ -334,41 +353,40 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     await conn.commit();
 
-    // Respond immediately
     res.json({
       success: true,
-      message: `Appointment ${status || "updated"} successfully`,
+      message: `Appointment ${newStatus} successfully`,
     });
 
-    // 🔔 ✉️ Post-commit (non-blocking)
+    // ✅ Post-commit async notifications/emails
     runAsyncPostCommit(async () => {
       const [[service]] = await pool.query(
-        "SELECT name FROM services WHERE id=?",
+        "SELECT name FROM services WHERE id = ?",
         [sid]
       );
       const serviceName = service?.name || "Selected Service";
       const finalName = name || oldAppt.name;
       const baseMsg = `${finalName}'s ${serviceName} appointment`;
 
-      // Notification
-      let title, message;
-      if (status === "approved") {
+      let title = "";
+      let message = "";
+
+      if (newStatus === "approved") {
         title = "Appointment Approved";
         message = `${baseMsg} was approved for ${safeDate} at ${safeTime}.`;
-      } else if (status === "cancelled") {
+      } else if (newStatus === "cancelled") {
         title = "Appointment Cancelled";
         message = `${baseMsg} has been cancelled.`;
-      } else if (status === "rejected") {
+      } else if (newStatus === "rejected") {
         title = "Appointment Rejected";
         message = `${baseMsg} was rejected by the parish office.`;
       } else if (
-        safeDate &&
-        safeTime &&
+        (date || time) &&
         (oldAppt.date !== safeDate || oldAppt.time !== safeTime)
       ) {
         title = "Appointment Rescheduled";
         message = `${baseMsg} was rescheduled to ${safeDate} at ${safeTime}.`;
-      } else if (status === "completed") {
+      } else if (newStatus === "completed") {
         title = "Appointment Completed";
         message = `${baseMsg} has been marked as completed.`;
       }
@@ -384,16 +402,12 @@ export const updateAppointmentAdmin = async (req, res) => {
         });
       }
 
-      // Emails
       const targetEmail = email || oldAppt.email;
       if (targetEmail) {
-        // Reschedule email
         if (
-          safeDate &&
-          safeTime &&
+          (date || time) &&
           (oldAppt.date !== safeDate || oldAppt.time !== safeTime) &&
-          status !== "cancelled" &&
-          status !== "rejected"
+          oldAppt.status === "approved"
         ) {
           await sendAppointmentRescheduledEmail(targetEmail, {
             name: finalName,
@@ -403,30 +417,26 @@ export const updateAppointmentAdmin = async (req, res) => {
             newDate: safeDate,
             newTime: safeTime,
           });
-        }
-        // Cancelled / Rejected
-        else if (status === "cancelled" || status === "rejected") {
+        } else if (newStatus === "cancelled" || newStatus === "rejected") {
           await sendAppointmentCancelledEmail(targetEmail, {
-            status,
+            status: newStatus,
             name: finalName,
             serviceName,
             date: safeDate || oldAppt.date,
             time: safeTime || oldAppt.time,
             reason:
               notes?.trim() ||
-              (status === "cancelled"
+              (newStatus === "cancelled"
                 ? "Appointment was cancelled by the parish office."
                 : "Appointment was rejected by the parish office."),
           });
-        }
-        // Generic update
-        else {
+        } else {
           await sendAppointmentUpdatedEmail(targetEmail, {
             name: finalName,
             serviceName,
-            date: safeDate || oldAppt.date,
-            time: safeTime || oldAppt.time,
-            status,
+            date: safeDate,
+            time: safeTime,
+            status: newStatus,
             appointmentId: id,
           });
         }
