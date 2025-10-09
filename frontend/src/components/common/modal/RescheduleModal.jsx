@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import api from "@/api/api";
 import { format } from "date-fns";
 import { to12h } from "@/utils/availabilityUtils";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function RescheduleModal({
   open,
@@ -18,12 +19,16 @@ export default function RescheduleModal({
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
   const [loading, setLoading] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMsg, setConfirmMsg] = useState("");
 
   // Reset fields whenever modal opens
   useEffect(() => {
     if (open) {
       setNewDate("");
       setNewTime("");
+      setConfirmOpen(false);
+      setConfirmMsg("");
     }
   }, [open]);
 
@@ -48,24 +53,23 @@ export default function RescheduleModal({
         override, // ✅ include override flag if confirmed
       });
 
-      toast.success("Appointment successfully rescheduled!");
+      toast.success("✅ Appointment successfully rescheduled!");
       onSuccess?.({ ...appointment, date: newDate, time: newTime });
       onClose();
     } catch (err) {
+      const { status, data } = err.response || {};
       const msg =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
+        data?.message ||
+        data?.error ||
         "Failed to reschedule appointment.";
 
-      // ✅ Detect conflict or confirmation-needed cases
-      if (err.response?.status === 409 && err.response?.data?.confirmNeeded) {
-        const proceed = window.confirm(
-          `${msg}\n\nWould you like to reschedule anyway?`
+      // ✅ Handle 409 conflicts gracefully
+      if (status === 409) {
+        setConfirmMsg(
+          msg || "There’s a scheduling conflict. Proceed with override?"
         );
-        if (proceed) {
-          handleSubmit(true); // retry with override flag
-          return;
-        }
+        setConfirmOpen(true);
+        return;
       }
 
       console.error("❌ Failed to reschedule:", err);
@@ -73,6 +77,15 @@ export default function RescheduleModal({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirm = async () => {
+    setConfirmOpen(false);
+    await handleSubmit(true); // ✅ retry with override
+  };
+
+  const handleCancelConfirm = () => {
+    setConfirmOpen(false);
   };
 
   const formatSchedule = () => {
@@ -88,64 +101,79 @@ export default function RescheduleModal({
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Reschedule Appointment"
-      className="max-w-lg"
-    >
-      <div className="space-y-5">
-        {/* Info */}
-        <div className="border rounded-md bg-gray-50 p-3 text-sm text-gray-700 space-y-1.5">
-          <p>
-            <strong>Client:</strong> {appointment?.name || "—"}
-          </p>
-          <p>
-            <strong>Service:</strong> {appointment?.serviceName || "—"}
-          </p>
-          <p>
-            <strong>Current Schedule:</strong> {formatSchedule()}
-          </p>
+    <>
+      {/* 🟦 Main modal */}
+      <Modal
+        open={open}
+        onClose={onClose}
+        title="Reschedule Appointment"
+        className="max-w-lg"
+      >
+        <div className="space-y-5">
+          {/* Info */}
+          <div className="border rounded-md bg-gray-50 p-3 text-sm text-gray-700 space-y-1.5">
+            <p>
+              <strong>Client:</strong> {appointment?.name || "—"}
+            </p>
+            <p>
+              <strong>Service:</strong> {appointment?.serviceName || "—"}
+            </p>
+            <p>
+              <strong>Current Schedule:</strong> {formatSchedule()}
+            </p>
+          </div>
+
+          {/* Date Selector */}
+          <DatePopover
+            label="Select New Date"
+            value={newDate}
+            onChange={setNewDate}
+            serviceId={appointment?.service_id}
+          />
+
+          {/* Slot Selector */}
+          <SlotSelector
+            label="Select New Time"
+            value={newTime}
+            onChange={setNewTime}
+            serviceId={appointment?.service_id}
+            date={newDate}
+          />
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSubmit(false)}
+              disabled={loading}
+              className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? "Saving..." : "Confirm Reschedule"}
+            </button>
+          </div>
         </div>
+      </Modal>
 
-        {/* Date Selector */}
-        <DatePopover
-          label="Select New Date"
-          value={newDate}
-          onChange={setNewDate}
-          serviceId={appointment?.service_id}
+      {/* 🟥 Confirmation dialog for conflict */}
+      {confirmOpen && (
+        <ConfirmDialog
+          open
+          title="Schedule Conflict Detected"
+          message={confirmMsg}
+          onConfirm={handleConfirm}
+          onCancel={handleCancelConfirm}
+          submitting={loading}
         />
-
-        {/* Slot Selector */}
-        <SlotSelector
-          label="Select New Time"
-          value={newTime}
-          onChange={setNewTime}
-          serviceId={appointment?.service_id}
-          date={newDate}
-        />
-
-        {/* Buttons */}
-        <div className="flex justify-end gap-2 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleSubmit(false)}
-            disabled={loading}
-            className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? "Saving..." : "Confirm Reschedule"}
-          </button>
-        </div>
-      </div>
-    </Modal>
+      )}
+    </>
   );
 }
