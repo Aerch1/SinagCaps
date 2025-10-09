@@ -384,7 +384,79 @@ export const updateAppointmentAdmin = async (req, res) => {
 };
 
 /* =======================================================
+   GET /api/admin/appointments
+   (unchanged logic but added was_rescheduled for frontend sync)
+======================================================= */
+export const getAppointments = async (req, res) => {
+  try {
+    await pool.query(`
+      UPDATE appointments
+      SET status = 'completed'
+      WHERE status = 'approved'
+        AND TIMESTAMP(date, time) < NOW() - INTERVAL 3 DAY
+    `);
+
+    const [counts] = await pool.query(`
+      SELECT
+        SUM(CASE WHEN DATE(date) = CURDATE() THEN 1 ELSE 0 END) AS todayCount,
+        SUM(CASE WHEN DATE(date) = CURDATE() + INTERVAL 1 DAY THEN 1 ELSE 0 END) AS tomorrowCount
+      FROM appointments
+      WHERE status IN ('pending','approved')
+    `);
+
+    const todayCount = counts?.[0]?.todayCount || 0;
+    const tomorrowCount = counts?.[0]?.tomorrowCount || 0;
+
+    // pagination
+    const page = Number(req.query.page || 1);
+    const pageSize = Number(req.query.pageSize || 10);
+    const offset = (page - 1) * pageSize;
+    const { key: safeKey, dir: safeDir } = normalizeSort(
+      req.query.sortBy,
+      req.query.sortDir
+    );
+
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) as total FROM appointments`
+    );
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    const [rows] = await pool.query(
+      `SELECT 
+         a.id, a.service_id,
+         a.name, a.email, a.contactNumber, a.address,
+         s.name AS serviceName,
+         a.status,
+         a.was_rescheduled,
+         DATE_FORMAT(a.date, '%Y-%m-%d') AS date,
+         a.time, a.notes
+       FROM appointments a
+       JOIN services s ON a.service_id = s.id
+       ORDER BY ${safeKey} ${safeDir}
+       LIMIT ? OFFSET ?`,
+      [pageSize, offset]
+    );
+
+    const [serviceRows] = await pool.query(
+      `SELECT id, name FROM services WHERE active = TRUE ORDER BY name ASC`
+    );
+
+    res.json({
+      success: true,
+      data: rows,
+      total,
+      totalPages,
+      meta: { services: serviceRows, statuses: STATUSES },
+    });
+  } catch (err) {
+    console.error("❌ getAppointments error:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch appointments" });
+  }
+};
+
+/* =======================================================
    GET /api/admin/appointments/:id
+   ✅ Ensure was_rescheduled returned to frontend
 ======================================================= */
 export const getAppointmentById = async (req, res) => {
   try {
@@ -399,6 +471,7 @@ export const getAppointmentById = async (req, res) => {
          a.contactNumber,
          a.address,
          a.status,
+         a.was_rescheduled,
          a.date,
          a.time,
          a.notes,
@@ -411,11 +484,8 @@ export const getAppointmentById = async (req, res) => {
       [id]
     );
 
-    if (!appt) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Appointment not found" });
-    }
+    if (!appt)
+      return res.status(404).json({ success: false, message: "Appointment not found" });
 
     let details = null;
     let sponsors = [];
@@ -433,7 +503,6 @@ export const getAppointmentById = async (req, res) => {
          WHERE appointment_id=?`,
         [id]
       );
-
       if (details) {
         const [sponsorRows] = await pool.execute(
           `SELECT role, name, address
@@ -478,12 +547,9 @@ export const getAppointmentById = async (req, res) => {
     return res.json({ success: true, appointment: appt, details, sponsors });
   } catch (err) {
     console.error("❌ getAppointmentById error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch appointment" });
+    res.status(500).json({ success: false, message: "Failed to fetch appointment" });
   }
 };
-
 /* =======================================================
    GET /api/admin/appointments
    - auto-complete old approved
