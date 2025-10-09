@@ -260,8 +260,10 @@ export const updateAppointmentAdmin = async (req, res) => {
     const sid = service_id || oldAppt.service_id;
     const safeDate = date ? normalizeDateForMySQL(date) : oldAppt.date;
     const safeTime = time ? normalizeTime(time) : oldAppt.time;
-    const oldStatus = oldAppt.status;
-    const newStatus = status || oldStatus;
+
+    // ✅ Normalize both status values to lowercase to avoid mismatch
+    const oldStatus = String(oldAppt.status).toLowerCase();
+    const newStatus = status ? String(status).toLowerCase() : oldStatus;
 
     // ======================================================
     // ✅ Enforce business rules
