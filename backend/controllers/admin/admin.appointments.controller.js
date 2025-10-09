@@ -243,10 +243,6 @@ export const createAppointmentAdmin = async (req, res) => {
   }
 };
 
-/* =======================================================
-   PATCH /api/admin/appointments/:id
-   🧭 Updated: must be approved before rescheduling
-======================================================= */
 export const updateAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -306,13 +302,12 @@ export const updateAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // 🔹 Conflict check (skip for cancel/reject)
-    if (
-      status !== "cancelled" &&
-      status !== "rejected" &&
-      safeDate &&
-      safeTime
-    ) {
+    // 🧩 Only check conflicts if actually rescheduling (date/time change)
+    const isRescheduling =
+      (date || time) &&
+      (oldAppt.date !== safeDate || oldAppt.time !== safeTime);
+
+    if (isRescheduling && !["cancelled", "rejected"].includes(status)) {
       const [conflicts] = await conn.query(
         `SELECT id FROM appointments
          WHERE service_id = ? 
@@ -380,10 +375,7 @@ export const updateAppointmentAdmin = async (req, res) => {
       } else if (newStatus === "rejected") {
         title = "Appointment Rejected";
         message = `${baseMsg} was rejected by the parish office.`;
-      } else if (
-        (date || time) &&
-        (oldAppt.date !== safeDate || oldAppt.time !== safeTime)
-      ) {
+      } else if (isRescheduling && oldAppt.status === "approved") {
         title = "Appointment Rescheduled";
         message = `${baseMsg} was rescheduled to ${safeDate} at ${safeTime}.`;
       } else if (newStatus === "completed") {
@@ -404,11 +396,7 @@ export const updateAppointmentAdmin = async (req, res) => {
 
       const targetEmail = email || oldAppt.email;
       if (targetEmail) {
-        if (
-          (date || time) &&
-          (oldAppt.date !== safeDate || oldAppt.time !== safeTime) &&
-          oldAppt.status === "approved"
-        ) {
+        if (isRescheduling && oldAppt.status === "approved") {
           await sendAppointmentRescheduledEmail(targetEmail, {
             name: finalName,
             serviceName,
