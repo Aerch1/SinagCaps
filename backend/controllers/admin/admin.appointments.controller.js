@@ -213,11 +213,21 @@ export const createAppointmentAdmin = async (req, res) => {
   }
 };
 
-/* ==================================================
-   PATCH /api/admin/appointments/:id
-   (approve / reject / cancel / reschedule / update)
-================================================== */
-// ✅ Safe and corrected version of updateAppointmentAdmin
+
+/* =======================================================
+   ✅ Helper to normalize ISO string to MySQL DATE
+======================================================= */
+function normalizeDateForMySQL(date) {
+  if (!date) return null;
+  if (typeof date === "string" && date.includes("T")) {
+    return date.split("T")[0]; // Extract only YYYY-MM-DD
+  }
+  return date;
+}
+
+/* =======================================================
+   ✅ Main Controller
+======================================================= */
 export const updateAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -235,91 +245,88 @@ export const updateAppointmentAdmin = async (req, res) => {
       override = false,
     } = req.body;
 
-    const t = time ? normalizeTime(time) : null;
-    const schedulingStatuses = ["approved", "completed"];
+    console.log("🟢 Incoming PATCH body:", req.body);
 
-    if (schedulingStatuses.includes(status)) {
-      const errors = validateUpdate({ status, date, time: t });
-      if (t === null && time) errors.push("Invalid time format (HH:mm).");
-      if (errors.length)
-        return res
-          .status(400)
-          .json({ success: false, code: "VALIDATION_ERROR", errors });
+    // Validate reason for cancel/reject
+    if ((status === "cancelled" || status === "rejected") && !notes?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a reason for cancellation or rejection.",
+      });
     }
 
     await conn.beginTransaction();
 
-    // 🔹 Fetch old appointment
+    /* ---------- Fetch old appointment ---------- */
     const [[oldAppt]] = await conn.query(
-      "SELECT date, time, service_id FROM appointments WHERE id=?",
+      "SELECT date, time, service_id, status, name, email, contactNumber, address FROM appointments WHERE id=?",
       [id]
     );
+
     if (!oldAppt) {
       await conn.rollback();
-      return res
-        .status(404)
-        .json({ success: false, message: "Appointment not found" });
+      return res.status(404).json({ success: false, message: "Appointment not found" });
     }
 
-    // ✅ Safe fallback
     const sid = service_id || oldAppt.service_id;
+    const safeDate = normalizeDateForMySQL(date ?? oldAppt.date);
+    const safeTime = time ? normalizeTime(time) : oldAppt.time ?? null;
 
-    // 🔹 Skip conflict check for cancel/reject
-    if (date && t && status !== "rejected" && status !== "cancelled") {
+    /* ---------- Conflict check (skip cancel/reject) ---------- */
+    if (status !== "cancelled" && status !== "rejected" && safeDate && safeTime) {
       const [conflicts] = await conn.query(
         `SELECT id FROM appointments
          WHERE service_id=? AND date=? AND status IN ('pending','approved')
          AND id != ? AND ABS(TIME_TO_SEC(TIMEDIFF(time, ?))) < 3600`,
-        [sid, date, id, t]
+        [sid, safeDate, id, safeTime]
       );
       if (conflicts.length && !override) {
         await conn.rollback();
         return res.status(409).json({
           success: false,
           code: "TIME_CONFLICT",
-          message: "Conflict detected.",
+          message: "Conflict detected with another appointment.",
         });
       }
     }
 
-    // 🔹 Apply update
+    /* ---------- Apply update safely ---------- */
     await applyUpdate({
       id,
-      status,
-      date: date ?? oldAppt.date,
-      time: t ?? oldAppt.time,
-      notes: notes || null,
-      name,
-      email,
-      contactNumber,
-      address,
+      status: status || oldAppt.status,
+      date: safeDate,
+      time: safeTime,
+      notes: notes?.trim() || null,
+      name: name || oldAppt.name,
+      email: email || oldAppt.email,
+      contactNumber: contactNumber || oldAppt.contactNumber,
+      address: address || oldAppt.address,
       service_id: sid,
     });
 
     await conn.commit();
 
-    // 🔹 Notifications + emails (same logic but safe sid)
+    /* =======================================================
+       🔔 Notifications
+    ======================================================= */
     try {
-      const [[service]] = await conn.query(
-        "SELECT name FROM services WHERE id=?",
-        [sid]
-      );
+      const [[service]] = await conn.query("SELECT name FROM services WHERE id=?", [sid]);
       const serviceName = service?.name || "Selected Service";
-      const baseMsg = `${name}'s ${serviceName} appointment`;
+      const baseMsg = `${name || oldAppt.name}'s ${serviceName} appointment`;
 
       let title, message;
       if (status === "approved") {
         title = "Appointment Approved";
-        message = `${baseMsg} was approved for ${date} at ${t}.`;
+        message = `${baseMsg} was approved for ${safeDate} at ${safeTime}.`;
       } else if (status === "cancelled") {
         title = "Appointment Cancelled";
         message = `${baseMsg} has been cancelled.`;
       } else if (status === "rejected") {
         title = "Appointment Rejected";
         message = `${baseMsg} was rejected by the parish office.`;
-      } else if (date && t && (oldAppt.date !== date || oldAppt.time !== t)) {
+      } else if (safeDate && safeTime && (oldAppt.date !== safeDate || oldAppt.time !== safeTime)) {
         title = "Appointment Rescheduled";
-        message = `${baseMsg} was rescheduled to ${date} at ${t}.`;
+        message = `${baseMsg} was rescheduled to ${safeDate} at ${safeTime}.`;
       } else if (status === "completed") {
         title = "Appointment Completed";
         message = `${baseMsg} has been marked as completed.`;
@@ -335,52 +342,70 @@ export const updateAppointmentAdmin = async (req, res) => {
           transaction_id: `APT-${String(id).padStart(5, "0")}`,
         });
       }
+    } catch (err) {
+      console.warn("⚠️ Notification creation failed:", err.message);
+    }
 
-      // ✉️ Send email (same pattern)
-      if (email) {
+    /* =======================================================
+       ✉️ Email Notifications
+    ======================================================= */
+    try {
+      if (email || oldAppt.email) {
+        const [[service]] = await conn.query("SELECT name FROM services WHERE id=?", [sid]);
+        const serviceName = service?.name || "Selected Service";
+        const targetEmail = email || oldAppt.email;
+
+        // Reschedule
         if (
-          date &&
-          t &&
-          (oldAppt.date !== date || oldAppt.time !== t) &&
+          safeDate &&
+          safeTime &&
+          (oldAppt.date !== safeDate || oldAppt.time !== safeTime) &&
           status !== "cancelled" &&
           status !== "rejected"
         ) {
-          await sendAppointmentRescheduledEmail(email, {
-            name,
+          await sendAppointmentRescheduledEmail(targetEmail, {
+            name: name || oldAppt.name,
             serviceName,
             oldDate: oldAppt.date,
             oldTime: oldAppt.time,
-            newDate: date,
-            newTime: t,
+            newDate: safeDate,
+            newTime: safeTime,
           });
-        } else if (status === "cancelled" || status === "rejected") {
-          await sendAppointmentCancelledEmail(email, {
+        }
+        // Cancelled / Rejected
+        else if (status === "cancelled" || status === "rejected") {
+          await sendAppointmentCancelledEmail(targetEmail, {
             status,
-            name,
+            name: name || oldAppt.name,
             serviceName,
-            date: date ?? oldAppt.date,
-            time: t ?? oldAppt.time,
+            date: safeDate || oldAppt.date,
+            time: safeTime || oldAppt.time,
             reason:
-              notes ||
+              notes?.trim() ||
               (status === "cancelled"
                 ? "Appointment was cancelled by the parish office."
                 : "Appointment was rejected by the parish office."),
           });
-        } else {
-          await sendAppointmentUpdatedEmail(email, {
-            name,
+        }
+        // Generic update
+        else {
+          await sendAppointmentUpdatedEmail(targetEmail, {
+            name: name || oldAppt.name,
             serviceName,
-            date: date ?? oldAppt.date,
-            time: t ?? oldAppt.time,
+            date: safeDate || oldAppt.date,
+            time: safeTime || oldAppt.time,
             status,
             appointmentId: id,
           });
         }
       }
-    } catch (err) {
-      console.warn("⚠️ Notification/email section failed:", err.message);
+    } catch (e) {
+      console.error("⚠️ sendAppointmentEmail failed:", e.message);
     }
 
+    /* =======================================================
+       ✅ Final Response
+    ======================================================= */
     return res.json({
       success: true,
       message: `Appointment ${status || "updated"} successfully`,
@@ -388,9 +413,11 @@ export const updateAppointmentAdmin = async (req, res) => {
   } catch (err) {
     if (conn) await conn.rollback();
     console.error("❌ updateAppointmentAdmin error:", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "Failed to update appointment" });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update appointment",
+      error: err.message,
+    });
   } finally {
     if (conn) conn.release();
   }

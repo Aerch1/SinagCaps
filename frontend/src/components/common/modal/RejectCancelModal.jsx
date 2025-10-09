@@ -1,11 +1,15 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import Dropdown1 from "@/components/ui/Dropdown1";
 import Modal from "@/components/ui/Modal";
 import toast from "react-hot-toast";
 import api from "@/api/api";
+import { format } from "date-fns";
 
-// ✅ Helper: Convert 24-hour → 12-hour format
+/* =========================================================
+   🔹 Helper: Convert 24-hour → 12-hour format
+========================================================= */
 function to12Hour(timeStr = "") {
   if (!timeStr) return "—";
   const [h, m] = timeStr.split(":").map(Number);
@@ -15,6 +19,22 @@ function to12Hour(timeStr = "") {
   return `${hour}:${m.toString().padStart(2, "0")} ${period}`;
 }
 
+/* =========================================================
+   🔹 Helper: Format ISO → Readable Date
+========================================================= */
+function formatDateDisplay(dateStr) {
+  if (!dateStr) return "—";
+  try {
+    const d = new Date(dateStr);
+    return format(d, "MMMM d, yyyy");
+  } catch {
+    return dateStr;
+  }
+}
+
+/* =========================================================
+   🔹 Modal Component
+========================================================= */
 export default function RejectCancelModal({
   open,
   onClose,
@@ -26,7 +46,7 @@ export default function RejectCancelModal({
   const [customReason, setCustomReason] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Automatically clear fields when opening modal
+  // Reset every time the modal opens
   useEffect(() => {
     if (open) {
       setSelectedReason("");
@@ -37,28 +57,32 @@ export default function RejectCancelModal({
   const REASONS =
     type === "reject"
       ? [
-          "Incomplete information",
-          "Invalid documents",
-          "Duplicate booking",
-          "Outside schedule availability",
-          "Other",
-        ]
+        "Incomplete information",
+        "Invalid documents",
+        "Duplicate booking",
+        "Outside schedule availability",
+        "Other",
+      ]
       : [
-          "Client request",
-          "Emergency / church event",
-          "Double booking detected",
-          "Service unavailable on date",
-          "Other",
-        ];
+        "Client request",
+        "Emergency / church event",
+        "Double booking detected",
+        "Service unavailable on date",
+        "Other",
+      ];
 
+  /* =========================================================
+     🔹 Handle Submit
+  ========================================================== */
   const handleSubmit = async () => {
     const finalReason =
       selectedReason === "Other"
         ? customReason.trim()
         : customReason.trim() || selectedReason;
 
+    // ✅ Client-side validation
     if (!finalReason) {
-      toast.error("Please provide or select a reason before submitting.");
+      toast.error("Please select or type a reason before confirming.");
       return;
     }
 
@@ -69,7 +93,8 @@ export default function RejectCancelModal({
 
     try {
       setLoading(true);
-      await api.patch(`/admin/appointments/${appointment.id}`, {
+
+      const payload = {
         status: type === "reject" ? "rejected" : "cancelled",
         notes: finalReason,
         service_id: appointment.service_id,
@@ -79,24 +104,34 @@ export default function RejectCancelModal({
         time: appointment.time,
         contactNumber: appointment.contactNumber,
         address: appointment.address,
-      });
+      };
 
-      toast.success(
-        `Appointment ${
-          type === "reject" ? "rejected" : "cancelled"
-        } successfully`
-      );
+      const res = await api.patch(`/admin/appointments/${appointment.id}`, payload);
 
-      onSuccess?.();
-      onClose();
+      if (res.data?.success) {
+        toast.success(
+          `Appointment ${type === "reject" ? "rejected" : "cancelled"
+          } successfully!`
+        );
+        onSuccess?.();
+        onClose();
+      } else {
+        toast.error(res.data?.message || "Action failed. Please try again.");
+      }
     } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        `Failed to ${type} appointment. Please try again.`;
       console.error(`❌ Failed to ${type}:`, err);
-      toast.error(`Failed to ${type} appointment. Please try again.`);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  /* =========================================================
+     🔹 Render
+  ========================================================== */
   return (
     <Modal
       open={open}
@@ -106,10 +141,11 @@ export default function RejectCancelModal({
           ? "Reject Appointment Confirmation"
           : "Cancel Appointment Confirmation"
       }
+      className="max-w-md"
     >
       <div className="space-y-4">
         {/* Info preview */}
-        <div className="border rounded-md bg-gray-50 p-3 text-sm text-gray-700">
+        <div className="border rounded-md bg-gray-50 p-3 text-sm text-gray-700 space-y-0.5">
           <p>
             <strong>Client:</strong> {appointment?.name || "—"}
           </p>
@@ -117,7 +153,7 @@ export default function RejectCancelModal({
             <strong>Service:</strong> {appointment?.serviceName || "—"}
           </p>
           <p>
-            <strong>Date:</strong> {appointment?.date || "—"} &nbsp;
+            <strong>Date:</strong> {formatDateDisplay(appointment?.date)} &nbsp;
             <strong>Time:</strong> {to12Hour(appointment?.time)}
           </p>
           <p>
@@ -125,7 +161,7 @@ export default function RejectCancelModal({
           </p>
         </div>
 
-        {/* Dropdown first (wider) */}
+        {/* Preset reason */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Select Preset Reason
@@ -135,12 +171,12 @@ export default function RejectCancelModal({
             options={REASONS}
             value={selectedReason}
             onChange={setSelectedReason}
-            width="w-72"
+            width="w-full"
             className="text-sm"
           />
         </div>
 
-        {/* Textarea below */}
+        {/* Additional details */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Specify Other / Additional Details
@@ -168,17 +204,16 @@ export default function RejectCancelModal({
             type="button"
             onClick={handleSubmit}
             disabled={loading}
-            className={`px-4 py-2 text-sm rounded-md text-white ${
-              type === "reject"
+            className={`px-4 py-2 text-sm rounded-md text-white ${type === "reject"
                 ? "bg-red-600 hover:bg-red-700"
                 : "bg-yellow-600 hover:bg-yellow-700"
-            } disabled:opacity-50`}
+              } disabled:opacity-50`}
           >
             {loading
               ? "Processing..."
               : type === "reject"
-              ? "Confirm Reject"
-              : "Confirm Cancel"}
+                ? "Confirm Reject"
+                : "Confirm Cancel"}
           </button>
         </div>
       </div>
