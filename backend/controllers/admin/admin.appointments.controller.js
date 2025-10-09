@@ -302,11 +302,12 @@ export const updateAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // 🧩 Only check conflicts if actually rescheduling (date/time change)
+    // 🧩 Determine if this operation is a reschedule
     const isRescheduling =
       (date || time) &&
       (oldAppt.date !== safeDate || oldAppt.time !== safeTime);
 
+    // 🔹 Conflict check (only for actual reschedules)
     if (isRescheduling && !["cancelled", "rejected"].includes(status)) {
       const [conflicts] = await conn.query(
         `SELECT id FROM appointments
@@ -348,12 +349,16 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     await conn.commit();
 
+    // ✅ include flag for frontend-only display
     res.json({
       success: true,
       message: `Appointment ${newStatus} successfully`,
+      was_rescheduled: isRescheduling,
     });
 
-    // ✅ Post-commit async notifications/emails
+    /* =====================================================
+       ✅ Post-commit async notifications/emails
+    ===================================================== */
     runAsyncPostCommit(async () => {
       const [[service]] = await pool.query(
         "SELECT name FROM services WHERE id = ?",

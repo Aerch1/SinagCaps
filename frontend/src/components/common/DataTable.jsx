@@ -88,6 +88,8 @@ export default function DataTable({
     const fetchData = async () => {
         try {
             setLoading(true);
+
+            // 🧩 Build payload dynamically based on active filters
             const payload = { page, pageSize, sortBy: sort.key, sortDir: sort.dir };
             if (query) payload.query = query;
             if (selectedStatuses.length) payload.status = selectedStatuses;
@@ -97,6 +99,7 @@ export default function DataTable({
                 payload.endDate = endDate;
             }
 
+            // 🧩 Choose between filtered or normal endpoint
             let res;
             if (
                 query ||
@@ -110,12 +113,19 @@ export default function DataTable({
                 res = await getAppointments(payload);
             }
 
-            const cleanData = (res.data || []).filter((r) =>
-                activeTab === "archived"
-                    ? r.status === "archived"
-                    : r.status !== "archived"
-            );
+            // 🧩 Normalize data and preserve reschedule state
+            const cleanData = (res.data || [])
+                .map((a) => ({
+                    ...a,
+                    was_rescheduled: Boolean(a.was_rescheduled), // ✅ ensure consistent flag
+                }))
+                .filter((r) =>
+                    activeTab === "archived"
+                        ? r.status === "archived"
+                        : r.status !== "archived"
+                );
 
+            // 🧩 Update table data + meta
             setRows(cleanData);
             setTotal(cleanData.length);
             setTotalPages(res.totalPages || 1);
@@ -126,6 +136,7 @@ export default function DataTable({
                     label: s.name,
                 }))
             );
+
             setStatusOptions(
                 (res.meta?.statuses || []).map((s) => ({
                     value: s,
@@ -139,6 +150,7 @@ export default function DataTable({
             setLoading(false);
         }
     };
+
 
     useEffect(() => {
         fetchData();

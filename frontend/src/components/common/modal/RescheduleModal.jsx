@@ -41,24 +41,37 @@ export default function RescheduleModal({
     try {
       setLoading(true);
 
-      await api.patch(`/admin/appointments/${appointment.id}`, {
-        status: "approved", // ✅ always approve when rescheduling
+      // 🧩 Call backend API
+      const { data } = await api.patch(`/admin/appointments/${appointment.id}`, {
+        status: "approved", // always keep approved when rescheduling
         date: newDate,
         time: newTime,
         override,
       });
 
       toast.success("✅ Appointment successfully rescheduled!");
-      onSuccess?.({ ...appointment, date: newDate, time: newTime, status: "approved" });
+
+      // 🧩 Pass backend flag to parent (was_rescheduled)
+      onSuccess?.({
+        ...appointment,
+        date: newDate,
+        time: newTime,
+        status: "approved",
+        was_rescheduled: Boolean(data.was_rescheduled),
+      });
+
       onClose();
     } catch (err) {
       const { status, data } = err.response || {};
-      const msg = data?.message || data?.error || "Failed to reschedule appointment.";
+      const msg =
+        data?.message || data?.error || "Failed to reschedule appointment.";
 
-      // ✅ Handle conflicts (TIME_CONFLICT or CONFIRM_REQUIRED)
+      // 🧩 Handle conflict errors (from backend)
       if (
         status === 409 &&
-        (data?.code === "TIME_CONFLICT" || data?.code === "CONFIRM_REQUIRED" || data?.confirmNeeded)
+        (data?.code === "TIME_CONFLICT" ||
+          data?.code === "CONFIRM_REQUIRED" ||
+          data?.confirmNeeded)
       ) {
         setConfirmData({ override: true });
         setConfirmMsg(msg || "Conflict detected. Proceed anyway?");
@@ -71,7 +84,6 @@ export default function RescheduleModal({
       setLoading(false);
     }
   };
-
 
   const handleConfirm = async () => {
     if (!confirmData) return;
