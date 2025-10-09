@@ -123,11 +123,12 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
         notes: local?.notes || "",
       });
 
-      setLocal((prev) => ({ ...prev, status: newStatus }));
+      const updated = { ...local, status: newStatus };
+      setLocal(updated);
       toast.success("Appointment updated successfully!", { id: toastId });
 
-      // Slight delay before refreshing parent DataTable
-      setTimeout(() => onUpdate?.(), 200);
+      // ✅ Sync back to DataTable with valid data
+      setTimeout(() => onUpdate?.(updated), 200);
     } catch (err) {
       console.error("❌ update failed:", err);
       toast.error("Failed to update appointment", { id: toastId });
@@ -144,11 +145,11 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
     const n = String(local?.name || "").trim();
     return n
       ? n
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((s) => s[0])
-        .join("")
-        .toUpperCase()
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((s) => s[0])
+          .join("")
+          .toUpperCase()
       : "??";
   }, [local?.name]);
 
@@ -332,7 +333,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
 
           {/* FOOTER */}
           <footer className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-lg">
-            {/* ✅ LEFT SIDE */}
+            {/* LEFT SIDE */}
             <div>
               {status === "approved" && local?.date && local?.time && (() => {
                 const now = new Date();
@@ -352,7 +353,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
               })()}
             </div>
 
-            {/* ✅ RIGHT SIDE */}
+            {/* RIGHT SIDE */}
             <div className="flex gap-2">
               {status === "pending" && (
                 <>
@@ -412,8 +413,9 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
         onSuccess={(updated) => {
           setShowRescheduleModal(false);
           setHidePanel(false);
-          setLocal((p) => ({ ...p, ...updated }));
-          onUpdate?.(updated);
+          const newData = { ...local, ...updated, was_rescheduled: true };
+          setLocal(newData);
+          onUpdate?.(newData);
         }}
       />
 
@@ -426,10 +428,11 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
         type="reject"
         appointment={local}
         onSuccess={() => {
+          const updated = { ...local, status: "rejected" };
           setShowRejectModal(false);
           setHidePanel(false);
-          setLocal((p) => ({ ...p, status: "rejected" }));
-          onUpdate?.();
+          setLocal(updated);
+          onUpdate?.(updated);
         }}
       />
 
@@ -442,10 +445,11 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
         type="cancel"
         appointment={local}
         onSuccess={() => {
+          const updated = { ...local, status: "cancelled" };
           setShowCancelModal(false);
           setHidePanel(false);
-          setLocal((p) => ({ ...p, status: "cancelled" }));
-          onUpdate?.();
+          setLocal(updated);
+          onUpdate?.(updated);
         }}
       />
 
@@ -460,9 +464,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
               const reqs = reqRes.data?.requirements || [];
               const done = reqs.filter((r) => r.completed).length;
               setReqProgress({ done, total: reqs.length });
-            } catch {
-              /* ignore */
-            }
+            } catch {}
             setShowProcess(false);
             setHidePanel(false);
           }}
@@ -477,7 +479,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
           onComplete={() => {
             setShowProcess(false);
             setHidePanel(false);
-            onUpdate?.();
+            onUpdate?.(local);
           }}
         />
       )}

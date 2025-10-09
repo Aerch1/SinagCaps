@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -44,26 +43,23 @@ export default function DataTable({
     const [searchInput, setSearchInput] = useState("");
     const [query, setQuery] = useState("");
 
-    // filters
     const [selectedServiceIds, setSelectedServiceIds] = useState([]);
     const [selectedStatuses, setSelectedStatuses] = useState([]);
     const [serviceOptions, setServiceOptions] = useState([]);
     const [statusOptions, setStatusOptions] = useState([]);
 
-    // sorting & pagination
     const [sort, setSort] = useState({ key: "id", dir: "desc" });
     const [page, setPage] = useState(1);
     const [pageSize] = useState(initialPageSize);
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
 
-    // modals
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [showRescheduleModal, setShowRescheduleModal] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState(null);
+    const [viewingId, setViewingId] = useState(null);
 
-    // ranges
     const [showRangeKey, setShowRangeKey] = useState("all");
     const [{ startDate, endDate }, setRange] = useState({
         startDate: null,
@@ -71,7 +67,6 @@ export default function DataTable({
     });
 
     const [loading, setLoading] = useState(false);
-    const [viewingId, setViewingId] = useState(null);
 
     /* ---------------- Tab & Range Effects ---------------- */
     useEffect(() => {
@@ -155,6 +150,7 @@ export default function DataTable({
         endDate,
         activeTab,
     ]);
+
     /* ---------------- Debounced Search ---------------- */
     useEffect(() => {
         const delay = setTimeout(() => {
@@ -178,10 +174,7 @@ export default function DataTable({
         setRows((prev) =>
             prev
                 .map((row) => (row.id === r.id ? { ...row, status: newStatus } : row))
-                .filter(
-                    (row) =>
-                        !(newStatus === "archived" && activeTab !== "archived")
-                )
+                .filter((row) => !(newStatus === "archived" && activeTab !== "archived"))
         );
 
         const toastId = toast.loading("Updating appointment...");
@@ -576,17 +569,21 @@ export default function DataTable({
             </div>
 
 
-            {/* View Modal */}
+            {/* ✅ View Modal */}
             {viewingId && (
                 <ViewAppointmentModal
                     isOpen={!!viewingId}
                     appointmentId={viewingId}
                     onClose={() => setViewingId(null)}
-                    onUpdate={(updated) =>
+                    onUpdate={(updated) => {
+                        if (!updated || !updated.id) {
+                            fetchData();
+                            return;
+                        }
                         setRows((prev) =>
                             prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r))
-                        )
-                    }
+                        );
+                    }}
                 />
             )}
 
@@ -598,7 +595,7 @@ export default function DataTable({
                 appointment={selectedAppointment}
                 onSuccess={() => {
                     setShowRejectModal(false);
-                    fetchData(); // reload updated data
+                    fetchData();
                 }}
             />
 
@@ -610,10 +607,11 @@ export default function DataTable({
                 appointment={selectedAppointment}
                 onSuccess={() => {
                     setShowCancelModal(false);
-                    fetchData(); // reload updated data
+                    fetchData();
                 }}
             />
 
+            {/* Reschedule Modal */}
             <RescheduleModal
                 open={showRescheduleModal}
                 onClose={() => setShowRescheduleModal(false)}
@@ -630,7 +628,6 @@ export default function DataTable({
                     );
                 }}
             />
-
         </div>
     );
 }
