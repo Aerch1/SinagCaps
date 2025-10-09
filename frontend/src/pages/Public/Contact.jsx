@@ -38,38 +38,47 @@ export default function Contact() {
   /* --------------------------------------------
      📤 Submit Handler
   ---------------------------------------------*/
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
+/* --------------------------------------------
+   📤 Submit Handler
+---------------------------------------------*/
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  const data = Object.fromEntries(formData.entries());
 
-    const errorMsg = validateForm(data);
-    if (errorMsg) {
-      toast.error(errorMsg);
-      return;
-    }
+  const errorMsg = validateForm(data);
+  if (errorMsg) {
+    toast.error(errorMsg);
+    return;
+  }
 
-    const toastId = toast.loading("Sending your message...");
-    setIsSending(true);
+  const toastId = toast.loading("Sending your message...");
+  setIsSending(true);
 
-    try {
-      const res = await api.post("/public/contact", data);
-      const { success, message, error } = res.data;
+  try {
+    const res = await api.post("/public/contact", data);
+    const { success, message, error } = res.data;
 
-      if (success) {
-        toast.success(message || "Message sent successfully!", { id: toastId });
-        e.target.reset();
-      } else {
-        toast.error(error || "Something went wrong.", { id: toastId });
-      }
-    } catch (err) {
-      console.error("❌ Contact form error:", err);
-      toast.error("Failed to send message. Please try again later.", { id: toastId });
-    } finally {
-      setIsSending(false);
+    // 🟢 SUCCESS CASE
+    if (success) {
+      toast.dismiss(toastId); // close the loading toast
+      toast.success(message || "✅ Your message has been sent!");
+      e.target.reset();
+    } 
+    // 🔴 ERROR CASE
+    else {
       toast.dismiss(toastId);
+      toast.error(error || "Something went wrong.");
     }
-  };
+  } catch (err) {
+    console.error("❌ Contact form error:", err);
+    toast.dismiss(toastId);
+    toast.error("Failed to send message. Please try again later.");
+  } finally {
+    setIsSending(false);
+  }
+};
+
 
   /* --------------------------------------------
      🧱 UI Layout
