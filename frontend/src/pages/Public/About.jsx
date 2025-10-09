@@ -1,8 +1,23 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useAuthStore } from "../../store/authStore";
 
 export default function AboutPage() {
+    const navigate = useNavigate();
+    const { isAuthenticated } = useAuthStore()
+
+
+    const handleJoinClick = (e) => {
+        e.preventDefault();
+        if (isAuthenticated) {
+            navigate("/")
+        } else {
+            navigate("/signup")
+        }
+    }
+
     return (
         <main className="bg-white text-gray-900">
             {/* Hero Section */}
@@ -237,12 +252,12 @@ export default function AboutPage() {
                         <p className="text-xl text-gray-300 mb-12 leading-relaxed">
                             Whether you're new to faith, searching for purpose, or longing for a spiritual home, our doors are open to you.
                         </p>
-                        <a
-                            href="/signup"
+                        <button
+                            onClick={handleJoinClick}
                             className="inline-block border-2 border-white px-12 py-4 text-lg font-light hover:bg-white hover:text-gray-900 transition-all duration-300"
                         >
                             Join Our Community
-                        </a>
+                        </button>
                     </motion.div>
                 </div>
             </section>

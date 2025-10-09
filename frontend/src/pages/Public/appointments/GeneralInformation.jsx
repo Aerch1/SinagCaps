@@ -17,29 +17,28 @@ export default function GeneralInformation() {
   const [showModal, setShowModal] = useState(false);
 
   /* -------------------- 🔹 Fetch Services + Requirements -------------------- */
-/* -------------------- 🔹 Fetch Services + Requirements -------------------- */
-useEffect(() => {
-  const fetchServices = async () => {
-    try {
-      // ✅ Correct public route
-      const res = await api.get("public/services");
-      if (res.data.success) setServices(res.data.services);
-    } catch (err) {
-      console.error("❌ Failed to fetch services:", err);
-      toast.error("Unable to load services.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  fetchServices();
-}, []);
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        // ✅ Correct public route
+        const res = await api.get("public/services");
+        if (res.data.success) setServices(res.data.services);
+      } catch (err) {
+        console.error("❌ Failed to fetch services:", err);
+        toast.error("Unable to load services.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchServices();
+  }, []);
 
 
   /* -------------------- 🔹 Booking Button -------------------- */
   const goToBooking = (e) => {
     e.preventDefault();
     if (isAuthenticated) {
-      setTimeout(() => navigate("/services/appointments/terms"), 1500);
+      navigate("/services/appointments/terms")
     } else {
       toast.error("Please login your account first.");
       setTimeout(() => {

@@ -78,7 +78,7 @@ export default function AppointmentsPanel() {
                 {appointments.length === 0 ? (
                     <div className="rounded-xl border border-gray-200 px-6 py-10 text-center text-sm text-gray-600">
                         <p>No appointments yet.</p>
-                        <Link to="/services" className="inline-block mt-4">
+                        <Link to="/services/appointments/terms" className="inline-block mt-4">
                             <button className="rounded-md bg-gray-900 px-4 py-2 text-white hover:bg-black">
                                 Make an Appointment
                             </button>
@@ -154,8 +154,8 @@ export default function AppointmentsPanel() {
                                             {/* Status (hidden if archived) */}
                                             <div
                                                 className={`min-w-0 text-sm font-semibold ${a.status?.toLowerCase() === "archived"
-                                                        ? "invisible" // ✅ hide but preserve layout
-                                                        : colorClass
+                                                    ? "invisible" // ✅ hide but preserve layout
+                                                    : colorClass
                                                     }`}
                                             >
                                                 {sLabel}
