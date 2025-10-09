@@ -4,7 +4,7 @@ import pool from "../../config/db.js";
 import {
   normalizeTime,
   validateCreate,
-  validateUpdate,
+  validateUpdate, // kept import to preserve external API; not used directly here
 } from "../../utils/validateAppointment.js";
 import {
   getDayAvailability,
@@ -13,7 +13,7 @@ import {
 } from "../../services/availability.service.js";
 import {
   hasDuplicateBooking,
-  countBookedAt,
+  countBookedAt, // kept import (used elsewhere in codebase), not used here
   insertAppointment,
   updateAppointment as applyUpdate,
 } from "../../services/appointments.service.js";
@@ -23,23 +23,58 @@ import {
   sendAppointmentRescheduledEmail,
   sendAppointmentCancelledEmail,
 } from "../../utils/appointmentEmails.js";
-
 import { createNotification } from "../../utils/createNotification.js";
 
-// ✅ Updated statuses (removed in_progress)
-// ✅ Updated statuses (added archived)
+/* =======================================================
+   Constants
+======================================================= */
+// ✅ Updated statuses (removed in_progress / added archived)
 const STATUSES = [
   "pending",
   "approved",
   "completed",
   "cancelled",
   "rejected",
-  "archived", // ✅ now supported
+  "archived",
 ];
 
-/* ==================================================
+/* =======================================================
+   Small Utilities (perf + safety)
+======================================================= */
+
+// Normalize ISO string → MySQL DATE (YYYY-MM-DD)
+function normalizeDateForMySQL(date) {
+  if (!date) return null;
+  if (typeof date === "string" && date.includes("T")) return date.split("T")[0];
+  return date;
+}
+
+// Fire-and-forget after we’ve responded (non-blocking, won’t delay HTTP)
+function runAsyncPostCommit(fn) {
+  // Use nextTick to schedule after event loop returns, avoiding overlap
+  process.nextTick(async () => {
+    try {
+      await fn();
+    } catch (err) {
+      console.error("⚠️ post-commit task failed:", err?.message || err);
+    }
+  });
+}
+
+// Safe sort guards
+function normalizeSort(sortByRaw, sortDirRaw, prefix = "a.") {
+  const SORTABLE = new Set(["id", "name", "date", "status"]);
+  const key = SORTABLE.has(String(sortByRaw))
+    ? `${prefix}${sortByRaw}`
+    : `${prefix}id`;
+  const dir =
+    String(sortDirRaw || "DESC").toUpperCase() === "ASC" ? "ASC" : "DESC";
+  return { key, dir };
+}
+
+/* =======================================================
    POST /api/admin/appointments
-================================================== */
+======================================================= */
 export const createAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -75,7 +110,7 @@ export const createAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
-    // 🔹 Conflict check
+    // 🔹 Conflict check (within 1 hour window)
     const [conflicts] = await conn.query(
       `SELECT id, name, time, status
        FROM appointments
@@ -112,7 +147,7 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // 🔹 Slot validation
+    // 🔹 Slot validation + Church schedule validation
     const dayAvail = await getDayAvailability(service_id, date);
     const slot = findSlot(dayAvail, t);
     if (slot && slot.unavailable && !override) {
@@ -124,7 +159,6 @@ export const createAppointmentAdmin = async (req, res) => {
       });
     }
 
-    // 🔹 Church schedule confirmation
     const confirm = needsConfirmationForAdmin({
       availability: dayAvail,
       timeHHMM: t,
@@ -151,56 +185,52 @@ export const createAppointmentAdmin = async (req, res) => {
       status,
       notes,
     });
+
     await conn.commit();
 
-    // 🔹 Send email confirmation
-    try {
-      const [[service]] = await conn.query(
-        "SELECT name FROM services WHERE id=?",
-        [service_id]
-      );
-      await sendAppointmentCreatedEmail(email, {
-        name,
-        serviceName: service?.name || "Selected Service",
-        date,
-        time: t,
-        appointmentId: newId,
-      });
-    } catch (e) {
-      console.error("sendAppointmentCreatedEmail failed:", e.message);
-    }
-
-    // ✅ Notify all admins with reference ID + Transaction ID
-    try {
-      const [admins] = await conn.query(
-        "SELECT id FROM users WHERE role='admin'"
-      );
-      const [[service]] = await conn.query(
-        "SELECT name FROM services WHERE id=?",
-        [service_id]
-      );
-      const message = `${name} booked a ${
-        service?.name || "service"
-      } on ${date} at ${t}.`;
-
-      for (const admin of admins) {
-        await createNotification({
-          user_id: admin.id,
-          title: "New Appointment Created",
-          message,
-          type: "appointment",
-          reference_id: newId,
-          transaction_id: `APT-${String(newId).padStart(5, "0")}`,
-        });
-      }
-    } catch (err) {
-      console.warn("⚠️ Failed to create admin notification:", err.message);
-    }
-
-    return res.status(201).json({
+    // Respond immediately — do not block on emails/notifications
+    res.status(201).json({
       success: true,
       message: "Appointment created successfully",
       appointmentId: newId,
+    });
+
+    // 🔔 ✉️ Post-commit tasks (non-blocking)
+    runAsyncPostCommit(async () => {
+      const [[service]] = await pool.query(
+        "SELECT name FROM services WHERE id=?",
+        [service_id]
+      );
+      const serviceName = service?.name || "Selected Service";
+
+      // Email
+      await sendAppointmentCreatedEmail(email, {
+        name,
+        serviceName,
+        date,
+        time: t,
+        appointmentId: newId,
+      }).catch((e) =>
+        console.error("sendAppointmentCreatedEmail failed:", e.message)
+      );
+
+      // Notifications (admins)
+      const [admins] = await pool.query(
+        "SELECT id FROM users WHERE role='admin'"
+      );
+      const msg = `${name} booked a ${serviceName} on ${date} at ${t}.`;
+      await Promise.allSettled(
+        admins.map((admin) =>
+          createNotification({
+            user_id: admin.id,
+            title: "New Appointment Created",
+            message: msg,
+            type: "appointment",
+            reference_id: newId,
+            transaction_id: `APT-${String(newId).padStart(5, "0")}`,
+          })
+        )
+      );
     });
   } catch (err) {
     if (conn) await conn.rollback();
@@ -213,20 +243,8 @@ export const createAppointmentAdmin = async (req, res) => {
   }
 };
 
-
 /* =======================================================
-   ✅ Helper to normalize ISO string to MySQL DATE
-======================================================= */
-function normalizeDateForMySQL(date) {
-  if (!date) return null;
-  if (typeof date === "string" && date.includes("T")) {
-    return date.split("T")[0]; // Extract only YYYY-MM-DD
-  }
-  return date;
-}
-
-/* =======================================================
-   ✅ Main Controller
+   PATCH /api/admin/appointments/:id
 ======================================================= */
 export const updateAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
@@ -245,9 +263,7 @@ export const updateAppointmentAdmin = async (req, res) => {
       override = false,
     } = req.body;
 
-    console.log("🟢 Incoming PATCH body:", req.body);
-
-    // Validate reason for cancel/reject
+    // Require reason on cancel/reject (same behavior)
     if ((status === "cancelled" || status === "rejected") && !notes?.trim()) {
       return res.status(400).json({
         success: false,
@@ -257,27 +273,38 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     await conn.beginTransaction();
 
-    /* ---------- Fetch old appointment ---------- */
+    // Fetch current appointment (single query)
     const [[oldAppt]] = await conn.query(
-      "SELECT date, time, service_id, status, name, email, contactNumber, address FROM appointments WHERE id=?",
+      `SELECT date, time, service_id, status, name, email, contactNumber, address
+       FROM appointments
+       WHERE id=?`,
       [id]
     );
-
     if (!oldAppt) {
       await conn.rollback();
-      return res.status(404).json({ success: false, message: "Appointment not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Appointment not found" });
     }
 
     const sid = service_id || oldAppt.service_id;
     const safeDate = normalizeDateForMySQL(date ?? oldAppt.date);
     const safeTime = time ? normalizeTime(time) : oldAppt.time ?? null;
 
-    /* ---------- Conflict check (skip cancel/reject) ---------- */
-    if (status !== "cancelled" && status !== "rejected" && safeDate && safeTime) {
+    // Conflict check (skip for cancel/reject)
+    if (
+      status !== "cancelled" &&
+      status !== "rejected" &&
+      safeDate &&
+      safeTime
+    ) {
       const [conflicts] = await conn.query(
-        `SELECT id FROM appointments
-         WHERE service_id=? AND date=? AND status IN ('pending','approved')
-         AND id != ? AND ABS(TIME_TO_SEC(TIMEDIFF(time, ?))) < 3600`,
+        `SELECT id
+         FROM appointments
+         WHERE service_id=? AND date=? 
+           AND status IN ('pending','approved')
+           AND id != ?
+           AND ABS(TIME_TO_SEC(TIMEDIFF(time, ?))) < 3600`,
         [sid, safeDate, id, safeTime]
       );
       if (conflicts.length && !override) {
@@ -290,7 +317,7 @@ export const updateAppointmentAdmin = async (req, res) => {
       }
     }
 
-    /* ---------- Apply update safely ---------- */
+    // Apply update (service layer handles SQL)
     await applyUpdate({
       id,
       status: status || oldAppt.status,
@@ -306,14 +333,23 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     await conn.commit();
 
-    /* =======================================================
-       🔔 Notifications
-    ======================================================= */
-    try {
-      const [[service]] = await conn.query("SELECT name FROM services WHERE id=?", [sid]);
-      const serviceName = service?.name || "Selected Service";
-      const baseMsg = `${name || oldAppt.name}'s ${serviceName} appointment`;
+    // Respond immediately
+    res.json({
+      success: true,
+      message: `Appointment ${status || "updated"} successfully`,
+    });
 
+    // 🔔 ✉️ Post-commit (non-blocking)
+    runAsyncPostCommit(async () => {
+      const [[service]] = await pool.query(
+        "SELECT name FROM services WHERE id=?",
+        [sid]
+      );
+      const serviceName = service?.name || "Selected Service";
+      const finalName = name || oldAppt.name;
+      const baseMsg = `${finalName}'s ${serviceName} appointment`;
+
+      // Notification
       let title, message;
       if (status === "approved") {
         title = "Appointment Approved";
@@ -324,7 +360,11 @@ export const updateAppointmentAdmin = async (req, res) => {
       } else if (status === "rejected") {
         title = "Appointment Rejected";
         message = `${baseMsg} was rejected by the parish office.`;
-      } else if (safeDate && safeTime && (oldAppt.date !== safeDate || oldAppt.time !== safeTime)) {
+      } else if (
+        safeDate &&
+        safeTime &&
+        (oldAppt.date !== safeDate || oldAppt.time !== safeTime)
+      ) {
         title = "Appointment Rescheduled";
         message = `${baseMsg} was rescheduled to ${safeDate} at ${safeTime}.`;
       } else if (status === "completed") {
@@ -342,20 +382,11 @@ export const updateAppointmentAdmin = async (req, res) => {
           transaction_id: `APT-${String(id).padStart(5, "0")}`,
         });
       }
-    } catch (err) {
-      console.warn("⚠️ Notification creation failed:", err.message);
-    }
 
-    /* =======================================================
-       ✉️ Email Notifications
-    ======================================================= */
-    try {
-      if (email || oldAppt.email) {
-        const [[service]] = await conn.query("SELECT name FROM services WHERE id=?", [sid]);
-        const serviceName = service?.name || "Selected Service";
-        const targetEmail = email || oldAppt.email;
-
-        // Reschedule
+      // Emails
+      const targetEmail = email || oldAppt.email;
+      if (targetEmail) {
+        // Reschedule email
         if (
           safeDate &&
           safeTime &&
@@ -364,7 +395,7 @@ export const updateAppointmentAdmin = async (req, res) => {
           status !== "rejected"
         ) {
           await sendAppointmentRescheduledEmail(targetEmail, {
-            name: name || oldAppt.name,
+            name: finalName,
             serviceName,
             oldDate: oldAppt.date,
             oldTime: oldAppt.time,
@@ -376,7 +407,7 @@ export const updateAppointmentAdmin = async (req, res) => {
         else if (status === "cancelled" || status === "rejected") {
           await sendAppointmentCancelledEmail(targetEmail, {
             status,
-            name: name || oldAppt.name,
+            name: finalName,
             serviceName,
             date: safeDate || oldAppt.date,
             time: safeTime || oldAppt.time,
@@ -390,7 +421,7 @@ export const updateAppointmentAdmin = async (req, res) => {
         // Generic update
         else {
           await sendAppointmentUpdatedEmail(targetEmail, {
-            name: name || oldAppt.name,
+            name: finalName,
             serviceName,
             date: safeDate || oldAppt.date,
             time: safeTime || oldAppt.time,
@@ -399,16 +430,6 @@ export const updateAppointmentAdmin = async (req, res) => {
           });
         }
       }
-    } catch (e) {
-      console.error("⚠️ sendAppointmentEmail failed:", e.message);
-    }
-
-    /* =======================================================
-       ✅ Final Response
-    ======================================================= */
-    return res.json({
-      success: true,
-      message: `Appointment ${status || "updated"} successfully`,
     });
   } catch (err) {
     if (conn) await conn.rollback();
@@ -423,6 +444,9 @@ export const updateAppointmentAdmin = async (req, res) => {
   }
 };
 
+/* =======================================================
+   GET /api/admin/appointments/:id
+======================================================= */
 export const getAppointmentById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -457,7 +481,6 @@ export const getAppointmentById = async (req, res) => {
     let details = null;
     let sponsors = [];
 
-    /* ---------- Baptism details ---------- */
     if (appt.form_type === "baptism") {
       [[details]] = await pool.execute(
         `SELECT 
@@ -485,41 +508,35 @@ export const getAppointmentById = async (req, res) => {
       }
     }
 
-    /* ---------- Confirmation (Kumpil) details ---------- */
     if (appt.form_type === "confirmation") {
       [[details]] = await pool.execute(
         `SELECT 
-       confirmandName,
-       edad,
-       fatherName,
-       motherMaidenName,
-       parishOrigin,
-       baptizedAt,
-       baptizedOn
-     FROM confirmation_details 
-     WHERE appointment_id=?`,
+           confirmandName,
+           edad,
+           fatherName,
+           motherMaidenName,
+           parishOrigin,
+           baptizedAt,
+           baptizedOn
+         FROM confirmation_details 
+         WHERE appointment_id=?`,
         [id]
       );
 
       if (details) {
         const [sponsorRows] = await pool.execute(
           `SELECT role, name, address
-       FROM confirmation_sponsors 
-       WHERE confirmation_id = (
-         SELECT id FROM confirmation_details WHERE appointment_id=? LIMIT 1
-       )`,
+           FROM confirmation_sponsors 
+           WHERE confirmation_id = (
+             SELECT id FROM confirmation_details WHERE appointment_id=? LIMIT 1
+           )`,
           [id]
         );
         sponsors = sponsorRows;
       }
     }
 
-    return res.json({
-      success: true,
-      appointment: appt,
-      details,
-      sponsors,
-    });
+    return res.json({ success: true, appointment: appt, details, sponsors });
   } catch (err) {
     console.error("❌ getAppointmentById error:", err);
     res
@@ -528,49 +545,36 @@ export const getAppointmentById = async (req, res) => {
   }
 };
 
-/* ==================================================
+/* =======================================================
    GET /api/admin/appointments
-================================================== */
+   - auto-complete old approved
+   - fetch counts (today/tomorrow)
+   - paginate list
+======================================================= */
 export const getAppointments = async (req, res) => {
   try {
-    /* =======================================================
-       🔹 1️⃣ Auto-mark old approved appointments as completed
-    ======================================================= */
-    const [outdated] = await pool.query(`
+    // 1) Auto-mark old approved as completed
+    await pool.query(`
       UPDATE appointments
       SET status = 'completed'
       WHERE status = 'approved'
         AND TIMESTAMP(date, time) < NOW() - INTERVAL 3 DAY
     `);
-    if (outdated.affectedRows > 0) {
-      console.log(
-        `✅ Auto-completed ${outdated.affectedRows} old appointments`
-      );
-    }
 
-    /* =======================================================
-       🔹 2️⃣ Fetch today's and tomorrow's appointments
-    ======================================================= */
-    const [todayRows] = await pool.query(`
-      SELECT COUNT(*) AS count 
-      FROM appointments 
-      WHERE DATE(date) = CURDATE() 
-        AND status IN ('pending','approved')
-    `);
+    // 2) Today & tomorrow counts in ONE query
+    const [counts] = await pool.query(
+      `
+      SELECT
+        SUM(CASE WHEN DATE(date) = CURDATE() THEN 1 ELSE 0 END) AS todayCount,
+        SUM(CASE WHEN DATE(date) = CURDATE() + INTERVAL 1 DAY THEN 1 ELSE 0 END) AS tomorrowCount
+      FROM appointments
+      WHERE status IN ('pending','approved')
+    `
+    );
+    const todayCount = counts?.[0]?.todayCount || 0;
+    const tomorrowCount = counts?.[0]?.tomorrowCount || 0;
 
-    const [tomorrowRows] = await pool.query(`
-      SELECT COUNT(*) AS count 
-      FROM appointments 
-      WHERE DATE(date) = CURDATE() + INTERVAL 1 DAY
-        AND status IN ('pending','approved')
-    `);
-
-    const todayCount = todayRows[0].count || 0;
-    const tomorrowCount = tomorrowRows[0].count || 0;
-
-    /* =======================================================
-       🔹 3️⃣ Generate randomized messages
-    ======================================================= */
+    // 3) Optional randomized messages (kept logic)
     const todayMessages = [
       `You have ${todayCount} appointment${
         todayCount > 1 ? "s" : ""
@@ -616,74 +620,62 @@ export const getAppointments = async (req, res) => {
         ? tomorrowMessages[Math.floor(Math.random() * tomorrowMessages.length)]
         : null;
 
-    /* =======================================================
-   🔹 4️⃣ Notify all admins (avoid duplicates for the same day)
-======================================================= */
+    // 4) Optionally notify admins (avoid duplicates per day)
     if (todayCount > 0 || tomorrowCount > 0) {
       const [admins] = await pool.query(
         "SELECT id FROM users WHERE role='admin'"
       );
 
-      for (const admin of admins) {
-        // 🧩 Prevent duplicate notification for today
-        if (todayCount > 0 && randomTodayMessage) {
-          const [existsToday] = await pool.query(
-            `SELECT id FROM notifications
-         WHERE user_id=? AND title=? 
-         AND DATE(created_at)=CURDATE()`,
-            [admin.id, "Today's Appointments"]
-          );
-
-          if (existsToday.length === 0) {
-            await createNotification({
-              user_id: admin.id,
-              title: "Today's Appointments",
-              message: randomTodayMessage,
-              type: "appointment",
-            });
+      await Promise.allSettled(
+        admins.map(async (admin) => {
+          if (todayCount > 0 && randomTodayMessage) {
+            const [existsToday] = await pool.query(
+              `SELECT id FROM notifications
+               WHERE user_id=? AND title=? AND DATE(created_at)=CURDATE()`,
+              [admin.id, "Today's Appointments"]
+            );
+            if (existsToday.length === 0) {
+              await createNotification({
+                user_id: admin.id,
+                title: "Today's Appointments",
+                message: randomTodayMessage,
+                type: "appointment",
+              });
+            }
           }
-        }
 
-        // 🧩 Prevent duplicate notification for tomorrow
-        if (tomorrowCount > 0 && randomTomorrowMessage) {
-          const [existsTomorrow] = await pool.query(
-            `SELECT id FROM notifications
-         WHERE user_id=? AND title=? 
-         AND DATE(created_at)=CURDATE()`,
-            [admin.id, "Upcoming Appointments"]
-          );
-
-          if (existsTomorrow.length === 0) {
-            await createNotification({
-              user_id: admin.id,
-              title: "Upcoming Appointments",
-              message: randomTomorrowMessage,
-              type: "appointment",
-            });
+          if (tomorrowCount > 0 && randomTomorrowMessage) {
+            const [existsTomorrow] = await pool.query(
+              `SELECT id FROM notifications
+               WHERE user_id=? AND title=? AND DATE(created_at)=CURDATE()`,
+              [admin.id, "Upcoming Appointments"]
+            );
+            if (existsTomorrow.length === 0) {
+              await createNotification({
+                user_id: admin.id,
+                title: "Upcoming Appointments",
+                message: randomTomorrowMessage,
+                type: "appointment",
+              });
+            }
           }
-        }
-      }
-
-      console.log(`🔔 Admin notifications checked — no duplicates created`);
+        })
+      );
     }
 
-    /* =======================================================
-       🔹 5️⃣ Continue with normal pagination + response
-    ======================================================= */
+    // 5) Pagination + listing
     const page = Number(req.query.page || 1);
     const pageSize = Number(req.query.pageSize || 10);
     const offset = (page - 1) * pageSize;
 
-    const sortBy = req.query.sortBy || "id";
-    const sortDir = (req.query.sortDir || "DESC").toUpperCase();
-    const SORTABLE = new Set(["id", "name", "date", "status"]);
-    const safeKey = SORTABLE.has(sortBy) ? `a.${sortBy}` : "a.id";
-    const safeDir = sortDir === "ASC" ? "ASC" : "DESC";
+    const { key: safeKey, dir: safeDir } = normalizeSort(
+      req.query.sortBy,
+      req.query.sortDir
+    );
 
-    const [countRows] = await pool.query(
+    const [[{ total }]] = await pool.query(
       `SELECT COUNT(*) as total FROM appointments`
     );
-    const total = countRows[0].total;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     const [rows] = await pool.query(
@@ -720,6 +712,9 @@ export const getAppointments = async (req, res) => {
   }
 };
 
+/* =======================================================
+   GET /api/admin/appointments/conflicts
+======================================================= */
 export const getAppointmentConflicts = async (req, res) => {
   try {
     const { service_id, date, time } = req.query;
@@ -748,6 +743,9 @@ export const getAppointmentConflicts = async (req, res) => {
   }
 };
 
+/* =======================================================
+   POST /api/admin/appointments/filter
+======================================================= */
 export const filterAppointments = async (req, res) => {
   try {
     const {
@@ -799,16 +797,7 @@ export const filterAppointments = async (req, res) => {
     }
 
     const whereSQL = where.length ? `WHERE ${where.join(" AND ")}` : "";
-
-    let orderSQL = "";
-    if (sortBy && sortDir) {
-      const SORTABLE = new Set(["id", "name", "date", "status"]);
-      const safeKey = SORTABLE.has(sortBy) ? sortBy : "a.id";
-      const safeDir = String(sortDir).toLowerCase() === "desc" ? "DESC" : "ASC";
-      orderSQL = `ORDER BY ${safeKey} ${safeDir}`;
-    } else {
-      orderSQL = `ORDER BY a.date DESC, a.time DESC`;
-    }
+    const { key: safeKey, dir: safeDir } = normalizeSort(sortBy, sortDir, "");
 
     const sqlCount = `SELECT COUNT(*) as total FROM appointments a ${whereSQL}`;
     const sqlRows = `
@@ -821,11 +810,10 @@ export const filterAppointments = async (req, res) => {
       FROM appointments a
       JOIN services s ON a.service_id = s.id
       ${whereSQL}
-      ${orderSQL}
+      ORDER BY ${safeKey || "a.id"} ${safeDir}
       LIMIT ? OFFSET ?`;
 
-    const [countRows] = await pool.query(sqlCount, values);
-    const total = countRows[0].total;
+    const [[{ total }]] = await pool.query(sqlCount, values);
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
     const [rows] = await pool.query(sqlRows, [...values, pageSize, offset]);
 
@@ -848,6 +836,9 @@ export const filterAppointments = async (req, res) => {
   }
 };
 
+/* =======================================================
+   GET /api/admin/appointments/today
+======================================================= */
 export const getTodayAppointments = async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -866,11 +857,7 @@ export const getTodayAppointments = async (req, res) => {
        ORDER BY a.time ASC`
     );
 
-    res.json({
-      success: true,
-      data: rows,
-      count: rows.length,
-    });
+    res.json({ success: true, data: rows, count: rows.length });
   } catch (err) {
     console.error("❌ getTodayAppointments error:", err);
     res.status(500).json({
@@ -880,6 +867,9 @@ export const getTodayAppointments = async (req, res) => {
   }
 };
 
+/* =======================================================
+   GET /api/admin/appointments/export
+======================================================= */
 export const exportAppointments = async (req, res) => {
   try {
     const [rows] = await pool.query(
