@@ -310,11 +310,11 @@ export const updateAppointmentAdmin = async (req, res) => {
       if (conflicts.length && !override) {
         await conn.rollback();
         return res.status(409).json({
-          success: false,
-          code: "TIME_CONFLICT",
-          message: "Conflict detected with another appointment.",
-        });
-      }
+  success: false,
+  code: "TIME_CONFLICT",
+  confirmNeeded: true,
+  message: "Conflict detected with another appointment.",
+});
     }
 
     // Apply update (service layer handles SQL)

@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import Modal from "@/components/ui/Modal";
 import DatePopover from "../../ui/DatePopover";
 import SlotSelector from "../../ui/SlotSelector";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import toast from "react-hot-toast";
 import api from "@/api/api";
 import { format } from "date-fns";
 import { to12h } from "@/utils/availabilityUtils";
-import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 export default function RescheduleModal({
   open,
@@ -19,16 +19,16 @@ export default function RescheduleModal({
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
   const [loading, setLoading] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmMsg, setConfirmMsg] = useState("");
+  const [confirmData, setConfirmData] = useState(null);
+  const [confirmMsg, setConfirmMsg] = useState(null);
 
-  // Reset fields whenever modal opens
+  // Reset fields when modal opens
   useEffect(() => {
     if (open) {
       setNewDate("");
       setNewTime("");
-      setConfirmOpen(false);
-      setConfirmMsg("");
+      setConfirmData(null);
+      setConfirmMsg(null);
     }
   }, [open]);
 
@@ -40,17 +40,10 @@ export default function RescheduleModal({
 
     try {
       setLoading(true);
-
       await api.patch(`/admin/appointments/${appointment.id}`, {
-        status: "approved",
         date: newDate,
         time: newTime,
-        service_id: appointment.service_id,
-        name: appointment.name,
-        email: appointment.email,
-        contactNumber: appointment.contactNumber,
-        address: appointment.address,
-        override, // ✅ include override flag if confirmed
+        override,
       });
 
       toast.success("✅ Appointment successfully rescheduled!");
@@ -59,20 +52,19 @@ export default function RescheduleModal({
     } catch (err) {
       const { status, data } = err.response || {};
       const msg =
-        data?.message ||
-        data?.error ||
-        "Failed to reschedule appointment.";
+        data?.message || data?.error || "Failed to reschedule appointment.";
 
-      // ✅ Handle 409 conflicts gracefully
-      if (status === 409) {
-        setConfirmMsg(
-          msg || "There’s a scheduling conflict. Proceed with override?"
-        );
-        setConfirmOpen(true);
+      // ✅ Handle conflicts (TIME_CONFLICT or CONFIRM_REQUIRED)
+      if (
+        status === 409 &&
+        (data?.code === "TIME_CONFLICT" || data?.code === "CONFIRM_REQUIRED")
+      ) {
+        setConfirmData({ override: true });
+        setConfirmMsg(msg || "Conflict detected. Proceed anyway?");
         return;
       }
 
-      console.error("❌ Failed to reschedule:", err);
+      console.error("❌ Reschedule error:", err);
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -80,17 +72,18 @@ export default function RescheduleModal({
   };
 
   const handleConfirm = async () => {
-    setConfirmOpen(false);
-    await handleSubmit(true); // ✅ retry with override
+    if (!confirmData) return;
+    setConfirmMsg(null);
+    await handleSubmit(true); // retry with override
   };
 
   const handleCancelConfirm = () => {
-    setConfirmOpen(false);
+    setConfirmMsg(null);
+    setConfirmData(null);
   };
 
   const formatSchedule = () => {
     if (!appointment?.date || !appointment?.time) return "—";
-
     try {
       const datePart = format(new Date(appointment.date), "MMMM d, yyyy");
       const timePart = to12h(appointment.time);
@@ -102,7 +95,7 @@ export default function RescheduleModal({
 
   return (
     <>
-      {/* 🟦 Main modal */}
+      {/* Main Modal */}
       <Modal
         open={open}
         onClose={onClose}
@@ -110,7 +103,6 @@ export default function RescheduleModal({
         className="max-w-lg"
       >
         <div className="space-y-5">
-          {/* Info */}
           <div className="border rounded-md bg-gray-50 p-3 text-sm text-gray-700 space-y-1.5">
             <p>
               <strong>Client:</strong> {appointment?.name || "—"}
@@ -143,16 +135,13 @@ export default function RescheduleModal({
           {/* Buttons */}
           <div className="flex justify-end gap-2 pt-2">
             <button
-              type="button"
               onClick={onClose}
               disabled={loading}
               className="px-4 py-2 text-sm rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
             >
               Cancel
             </button>
-
             <button
-              type="button"
               onClick={() => handleSubmit(false)}
               disabled={loading}
               className="px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
@@ -163,8 +152,8 @@ export default function RescheduleModal({
         </div>
       </Modal>
 
-      {/* 🟥 Confirmation dialog for conflict */}
-      {confirmOpen && (
+      {/* Confirmation Dialog */}
+      {confirmMsg && (
         <ConfirmDialog
           open
           title="Schedule Conflict Detected"
