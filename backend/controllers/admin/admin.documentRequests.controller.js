@@ -5,7 +5,7 @@ import {
   sendDocumentProcessingEmail,
   sendDocumentReadyEmail,
   sendDocumentRejectedEmail,
-} from "../../utils/documentEmails.js";
+} from "../../utils/email/documentEmails.js";
 
 /* ======================================================
    📜 Get all document requests
@@ -23,8 +23,8 @@ export async function getAllDocumentRequests(req, res) {
     );
 
     res.json({ success: true, data: rows });
-  } catch (error) {
-    console.error("❌ getAllDocumentRequests error:", error);
+  } catch (err) {
+    console.error("❌ getAllDocumentRequests error:", err);
     res.status(500).json({
       success: false,
       error: "Failed to fetch document requests",
@@ -33,7 +33,7 @@ export async function getAllDocumentRequests(req, res) {
 }
 
 /* ======================================================
-   ➕ Create a new document request (Admin only)
+   ➕ Create a new document request (Admin)
 ====================================================== */
 export async function createDocumentRequest(req, res) {
   const {
@@ -56,9 +56,9 @@ export async function createDocumentRequest(req, res) {
     });
   }
 
-  try {
-    const requestCode = `REQ-${Date.now()}`;
+  const requestCode = `REQ-${Date.now()}`;
 
+  try {
     const [result] = await pool.query(
       `
       INSERT INTO document_requests
@@ -79,7 +79,7 @@ export async function createDocumentRequest(req, res) {
       ]
     );
 
-    // ✅ Send acknowledgment email to requester
+    // 📨 Send acknowledgment email to the specific user
     try {
       await sendDocumentReceivedEmail(email, {
         name: full_name,
@@ -88,9 +88,12 @@ export async function createDocumentRequest(req, res) {
         copies,
         requestCode,
       });
-      console.log(`✅ Acknowledgment email sent to ${email}`);
+      console.log(`✅ Document received email sent to ${email}`);
     } catch (mailErr) {
-      console.warn("⚠️ Failed to send received email:", mailErr.message);
+      console.warn(
+        `⚠️ Failed to send received email to ${email}:`,
+        mailErr.message
+      );
     }
 
     res.json({
@@ -99,8 +102,8 @@ export async function createDocumentRequest(req, res) {
       request_code: requestCode,
       message: "Document request created successfully",
     });
-  } catch (error) {
-    console.error("❌ createDocumentRequest error:", error);
+  } catch (err) {
+    console.error("❌ createDocumentRequest error:", err);
     res.status(500).json({
       success: false,
       error: "Failed to create document request",
@@ -133,7 +136,7 @@ export async function updateDocumentStatus(req, res) {
       id,
     ]);
 
-    // ✅ Send emails + user notifications based on status
+    // ✅ Send emails & notification to the specific user
     if (status === "processing") {
       try {
         await sendDocumentProcessingEmail(doc.email, {
@@ -141,15 +144,22 @@ export async function updateDocumentStatus(req, res) {
           documentType: doc.document_type,
         });
 
-        await createNotification({
-          user_id: doc.user_id,
-          title: "Your Document Request is Now Being Processed",
-          message: `Hi ${doc.full_name}, your ${doc.document_type} request is being processed.`,
-          type: "document",
-          reference_id: id,
-        });
+        if (doc.user_id) {
+          await createNotification({
+            user_id: doc.user_id,
+            title: "Your Document Request is Now Being Processed",
+            message: `Hi ${doc.full_name}, your ${doc.document_type} request is being processed.`,
+            type: "document",
+            reference_id: id,
+          });
+        }
+
+        console.log(`✅ Processing email sent to ${doc.email}`);
       } catch (err) {
-        console.warn("⚠️ Failed to send processing updates:", err.message);
+        console.warn(
+          `⚠️ Failed to send processing updates to ${doc.email}:`,
+          err.message
+        );
       }
     }
 
@@ -161,15 +171,22 @@ export async function updateDocumentStatus(req, res) {
           requestCode: doc.request_code,
         });
 
-        await createNotification({
-          user_id: doc.user_id,
-          title: "Your Document Request is Ready for Pick-Up",
-          message: `Hi ${doc.full_name}, your ${doc.document_type} certificate is ready for pick-up.`,
-          type: "document",
-          reference_id: id,
-        });
+        if (doc.user_id) {
+          await createNotification({
+            user_id: doc.user_id,
+            title: "Your Document Request is Ready for Pick-Up",
+            message: `Hi ${doc.full_name}, your ${doc.document_type} certificate is ready for pick-up.`,
+            type: "document",
+            reference_id: id,
+          });
+        }
+
+        console.log(`✅ Completion email sent to ${doc.email}`);
       } catch (err) {
-        console.warn("⚠️ Failed to send completion updates:", err.message);
+        console.warn(
+          `⚠️ Failed to send completion updates to ${doc.email}:`,
+          err.message
+        );
       }
     }
 
@@ -181,21 +198,28 @@ export async function updateDocumentStatus(req, res) {
           reason,
         });
 
-        await createNotification({
-          user_id: doc.user_id,
-          title: "Your Document Request Has Been Rejected",
-          message: `We’re sorry, but your ${doc.document_type} request was rejected. Reason: ${reason}`,
-          type: "document",
-          reference_id: id,
-        });
+        if (doc.user_id) {
+          await createNotification({
+            user_id: doc.user_id,
+            title: "Your Document Request Has Been Rejected",
+            message: `We’re sorry, but your ${doc.document_type} request was rejected. Reason: ${reason}`,
+            type: "document",
+            reference_id: id,
+          });
+        }
+
+        console.log(`✅ Rejection email sent to ${doc.email}`);
       } catch (err) {
-        console.warn("⚠️ Failed to send rejection updates:", err.message);
+        console.warn(
+          `⚠️ Failed to send rejection updates to ${doc.email}:`,
+          err.message
+        );
       }
     }
 
     res.json({ success: true, message: "Status updated successfully" });
-  } catch (error) {
-    console.error("❌ updateDocumentStatus error:", error);
+  } catch (err) {
+    console.error("❌ updateDocumentStatus error:", err);
     res.status(500).json({
       success: false,
       error: "Failed to update document status",
@@ -222,8 +246,8 @@ export async function deleteDocumentRequest(req, res) {
     }
 
     res.json({ success: true, message: "Request deleted successfully" });
-  } catch (error) {
-    console.error("❌ deleteDocumentRequest error:", error);
+  } catch (err) {
+    console.error("❌ deleteDocumentRequest error:", err);
     res.status(500).json({
       success: false,
       error: "Failed to delete document request",

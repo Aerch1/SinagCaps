@@ -1,6 +1,6 @@
 import pool from "../../config/db.js";
-import { createNotification } from "../../utils/createNotification.js";
-import { sendDocumentReceivedEmail } from "../../utils/documentEmails.js";
+import { sendDocumentReceivedEmail } from "../../utils/email/documentEmails.js";
+import { notifyAdminsOfNewDocumentRequest } from "../../utils/notifyAdmins.js";
 
 /* =====================================================
    📤 Create Document Request (Public / Logged-in)
@@ -61,7 +61,7 @@ export async function createPublicDocumentRequest(req, res) {
         phone?.trim() || null,
         address?.trim() || null,
         document_type,
-        purpose?.trim() || null,
+        purpose?.trim(),
         copies ? Number(copies) : 1,
         additional_info?.trim() || null,
       ]
@@ -82,46 +82,20 @@ export async function createPublicDocumentRequest(req, res) {
       });
       console.log(`✅ Confirmation email sent to ${email}`);
     } catch (mailErr) {
-      console.warn("⚠️ Failed to send confirmation email:", mailErr.message);
+      console.warn(
+        `⚠️ Failed to send confirmation email to ${email}:`,
+        mailErr.message
+      );
     }
 
     /* =====================================================
-       🔔 Notify all admins (similar to appointment logic)
+       🔔 Notify all admins of new document request
     ====================================================== */
-    try {
-      const [admins] = await pool.query(
-        "SELECT id FROM users WHERE role = 'admin'"
-      );
-
-      if (admins.length > 0) {
-        // Variations for more natural notifications
-        const messages = [
-          `${full_name} requested a ${document_type} certificate.`,
-          `A new ${document_type} document request was created by ${full_name}.`,
-          `${full_name} has submitted a ${document_type} request for processing.`,
-          `Document request alert: ${full_name} filed a ${document_type} certificate request.`,
-        ];
-
-        const adminMessage =
-          messages[Math.floor(Math.random() * messages.length)];
-
-        for (const admin of admins) {
-          await createNotification({
-            user_id: admin.id,
-            title: "New Document Request Received",
-            message: adminMessage,
-            type: "document",
-            reference_id: insertedId,
-          });
-        }
-
-        console.log(`✅ Sent notifications to ${admins.length} admin(s).`);
-      } else {
-        console.warn("⚠️ No admin accounts found to notify.");
-      }
-    } catch (notifErr) {
-      console.warn("⚠️ Admin notification creation failed:", notifErr.message);
-    }
+    await notifyAdminsOfNewDocumentRequest(
+      full_name,
+      document_type,
+      insertedId
+    );
 
     /* =====================================================
        ✅ Success Response
@@ -131,8 +105,8 @@ export async function createPublicDocumentRequest(req, res) {
       message: "Your document request has been submitted successfully.",
       id: insertedId,
     });
-  } catch (error) {
-    console.error("❌ createPublicDocumentRequest error:", error);
+  } catch (err) {
+    console.error("❌ createPublicDocumentRequest error:", err);
     res.status(500).json({
       success: false,
       error: "Failed to submit document request. Please try again later.",
