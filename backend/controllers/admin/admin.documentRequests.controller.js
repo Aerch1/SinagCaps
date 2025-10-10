@@ -5,7 +5,7 @@ import {
   sendDocumentProcessingEmail,
   sendDocumentReadyEmail,
   sendDocumentRejectedEmail,
-} from "../../utils/email/documentEmails.js";
+} from "../../utils/documentEmails.js";
 
 /* ======================================================
    📜 Get all document requests
