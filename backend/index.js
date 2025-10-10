@@ -4,7 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 
-import { connectDB,resetDatabase } from "./config/db.js";
+import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.route.js";
 import profileRoutes from "./routes/profile.routes.js";
 import adminRoutes from "./routes/admin.appointments.routes.js";
