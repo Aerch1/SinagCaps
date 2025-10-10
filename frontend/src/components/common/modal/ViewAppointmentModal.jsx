@@ -145,11 +145,11 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
     const n = String(local?.name || "").trim();
     return n
       ? n
-          .split(/\s+/)
-          .slice(0, 2)
-          .map((s) => s[0])
-          .join("")
-          .toUpperCase()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((s) => s[0])
+        .join("")
+        .toUpperCase()
       : "??";
   }, [local?.name]);
 
@@ -339,7 +339,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
                 const now = new Date();
                 const apptDateTime = new Date(`${local.date}T${local.time}`);
                 const isPast = now > apptDateTime;
-                if (isPast) {
+                if (!isPast) {
                   return (
                     <button
                       onClick={() => handleStatusChange("completed")}
@@ -464,7 +464,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
               const reqs = reqRes.data?.requirements || [];
               const done = reqs.filter((r) => r.completed).length;
               setReqProgress({ done, total: reqs.length });
-            } catch {}
+            } catch { }
             setShowProcess(false);
             setHidePanel(false);
           }}
