@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Mail, Lock, Loader } from "lucide-react";
+import { Mail, Lock, Loader, ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Input from "../../components/ui/Input.jsx";
 import toast from "react-hot-toast";
@@ -62,6 +62,17 @@ const LoginPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <div className="w-full max-w-md bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="p-6 sm:p-8">
+          {/* 🏠 Back to Homepage Button */}
+          <div className="mb-3">
+            <button
+              onClick={() => navigate("/")}
+              className="inline-flex items-center text-sm text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Homepage
+            </button>
+          </div>
+
           {/* Logo */}
           <div className="flex justify-center mb-4">
             <img src="/logo.png" alt="OLOPGV Logo" className="w-16 h-16 sm:w-20 sm:h-20" />
@@ -70,7 +81,9 @@ const LoginPage = () => {
           {/* Heading */}
           <div className="mb-6 text-center">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">OLOPGV LOGIN</h2>
-            <p className="text-sm text-gray-500">Please enter your credentials to access your account</p>
+            <p className="text-sm text-gray-500">
+              Please enter your credentials to access your account
+            </p>
           </div>
 
           {/* Form */}
