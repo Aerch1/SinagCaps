@@ -25,3 +25,32 @@ export const getDaysInMonth = (year, month) =>
 // First weekday of month (0=Sun,6=Sat)
 export const getFirstDayOfMonth = (year, month) =>
   new Date(year, month, 1).getDay();
+
+/* ===================================================
+   🆕 Additional Readable Formatting Helpers
+=================================================== */
+
+// Format date into "Month Day, Year" (e.g. October 10, 2025)
+export const formatReadableDate = (date) => {
+  if (!date) return "";
+  const d = date instanceof Date ? date : new Date(date);
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+// Convert "HH:mm:ss" or "HH:mm" into "h:mm AM/PM"
+export const formatReadableTime = (timeStr) => {
+  if (!timeStr) return "";
+  const [h, m] = timeStr.split(":").map(Number);
+  const date = new Date();
+  date.setHours(h);
+  date.setMinutes(m);
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
