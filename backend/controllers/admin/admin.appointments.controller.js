@@ -386,7 +386,11 @@ export const updateAppointmentAdmin = async (req, res) => {
 
       // 🛎️ Notifications
       let title, message;
-      if (newStatus === "approved") {
+      // ✅ Put rescheduling check first
+      if (isRescheduling) {
+        title = "Appointment Rescheduled";
+        message = `${finalName}'s ${serviceName} appointment was rescheduled to ${formattedNewDate} at ${formattedNewTime}.`;
+      } else if (newStatus === "approved") {
         title = "Appointment Approved";
         message = `${finalName}'s ${serviceName} appointment was approved for ${formattedNewDate} at ${formattedNewTime}.`;
       } else if (newStatus === "rejected") {
@@ -395,14 +399,11 @@ export const updateAppointmentAdmin = async (req, res) => {
       } else if (newStatus === "cancelled") {
         title = "Appointment Cancelled";
         message = `${finalName}'s ${serviceName} appointment was cancelled.`;
-      } else if (isRescheduling) {
-        title = "Appointment Rescheduled";
-        message = `${finalName}'s ${serviceName} appointment was rescheduled to ${formattedNewDate} at ${formattedNewTime}.`;
       }
 
       if (title) {
         await createNotification({
-          user_id: oldAppt.user_id || null, // ✅ Send to public user
+          user_id: oldAppt.user_id || null,
           title,
           message,
           type: "appointment",
@@ -423,6 +424,7 @@ export const updateAppointmentAdmin = async (req, res) => {
     if (conn) conn.release();
   }
 };
+
 
 
 /* =======================================================
