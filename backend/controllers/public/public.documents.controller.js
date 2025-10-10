@@ -1,5 +1,5 @@
 import pool from "../../config/db.js";
-import { sendDocumentReceivedEmail } from "../../utils/email/documentEmails.js";
+import { sendDocumentReceivedEmail } from "../../utils/documentEmails.js";
 import { notifyAdminsOfNewDocumentRequest } from "../../utils/notifyAdmins.js";
 
 /* =====================================================
