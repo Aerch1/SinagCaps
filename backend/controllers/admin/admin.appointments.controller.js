@@ -252,7 +252,7 @@ export const updateAppointmentAdmin = async (req, res) => {
 
     // 🔹 Fetch old appointment
     const [[oldAppt]] = await conn.query(
-      `SELECT id, service_id, date, time, status, name, email, contactNumber, address, was_rescheduled
+      `SELECT id, user_id, service_id, date, time, status, name, email, contactNumber, address, was_rescheduled
        FROM appointments WHERE id = ?`,
       [id]
     );
@@ -402,7 +402,7 @@ export const updateAppointmentAdmin = async (req, res) => {
 
       if (title) {
         await createNotification({
-          user_id: req.userId || null,
+          user_id: oldAppt.user_id || null, // ✅ Send to public user
           title,
           message,
           type: "appointment",
@@ -423,6 +423,7 @@ export const updateAppointmentAdmin = async (req, res) => {
     if (conn) conn.release();
   }
 };
+
 
 /* =======================================================
    GET /api/admin/appointments/:id
