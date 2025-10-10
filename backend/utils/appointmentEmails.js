@@ -85,15 +85,13 @@ export const sendAppointmentUpdatedEmail = async (toEmail, data) => {
 ========================================================== */
 export const sendAppointmentRescheduledEmail = async (toEmail, data) => {
   try {
-    const html = APPOINTMENT_RESCHEDULED_TEMPLATE.replaceAll(
-      "{name}",
-      data.name
-    )
-      .replaceAll("{service}", data.serviceName)
-      .replaceAll("{oldDate}", data.oldDate)
-      .replaceAll("{oldTime}", data.oldTime)
-      .replaceAll("{newDate}", data.newDate)
-      .replaceAll("{newTime}", data.newTime);
+    const html = APPOINTMENT_RESCHEDULED_TEMPLATE
+      .replaceAll("{name}", data.name || "Valued Guest")
+      .replaceAll("{service}", data.serviceName || "Selected Service")
+      .replaceAll("{oldDate}", data.oldDate || "—")
+      .replaceAll("{oldTime}", data.oldTime || "—")
+      .replaceAll("{newDate}", data.newDate || "—")
+      .replaceAll("{newTime}", data.newTime || "—");
 
     const info = await transporter.sendMail({
       from: FROM,
@@ -111,6 +109,7 @@ export const sendAppointmentRescheduledEmail = async (toEmail, data) => {
     );
   }
 };
+
 
 /* ==========================================================
    Appointment Cancelled / Rejected
