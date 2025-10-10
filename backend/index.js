@@ -4,7 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 
-import { connectDB } from "./config/db.js";
+import { connectDB,resetDatabase } from "./config/db.js";
 import authRoutes from "./routes/auth.route.js";
 import profileRoutes from "./routes/profile.routes.js";
 import adminRoutes from "./routes/admin.appointments.routes.js";
@@ -34,7 +34,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
-
 
 const allowedOrigins = [
   process.env.CLIENT_URL, // should be https://www.olpgvp.com
@@ -126,8 +125,13 @@ app.use((err, req, res, next) => {
 /* ===============================
    START SERVER
 =============================== */
-app.listen(PORT, () => {
-  connectDB();
+app.listen(PORT, async () => {
+  await connectDB();
+
+  // ⚠️ Optional: only run this in dev or when you really want a reset
+  await resetDatabase();
+  console.log("🧽 Database reset complete (users preserved)");
+
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Frontend: ${process.env.CLIENT_URL}`);
   console.log(`☁️  Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);
