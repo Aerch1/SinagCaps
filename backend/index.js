@@ -128,9 +128,9 @@ app.use((err, req, res, next) => {
 app.listen(PORT, async () => {
   await connectDB();
 
-  // ⚠️ Optional: only run this in dev or when you really want a reset
-  await resetDatabase();
-  console.log("🧽 Database reset complete (users preserved)");
+  // // ⚠️ Optional: only run this in dev or when you really want a reset
+  // await resetDatabase();
+  // console.log("🧽 Database reset complete (users preserved)");
 
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Frontend: ${process.env.CLIENT_URL}`);
