@@ -1,33 +1,95 @@
 "use client";
 
-import { useState } from "react";
-import { Download, Upload, Loader2, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Download, Upload, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/api/api";
-import ConfirmDialog from "../ui/ConfirmDialog"; // ✅ import your existing dialog
+import ConfirmDialog from "../ui/ConfirmDialog"; // ✅ existing dialog
 
 export default function AdminBackupSettings() {
     const [importFile, setImportFile] = useState(null);
     const [isExporting, setIsExporting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [recent, setRecent] = useState([]);
 
-    // 📦 Download backup
+    /* 🧾 Load recent backups from localStorage */
+    useEffect(() => {
+        const saved = localStorage.getItem("recentBackups");
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                const restored = parsed.map((b) => {
+                    if (b.blobData) {
+                        const byteArray = Uint8Array.from(atob(b.blobData), (c) => c.charCodeAt(0));
+                        const blob = new Blob([byteArray], { type: b.mimeType });
+                        const url = URL.createObjectURL(blob);
+                        return { ...b, url };
+                    }
+                    return b;
+                });
+                setRecent(restored);
+            } catch {
+                localStorage.removeItem("recentBackups");
+            }
+        }
+    }, []);
+
+    /* 💾 Persist updated backups in localStorage */
+    useEffect(() => {
+        const saveData = async () => {
+            const prepared = await Promise.all(
+                recent.map(async (b) => {
+                    if (b.url && !b.blobData) {
+                        const blob = await fetch(b.url).then((res) => res.blob());
+                        const arrayBuffer = await blob.arrayBuffer();
+                        const binary = String.fromCharCode(...new Uint8Array(arrayBuffer));
+                        const blobData = btoa(binary);
+                        return { ...b, blobData, mimeType: blob.type, url: undefined };
+                    }
+                    return b;
+                })
+            );
+            localStorage.setItem("recentBackups", JSON.stringify(prepared));
+        };
+        if (recent.length) saveData();
+    }, [recent]);
+
+    // 📦 Export backup
     const handleExport = async () => {
         try {
             setIsExporting(true);
             const res = await api.get("/admin/backup/export", { responseType: "blob" });
-
             const blob = new Blob([res.data], { type: "application/json" });
             const url = window.URL.createObjectURL(blob);
+            const filename = `backup-${new Date().toISOString().slice(0, 19)}.json`;
+
+            // trigger file download
             const a = document.createElement("a");
             a.href = url;
-            a.download = `backup-${new Date().toISOString().slice(0, 19)}.json`;
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
 
+            // convert to base64 for local history
+            const arrayBuffer = await blob.arrayBuffer();
+            const binary = String.fromCharCode(...new Uint8Array(arrayBuffer));
+            const blobData = btoa(binary);
+
+            const newBackup = {
+                id: Date.now().toString(),
+                title: "Database Backup",
+                date: new Date(),
+                status: "Exported",
+                filename,
+                blobData,
+                mimeType: blob.type,
+                url,
+            };
+
+            setRecent((prev) => [newBackup, ...prev].slice(0, 8));
             toast.success("Backup exported successfully");
         } catch (err) {
             console.error("Export error:", err);
@@ -51,6 +113,19 @@ export default function AdminBackupSettings() {
             formData.append("file", importFile);
             await api.post("/admin/backup/import", formData);
             toast.success("Backup imported successfully!");
+
+            // add to history
+            setRecent((prev) => [
+                {
+                    id: Date.now().toString(),
+                    title: "Backup Restore",
+                    date: new Date(),
+                    status: "Imported",
+                    filename: importFile.name,
+                },
+                ...prev,
+            ]);
+
             setImportFile(null);
             setShowConfirm(false);
         } catch (err) {
@@ -147,6 +222,49 @@ export default function AdminBackupSettings() {
                                 existing data. Make sure you have the correct file before
                                 proceeding.
                             </p>
+                        </div>
+
+                        {/* 🧾 Recent Backups */}
+                        <div className="rounded-lg border border-gray-200 bg-white">
+                            <div className="border-b border-gray-100 px-5 py-3 text-sm font-medium text-gray-800">
+                                Recent Backups
+                            </div>
+                            <div className="max-h-64 overflow-y-auto">
+                                <ul className="divide-y divide-gray-100">
+                                    {recent.length === 0 ? (
+                                        <li className="px-5 py-6 text-sm text-gray-500">
+                                            No backups yet.
+                                        </li>
+                                    ) : (
+                                        recent.map((b) => (
+                                            <li key={b.id} className="px-5 py-4">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <div className="truncate text-sm font-medium text-gray-900">
+                                                            {b.title}
+                                                        </div>
+                                                        <div className="mt-1 text-xs text-gray-500">
+                                                            {new Date(b.date).toLocaleString()}
+                                                        </div>
+                                                        <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[11px] font-medium text-green-700">
+                                                            <CheckCircle2 className="h-3 w-3" /> {b.status}
+                                                        </span>
+                                                    </div>
+                                                    {b.url && (
+                                                        <a
+                                                            href={b.url}
+                                                            download={b.filename}
+                                                            className="shrink-0 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                                                        >
+                                                            Download
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </li>
+                                        ))
+                                    )}
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
