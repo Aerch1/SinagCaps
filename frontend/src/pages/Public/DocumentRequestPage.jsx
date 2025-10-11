@@ -118,7 +118,7 @@ export default function DocumentRequestPage() {
                         Please allow 3–5 business days for processing. For urgent requests,
                         contact the parish office directly at{" "}
                         <span className="font-semibold">(+63) 966 854 8848</span>.
-                          
+
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-10">
@@ -168,11 +168,14 @@ export default function DocumentRequestPage() {
                                             icon={Phone}
                                             type="tel"
                                             name="phone"
+                                            pattern="^09\d{9}$"
+                                            title="Enter a valid PH mobile number (e.g., 09123456789)"
                                             value={formData.phone}
                                             onChange={handleChange}
                                             placeholder="09XX XXX XXXX"
                                             required
                                         />
+
                                     </div>
                                 </div>
 
