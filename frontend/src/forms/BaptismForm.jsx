@@ -60,6 +60,31 @@ export default function BaptismForm({
         setFormData((prev) => ({ ...prev, sponsors }));
     };
 
+
+
+
+    /* ---------- Sanitize before sending ---------- */
+    const sanitizeFormData = (data) => {
+        const clean = { ...data };
+        Object.keys(clean).forEach((key) => {
+            if (typeof clean[key] === "string") {
+                clean[key] = clean[key].trim();
+            }
+        });
+
+        if (Array.isArray(clean.sponsors)) {
+            clean.sponsors = clean.sponsors.map((s) => ({
+                ...s,
+                role: s.role?.trim(),
+                name: s.name?.trim(),
+                address: s.address?.trim(),
+            }));
+        }
+
+        return clean;
+    };
+
+
     const addSponsor = () => {
         setFormData((prev) => ({
             ...prev,
@@ -84,6 +109,9 @@ export default function BaptismForm({
         if (!registerValidator) return;
 
         const validator = () => {
+            // ✨ Trim whitespace before validating
+            const cleaned = sanitizeFormData(formData);
+
             const errs = {};
             const requiredFields = [
                 "childFullName",
@@ -99,37 +127,33 @@ export default function BaptismForm({
 
             // required checks
             for (const f of requiredFields) {
-                const val = formData[f]?.toString().trim();
+                const val = cleaned[f]?.toString().trim();
                 if (!val) errs[f] = "This field is required.";
             }
 
             // phone rule
             const phoneRegex = /^09\d{9}$/;
-            if (formData.phone && !phoneRegex.test(formData.phone.trim())) {
+            if (cleaned.phone && !phoneRegex.test(cleaned.phone)) {
                 errs.phone = "Phone must start with 09 and be 11 digits.";
             }
 
             // email rule
             const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-            if (formData.email && !emailRegex.test(formData.email.trim())) {
+            if (cleaned.email && !emailRegex.test(cleaned.email)) {
                 errs.email = "Email must be a valid @gmail.com address.";
             }
 
             // sponsors rule
-            if (!formData.sponsors || formData.sponsors.length < 2) {
+            if (!cleaned.sponsors || cleaned.sponsors.length < 2) {
                 errs.sponsors = "At least 2 sponsors are required.";
             } else {
-                formData.sponsors.forEach((s, idx) => {
-                    if (!s.role?.trim())
-                        errs[`sponsor_${idx}_role`] = "Role is required.";
-                    if (!s.name?.trim())
-                        errs[`sponsor_${idx}_name`] = "Name is required.";
-                    if (!s.address?.trim())
-                        errs[`sponsor_${idx}_address`] = "Address is required.";
+                cleaned.sponsors.forEach((s, idx) => {
+                    if (!s.role) errs[`sponsor_${idx}_role`] = "Role is required.";
+                    if (!s.name) errs[`sponsor_${idx}_name`] = "Name is required.";
+                    if (!s.address) errs[`sponsor_${idx}_address`] = "Address is required.";
                 });
             }
 
-            // 🔽 Scroll to first invalid field
             if (Object.keys(errs).length > 0 && firstErrorRef.current) {
                 firstErrorRef.current.scrollIntoView({
                     behavior: "smooth",
@@ -139,6 +163,7 @@ export default function BaptismForm({
 
             return Object.keys(errs).length === 0 ? true : errs;
         };
+
 
         registerValidator(3, validator);
     }, [formData, registerValidator]);
@@ -316,8 +341,8 @@ export default function BaptismForm({
                             <label
                                 key={opt.v}
                                 className={`flex items-center gap-2 rounded-lg border px-4 py-2 cursor-pointer transition ${formData.parentsMarriageType === opt.v
-                                        ? "border-blue-400 bg-blue-50"
-                                        : "border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+                                    ? "border-blue-400 bg-blue-50"
+                                    : "border-gray-300 hover:border-blue-400 hover:bg-blue-50"
                                     }`}
                             >
                                 <input
@@ -483,8 +508,8 @@ export default function BaptismForm({
                                         options={["Ninong", "Ninang"]}
                                         placeholder="Select role"
                                         className={`h-12 ${formErrors[`sponsor_${idx}_role`]
-                                                ? "border-red-500 focus:ring-red-500"
-                                                : ""
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : ""
                                             }`}
                                     />
                                     {formErrors[`sponsor_${idx}_role`] && (
@@ -507,8 +532,8 @@ export default function BaptismForm({
                                             updateSponsor(idx, "name", e.target.value)
                                         }
                                         className={`h-12 text-base ${formErrors[`sponsor_${idx}_name`]
-                                                ? "border-red-500 focus:ring-red-500"
-                                                : ""
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : ""
                                             }`}
                                     />
                                     {formErrors[`sponsor_${idx}_name`] && (
@@ -531,8 +556,8 @@ export default function BaptismForm({
                                             updateSponsor(idx, "address", e.target.value)
                                         }
                                         className={`h-12 text-base ${formErrors[`sponsor_${idx}_address`]
-                                                ? "border-red-500 focus:ring-red-500"
-                                                : ""
+                                            ? "border-red-500 focus:ring-red-500"
+                                            : ""
                                             }`}
                                     />
                                     {formErrors[`sponsor_${idx}_address`] && (
