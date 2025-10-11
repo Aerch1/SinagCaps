@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Download, Upload, Loader2, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/api/api";
-import ConfirmDialog from "../common/ConfirmDialog"; // ✅ import your existing dialog
+import ConfirmDialog from "../ui/ConfirmDialog"; // ✅ import your existing dialog
 
 export default function AdminBackupSettings() {
     const [importFile, setImportFile] = useState(null);
