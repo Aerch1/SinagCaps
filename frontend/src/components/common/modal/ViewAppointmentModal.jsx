@@ -106,7 +106,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
     fetchDetails();
   }, [isOpen, appointmentId]);
 
-  /* 🔹 Handle status update (approve, cancel, complete, archive) */
+  /* 🔹 Handle status update */
   const handleStatusChange = async (newStatus) => {
     if (!appointmentId) return;
     const toastId = toast.loading("Updating appointment...");
@@ -126,8 +126,6 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
       const updated = { ...local, status: newStatus };
       setLocal(updated);
       toast.success("Appointment updated successfully!", { id: toastId });
-
-      // ✅ Sync back to DataTable with valid data
       setTimeout(() => onUpdate?.(updated), 200);
     } catch (err) {
       console.error("❌ update failed:", err);
@@ -258,6 +256,45 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
                   </div>
                 </section>
 
+                {/* ADDITIONAL DETAILS */}
+                {local?.details && (
+                  <section className="bg-white rounded-xl border p-5">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-4 flex items-center gap-2">
+                      <div className="w-1 h-4 bg-purple-500 rounded-full" />
+                      Additional Information
+                    </h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {Object.entries(local.details).map(([key, value]) => (
+                        <Detail
+                          key={key}
+                          icon={ClipboardList}
+                          label={formatLabel(key)}
+                          value={formatFieldValue(key, value)}
+                        />
+                      ))}
+                    </div>
+
+                    {local.sponsors?.length > 0 && (
+                      <div className="mt-6">
+                        <h5 className="text-xs font-semibold text-gray-500 uppercase mb-3">
+                          Sponsors
+                        </h5>
+                        <ul className="divide-y divide-gray-200 border rounded-lg bg-gray-50">
+                          {local.sponsors.map((s, idx) => (
+                            <li
+                              key={idx}
+                              className="p-3 text-sm text-gray-800 flex justify-between"
+                            >
+                              <span>{s.name}</span>
+                              <span className="text-gray-500">{s.role}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </section>
+                )}
+
                 {/* REQUIREMENTS */}
                 <section className="bg-white rounded-xl border p-5">
                   <h4 className="text-xs font-semibold text-gray-500 uppercase mb-4 flex items-center gap-2">
@@ -333,7 +370,6 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
 
           {/* FOOTER */}
           <footer className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-lg">
-            {/* LEFT SIDE */}
             <div>
               {status === "approved" && local?.date && local?.time && (() => {
                 const now = new Date();
@@ -353,7 +389,6 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
               })()}
             </div>
 
-            {/* RIGHT SIDE */}
             <div className="flex gap-2">
               {status === "pending" && (
                 <>
