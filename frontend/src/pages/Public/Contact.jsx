@@ -35,49 +35,51 @@ export default function Contact() {
     return null;
   };
 
+
   /* --------------------------------------------
      📤 Submit Handler
   ---------------------------------------------*/
-/* --------------------------------------------
-   📤 Submit Handler
----------------------------------------------*/
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  const formData = new FormData(e.target);
-  const data = Object.fromEntries(formData.entries());
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
 
-  const errorMsg = validateForm(data);
-  if (errorMsg) {
-    toast.error(errorMsg);
-    return;
-  }
-
-  const toastId = toast.loading("Sending your message...");
-  setIsSending(true);
-
-  try {
-    const res = await api.post("/public/contact", data);
-    const { success, message, error } = res.data;
-
-    // 🟢 SUCCESS CASE
-    if (success) {
-      toast.dismiss(toastId); // close the loading toast
-      toast.success(message || "✅ Your message has been sent!");
-      e.target.reset();
-    } 
-    // 🔴 ERROR CASE
-    else {
-      toast.dismiss(toastId);
-      toast.error(error || "Something went wrong.");
+    const errorMsg = validateForm(data);
+    if (errorMsg) {
+      toast.error(errorMsg);
+      return;
     }
-  } catch (err) {
-    console.error("❌ Contact form error:", err);
-    toast.dismiss(toastId);
-    toast.error("Failed to send message. Please try again later.");
-  } finally {
-    setIsSending(false);
-  }
-};
+
+    const toastId = toast.loading("Sending your message...");
+    setIsSending(true);
+
+    try {
+      const res = await api.post("/public/contact", data);
+      const { success, message, error } = res.data;
+
+      // 🟢 SUCCESS CASE
+      if (success) {
+        toast.dismiss(toastId); // close the loading toast
+        toast.success(
+          "✅ Message sent! We’ve also emailed you a confirmation. Please check your inbox."
+        );
+
+
+        e.target.reset();
+      }
+      // 🔴 ERROR CASE
+      else {
+        toast.dismiss(toastId);
+        toast.error(error || "Something went wrong.");
+      }
+    } catch (err) {
+      console.error("❌ Contact form error:", err);
+      toast.dismiss(toastId);
+      toast.error("Failed to send message. Please try again later.");
+    } finally {
+      setIsSending(false);
+    }
+  };
 
 
   /* --------------------------------------------
@@ -173,8 +175,8 @@ const handleSubmit = async (e) => {
                 type="submit"
                 disabled={isSending}
                 className={`inline-flex w-full items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-black/40 ${isSending
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-secondary/90 hover:bg-secondary"
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-secondary/90 hover:bg-secondary"
                   }`}
               >
                 {isSending && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -194,7 +196,7 @@ const handleSubmit = async (e) => {
                 <h3 className="text-base text-gray-900">Call Us</h3>
                 <p className="text-sm text-gray-600">Reach us during working hours for quick assistance.</p>
                 <a href="tel:+639358841922" className="block text-sm text-blue-600 hover:underline">
-                  (+63) 935 884 1922
+                  (+63) 966 854 8848
                 </a>
               </div>
             </section>

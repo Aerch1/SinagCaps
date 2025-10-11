@@ -28,6 +28,7 @@ import publicContactRoutes from "./routes/public.contact.routes.js";
 import adminUserRoutes from "./routes/admin.users.routes.js";
 import adminSecurityRoutes from "./routes/admin.security.routes.js";
 import reportRoutes from "./routes/admin.reports.routes.js";
+import backupRoutes from "./routes/admin.backup.routes.js";
 
 dotenv.config();
 
@@ -84,6 +85,8 @@ app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/security", adminSecurityRoutes);
 
 app.use("/api/admin/reports", reportRoutes);
+app.use("/api/admin/backup", backupRoutes);
+
 /* ===============================
    HEALTH CHECK
 =============================== */

@@ -8,6 +8,8 @@ import { User, Clock, Shield, Database } from "lucide-react";
 import ChurchHoursSettings from ".././../components/common/availability/ChurchHoursSettings";
 import AdminProfile from "../../components/section/AdminProfile";
 import AdminSecuritySettings from "../../components/section/AdminSecuritySettings";
+import AdminBackupSettings from "../../components/section/AdminBackupSettings";
+
 
 
 export default function SettingsPage() {
@@ -69,14 +71,8 @@ export default function SettingsPage() {
 
                     {active === "church_hours" && <ChurchHoursSettings />}
 
-                    {active === "backup" && (
-                        <div className="p-4 md:p-6 border rounded-lg">
-                            <h2 className="text-base font-semibold mb-3">Backup & Restore</h2>
-                            <p className="text-sm text-gray-600">
-                                Placeholder – manage database backups or system exports.
-                            </p>
-                        </div>
-                    )}
+                    {active === "backup" && <AdminBackupSettings />}
+
 
                     {active === "security" && <AdminSecuritySettings />}
 
