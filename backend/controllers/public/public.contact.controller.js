@@ -5,12 +5,12 @@ dotenv.config();
 
 /* ==================================================
    📩 POST /api/public/contact
-   → Sends message to parish email & confirmation to sender
+   → Sends message to parish inbox & confirmation to sender
 ================================================== */
 export async function sendContactMessage(req, res) {
   const { firstName, lastName, email, phone, subject, message } = req.body;
 
-  // ✅ Basic input validation
+  // ✅ Basic validation
   if (!firstName || !lastName || !email || !subject || !message) {
     return res.status(400).json({
       success: false,
@@ -20,7 +20,7 @@ export async function sendContactMessage(req, res) {
 
   try {
     /* ==================================================
-       ⚙️ Configure Brevo API
+       ⚙️ Brevo setup
     ================================================== */
     const apiInstance = new Brevo.TransactionalEmailsApi();
     apiInstance.setApiKey(
@@ -28,17 +28,18 @@ export async function sendContactMessage(req, res) {
       process.env.BREVO_API_KEY
     );
 
-    const parishEmail = process.env.PARISH_EMAIL || process.env.EMAIL_USER;
+    const senderEmail = process.env.PARISH_EMAIL; // ✉️ official sender (noreply)
+    const parishInbox = process.env.PARISH_INBOX_EMAIL || senderEmail; // 📥 where message is sent
     const parishName =
       process.env.EMAIL_FROM_NAME || "Our Lady of Peace and Good Voyage Parish";
 
     /* ==================================================
-       1️⃣ Send message to parish inbox
+       1️⃣ Send message to Parish Inbox
     ================================================== */
     const parishMail = {
       sender: { name: `${firstName} ${lastName}`, email: email },
       replyTo: { email },
-      to: [{ email: parishEmail }],
+      to: [{ email: parishInbox }],
       subject: `Parish Inquiry: ${subject}`,
       htmlContent: `
         <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
@@ -66,10 +67,10 @@ export async function sendContactMessage(req, res) {
     await apiInstance.sendTransacEmail(parishMail);
 
     /* ==================================================
-       2️⃣ Send confirmation email to sender
+       2️⃣ Send confirmation to the sender
     ================================================== */
     const confirmationMail = {
-      sender: { name: parishName, email: parishEmail },
+      sender: { name: parishName, email: senderEmail },
       to: [{ email }],
       subject: "Thank you for contacting OLOPGV Parish",
       htmlContent: `
@@ -84,7 +85,7 @@ export async function sendContactMessage(req, res) {
             God bless you,<br>
             <strong>${parishName}</strong><br>
             Lodlod, Lipa City, Batangas<br>
-            <a href="mailto:${parishEmail}" style="color:#1d4ed8;">${parishEmail}</a>
+            <a href="mailto:${senderEmail}" style="color:#1d4ed8;">${senderEmail}</a>
           </p>
         </div>
       `,
@@ -94,7 +95,8 @@ export async function sendContactMessage(req, res) {
 
     return res.json({
       success: true,
-      message: "Message sent successfully! A confirmation email has been sent to you.",
+      message:
+        "Message sent successfully! A confirmation email has been sent to your inbox.",
     });
   } catch (error) {
     console.error("❌ Contact form error:", error);
