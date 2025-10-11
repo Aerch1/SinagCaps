@@ -195,7 +195,7 @@ export default function Contact() {
               <div className="space-y-2">
                 <h3 className="text-base text-gray-900">Call Us</h3>
                 <p className="text-sm text-gray-600">Reach us during working hours for quick assistance.</p>
-                <a href="tel:+639358841922" className="block text-sm text-blue-600 hover:underline">
+                <a href="tel:+63966 854 8848" className="block text-sm text-blue-600 hover:underline">
                   (+63) 966 854 8848
                 </a>
               </div>

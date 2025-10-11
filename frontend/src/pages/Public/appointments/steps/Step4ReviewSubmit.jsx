@@ -284,17 +284,18 @@ export default function Step4ReviewSubmit({
         <p className="text-sm text-gray-700">
           Tumawag sa{" "}
           <a
-            href="tel:5551234567"
+            href="tel:+63966 854 8848"
             className="font-medium text-blue-600 hover:text-blue-700"
           >
-            (555) 123-4567
+            (+63) 966 854 8848
           </a>{" "}
           o mag-email sa{" "}
           <a
             href="mailto:appointments@parish.org"
             className="font-medium text-blue-600 hover:text-blue-700"
           >
-            appointments@parish.org
+
+            lodlod.olpgvp@gmail.com
           </a>
         </p>
       </div>
