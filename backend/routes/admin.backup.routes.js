@@ -4,7 +4,7 @@ import multer from "multer";
 import {
   exportBackup,
   importBackup,
-} from "../controllers/admin.backup.controller.js";
+} from "../controllers/admin/admin.backup.controller.js";
 import { verifyToken } from "../middleware/verifyToken.js";
 
 const router = express.Router();
