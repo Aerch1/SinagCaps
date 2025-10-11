@@ -37,31 +37,26 @@ export async function sendContactMessage(req, res) {
        1️⃣ Send message to Parish Inbox
     ================================================== */
     const parishMail = {
-      sender: { name: `${firstName} ${lastName}`, email: email },
-      replyTo: { email },
+      sender: { name: parishName, email: senderEmail }, // ✅ use verified domain
+      replyTo: { email }, // user email here so parish can reply
       to: [{ email: parishInbox }],
       subject: `Parish Inquiry: ${subject}`,
       htmlContent: `
-        <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
-          <h2 style="text-align: center; margin-bottom: 20px;">📩 New Contact Message</h2>
-
-          <p><strong>Name:</strong> ${firstName} ${lastName}</p>
-          <p><strong>Email:</strong> <a href="mailto:${email}" style="color:#1d4ed8;">${email}</a></p>
-          <p><strong>Phone:</strong> ${phone || "N/A"}</p>
-          <p><strong>Subject:</strong> ${subject}</p>
-
-          <hr style="border:none; border-top:1px solid #ddd; margin:16px 0;">
-
-          <p style="margin-bottom: 8px;"><strong>Message:</strong></p>
-          <p style="white-space: pre-line; line-height: 1.6;">${message}</p>
-
-          <hr style="border:none; border-top:1px solid #ddd; margin:20px 0;">
-
-          <p style="font-size: 12px; color: #666; text-align: center;">
-            Sent via the Contact Form on the OLOPGV Parish Website.
-          </p>
-        </div>
-      `,
+    <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+      <h2 style="text-align: center; margin-bottom: 20px;">📩 New Contact Message</h2>
+      <p><strong>Name:</strong> ${firstName} ${lastName}</p>
+      <p><strong>Email:</strong> <a href="mailto:${email}" style="color:#1d4ed8;">${email}</a></p>
+      <p><strong>Phone:</strong> ${phone || "N/A"}</p>
+      <p><strong>Subject:</strong> ${subject}</p>
+      <hr style="border:none; border-top:1px solid #ddd; margin:16px 0;">
+      <p style="margin-bottom: 8px;"><strong>Message:</strong></p>
+      <p style="white-space: pre-line; line-height: 1.6;">${message}</p>
+      <hr style="border:none; border-top:1px solid #ddd; margin:20px 0;">
+      <p style="font-size: 12px; color: #666; text-align: center;">
+        Sent via the Contact Form on the OLOPGV Parish Website.
+      </p>
+    </div>
+  `,
     };
 
     await apiInstance.sendTransacEmail(parishMail);
@@ -92,6 +87,12 @@ export async function sendContactMessage(req, res) {
     };
 
     await apiInstance.sendTransacEmail(confirmationMail);
+    console.log({
+      brevo: process.env.BREVO_API_KEY ? "✅ loaded" : "❌ missing",
+      sender: process.env.PARISH_EMAIL,
+      inbox: process.env.PARISH_INBOX_EMAIL,
+      name: process.env.EMAIL_FROM_NAME,
+    });
 
     return res.json({
       success: true,
