@@ -124,7 +124,7 @@ export const changeAdminPassword = handleAsyncError(async (req, res) => {
       console.warn("⚠️ Password change notice failed:", e.message);
     }
 
-    generateTokenAndSetCookie(res, admin.id, admin.email);
+    generateTokenAndSetCookie(res, admin.id);
 
     return sendResponse(res, 200, true, "Password updated successfully");
   } finally {
