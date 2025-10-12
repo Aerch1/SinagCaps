@@ -56,7 +56,8 @@ export default function AppointmentsPanel() {
             try {
                 const [apptRes, docRes] = await Promise.all([
                     api.get("/appointments/my"),
-                    api.get("/document-requests/my"),
+                    api.get("/public/documents/my")
+                    ,
                 ]);
 
                 if (apptRes.data.success) {
@@ -195,8 +196,8 @@ export default function AppointmentsPanel() {
                                             {/* Status */}
                                             <div
                                                 className={`min-w-0 text-sm font-semibold ${item.status?.toLowerCase() === "archived"
-                                                        ? "invisible"
-                                                        : colorClass
+                                                    ? "invisible"
+                                                    : colorClass
                                                     }`}
                                             >
                                                 {sLabel}
