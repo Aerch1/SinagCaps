@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Clock, ChevronRight } from "lucide-react";
+import { Clock, ChevronRight, FileText } from "lucide-react";
 import api from "@/api/api";
 import { to12h } from "@/utils/availabilityUtils";
 
@@ -19,8 +19,8 @@ function splitDate(iso) {
 }
 
 /* ---------- Status Label ---------- */
-function statusLabel(appt) {
-    const raw = String(appt?.status ?? "").toLowerCase();
+function statusLabel(item) {
+    const raw = String(item?.status ?? "").toLowerCase();
     switch (raw) {
         case "pending":
             return "Pending";
@@ -35,6 +35,8 @@ function statusLabel(appt) {
             return "Cancelled";
         case "rejected":
             return "Rejected";
+        case "processing":
+            return "Processing";
         case "archived":
             return ""; // ✅ keep in list but hide label
         default:
@@ -46,28 +48,46 @@ function statusLabel(appt) {
 export default function AppointmentsPanel() {
     const navigate = useNavigate();
     const [appointments, setAppointments] = useState([]);
+    const [documentRequests, setDocumentRequests] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        async function fetchAppointments() {
+        async function fetchTransactions() {
             try {
-                const res = await api.get("/appointments/my");
-                if (res.data.success) {
-                    setAppointments(res.data.appointments || []);
+                const [apptRes, docRes] = await Promise.all([
+                    api.get("/appointments/my"),
+                    api.get("/document-requests/my"),
+                ]);
+
+                if (apptRes.data.success) {
+                    setAppointments(apptRes.data.appointments || []);
+                }
+
+                if (docRes.data.success) {
+                    setDocumentRequests(docRes.data.requests || []);
                 }
             } catch (err) {
-                console.error("❌ Failed to fetch appointments:", err);
+                console.error("❌ Failed to fetch transactions:", err);
             } finally {
                 setLoading(false);
             }
         }
-        fetchAppointments();
+        fetchTransactions();
     }, []);
+
+    // 📝 Merge both appointments & document requests
+    const allTransactions = [
+        ...appointments.map((a) => ({ ...a, _type: "appointment" })),
+        ...documentRequests.map((d) => ({ ...d, _type: "document" })),
+    ].sort(
+        (a, b) =>
+            new Date(b.date || b.created_at) - new Date(a.date || a.created_at)
+    );
 
     if (loading) {
         return (
             <div className="py-10 text-center text-gray-500">
-                <p>Loading your appointments...</p>
+                <p>Loading your transactions...</p>
             </div>
         );
     }
@@ -75,9 +95,9 @@ export default function AppointmentsPanel() {
     return (
         <section className="bg-white">
             <div className="max-w-4xl mx-auto py-2">
-                {appointments.length === 0 ? (
+                {allTransactions.length === 0 ? (
                     <div className="rounded-xl border border-gray-200 px-6 py-10 text-center text-sm text-gray-600">
-                        <p>No appointments yet.</p>
+                        <p>No transactions yet.</p>
                         <Link to="/services/appointments/terms" className="inline-block mt-4">
                             <button className="rounded-md bg-gray-900 px-4 py-2 text-white hover:bg-black">
                                 Make an Appointment
@@ -86,12 +106,13 @@ export default function AppointmentsPanel() {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {appointments.map((a) => {
-                            const { dow, day } = splitDate(a.date);
-                            const time = to12h(a.time);
-                            const sLabel = statusLabel(a);
+                        {allTransactions.map((item) => {
+                            const isAppt = item._type === "appointment";
+                            const dateValue = isAppt ? item.date : item.created_at;
+                            const { dow, day } = splitDate(dateValue);
+                            const time = isAppt ? to12h(item.time) : "--";
+                            const sLabel = statusLabel(item);
 
-                            // Don't skip archived; just hide its status
                             const colorClass = (() => {
                                 switch (sLabel) {
                                     case "Pending":
@@ -103,6 +124,7 @@ export default function AppointmentsPanel() {
                                     case "Cancelled":
                                     case "Rejected":
                                     case "Rescheduled":
+                                    case "Processing":
                                         return "text-red-600";
                                     default:
                                         return "text-gray-600";
@@ -111,14 +133,20 @@ export default function AppointmentsPanel() {
 
                             return (
                                 <div
-                                    key={a.id}
+                                    key={`${item._type}-${item.id}`}
                                     className="rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition"
                                 >
                                     <button
                                         type="button"
                                         className="w-full text-left"
-                                        onClick={() => navigate(`../appointments/${a.id}`)}
-                                        aria-label={`View appointment ${a.id}`}
+                                        onClick={() =>
+                                            navigate(
+                                                isAppt
+                                                    ? `../appointments/${item.id}`
+                                                    : `../document-requests/${item.id}`
+                                            )
+                                        }
+                                        aria-label={`View ${isAppt ? "appointment" : "document request"} ${item.id}`}
                                     >
                                         {/* Desktop / Tablet */}
                                         <div className="hidden sm:grid grid-cols-[80px_1fr_1fr_1fr_auto] items-center gap-4 px-4 sm:px-6 py-4">
@@ -132,30 +160,43 @@ export default function AppointmentsPanel() {
                                                 </div>
                                             </div>
 
-                                            {/* Time + Service */}
+                                            {/* Time + Service/Document */}
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-1 text-gray-700">
-                                                    <Clock className="h-3 w-3 text-gray-500 shrink-0" />
-                                                    <span className="text-sm">{time}</span>
+                                                    {isAppt ? (
+                                                        <>
+                                                            <Clock className="h-3 w-3 text-gray-500 shrink-0" />
+                                                            <span className="text-sm">{time}</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <FileText className="h-3 w-3 text-gray-500 shrink-0" />
+                                                            <span className="text-sm">Document</span>
+                                                        </>
+                                                    )}
                                                 </div>
                                                 <div className="mt-1 text-sm text-gray-900 truncate">
-                                                    {a.serviceName || "Transaction"}
+                                                    {isAppt
+                                                        ? item.serviceName || "Transaction"
+                                                        : item.document_type}
                                                 </div>
                                             </div>
 
                                             {/* Transaction No. */}
                                             <div className="min-w-0">
                                                 <div className="text-[11px] uppercase tracking-wide text-gray-500">
-                                                    Transaction No.
+                                                    {isAppt ? "Transaction No." : "Request Code"}
                                                 </div>
-                                                <div className="text-sm text-gray-900">{a.id}</div>
+                                                <div className="text-sm text-gray-900">
+                                                    {isAppt ? item.id : item.request_code}
+                                                </div>
                                             </div>
 
-                                            {/* Status (hidden if archived) */}
+                                            {/* Status */}
                                             <div
-                                                className={`min-w-0 text-sm font-semibold ${a.status?.toLowerCase() === "archived"
-                                                    ? "invisible" // ✅ hide but preserve layout
-                                                    : colorClass
+                                                className={`min-w-0 text-sm font-semibold ${item.status?.toLowerCase() === "archived"
+                                                        ? "invisible"
+                                                        : colorClass
                                                     }`}
                                             >
                                                 {sLabel}
@@ -184,11 +225,22 @@ export default function AppointmentsPanel() {
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center gap-1 text-gray-700">
-                                                            <Clock className="h-3 w-3 text-gray-500" />
-                                                            <span className="text-xs">{time}</span>
+                                                            {isAppt ? (
+                                                                <>
+                                                                    <Clock className="h-3 w-3 text-gray-500" />
+                                                                    <span className="text-xs">{time}</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <FileText className="h-3 w-3 text-gray-500" />
+                                                                    <span className="text-xs">Document</span>
+                                                                </>
+                                                            )}
                                                         </div>
                                                         <div className="text-base font-medium text-gray-900">
-                                                            {a.serviceName || "Transaction"}
+                                                            {isAppt
+                                                                ? item.serviceName || "Transaction"
+                                                                : item.document_type}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -197,10 +249,12 @@ export default function AppointmentsPanel() {
 
                                             <div className="mt-2 text-xs text-gray-600">
                                                 <span className="uppercase tracking-wide text-gray-500">
-                                                    Txn:
+                                                    {isAppt ? "Txn:" : "Code:"}
                                                 </span>{" "}
-                                                <span className="font-medium text-gray-800">{a.id}</span>
-                                                {a.status?.toLowerCase() !== "archived" && (
+                                                <span className="font-medium text-gray-800">
+                                                    {isAppt ? item.id : item.request_code}
+                                                </span>
+                                                {item.status?.toLowerCase() !== "archived" && (
                                                     <p className={`font-semibold mt-1 ${colorClass}`}>
                                                         {sLabel}
                                                     </p>

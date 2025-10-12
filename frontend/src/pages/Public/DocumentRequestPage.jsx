@@ -107,16 +107,24 @@ export default function DocumentRequestPage() {
                 <div className="bg-white rounded-lg shadow-lg p-8">
                     {/* ✅ Success Message */}
                     {showSuccess && (
-                        <div className="mb-6 bg-green-50 border border-green-400 text-green-700 rounded-md p-4 text-center text-sm font-medium">
-                            Thank you! Your document request has been submitted successfully.
-                            We will contact you within 3–5 business days.
+                        <div className="mb-6 bg-green-50 border border-green-400 text-green-700 rounded-md p-4 text-center text-sm font-medium space-y-2">
+                            <p>
+                                ✅ Thank you! Your document request has been submitted successfully.
+                                We will contact you within 3–5 business days.
+                            </p>
+                            <p className="text-[13px] text-green-800/90">
+                                📌 <strong>Important:</strong> To <strong>view or track</strong> your request,
+                                please <strong>log in using the email you entered</strong> in this form.
+                                You will also receive updates through your email notifications.
+                            </p>
                         </div>
                     )}
+
 
                     {/* ⚠️ Info Box */}
                     <div className="bg-amber-50 border-l-4 border-amber-700 text-amber-800 p-4 mb-8 text-sm">
                         Please allow 3–5 business days for processing. For urgent requests,
-                        contact the parish office directly at{" "} 
+                        contact the parish office directly at{" "}
                         <span className="font-semibold">(+63) 966 854 8848</span>.
 
                     </div>
