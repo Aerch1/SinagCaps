@@ -9,19 +9,13 @@ import { verifyToken } from "../middleware/verifyToken.js";
 
 const router = express.Router();
 
-/* =====================================================
-   📤 Create Document Request (Public - No Auth Required)
-===================================================== */
+// Public: create a document request
 router.post("/", createPublicDocumentRequest);
 
-/* =====================================================
-   📥 Get My Document Requests (Preview - Auth Required)
-===================================================== */
-router.get("/my", verifyToken, getMyDocumentRequests);
+// Auth-protected: everything below requires a valid token
+router.use(verifyToken);
 
-/* =====================================================
-   📄 Get Single Document Request Details (Auth Required)
-===================================================== */
-router.get("/:id", verifyToken, getMyDocumentRequestDetails);
+router.get("/my", getMyDocumentRequests);
+router.get("/:id", getMyDocumentRequestDetails);
 
 export default router;

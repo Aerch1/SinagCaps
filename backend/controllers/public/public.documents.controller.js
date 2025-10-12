@@ -3,7 +3,7 @@ import { sendDocumentReceivedEmail } from "../../utils/documentEmails.js";
 import { notifyAdminsOfNewDocumentRequest } from "../../utils/notifyAdmins.js";
 
 /* =====================================================
-   📤 Create Document Request (Public / Logged-in or Guest)
+   📤 Create Document Request (Public or Logged-in)
 ===================================================== */
 export async function createPublicDocumentRequest(req, res) {
   const {
@@ -17,16 +17,18 @@ export async function createPublicDocumentRequest(req, res) {
     additional_info,
   } = req.body;
 
-  // 🧾 Validation
-  if (!full_name || !email || !document_type || !purpose) {
+  const cleanEmail = email?.trim().toLowerCase();
+  let userId = req.userId || null;
+
+  // 🧾 Basic Validation
+  if (!full_name || !cleanEmail || !document_type || !purpose) {
     return res.status(400).json({
       success: false,
-      error:
-        "Full name, email, document type, and purpose are required fields.",
+      error: "Full name, email, document type, and purpose are required.",
     });
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     return res.status(400).json({
       success: false,
       error: "Please enter a valid email address.",
@@ -36,16 +38,14 @@ export async function createPublicDocumentRequest(req, res) {
   if (copies && (isNaN(copies) || copies < 1 || copies > 10)) {
     return res.status(400).json({
       success: false,
-      error: "Copies must be a number between 1 and 10.",
+      error: "Copies must be between 1 and 10.",
     });
   }
 
   const requestCode = `REQ-${Date.now()}`;
-  let userId = req.userId || null;
-  const cleanEmail = email.trim().toLowerCase();
 
   try {
-    /* 🧠 Auto-link guest request to account (if any) */
+    // 👤 Auto-link guest requests to existing account if email already registered
     if (!userId) {
       const [[existingUser]] = await pool.query(
         `SELECT id FROM users WHERE email = ?`,
@@ -54,26 +54,26 @@ export async function createPublicDocumentRequest(req, res) {
       if (existingUser) userId = existingUser.id;
     }
 
-    /* 🚨 Prevent duplicate active requests for same doc type */
-    const [existingReq] = await pool.query(
+    // 🚨 Check for duplicate active request
+    const [existing] = await pool.query(
       `
       SELECT id FROM document_requests
       WHERE document_type = ?
       AND (user_id = ? OR email = ?)
-      AND status IN ('pending','processing','approved')
+      AND status IN ('pending', 'processing', 'approved')
       LIMIT 1
       `,
       [document_type, userId, cleanEmail]
     );
 
-    if (existingReq.length > 0) {
+    if (existing.length > 0) {
       return res.status(400).json({
         success: false,
-        error: `You already have an active request for this document type.`,
+        error: `You already have an active request for ${document_type}.`,
       });
     }
 
-    /* 🗃️ Insert request */
+    // 🗃️ Insert document request
     const [result] = await pool.query(
       `
       INSERT INTO document_requests
@@ -96,29 +96,25 @@ export async function createPublicDocumentRequest(req, res) {
 
     const insertedId = result.insertId;
 
-    /* 📧 Confirmation Email */
-    try {
-      await sendDocumentReceivedEmail(cleanEmail, {
-        name: full_name,
-        documentType: document_type,
-        purpose,
-        copies,
-        requestCode,
-      });
-      console.log(`✅ Document confirmation email sent to ${cleanEmail}`);
-    } catch (mailErr) {
-      console.warn(`⚠️ Failed to send email to ${cleanEmail}:`, mailErr.message);
-    }
+    // 📧 Send confirmation email (non-blocking)
+    sendDocumentReceivedEmail(cleanEmail, {
+      name: full_name,
+      documentType: document_type,
+      purpose,
+      copies,
+      requestCode,
+    }).catch((e) =>
+      console.warn(`⚠️ Email failed to ${cleanEmail}:`, e.message)
+    );
 
-    /* 🔔 Notify Admins */
-    try {
-      await notifyAdminsOfNewDocumentRequest(full_name, document_type, insertedId);
-    } catch (notifyErr) {
-      console.warn(`⚠️ Failed to notify admins:`, notifyErr.message);
-    }
+    // 🔔 Notify admins (non-blocking)
+    notifyAdminsOfNewDocumentRequest(
+      full_name,
+      document_type,
+      insertedId
+    ).catch((e) => console.warn(`⚠️ Admin notification failed:`, e.message));
 
-    /* ✅ Response */
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Your document request has been submitted successfully.",
       id: insertedId,
@@ -126,7 +122,7 @@ export async function createPublicDocumentRequest(req, res) {
     });
   } catch (err) {
     console.error("❌ createPublicDocumentRequest error:", err);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Failed to submit document request. Please try again later.",
     });
@@ -134,22 +130,28 @@ export async function createPublicDocumentRequest(req, res) {
 }
 
 /* =====================================================
-   📥 Get My Document Requests (Preview)
-   🅾 Option 3: user_id OR email
+   📥 Get My Document Requests
+   — Auto-link guest requests to account on login
 ===================================================== */
 export async function getMyDocumentRequests(req, res) {
-  const userId = req.userId || null;
-  const userEmail = req.userEmail || null;
-  const emailForQuery = userEmail ? userEmail.toLowerCase() : null;
+  const userId = req.userId;
+  const userEmail = req.userEmail?.toLowerCase();
 
-  if (!userId && !userEmail) {
-    return res.status(401).json({
-      success: false,
-      error: "Unauthorized",
-    });
+  if (!userId) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
   }
 
   try {
+    // 🧠 Link past guest requests to this account (if any)
+    await pool.query(
+      `
+      UPDATE document_requests
+      SET user_id = ?
+      WHERE email = ? AND user_id IS NULL
+      `,
+      [userId, userEmail]
+    );
+
     const [rows] = await pool.query(
       `
       SELECT 
@@ -159,16 +161,16 @@ export async function getMyDocumentRequests(req, res) {
         status,
         created_at
       FROM document_requests
-      WHERE (user_id = ? OR email = ?)
+      WHERE user_id = ?
       ORDER BY created_at DESC
       `,
-      [userId, emailForQuery]
+      [userId]
     );
 
-    res.json({ success: true, requests: rows });
+    return res.json({ success: true, requests: rows });
   } catch (err) {
     console.error("❌ getMyDocumentRequests error:", err);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Failed to fetch document requests.",
     });
@@ -176,20 +178,14 @@ export async function getMyDocumentRequests(req, res) {
 }
 
 /* =====================================================
-   📄 Get Single Document Request (Full Details)
-   🅾 Option 3: user_id OR email
+   📄 Get Single Document Request
 ===================================================== */
 export async function getMyDocumentRequestDetails(req, res) {
-  const userId = req.userId || null;
-  const userEmail = req.userEmail || null;
-  const emailForQuery = userEmail ? userEmail.toLowerCase() : null;
+  const userId = req.userId;
   const { id } = req.params;
 
-  if (!userId && !userEmail) {
-    return res.status(401).json({
-      success: false,
-      error: "Unauthorized",
-    });
+  if (!userId) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
   }
 
   try {
@@ -205,22 +201,21 @@ export async function getMyDocumentRequestDetails(req, res) {
         status,
         created_at
       FROM document_requests
-      WHERE id = ? AND (user_id = ? OR email = ?)
+      WHERE id = ? AND user_id = ?
       `,
-      [id, userId, emailForQuery]
+      [id, userId]
     );
 
     if (!row) {
-      return res.status(404).json({
-        success: false,
-        error: "Document request not found.",
-      });
+      return res
+        .status(404)
+        .json({ success: false, error: "Document request not found." });
     }
 
-    res.json({ success: true, request: row });
+    return res.json({ success: true, request: row });
   } catch (err) {
     console.error("❌ getMyDocumentRequestDetails error:", err);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Failed to fetch document request details.",
     });
