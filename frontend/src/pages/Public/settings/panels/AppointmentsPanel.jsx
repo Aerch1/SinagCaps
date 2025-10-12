@@ -58,7 +58,6 @@ const getStatusColor = (label) => {
     }
 };
 
-// 🆕 Capitalize first letter only (for document type)
 const capitalizeFirst = (str) =>
     str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : "";
 
@@ -72,30 +71,28 @@ export default function AppointmentsPanel() {
     const [loadingAppointments, setLoadingAppointments] = useState(true);
     const [loadingDocuments, setLoadingDocuments] = useState(true);
 
-    /* ---------- Generic Fetch Function ---------- */
-    const fetchData = async (endpoint, setData, setLoading, sortKey) => {
+    const fetchData = async (endpoint, setData, setLoading, key) => {
         try {
             const res = await api.get(endpoint);
             if (res.data.success) {
-                const sorted = (res.data.appointments || res.data.requests || []).sort(
-                    (a, b) => new Date(b[sortKey]) - new Date(a[sortKey])
-                );
-                setData(sorted);
+                const list =
+                    res.data.appointments || res.data.requests || [];
+                list.sort((a, b) => new Date(b[key]) - new Date(a[key]));
+                setData(list);
             }
         } catch (err) {
-            console.error(`❌ Failed to fetch from ${endpoint}:`, err);
+            console.error(`❌ Failed to fetch ${endpoint}:`, err);
         } finally {
             setLoading(false);
         }
     };
 
-    /* ---------- Effects ---------- */
     useEffect(() => {
         fetchData("/appointments/my", setAppointments, setLoadingAppointments, "date");
+        // 🆕 this will now return ALL document requests tied to the user
         fetchData("/public/documents/my", setDocumentRequests, setLoadingDocuments, "created_at");
     }, []);
 
-    /* ---------- Card Renderer ---------- */
     const renderTransactionCard = (item, isAppt) => {
         const dateValue = isAppt ? item.date : item.created_at;
         if (!dateValue) return null;
@@ -118,8 +115,12 @@ export default function AppointmentsPanel() {
                 key={`${isAppt ? "appt" : "doc"}-${item.id}`}
                 className="rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition"
             >
-                <button type="button" className="w-full text-left" onClick={() => navigate(navigateTo)}>
-                    {/* Desktop */}
+                <button
+                    type="button"
+                    className="w-full text-left"
+                    onClick={() => navigate(navigateTo)}
+                >
+                    {/* Desktop View */}
                     <div className="hidden sm:grid grid-cols-[80px_1fr_1fr_1fr_auto] items-center gap-4 px-4 sm:px-6 py-4">
                         <div className="text-center border-r border-gray-200">
                             <div className="text-xs uppercase tracking-wide text-gray-500">{dow}</div>
@@ -150,7 +151,10 @@ export default function AppointmentsPanel() {
                             <div className="text-sm text-gray-900">{code}</div>
                         </div>
 
-                        <div className={`min-w-0 text-sm font-semibold ${isArchived ? "invisible" : colorClass}`}>
+                        <div
+                            className={`min-w-0 text-sm font-semibold ${isArchived ? "invisible" : colorClass
+                                }`}
+                        >
                             {sLabel}
                         </div>
 
@@ -160,7 +164,7 @@ export default function AppointmentsPanel() {
                         </div>
                     </div>
 
-                    {/* Mobile */}
+                    {/* Mobile View */}
                     <div className="sm:hidden px-4 py-6">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-5">
@@ -201,9 +205,6 @@ export default function AppointmentsPanel() {
         );
     };
 
-    /* ======================================================
-       🖼 UI Rendering
-    ====================================================== */
     const renderSection = (title, loading, data, emptyMsg, linkTo, buttonText, isAppt) => (
         <div>
             <h2 className="text-lg font-semibold mb-3">{title}</h2>

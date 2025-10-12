@@ -28,14 +28,16 @@ export async function createPublicDocumentRequest(req, res) {
     });
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(cleanEmail)) {
     return res.status(400).json({
       success: false,
       error: "Please enter a valid email address.",
     });
   }
 
-  if (copies && (isNaN(copies) || copies < 1 || copies > 10)) {
+  const numCopies = copies ? Number(copies) : 1;
+  if (isNaN(numCopies) || numCopies < 1 || numCopies > 10) {
     return res.status(400).json({
       success: false,
       error: "Copies must be between 1 and 10.",
@@ -45,8 +47,9 @@ export async function createPublicDocumentRequest(req, res) {
   const requestCode = `REQ-${Date.now()}`;
 
   try {
-    // 👤 Auto-link guest requests to existing account if email already registered
+    // ✅ Always link logged-in user to the request (regardless of typed email)
     if (!userId) {
+      // Guest: try to find if email belongs to an existing account
       const [[existingUser]] = await pool.query(
         `SELECT id FROM users WHERE email = ?`,
         [cleanEmail]
@@ -54,7 +57,7 @@ export async function createPublicDocumentRequest(req, res) {
       if (existingUser) userId = existingUser.id;
     }
 
-    // 🚨 Check for duplicate active request
+    // 🚨 Prevent duplicate active requests for same document type
     const [existing] = await pool.query(
       `
       SELECT id FROM document_requests
@@ -73,7 +76,7 @@ export async function createPublicDocumentRequest(req, res) {
       });
     }
 
-    // 🗃️ Insert document request
+    // 🗃️ Insert new document request
     const [result] = await pool.query(
       `
       INSERT INTO document_requests
@@ -88,8 +91,8 @@ export async function createPublicDocumentRequest(req, res) {
         phone?.trim() || null,
         address?.trim() || null,
         document_type,
-        purpose?.trim(),
-        copies ? Number(copies) : 1,
+        purpose.trim(),
+        numCopies,
         additional_info?.trim() || null,
       ]
     );
@@ -101,7 +104,7 @@ export async function createPublicDocumentRequest(req, res) {
       name: full_name,
       documentType: document_type,
       purpose,
-      copies,
+      copies: numCopies,
       requestCode,
     }).catch((e) =>
       console.warn(`⚠️ Email failed to ${cleanEmail}:`, e.message)
@@ -142,7 +145,7 @@ export async function getMyDocumentRequests(req, res) {
   }
 
   try {
-    // 🧠 Link past guest requests to this account (if any)
+    // 🧠 Link past guest requests (if the user had used their email as guest before)
     await pool.query(
       `
       UPDATE document_requests
@@ -152,6 +155,7 @@ export async function getMyDocumentRequests(req, res) {
       [userId, userEmail]
     );
 
+    // 🧾 Fetch all requests made under the account
     const [rows] = await pool.query(
       `
       SELECT 
