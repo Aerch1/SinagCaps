@@ -47,11 +47,11 @@ export async function createPublicDocumentRequest(req, res) {
   const requestCode = `REQ-${Date.now()}`;
 
   try {
-    // ✅ Always link logged-in user to the request (regardless of typed email)
+    // ✅ Always link logged-in user to the request, regardless of typed email
     if (!userId) {
-      // Guest: try to find if email belongs to an existing account
+      // Guest: try to find if the email belongs to an existing account
       const [[existingUser]] = await pool.query(
-        `SELECT id FROM users WHERE email = ?`,
+        "SELECT id FROM users WHERE email = ?",
         [cleanEmail]
       );
       if (existingUser) userId = existingUser.id;
@@ -107,7 +107,7 @@ export async function createPublicDocumentRequest(req, res) {
       copies: numCopies,
       requestCode,
     }).catch((e) =>
-      console.warn(`⚠️ Email failed to ${cleanEmail}:`, e.message)
+      console.warn(`⚠️ Email failed to ${cleanEmail}: ${e.message}`)
     );
 
     // 🔔 Notify admins (non-blocking)
@@ -115,7 +115,7 @@ export async function createPublicDocumentRequest(req, res) {
       full_name,
       document_type,
       insertedId
-    ).catch((e) => console.warn(`⚠️ Admin notification failed:`, e.message));
+    ).catch((e) => console.warn(`⚠️ Admin notification failed: ${e.message}`));
 
     return res.status(201).json({
       success: true,
@@ -124,7 +124,7 @@ export async function createPublicDocumentRequest(req, res) {
       request_code: requestCode,
     });
   } catch (err) {
-    console.error("❌ createPublicDocumentRequest error:", err);
+    console.error("❌ [createPublicDocumentRequest] Error:", err);
     return res.status(500).json({
       success: false,
       error: "Failed to submit document request. Please try again later.",
@@ -173,7 +173,7 @@ export async function getMyDocumentRequests(req, res) {
 
     return res.json({ success: true, requests: rows });
   } catch (err) {
-    console.error("❌ getMyDocumentRequests error:", err);
+    console.error("❌ [getMyDocumentRequests] Error:", err);
     return res.status(500).json({
       success: false,
       error: "Failed to fetch document requests.",
@@ -211,14 +211,15 @@ export async function getMyDocumentRequestDetails(req, res) {
     );
 
     if (!row) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Document request not found." });
+      return res.status(404).json({
+        success: false,
+        error: "Document request not found.",
+      });
     }
 
     return res.json({ success: true, request: row });
   } catch (err) {
-    console.error("❌ getMyDocumentRequestDetails error:", err);
+    console.error("❌ [getMyDocumentRequestDetails] Error:", err);
     return res.status(500).json({
       success: false,
       error: "Failed to fetch document request details.",
