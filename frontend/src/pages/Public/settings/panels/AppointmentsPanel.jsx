@@ -58,6 +58,10 @@ const getStatusColor = (label) => {
     }
 };
 
+// 🆕 Capitalize first letter only (for document type)
+const capitalizeFirst = (str) =>
+    str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : "";
+
 /* ======================================================
    🧾 Component
 ====================================================== */
@@ -101,7 +105,9 @@ export default function AppointmentsPanel() {
         const sLabel = statusLabel(item.status);
         const colorClass = getStatusColor(sLabel);
         const isArchived = item.status?.toLowerCase() === "archived";
-        const title = isAppt ? item.serviceName || "Transaction" : item.document_type;
+        const title = isAppt
+            ? item.serviceName || "Transaction"
+            : capitalizeFirst(item.document_type);
         const code = isAppt ? item.id : item.request_code;
         const navigateTo = isAppt
             ? `../appointments/${item.id}`
