@@ -45,13 +45,25 @@ export async function createPublicDocumentRequest(req, res) {
   let userId = req.userId || null;
 
   try {
+    /* 🧠 Debug incoming request context */
+    console.log("🧠 [DOC-REQUEST] Incoming create:", {
+      loggedInUserId: req.userId || null,
+      loggedInUserEmail: req.userEmail || null,
+      inputEmail: cleanEmail,
+    });
+
     /* 🧠 Auto-link guest request to account (if any) */
     if (!userId) {
       const [[existingUser]] = await pool.query(
         `SELECT id FROM users WHERE email = ?`,
         [cleanEmail]
       );
-      if (existingUser) userId = existingUser.id;
+      if (existingUser) {
+        userId = existingUser.id;
+        console.log("🔗 Auto-linked guest request to existing user:", userId);
+      }
+    } else {
+      console.log("👤 Request made by logged-in user:", userId);
     }
 
     /* 🚨 Prevent duplicate active requests for same doc type */
@@ -67,6 +79,7 @@ export async function createPublicDocumentRequest(req, res) {
     );
 
     if (existingReq.length > 0) {
+      console.warn("⚠️ Duplicate active document request detected:", existingReq[0]);
       return res.status(400).json({
         success: false,
         error: "You already have an active request for this document type.",
@@ -95,6 +108,13 @@ export async function createPublicDocumentRequest(req, res) {
     );
 
     const insertedId = result.insertId;
+
+    /* 🪵 Debug after insert */
+    const [[debugRow]] = await pool.query(
+      `SELECT id, user_id, email, document_type, status FROM document_requests WHERE id = ?`,
+      [insertedId]
+    );
+    console.log("🪵 [DOC-REQUEST] Inserted row:", debugRow);
 
     /* 📧 Confirmation Email */
     try {
@@ -140,6 +160,11 @@ export async function getMyDocumentRequests(req, res) {
   const userId = req.userId || null;
   const userEmail = req.userEmail ? req.userEmail.toLowerCase() : null;
 
+  console.log("👤 [DOC-REQUEST] Fetch my requests:", {
+    userId,
+    userEmail,
+  });
+
   if (!userId && !userEmail) {
     return res.status(401).json({
       success: false,
@@ -151,7 +176,6 @@ export async function getMyDocumentRequests(req, res) {
   const params = [];
 
   if (userId) {
-    // ✅ Logged-in user → fetch by user_id (covers all emails used)
     query = `
       SELECT id, request_code, document_type, status, created_at
       FROM document_requests
@@ -160,7 +184,6 @@ export async function getMyDocumentRequests(req, res) {
     `;
     params.push(userId);
   } else {
-    // 📨 Guest → fetch by email
     query = `
       SELECT id, request_code, document_type, status, created_at
       FROM document_requests
@@ -172,6 +195,7 @@ export async function getMyDocumentRequests(req, res) {
 
   try {
     const [rows] = await pool.query(query, params);
+    console.log(`📄 [DOC-REQUEST] Returned ${rows.length} rows`);
     res.json({ success: true, requests: rows });
   } catch (err) {
     console.error("❌ getMyDocumentRequests error:", err);
@@ -190,6 +214,12 @@ export async function getMyDocumentRequestDetails(req, res) {
   const userId = req.userId || null;
   const userEmail = req.userEmail ? req.userEmail.toLowerCase() : null;
   const { id } = req.params;
+
+  console.log("👤 [DOC-REQUEST] Fetch single request:", {
+    userId,
+    userEmail,
+    id,
+  });
 
   if (!userId && !userEmail) {
     return res.status(401).json({
@@ -221,6 +251,8 @@ export async function getMyDocumentRequestDetails(req, res) {
 
   try {
     const [[row]] = await pool.query(query, params);
+
+    console.log("📄 [DOC-REQUEST] Single row fetched:", row || "None");
 
     if (!row) {
       return res.status(404).json({
