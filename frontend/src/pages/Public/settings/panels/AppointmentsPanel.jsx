@@ -6,9 +6,8 @@ import api from "@/api/api";
 import { to12h } from "@/utils/availabilityUtils";
 
 /* ---------- Helpers ---------- */
-function pad2(n) {
-    return String(n).padStart(2, "0");
-}
+const pad2 = (n) => String(n).padStart(2, "0");
+
 function splitDate(iso) {
     const d = new Date(iso);
     return {
@@ -17,9 +16,9 @@ function splitDate(iso) {
         base: d,
     };
 }
+
 function statusLabel(item) {
-    const raw = String(item?.status ?? "").toLowerCase();
-    switch (raw) {
+    switch (String(item?.status ?? "").toLowerCase()) {
         case "pending":
             return "Pending";
         case "approved":
@@ -42,53 +41,52 @@ function statusLabel(item) {
     }
 }
 
+const sortNewestFirst = (arr, key) =>
+    [...arr].sort((a, b) => new Date(b[key]) - new Date(a[key]));
+
+/* ---------- Component ---------- */
 export default function AppointmentsPanel() {
     const navigate = useNavigate();
     const [appointments, setAppointments] = useState([]);
     const [documentRequests, setDocumentRequests] = useState([]);
-    const [loadingAppointments, setLoadingAppointments] = useState(true);
-    const [loadingDocuments, setLoadingDocuments] = useState(true);
+    const [loading, setLoading] = useState(true);
+    const [errorAppointments, setErrorAppointments] = useState(null);
+    const [errorDocuments, setErrorDocuments] = useState(null);
 
-    /* ---------- Fetch Appointments ---------- */
+    /* ---------- Fetch Data (Parallel) ---------- */
     useEffect(() => {
-        async function fetchAppointments() {
+        async function fetchData() {
             try {
-                const res = await api.get("/appointments/my");
-                if (res.data.success) {
-                    // 🆕 Sort newest first
-                    const sorted = (res.data.appointments || []).sort(
-                        (a, b) => new Date(b.date) - new Date(a.date)
+                const [apptRes, docRes] = await Promise.all([
+                    api.get("/appointments/my"),
+                    api.get("/public/documents/my"),
+                ]);
+
+                if (apptRes.data.success) {
+                    setAppointments(
+                        sortNewestFirst(apptRes.data.appointments || [], "date")
                     );
-                    setAppointments(sorted);
+                } else {
+                    setErrorAppointments("Failed to load appointments");
+                }
+
+                if (docRes.data.success) {
+                    setDocumentRequests(
+                        sortNewestFirst(docRes.data.requests || [], "created_at")
+                    );
+                } else {
+                    setErrorDocuments("Failed to load document requests");
                 }
             } catch (err) {
-                console.error("❌ Failed to fetch appointments:", err);
+                console.error("❌ Fetch error:", err);
+                setErrorAppointments("Failed to load appointments");
+                setErrorDocuments("Failed to load document requests");
             } finally {
-                setLoadingAppointments(false);
+                setLoading(false);
             }
         }
-        fetchAppointments();
-    }, []);
 
-    /* ---------- Fetch Document Requests ---------- */
-    useEffect(() => {
-        async function fetchDocuments() {
-            try {
-                const res = await api.get("/public/documents/my");
-                if (res.data.success) {
-                    // 🆕 Sort newest first
-                    const sorted = (res.data.requests || []).sort(
-                        (a, b) => new Date(b.created_at) - new Date(a.created_at)
-                    );
-                    setDocumentRequests(sorted);
-                }
-            } catch (err) {
-                console.error("❌ Failed to fetch document requests:", err);
-            } finally {
-                setLoadingDocuments(false);
-            }
-        }
-        fetchDocuments();
+        fetchData();
     }, []);
 
     /* ---------- Reusable Card Renderer ---------- */
@@ -123,6 +121,7 @@ export default function AppointmentsPanel() {
             >
                 <button
                     type="button"
+                    aria-label={`View ${isAppt ? "appointment" : "document request"} details`}
                     className="w-full text-left"
                     onClick={() =>
                         navigate(
@@ -172,9 +171,7 @@ export default function AppointmentsPanel() {
                         </div>
 
                         <div
-                            className={`min-w-0 text-sm font-semibold ${item.status?.toLowerCase() === "archived"
-                                    ? "invisible"
-                                    : colorClass
+                            className={`min-w-0 text-sm font-semibold ${item.status?.toLowerCase() === "archived" ? "invisible" : colorClass
                                 }`}
                         >
                             {sLabel}
@@ -248,9 +245,13 @@ export default function AppointmentsPanel() {
                 {/* Appointments Section */}
                 <div>
                     <h2 className="text-lg font-semibold mb-3">🗓 Appointments</h2>
-                    {loadingAppointments ? (
+                    {loading ? (
                         <div className="py-10 text-center text-gray-500">
                             <p>Loading your appointments...</p>
+                        </div>
+                    ) : errorAppointments ? (
+                        <div className="py-10 text-center text-red-500">
+                            <p>{errorAppointments}</p>
                         </div>
                     ) : appointments.length === 0 ? (
                         <div className="rounded-xl border border-gray-200 px-6 py-10 text-center text-sm text-gray-600">
@@ -274,9 +275,13 @@ export default function AppointmentsPanel() {
                 {/* Document Requests Section */}
                 <div>
                     <h2 className="text-lg font-semibold mb-3">📄 Document Requests</h2>
-                    {loadingDocuments ? (
+                    {loading ? (
                         <div className="py-10 text-center text-gray-500">
                             <p>Loading your document requests...</p>
+                        </div>
+                    ) : errorDocuments ? (
+                        <div className="py-10 text-center text-red-500">
+                            <p>{errorDocuments}</p>
                         </div>
                     ) : documentRequests.length === 0 ? (
                         <div className="rounded-xl border border-gray-200 px-6 py-10 text-center text-sm text-gray-600">

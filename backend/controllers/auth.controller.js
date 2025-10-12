@@ -102,7 +102,12 @@ export const signup = handleAsyncError(async (req, res) => {
     }
 
     return sendResponse(res, 201, true, "User created. Check your email.", {
-      user: { id: r.insertId, email: normalizedEmail, name: name.trim(), isVerified: false },
+      user: {
+        id: r.insertId,
+        email: normalizedEmail,
+        name: name.trim(),
+        isVerified: false,
+      },
     });
   });
 });
@@ -118,7 +123,8 @@ export const resendVerification = handleAsyncError(async (req, res) => {
       "SELECT id, isVerified FROM users WHERE email = ?",
       [normalizedEmail]
     );
-    if (!users.length) throw new AppError("No account found with this email", 404);
+    if (!users.length)
+      throw new AppError("No account found with this email", 404);
     const user = users[0];
     if (user.isVerified) throw new AppError("Email already verified", 400);
 
@@ -156,13 +162,21 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
        ORDER BY evt.created_at DESC LIMIT 1`,
       [code.trim()]
     );
-    if (!rows.length) throw new AppError("Invalid or expired verification code", 400);
+    if (!rows.length)
+      throw new AppError("Invalid or expired verification code", 400);
 
     const evt = rows[0];
-    await conn.execute("UPDATE users SET isVerified = TRUE WHERE id = ?", [evt.user_id]);
-    await conn.execute("UPDATE email_verification_tokens SET consumed_at = NOW() WHERE id = ?", [evt.id]);
+    await conn.execute("UPDATE users SET isVerified = TRUE WHERE id = ?", [
+      evt.user_id,
+    ]);
+    await conn.execute(
+      "UPDATE email_verification_tokens SET consumed_at = NOW() WHERE id = ?",
+      [evt.id]
+    );
 
-    try { await sendWelcomeEmail(evt.email, evt.name); } catch (e) {
+    try {
+      await sendWelcomeEmail(evt.email, evt.name);
+    } catch (e) {
       console.error("Welcome email failed:", e.message);
     }
 
@@ -173,7 +187,10 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
       "🌟 Hi :name! Verification complete — you’re all set.",
       "🎊 Welcome, :name! Your email has been verified.",
     ];
-    const msg = messages[Math.floor(Math.random() * messages.length)].replace(":name", evt.name);
+    const msg = messages[Math.floor(Math.random() * messages.length)].replace(
+      ":name",
+      evt.name
+    );
 
     try {
       await createNotification({
@@ -186,7 +203,7 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
       console.error("Welcome notification failed:", err.message);
     }
 
-    generateTokenAndSetCookie(res, evt.user_id);
+    generateTokenAndSetCookie(res, evt.user_id, evt.email);
     return sendResponse(res, 200, true, "Email verified successfully", {
       user: {
         id: evt.user_id,
@@ -207,7 +224,9 @@ export const login = handleAsyncError(async (req, res) => {
 
   const normalizedEmail = email.trim().toLowerCase();
   await withConn(async (conn) => {
-    const [users] = await conn.execute("SELECT * FROM users WHERE email = ?", [normalizedEmail]);
+    const [users] = await conn.execute("SELECT * FROM users WHERE email = ?", [
+      normalizedEmail,
+    ]);
     if (!users.length) throw new AppError("Account not registered", 404);
 
     const user = users[0];
@@ -217,8 +236,10 @@ export const login = handleAsyncError(async (req, res) => {
     const ok = await bcryptjs.compare(password, user.password);
     if (!ok) throw new AppError("Incorrect password", 401);
 
-    await conn.execute("UPDATE users SET lastLogin = NOW() WHERE id = ?", [user.id]);
-    generateTokenAndSetCookie(res, user.id);
+    await conn.execute("UPDATE users SET lastLogin = NOW() WHERE id = ?", [
+      user.id,
+    ]);
+    generateTokenAndSetCookie(res, user.id, user.email);
 
     return sendResponse(res, 200, true, "Logged in successfully", {
       user: {
@@ -265,8 +286,11 @@ export const refreshToken = handleAsyncError(async (req, res) => {
     const user = users[0];
     if (!user.isVerified) throw new AppError("Email not verified", 403);
 
-    const { accessToken, refreshToken: newRefresh } =
-      generateTokenAndSetCookie(res, decoded.userId);
+    const { accessToken, refreshToken: newRefresh } = generateTokenAndSetCookie(
+      res,
+      decoded.userId,
+      decoded.email || user.email
+    );
 
     return sendResponse(res, 200, true, "Tokens refreshed", {
       user,
@@ -284,7 +308,9 @@ export const forgotPassword = handleAsyncError(async (req, res) => {
   const normalizedEmail = email.trim().toLowerCase();
 
   await withConn(async (conn) => {
-    const [users] = await conn.execute("SELECT id FROM users WHERE email = ?", [normalizedEmail]);
+    const [users] = await conn.execute("SELECT id FROM users WHERE email = ?", [
+      normalizedEmail,
+    ]);
     if (!users.length)
       return sendResponse(res, 200, true, "Password reset link sent.");
 
@@ -325,14 +351,22 @@ export const resetPassword = handleAsyncError(async (req, res) => {
     if (same) throw new AppError("New password cannot be the same as old", 400);
 
     const hashed = await bcryptjs.hash(password, 12);
-    await conn.execute("UPDATE users SET password = ? WHERE id = ?", [hashed, pr.user_id]);
-    await conn.execute("UPDATE password_resets SET consumed_at = NOW() WHERE id = ?", [pr.id]);
+    await conn.execute("UPDATE users SET password = ? WHERE id = ?", [
+      hashed,
+      pr.user_id,
+    ]);
+    await conn.execute(
+      "UPDATE password_resets SET consumed_at = NOW() WHERE id = ?",
+      [pr.id]
+    );
     await conn.execute(
       "UPDATE password_resets SET consumed_at = NOW() WHERE user_id = ? AND consumed_at IS NULL",
       [pr.user_id]
     );
 
-    try { await sendPasswordResetSuccessEmail(pr.email); } catch {}
+    try {
+      await sendPasswordResetSuccessEmail(pr.email);
+    } catch {}
     return sendResponse(res, 200, true, "Password reset successful");
   });
 });
@@ -345,7 +379,9 @@ export const checkAuth = handleAsyncError(async (req, res) => {
       [req.userId]
     );
     if (!users.length) throw new AppError("User not found", 404);
-    return sendResponse(res, 200, true, "User authenticated", { user: users[0] });
+    return sendResponse(res, 200, true, "User authenticated", {
+      user: users[0],
+    });
   });
 });
 
@@ -355,7 +391,9 @@ export const reauth = handleAsyncError(async (req, res) => {
   if (!password) throw new AppError("Password is required", 400);
 
   await withConn(async (conn) => {
-    const [rows] = await conn.execute("SELECT * FROM users WHERE id = ?", [req.userId]);
+    const [rows] = await conn.execute("SELECT * FROM users WHERE id = ?", [
+      req.userId,
+    ]);
     if (!rows.length) throw new AppError("User not found", 404);
     const ok = await bcryptjs.compare(password, rows[0].password);
     if (!ok) throw new AppError("Incorrect password", 401);
@@ -371,7 +409,9 @@ export const changePassword = handleAsyncError(async (req, res) => {
     throw new AppError("New password must be at least 6 characters", 400);
 
   await withConn(async (conn) => {
-    const [rows] = await conn.execute("SELECT * FROM users WHERE id = ?", [req.userId]);
+    const [rows] = await conn.execute("SELECT * FROM users WHERE id = ?", [
+      req.userId,
+    ]);
     if (!rows.length) throw new AppError("User not found", 404);
     const user = rows[0];
 
@@ -381,15 +421,26 @@ export const changePassword = handleAsyncError(async (req, res) => {
       throw new AppError("New password cannot be the same", 400);
 
     const hashed = await bcryptjs.hash(next, 12);
-    await conn.execute("UPDATE users SET password = ? WHERE id = ?", [hashed, user.id]);
+    await conn.execute("UPDATE users SET password = ? WHERE id = ?", [
+      hashed,
+      user.id,
+    ]);
 
-    try { await sendPasswordResetSuccessEmail(user.email); } catch (e) {
+    try {
+      await sendPasswordResetSuccessEmail(user.email);
+    } catch (e) {
       console.error("Password change notice email failed:", e.message);
     }
 
-    generateTokenAndSetCookie(res, user.id);
+    generateTokenAndSetCookie(res, user.id, user.email);
     return sendResponse(res, 200, true, "Password changed successfully", {
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, isVerified: !!user.isVerified },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        isVerified: !!user.isVerified,
+      },
     });
   });
 });
@@ -400,7 +451,9 @@ export const deleteAccount = handleAsyncError(async (req, res) => {
   if (!password) throw new AppError("Password is required", 400);
 
   await withConn(async (conn) => {
-    const [rows] = await conn.execute("SELECT * FROM users WHERE id = ?", [req.userId]);
+    const [rows] = await conn.execute("SELECT * FROM users WHERE id = ?", [
+      req.userId,
+    ]);
     if (!rows.length) throw new AppError("User not found", 404);
     const user = rows[0];
     if (!(await bcryptjs.compare(password, user.password)))
@@ -415,15 +468,21 @@ export const deleteAccount = handleAsyncError(async (req, res) => {
 // ---------- CHANGE EMAIL REQUEST ----------
 export const changeEmailRequest = handleAsyncError(async (req, res) => {
   let { email } = req.body;
-  if (!email?.trim()) throw new AppError("Please enter your email address", 400);
+  if (!email?.trim())
+    throw new AppError("Please enter your email address", 400);
   email = email.trim().toLowerCase();
 
   await withConn(async (conn) => {
-    const [me] = await conn.execute("SELECT id, email FROM users WHERE id = ?", [req.userId]);
+    const [me] = await conn.execute(
+      "SELECT id, email FROM users WHERE id = ?",
+      [req.userId]
+    );
     if (!me.length) throw new AppError("User not found", 404);
     if (me[0].email === email) throw new AppError("New email must differ", 400);
 
-    const [dup] = await conn.execute("SELECT id FROM users WHERE email = ?", [email]);
+    const [dup] = await conn.execute("SELECT id FROM users WHERE email = ?", [
+      email,
+    ]);
     if (dup.length) throw new AppError("Email is already in use", 400);
 
     const code = randomCode();
@@ -434,7 +493,9 @@ export const changeEmailRequest = handleAsyncError(async (req, res) => {
        code = VALUES(code), expires_at = VALUES(expires_at), consumed_at = NULL, created_at = CURRENT_TIMESTAMP`,
       [req.userId, email, code, expires]
     );
-    try { await sendChangeEmailCode(email, code); } catch (e) {
+    try {
+      await sendChangeEmailCode(email, code);
+    } catch (e) {
       console.error("sendChangeEmailCode failed:", e.message);
     }
     return sendResponse(res, 200, true, "Verification code sent");
@@ -457,7 +518,8 @@ export const changeEmailConfirm = handleAsyncError(async (req, res) => {
        LIMIT 1`,
       [req.userId, email, code]
     );
-    if (!rows.length) throw new AppError("Invalid or expired verification code", 400);
+    if (!rows.length)
+      throw new AppError("Invalid or expired verification code", 400);
 
     const reqRow = rows[0];
     const [dup] = await conn.execute(
@@ -466,11 +528,22 @@ export const changeEmailConfirm = handleAsyncError(async (req, res) => {
     );
     if (dup.length) throw new AppError("Email is already in use", 400);
 
-    const [[{ email: oldEmail }]] = await conn.query("SELECT email FROM users WHERE id = ? LIMIT 1", [req.userId]);
-    await conn.execute("UPDATE users SET email = ? WHERE id = ?", [email, req.userId]);
-    await conn.execute("UPDATE change_email_requests SET consumed_at = NOW() WHERE id = ?", [reqRow.id]);
+    const [[{ email: oldEmail }]] = await conn.query(
+      "SELECT email FROM users WHERE id = ? LIMIT 1",
+      [req.userId]
+    );
+    await conn.execute("UPDATE users SET email = ? WHERE id = ?", [
+      email,
+      req.userId,
+    ]);
+    await conn.execute(
+      "UPDATE change_email_requests SET consumed_at = NOW() WHERE id = ?",
+      [reqRow.id]
+    );
 
-    try { await sendEmailChangedNotice(oldEmail, email); } catch (e) {
+    try {
+      await sendEmailChangedNotice(oldEmail, email);
+    } catch (e) {
       console.error("sendEmailChangedNotice failed:", e.message);
     }
 
