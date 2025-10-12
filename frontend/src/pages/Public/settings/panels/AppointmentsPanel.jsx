@@ -9,6 +9,7 @@ import { to12h } from "@/utils/availabilityUtils";
 const pad2 = (n) => String(n).padStart(2, "0");
 
 function splitDate(iso) {
+    if (!iso) return { dow: "--", day: "--", base: null };
     const d = new Date(iso);
     return {
         dow: d.toLocaleDateString(undefined, { weekday: "short" }),
@@ -56,24 +57,35 @@ export default function AppointmentsPanel() {
     /* ---------- Fetch Data (Parallel) ---------- */
     useEffect(() => {
         async function fetchData() {
+            setLoading(true);
             try {
-                const [apptRes, docRes] = await Promise.all([
+                const [apptRes, docRes] = await Promise.allSettled([
                     api.get("/appointments/my"),
                     api.get("/public/documents/my"),
                 ]);
 
-                if (apptRes.data.success) {
+                // 🗓 Appointments
+                if (apptRes.status === "fulfilled" && apptRes.value.data.success) {
                     setAppointments(
-                        sortNewestFirst(apptRes.data.appointments || [], "date")
+                        sortNewestFirst(apptRes.value.data.appointments || [], "date")
                     );
+                } else if (apptRes.status === "fulfilled" && !apptRes.value.data.success) {
+                    setErrorAppointments("Failed to load appointments");
                 } else {
                     setErrorAppointments("Failed to load appointments");
                 }
 
-                if (docRes.data.success) {
+                // 📄 Documents
+                if (docRes.status === "fulfilled" && docRes.value.data.success) {
                     setDocumentRequests(
-                        sortNewestFirst(docRes.data.requests || [], "created_at")
+                        sortNewestFirst(docRes.value.data.requests || [], "created_at")
                     );
+                } else if (
+                    docRes.status === "fulfilled" &&
+                    docRes.value.data.error === "Unauthorized"
+                ) {
+                    // ✅ handle guest gracefully: no login → empty list, not a hard error
+                    setDocumentRequests([]);
                 } else {
                     setErrorDocuments("Failed to load document requests");
                 }
@@ -242,7 +254,7 @@ export default function AppointmentsPanel() {
     return (
         <section className="bg-white">
             <div className="max-w-4xl mx-auto py-6 space-y-10">
-                {/* Appointments Section */}
+                {/* 🗓 Appointments Section */}
                 <div>
                     <h2 className="text-lg font-semibold mb-3">🗓 Appointments</h2>
                     {loading ? (
@@ -256,10 +268,7 @@ export default function AppointmentsPanel() {
                     ) : appointments.length === 0 ? (
                         <div className="rounded-xl border border-gray-200 px-6 py-10 text-center text-sm text-gray-600">
                             <p>No appointments yet.</p>
-                            <Link
-                                to="/services/appointments/terms"
-                                className="inline-block mt-4"
-                            >
+                            <Link to="/services/appointments/terms" className="inline-block mt-4">
                                 <button className="rounded-md bg-gray-900 px-4 py-2 text-white hover:bg-black">
                                     Make an Appointment
                                 </button>
@@ -272,7 +281,7 @@ export default function AppointmentsPanel() {
                     )}
                 </div>
 
-                {/* Document Requests Section */}
+                {/* 📄 Document Requests Section */}
                 <div>
                     <h2 className="text-lg font-semibold mb-3">📄 Document Requests</h2>
                     {loading ? (

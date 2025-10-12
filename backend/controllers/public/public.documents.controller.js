@@ -18,16 +18,16 @@ export async function createPublicDocumentRequest(req, res) {
     additional_info,
   } = req.body;
 
-  // 🧾 Validation
+  // 🧾 Basic Validation
   if (!full_name || !email || !document_type || !purpose) {
     return res.status(400).json({
       success: false,
-      error:
-        "Full name, email, document type, and purpose are required fields.",
+      error: "Full name, email, document type, and purpose are required fields.",
     });
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     return res.status(400).json({
       success: false,
       error: "Please enter a valid email address.",
@@ -43,7 +43,6 @@ export async function createPublicDocumentRequest(req, res) {
 
   const requestCode = `REQ-${Date.now()}`;
   let userId = req.userId || null;
-  const cleanEmail = email.trim().toLowerCase();
 
   try {
     /* 🧠 Auto-link guest request to account (if any) */
@@ -70,11 +69,11 @@ export async function createPublicDocumentRequest(req, res) {
     if (existingReq.length > 0) {
       return res.status(400).json({
         success: false,
-        error: `You already have an active request for this document type.`,
+        error: "You already have an active request for this document type.",
       });
     }
 
-    /* 🗃️ Insert request */
+    /* 🗃️ Insert new request */
     const [result] = await pool.query(
       `
       INSERT INTO document_requests
@@ -118,8 +117,7 @@ export async function createPublicDocumentRequest(req, res) {
       console.warn(`⚠️ Failed to notify admins:`, notifyErr.message);
     }
 
-    /* ✅ Response */
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Your document request has been submitted successfully.",
       id: insertedId,
@@ -136,12 +134,11 @@ export async function createPublicDocumentRequest(req, res) {
 
 /* =====================================================
    📥 Get My Document Requests (Preview)
-   🅾 Robust handling for user_id OR email
+   ✅ Prioritize user_id, fallback to email (guest)
 ===================================================== */
 export async function getMyDocumentRequests(req, res) {
   const userId = req.userId || null;
-  const userEmail = req.userEmail || null;
-  const emailForQuery = userEmail ? userEmail.toLowerCase() : null;
+  const userEmail = req.userEmail ? req.userEmail.toLowerCase() : null;
 
   if (!userId && !userEmail) {
     return res.status(401).json({
@@ -150,36 +147,31 @@ export async function getMyDocumentRequests(req, res) {
     });
   }
 
-  let whereClause = "";
+  let query;
   const params = [];
 
-  if (userId && emailForQuery) {
-    whereClause = "(user_id = ? OR email = ?)";
-    params.push(userId, emailForQuery);
-  } else if (userId) {
-    whereClause = "user_id = ?";
+  if (userId) {
+    // ✅ Logged-in user → fetch by user_id (covers all emails used)
+    query = `
+      SELECT id, request_code, document_type, status, created_at
+      FROM document_requests
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+    `;
     params.push(userId);
-  } else if (emailForQuery) {
-    whereClause = "email = ?";
-    params.push(emailForQuery);
+  } else {
+    // 📨 Guest → fetch by email
+    query = `
+      SELECT id, request_code, document_type, status, created_at
+      FROM document_requests
+      WHERE email = ?
+      ORDER BY created_at DESC
+    `;
+    params.push(userEmail);
   }
 
   try {
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        id,
-        request_code,
-        document_type,
-        status,
-        created_at
-      FROM document_requests
-      WHERE ${whereClause}
-      ORDER BY created_at DESC
-      `,
-      params
-    );
-
+    const [rows] = await pool.query(query, params);
     res.json({ success: true, requests: rows });
   } catch (err) {
     console.error("❌ getMyDocumentRequests error:", err);
@@ -192,12 +184,11 @@ export async function getMyDocumentRequests(req, res) {
 
 /* =====================================================
    📄 Get Single Document Request (Full Details)
-   🅾 user_id OR email
+   ✅ Same logic: prioritize user_id
 ===================================================== */
 export async function getMyDocumentRequestDetails(req, res) {
   const userId = req.userId || null;
-  const userEmail = req.userEmail || null;
-  const emailForQuery = userEmail ? userEmail.toLowerCase() : null;
+  const userEmail = req.userEmail ? req.userEmail.toLowerCase() : null;
   const { id } = req.params;
 
   if (!userId && !userEmail) {
@@ -207,37 +198,29 @@ export async function getMyDocumentRequestDetails(req, res) {
     });
   }
 
-  let whereClause = "";
+  let query;
   const params = [id];
 
-  if (userId && emailForQuery) {
-    whereClause = "(user_id = ? OR email = ?)";
-    params.push(userId, emailForQuery);
-  } else if (userId) {
-    whereClause = "user_id = ?";
+  if (userId) {
+    query = `
+      SELECT id, request_code, document_type, purpose, copies,
+             additional_info, status, created_at
+      FROM document_requests
+      WHERE id = ? AND user_id = ?
+    `;
     params.push(userId);
-  } else if (emailForQuery) {
-    whereClause = "email = ?";
-    params.push(emailForQuery);
+  } else {
+    query = `
+      SELECT id, request_code, document_type, purpose, copies,
+             additional_info, status, created_at
+      FROM document_requests
+      WHERE id = ? AND email = ?
+    `;
+    params.push(userEmail);
   }
 
   try {
-    const [[row]] = await pool.query(
-      `
-      SELECT 
-        id,
-        request_code,
-        document_type,
-        purpose,
-        copies,
-        additional_info,
-        status,
-        created_at
-      FROM document_requests
-      WHERE id = ? AND ${whereClause}
-      `,
-      params
-    );
+    const [[row]] = await pool.query(query, params);
 
     if (!row) {
       return res.status(404).json({
