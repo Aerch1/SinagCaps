@@ -10,9 +10,6 @@ const router = express.Router();
 
 // Public: create a document request
 router.post("/", createPublicDocumentRequest);
-
-router.use(verifyToken);
-
 router.get("/my", fetchPublicDocumentRequests);
 
 export default router;
