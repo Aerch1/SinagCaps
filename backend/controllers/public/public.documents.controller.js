@@ -1,4 +1,3 @@
-// controllers/public/public.documents.controller.js
 import pool from "../../config/db.js";
 import { sendDocumentReceivedEmail } from "../../utils/documentEmails.js";
 import { notifyAdminsOfNewDocumentRequest } from "../../utils/notifyAdmins.js";
@@ -18,7 +17,9 @@ export async function createPublicDocumentRequest(req, res) {
     additional_info,
   } = req.body;
 
-  // 🧾 Validation
+  /* -----------------------------------
+     🧾 Validation
+  ----------------------------------- */
   if (!full_name || !email || !document_type || !purpose) {
     return res.status(400).json({
       success: false,
@@ -46,7 +47,9 @@ export async function createPublicDocumentRequest(req, res) {
   const cleanEmail = email.trim().toLowerCase();
 
   try {
-    /* 🧠 Auto-link guest request to account (if any) */
+    /* =====================================================
+       🧠 Auto-link guest requests to existing account (if any)
+    ====================================================== */
     if (!userId) {
       const [[existingUser]] = await pool.query(
         `SELECT id FROM users WHERE email = ?`,
@@ -55,7 +58,10 @@ export async function createPublicDocumentRequest(req, res) {
       if (existingUser) userId = existingUser.id;
     }
 
-    /* 🚨 Prevent duplicate active requests for same doc type */
+    /* =====================================================
+       🚨 Prevent duplicate requests for same doc type
+       (active statuses only: pending, processing, approved)
+    ====================================================== */
     const [existingReq] = await pool.query(
       `
       SELECT id FROM document_requests
@@ -74,7 +80,9 @@ export async function createPublicDocumentRequest(req, res) {
       });
     }
 
-    /* 🗃️ Insert request */
+    /* =====================================================
+       🗃️ Insert into document_requests
+    ====================================================== */
     const [result] = await pool.query(
       `
       INSERT INTO document_requests
@@ -97,7 +105,9 @@ export async function createPublicDocumentRequest(req, res) {
 
     const insertedId = result.insertId;
 
-    /* 📧 Confirmation Email */
+    /* =====================================================
+       📧 Send confirmation email
+    ====================================================== */
     try {
       await sendDocumentReceivedEmail(cleanEmail, {
         name: full_name,
@@ -108,17 +118,28 @@ export async function createPublicDocumentRequest(req, res) {
       });
       console.log(`✅ Document confirmation email sent to ${cleanEmail}`);
     } catch (mailErr) {
-      console.warn(`⚠️ Failed to send email to ${cleanEmail}:`, mailErr.message);
+      console.warn(
+        `⚠️ Failed to send confirmation email to ${cleanEmail}:`,
+        mailErr.message
+      );
     }
 
-    /* 🔔 Notify Admins */
+    /* =====================================================
+       🔔 Notify all admins
+    ====================================================== */
     try {
-      await notifyAdminsOfNewDocumentRequest(full_name, document_type, insertedId);
+      await notifyAdminsOfNewDocumentRequest(
+        full_name,
+        document_type,
+        insertedId
+      );
     } catch (notifyErr) {
       console.warn(`⚠️ Failed to notify admins:`, notifyErr.message);
     }
 
-    /* ✅ Response */
+    /* =====================================================
+       ✅ Response
+    ====================================================== */
     res.status(201).json({
       success: true,
       message: "Your document request has been submitted successfully.",
@@ -136,32 +157,17 @@ export async function createPublicDocumentRequest(req, res) {
 
 /* =====================================================
    📥 Get My Document Requests (Preview)
-   🅾 Robust handling for user_id OR email
+   — 🅾 Option 3: user_id OR email
 ===================================================== */
 export async function getMyDocumentRequests(req, res) {
-  const userId = req.userId || null;
-  const userEmail = req.userEmail || null;
-  const emailForQuery = userEmail ? userEmail.toLowerCase() : null;
+  const userId = req.userId;
+  const userEmail = req.userEmail; // Make sure verifyToken stores this in req
 
-  if (!userId && !userEmail) {
+  if (!userId || !userEmail) {
     return res.status(401).json({
       success: false,
       error: "Unauthorized",
     });
-  }
-
-  let whereClause = "";
-  const params = [];
-
-  if (userId && emailForQuery) {
-    whereClause = "(user_id = ? OR email = ?)";
-    params.push(userId, emailForQuery);
-  } else if (userId) {
-    whereClause = "user_id = ?";
-    params.push(userId);
-  } else if (emailForQuery) {
-    whereClause = "email = ?";
-    params.push(emailForQuery);
   }
 
   try {
@@ -174,10 +180,10 @@ export async function getMyDocumentRequests(req, res) {
         status,
         created_at
       FROM document_requests
-      WHERE ${whereClause}
+      WHERE user_id = ? OR email = ?
       ORDER BY created_at DESC
       `,
-      params
+      [userId, userEmail.toLowerCase()]
     );
 
     res.json({ success: true, requests: rows });
@@ -192,33 +198,18 @@ export async function getMyDocumentRequests(req, res) {
 
 /* =====================================================
    📄 Get Single Document Request (Full Details)
-   🅾 user_id OR email
+   — 🅾 Option 3: user_id OR email
 ===================================================== */
 export async function getMyDocumentRequestDetails(req, res) {
-  const userId = req.userId || null;
-  const userEmail = req.userEmail || null;
-  const emailForQuery = userEmail ? userEmail.toLowerCase() : null;
+  const userId = req.userId;
+  const userEmail = req.userEmail;
   const { id } = req.params;
 
-  if (!userId && !userEmail) {
+  if (!userId || !userEmail) {
     return res.status(401).json({
       success: false,
       error: "Unauthorized",
     });
-  }
-
-  let whereClause = "";
-  const params = [id];
-
-  if (userId && emailForQuery) {
-    whereClause = "(user_id = ? OR email = ?)";
-    params.push(userId, emailForQuery);
-  } else if (userId) {
-    whereClause = "user_id = ?";
-    params.push(userId);
-  } else if (emailForQuery) {
-    whereClause = "email = ?";
-    params.push(emailForQuery);
   }
 
   try {
@@ -234,9 +225,9 @@ export async function getMyDocumentRequestDetails(req, res) {
         status,
         created_at
       FROM document_requests
-      WHERE id = ? AND ${whereClause}
+      WHERE id = ? AND (user_id = ? OR email = ?)
       `,
-      params
+      [id, userId, userEmail.toLowerCase()]
     );
 
     if (!row) {
