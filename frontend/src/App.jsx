@@ -40,6 +40,7 @@ const AccountSecurityPanel = lazy(() => import("./pages/Public/settings/panels/A
 const AppointmentsPanel = lazy(() => import("./pages/Public/settings/panels/AppointmentsPanel"));
 const AppointmentDetailPanel = lazy(() => import("./pages/Public/settings/panels/AppointmentDetailPanel"));
 const NotificationPanel = lazy(() => import("./pages/Public/settings/panels/NotificationPanel"));
+const DocumentRequestDetailPanel = lazy(() => import("./pages/Public/settings/panels/DocumentDetails"));
 
 // --- Lazy-loaded Pages (Appointments) ---
 const GeneralInformation = lazy(() => import("./pages/Public/appointments/GeneralInformation"));
@@ -128,6 +129,8 @@ function App() {
                     <Route path="appointments" element={<AppointmentsPanel />} />
                     <Route path="appointments/:id" element={<AppointmentDetailPanel />} />
                     <Route path="notification" element={<NotificationPanel />} />
+                    <Route path="document-requests/:id" element={<DocumentRequestDetailPanel />} />
+
                   </Route>
                 </Route>
 
