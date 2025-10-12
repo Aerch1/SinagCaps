@@ -53,7 +53,7 @@ export default function AppointmentsPanel() {
             try {
                 const [apptRes, docRes] = await Promise.all([
                     api.get("/appointments/my"),
-                    api.get("/documents/my"),
+                    api.get("/public/documents/my"),
                 ]);
 
                 const appointments = apptRes.data.success
