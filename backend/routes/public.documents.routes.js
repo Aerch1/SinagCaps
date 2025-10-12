@@ -2,14 +2,28 @@
 import express from "express";
 import {
   createPublicDocumentRequest,
-  fetchPublicDocumentRequests,
+  getMyDocumentRequests,
+  getMyDocumentRequestDetails, // ✅ added single request route
 } from "../controllers/public/public.documents.controller.js";
 import { verifyToken } from "../middleware/verifyToken.js";
 
 const router = express.Router();
 
-// Public: create a document request
+/* =====================================================
+   📤 Public route: Create document request
+   — Works even if user is not logged in
+===================================================== */
 router.post("/", createPublicDocumentRequest);
-router.get("/my", fetchPublicDocumentRequests);
+
+/* =====================================================
+   🧑 Authenticated routes (Requires Token)
+===================================================== */
+router.use(verifyToken);
+
+// 📥 Get all document requests of the logged-in user
+router.get("/my", getMyDocumentRequests);
+
+// 📄 Get single document request details of logged-in user
+router.get("/my/:id", getMyDocumentRequestDetails);
 
 export default router;

@@ -139,6 +139,8 @@ app.listen(PORT, async () => {
   console.log(`🌐 Frontend: ${process.env.CLIENT_URL}`);
   console.log(`☁️  Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);
   console.log(`📧 Email Service: ${process.env.EMAIL_SERVICE}`);
+  console.log("Current NODE_ENV:", process.env.NODE_ENV);
+
 });
 
 /* ===============================
