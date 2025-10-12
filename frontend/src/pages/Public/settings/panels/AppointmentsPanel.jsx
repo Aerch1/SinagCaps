@@ -55,7 +55,11 @@ export default function AppointmentsPanel() {
             try {
                 const res = await api.get("/appointments/my");
                 if (res.data.success) {
-                    setAppointments(res.data.appointments || []);
+                    // 🆕 Sort newest first
+                    const sorted = (res.data.appointments || []).sort(
+                        (a, b) => new Date(b.date) - new Date(a.date)
+                    );
+                    setAppointments(sorted);
                 }
             } catch (err) {
                 console.error("❌ Failed to fetch appointments:", err);
@@ -72,7 +76,11 @@ export default function AppointmentsPanel() {
             try {
                 const res = await api.get("/public/documents/my");
                 if (res.data.success) {
-                    setDocumentRequests(res.data.requests || []);
+                    // 🆕 Sort newest first
+                    const sorted = (res.data.requests || []).sort(
+                        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+                    );
+                    setDocumentRequests(sorted);
                 }
             } catch (err) {
                 console.error("❌ Failed to fetch document requests:", err);
@@ -126,7 +134,6 @@ export default function AppointmentsPanel() {
                 >
                     {/* Desktop */}
                     <div className="hidden sm:grid grid-cols-[80px_1fr_1fr_1fr_auto] items-center gap-4 px-4 sm:px-6 py-4">
-                        {/* Date */}
                         <div className="text-center border-r border-gray-200">
                             <div className="text-xs uppercase tracking-wide text-gray-500">
                                 {dow}
@@ -136,7 +143,6 @@ export default function AppointmentsPanel() {
                             </div>
                         </div>
 
-                        {/* Time or Doc */}
                         <div className="min-w-0">
                             <div className="flex items-center gap-1 text-gray-700">
                                 {isAppt ? (
@@ -156,7 +162,6 @@ export default function AppointmentsPanel() {
                             </div>
                         </div>
 
-                        {/* Txn / Code */}
                         <div className="min-w-0">
                             <div className="text-[11px] uppercase tracking-wide text-gray-500">
                                 {isAppt ? "Transaction No." : "Request Code"}
@@ -166,7 +171,6 @@ export default function AppointmentsPanel() {
                             </div>
                         </div>
 
-                        {/* Status */}
                         <div
                             className={`min-w-0 text-sm font-semibold ${item.status?.toLowerCase() === "archived"
                                     ? "invisible"
@@ -176,7 +180,6 @@ export default function AppointmentsPanel() {
                             {sLabel}
                         </div>
 
-                        {/* View */}
                         <div className="flex items-center gap-2 justify-end">
                             <span className="hidden md:inline text-sm text-blue-600">
                                 View
@@ -242,7 +245,6 @@ export default function AppointmentsPanel() {
     return (
         <section className="bg-white">
             <div className="max-w-4xl mx-auto py-6 space-y-10">
-
                 {/* Appointments Section */}
                 <div>
                     <h2 className="text-lg font-semibold mb-3">🗓 Appointments</h2>
@@ -253,14 +255,17 @@ export default function AppointmentsPanel() {
                     ) : appointments.length === 0 ? (
                         <div className="rounded-xl border border-gray-200 px-6 py-10 text-center text-sm text-gray-600">
                             <p>No appointments yet.</p>
-                            <Link to="/services/appointments/terms" className="inline-block mt-4">
+                            <Link
+                                to="/services/appointments/terms"
+                                className="inline-block mt-4"
+                            >
                                 <button className="rounded-md bg-gray-900 px-4 py-2 text-white hover:bg-black">
                                     Make an Appointment
                                 </button>
                             </Link>
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
                             {appointments.map((a) => renderTransactionCard(a, true))}
                         </div>
                     )}
@@ -283,12 +288,11 @@ export default function AppointmentsPanel() {
                             </Link>
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
                             {documentRequests.map((d) => renderTransactionCard(d, false))}
                         </div>
                     )}
                 </div>
-
             </div>
         </section>
     );

@@ -3,7 +3,8 @@ import { sendDocumentReceivedEmail } from "../../utils/documentEmails.js";
 import { notifyAdminsOfNewDocumentRequest } from "../../utils/notifyAdmins.js";
 
 /* =====================================================
-   📤 Create Document Request (Public / Logged-in)
+   📤 Create Document Request (Public / Logged-in or Guest)
+   — Matches admin structure + includes validation & notifications
 ===================================================== */
 export async function createPublicDocumentRequest(req, res) {
   const {
@@ -17,7 +18,9 @@ export async function createPublicDocumentRequest(req, res) {
     additional_info,
   } = req.body;
 
-  // 🧾 Basic validation
+  /* -----------------------------------
+     🧾 Validation
+  ----------------------------------- */
   if (!full_name || !email || !document_type || !purpose) {
     return res.status(400).json({
       success: false,
@@ -40,12 +43,24 @@ export async function createPublicDocumentRequest(req, res) {
     });
   }
 
-  const userId = req.userId || null;
   const requestCode = `REQ-${Date.now()}`;
+  let userId = req.userId || null;
 
   try {
     /* =====================================================
-       🗃️ Insert new document request
+       🧠 Auto-link guest requests to existing account (if any)
+       — optional but keeps UX consistent with admin side
+    ====================================================== */
+    if (!userId) {
+      const [[existingUser]] = await pool.query(
+        `SELECT id FROM users WHERE email = ?`,
+        [email.trim().toLowerCase()]
+      );
+      if (existingUser) userId = existingUser.id;
+    }
+
+    /* =====================================================
+       🗃️ Insert into document_requests
     ====================================================== */
     const [result] = await pool.query(
       `
@@ -70,7 +85,7 @@ export async function createPublicDocumentRequest(req, res) {
     const insertedId = result.insertId;
 
     /* =====================================================
-       📧 Send confirmation email to requester
+       📧 Send confirmation email
     ====================================================== */
     try {
       await sendDocumentReceivedEmail(email, {
@@ -80,7 +95,7 @@ export async function createPublicDocumentRequest(req, res) {
         copies,
         requestCode,
       });
-      console.log(`✅ Confirmation email sent to ${email}`);
+      console.log(`✅ Document confirmation email sent to ${email}`);
     } catch (mailErr) {
       console.warn(
         `⚠️ Failed to send confirmation email to ${email}:`,
@@ -89,21 +104,26 @@ export async function createPublicDocumentRequest(req, res) {
     }
 
     /* =====================================================
-       🔔 Notify all admins of new document request
+       🔔 Notify all admins
     ====================================================== */
-    await notifyAdminsOfNewDocumentRequest(
-      full_name,
-      document_type,
-      insertedId
-    );
+    try {
+      await notifyAdminsOfNewDocumentRequest(
+        full_name,
+        document_type,
+        insertedId
+      );
+    } catch (notifyErr) {
+      console.warn(`⚠️ Failed to notify admins:`, notifyErr.message);
+    }
 
     /* =====================================================
-       ✅ Success Response
+       ✅ Response
     ====================================================== */
     res.status(201).json({
       success: true,
       message: "Your document request has been submitted successfully.",
       id: insertedId,
+      request_code: requestCode,
     });
   } catch (err) {
     console.error("❌ createPublicDocumentRequest error:", err);
@@ -114,10 +134,9 @@ export async function createPublicDocumentRequest(req, res) {
   }
 }
 
-
-
 /* =====================================================
-   📥 Get Document Requests (Preview - My Transactions)
+   📥 Get My Document Requests (Preview)
+   — Mirrors admin ordering by created_at DESC
 ===================================================== */
 export async function getMyDocumentRequests(req, res) {
   const userId = req.userId;
@@ -145,10 +164,7 @@ export async function getMyDocumentRequests(req, res) {
       [userId]
     );
 
-    res.json({
-      success: true,
-      requests: rows,
-    });
+    res.json({ success: true, requests: rows });
   } catch (err) {
     console.error("❌ getMyDocumentRequests error:", err);
     res.status(500).json({
@@ -158,9 +174,9 @@ export async function getMyDocumentRequests(req, res) {
   }
 }
 
-
 /* =====================================================
    📄 Get Single Document Request (Full Details)
+   — For individual view on “My Transactions”
 ===================================================== */
 export async function getMyDocumentRequestDetails(req, res) {
   const userId = req.userId;
@@ -198,10 +214,7 @@ export async function getMyDocumentRequestDetails(req, res) {
       });
     }
 
-    res.json({
-      success: true,
-      request: row,
-    });
+    res.json({ success: true, request: row });
   } catch (err) {
     console.error("❌ getMyDocumentRequestDetails error:", err);
     res.status(500).json({
