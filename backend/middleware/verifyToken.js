@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 
 export const verifyToken = (req, res, next) => {
   try {
+    // ✅ Support both cookie names (your system sometimes uses token or accessToken)
     const token = req.cookies?.accessToken || req.cookies?.token;
 
     if (!token) {
@@ -21,10 +22,15 @@ export const verifyToken = (req, res, next) => {
       });
     }
 
-    // ✅ Fix: make both available
+    // ✅ Attach both userId and email (if available)
     req.userId = decoded.userId;
-    req.user = { id: decoded.userId }; // <— this line fixes your 401
-    // middleware/verifyToken.js
+    req.userEmail = decoded.email || null;
+
+    // ✅ Keep your existing req.user structure to avoid breaking dependencies
+    req.user = {
+      id: decoded.userId,
+      email: decoded.email || null,
+    };
 
     next();
   } catch (error) {

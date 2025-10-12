@@ -54,12 +54,15 @@ export async function createPublicDocumentRequest(req, res) {
       if (existingUser) userId = existingUser.id;
     }
 
-    // 🚨 Check for duplicate active request
+    // 🚨 Check for duplicate active request (robust)
     const [existing] = await pool.query(
       `
       SELECT id FROM document_requests
       WHERE document_type = ?
-      AND (user_id = ? OR email = ?)
+      AND (
+        (user_id IS NOT NULL AND user_id = ?) 
+        OR email = ?
+      )
       AND status IN ('pending', 'processing', 'approved')
       LIMIT 1
       `,
@@ -143,14 +146,16 @@ export async function getMyDocumentRequests(req, res) {
 
   try {
     // 🧠 Link past guest requests to this account (if any)
-    await pool.query(
-      `
-      UPDATE document_requests
-      SET user_id = ?
-      WHERE email = ? AND user_id IS NULL
-      `,
-      [userId, userEmail]
-    );
+    if (userEmail) {
+      await pool.query(
+        `
+        UPDATE document_requests
+        SET user_id = ?
+        WHERE email = ? AND user_id IS NULL
+        `,
+        [userId, userEmail]
+      );
+    }
 
     const [rows] = await pool.query(
       `
