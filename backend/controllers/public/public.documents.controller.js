@@ -1,3 +1,4 @@
+// controllers/public/public.documents.controller.js
 import pool from "../../config/db.js";
 import { sendDocumentReceivedEmail } from "../../utils/documentEmails.js";
 import { notifyAdminsOfNewDocumentRequest } from "../../utils/notifyAdmins.js";
@@ -135,7 +136,7 @@ export async function createPublicDocumentRequest(req, res) {
 
 /* =====================================================
    📥 Get My Document Requests (Preview)
-   🅾 Option 3: user_id OR email
+   🅾 Robust handling for user_id OR email
 ===================================================== */
 export async function getMyDocumentRequests(req, res) {
   const userId = req.userId || null;
@@ -149,6 +150,20 @@ export async function getMyDocumentRequests(req, res) {
     });
   }
 
+  let whereClause = "";
+  const params = [];
+
+  if (userId && emailForQuery) {
+    whereClause = "(user_id = ? OR email = ?)";
+    params.push(userId, emailForQuery);
+  } else if (userId) {
+    whereClause = "user_id = ?";
+    params.push(userId);
+  } else if (emailForQuery) {
+    whereClause = "email = ?";
+    params.push(emailForQuery);
+  }
+
   try {
     const [rows] = await pool.query(
       `
@@ -159,10 +174,10 @@ export async function getMyDocumentRequests(req, res) {
         status,
         created_at
       FROM document_requests
-      WHERE (user_id = ? OR email = ?)
+      WHERE ${whereClause}
       ORDER BY created_at DESC
       `,
-      [userId, emailForQuery]
+      params
     );
 
     res.json({ success: true, requests: rows });
@@ -177,7 +192,7 @@ export async function getMyDocumentRequests(req, res) {
 
 /* =====================================================
    📄 Get Single Document Request (Full Details)
-   🅾 Option 3: user_id OR email
+   🅾 user_id OR email
 ===================================================== */
 export async function getMyDocumentRequestDetails(req, res) {
   const userId = req.userId || null;
@@ -190,6 +205,20 @@ export async function getMyDocumentRequestDetails(req, res) {
       success: false,
       error: "Unauthorized",
     });
+  }
+
+  let whereClause = "";
+  const params = [id];
+
+  if (userId && emailForQuery) {
+    whereClause = "(user_id = ? OR email = ?)";
+    params.push(userId, emailForQuery);
+  } else if (userId) {
+    whereClause = "user_id = ?";
+    params.push(userId);
+  } else if (emailForQuery) {
+    whereClause = "email = ?";
+    params.push(emailForQuery);
   }
 
   try {
@@ -205,9 +234,9 @@ export async function getMyDocumentRequestDetails(req, res) {
         status,
         created_at
       FROM document_requests
-      WHERE id = ? AND (user_id = ? OR email = ?)
+      WHERE id = ? AND ${whereClause}
       `,
-      [id, userId, emailForQuery]
+      params
     );
 
     if (!row) {
