@@ -49,7 +49,6 @@ export async function createPublicDocumentRequest(req, res) {
   try {
     // ✅ Always link logged-in user to the request, regardless of typed email
     if (!userId) {
-      // Guest: try to find if the email belongs to an existing account
       const [[existingUser]] = await pool.query(
         "SELECT id FROM users WHERE email = ?",
         [cleanEmail]
@@ -58,22 +57,25 @@ export async function createPublicDocumentRequest(req, res) {
     }
 
     // 🚨 Prevent duplicate active requests for same document type
-    const [existing] = await pool.query(
-      `
-      SELECT id FROM document_requests
-      WHERE document_type = ?
-      AND (user_id = ? OR email = ?)
-      AND status IN ('pending', 'processing', 'approved')
-      LIMIT 1
-      `,
-      [document_type, userId, cleanEmail]
-    );
+    // 📝 Skip duplication validation if document_type === 'other'
+    if (document_type !== "other") {
+      const [existing] = await pool.query(
+        `
+        SELECT id FROM document_requests
+        WHERE document_type = ?
+        AND (user_id = ? OR email = ?)
+        AND status IN ('pending', 'processing', 'approved')
+        LIMIT 1
+        `,
+        [document_type, userId, cleanEmail]
+      );
 
-    if (existing.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: `You already have an active request for ${document_type}.`,
-      });
+      if (existing.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: `You already have an active request for ${document_type}.`,
+        });
+      }
     }
 
     // 🗃️ Insert new document request
@@ -111,11 +113,9 @@ export async function createPublicDocumentRequest(req, res) {
     );
 
     // 🔔 Notify admins (non-blocking)
-    notifyAdminsOfNewDocumentRequest(
-      full_name,
-      document_type,
-      insertedId
-    ).catch((e) => console.warn(`⚠️ Admin notification failed: ${e.message}`));
+    notifyAdminsOfNewDocumentRequest(full_name, document_type, insertedId).catch(
+      (e) => console.warn(`⚠️ Admin notification failed: ${e.message}`)
+    );
 
     return res.status(201).json({
       success: true,
