@@ -1,9 +1,12 @@
+// src/controllers/public/public.documents.controller.js
 import pool from "../../config/db.js";
 import { sendDocumentReceivedEmail } from "../../utils/documentEmails.js";
 import { notifyAdminsOfNewDocumentRequest } from "../../utils/notifyAdmins.js";
 
 /* =====================================================
    📤 Create Document Request (Public or Logged-in)
+   — If logged in → store user_id + email
+   — If guest → store email only
 ===================================================== */
 export async function createPublicDocumentRequest(req, res) {
   const {
@@ -20,7 +23,7 @@ export async function createPublicDocumentRequest(req, res) {
   const cleanEmail = email?.trim().toLowerCase();
   let userId = req.userId || null;
 
-  // 🧾 Basic Validation
+  // ✅ Basic Validation
   if (!full_name || !cleanEmail || !document_type || !purpose) {
     return res.status(400).json({
       success: false,
@@ -54,7 +57,7 @@ export async function createPublicDocumentRequest(req, res) {
       if (existingUser) userId = existingUser.id;
     }
 
-    // 🚨 Check for duplicate active request (robust)
+    // 🚨 Check for duplicate active request
     const [existing] = await pool.query(
       `
       SELECT id FROM document_requests
@@ -76,7 +79,7 @@ export async function createPublicDocumentRequest(req, res) {
       });
     }
 
-    // 🗃️ Insert document request
+    // 📝 Insert document request
     const [result] = await pool.query(
       `
       INSERT INTO document_requests
@@ -134,45 +137,48 @@ export async function createPublicDocumentRequest(req, res) {
 
 /* =====================================================
    📥 Get My Document Requests
-   — Auto-link guest requests to account on login
+   — If logged in → fetch by user_id OR their email
+   — If guest → use ?email=query
 ===================================================== */
 export async function getMyDocumentRequests(req, res) {
-  const userId = req.userId;
-  const userEmail = req.userEmail?.toLowerCase();
-
-  if (!userId) {
-    return res.status(401).json({ success: false, error: "Unauthorized" });
-  }
-
   try {
-    // 🧠 Link past guest requests to this account (if any)
-    if (userEmail) {
-      await pool.query(
-        `
-        UPDATE document_requests
-        SET user_id = ?
-        WHERE email = ? AND user_id IS NULL
-        `,
-        [userId, userEmail]
-      );
+    const userId = req.userId || null;
+    const emailQuery = req.query.email?.trim().toLowerCase();
+
+    if (!userId && !emailQuery) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized or missing email.",
+      });
     }
 
-    const [rows] = await pool.query(
-      `
-      SELECT 
-        id,
-        request_code,
-        document_type,
-        status,
-        created_at
+    let sql = `
+      SELECT id, request_code, document_type, status, created_at
       FROM document_requests
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      `,
-      [userId]
-    );
+      WHERE
+    `;
+    const params = [];
 
-    return res.json({ success: true, requests: rows });
+    if (userId) {
+      const [[user]] = await pool.query(
+        "SELECT email FROM users WHERE id = ?",
+        [userId]
+      );
+      sql += "(user_id = ? OR email = ?)";
+      params.push(userId, user.email);
+    } else {
+      sql += "email = ?";
+      params.push(emailQuery);
+    }
+
+    sql += " ORDER BY created_at DESC";
+
+    const [rows] = await pool.query(sql, params);
+
+    return res.json({
+      success: true,
+      requests: rows,
+    });
   } catch (err) {
     console.error("❌ getMyDocumentRequests error:", err);
     return res.status(500).json({
@@ -184,32 +190,43 @@ export async function getMyDocumentRequests(req, res) {
 
 /* =====================================================
    📄 Get Single Document Request
+   — If logged in → user_id OR email
+   — If guest → ?email=query
 ===================================================== */
 export async function getMyDocumentRequestDetails(req, res) {
-  const userId = req.userId;
-  const { id } = req.params;
-
-  if (!userId) {
-    return res.status(401).json({ success: false, error: "Unauthorized" });
-  }
-
   try {
-    const [[row]] = await pool.query(
-      `
-      SELECT 
-        id,
-        request_code,
-        document_type,
-        purpose,
-        copies,
-        additional_info,
-        status,
-        created_at
+    const userId = req.userId || null;
+    const emailQuery = req.query.email?.trim().toLowerCase();
+    const { id } = req.params;
+
+    if (!userId && !emailQuery) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized or missing email.",
+      });
+    }
+
+    let sql = `
+      SELECT id, request_code, document_type, purpose, copies, additional_info, status, created_at
       FROM document_requests
-      WHERE id = ? AND user_id = ?
-      `,
-      [id, userId]
-    );
+      WHERE id = ?
+      AND
+    `;
+    const params = [id];
+
+    if (userId) {
+      const [[user]] = await pool.query(
+        "SELECT email FROM users WHERE id = ?",
+        [userId]
+      );
+      sql += "(user_id = ? OR email = ?)";
+      params.push(userId, user.email);
+    } else {
+      sql += "email = ?";
+      params.push(emailQuery);
+    }
+
+    const [[row]] = await pool.query(sql, params);
 
     if (!row) {
       return res

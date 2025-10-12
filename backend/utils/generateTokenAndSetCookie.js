@@ -7,38 +7,34 @@ const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
 
 const cookieBase = {
   httpOnly: true,
-  secure: isProd,
-  sameSite: isProd ? "none" : "lax",
+  secure: isProd, // ✅ secure only in production
+  sameSite: isProd ? "none" : "lax", // ✅ allow cross-domain cookies
   path: "/",
   ...(cookieDomain ? { domain: cookieDomain } : {}),
 };
 
-export const generateTokenAndSetCookie = (res, userId, email = null) => {
+export const generateTokenAndSetCookie = (res, userId) => {
   const jtiAccess = crypto.randomBytes(16).toString("hex");
   const jtiRefresh = crypto.randomBytes(16).toString("hex");
 
-  // 🆕 include email (if available) for linking guest requests later
-  const payload = { userId };
-  if (email) payload.email = email;
-
-  const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+  const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: "15m",
     jwtid: jtiAccess,
   });
 
-  const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+  const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: "7d",
     jwtid: jtiRefresh,
   });
 
   res.cookie("token", accessToken, {
     ...cookieBase,
-    maxAge: 15 * 60 * 1000,
+    maxAge: 15 * 60 * 1000, // 15 minutes
   });
 
   res.cookie("refreshToken", refreshToken, {
     ...cookieBase,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 
   return { accessToken, refreshToken };
