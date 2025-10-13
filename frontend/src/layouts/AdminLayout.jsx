@@ -1,4 +1,3 @@
-// src/layouts/AdminLayout.jsx
 import { Outlet, useMatch } from "react-router-dom";
 import { useSidebar } from "../context/admin/SidebarContext";
 import AppHeader from "./admin/AppHeader";
@@ -21,15 +20,16 @@ function useIsMobile() {
 
 export default function AdminLayout() {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
-
   const onDashboard = !!useMatch({ path: "/admin", end: true });
   const isMobile = useIsMobile();
 
   return (
-    <div className="min-h-screen xl:flex bg-gray-50 ">
+    <div className="min-h-screen xl:flex bg-gray-50">
+      {/* Sidebar */}
       <AppSidebar />
       <Backdrop />
 
+      {/* Main Content */}
       <div
         className={`flex-1 transition-all duration-300 ease-in-out ${isExpanded || isHovered ? "lg:ml-[260px]" : "lg:ml-[80px]"
           } ${isMobileOpen ? "ml-0" : ""}`}
@@ -41,6 +41,9 @@ export default function AdminLayout() {
           <Outlet />
         </div>
       </div>
+
+      {/* ✅ Global Modal Root (for ConfirmDialog & other modals) */}
+      <div id="global-dialog-root" className="relative z-[9999]" />
     </div>
   );
 }
