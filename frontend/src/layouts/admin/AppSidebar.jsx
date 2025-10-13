@@ -21,6 +21,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 
+import ConfirmDialog from "../../components/ui/ConfirmDialog.jsx";
+
 /* ---------------------------
  *  Sidebar Sections
  * --------------------------- */
@@ -101,6 +103,7 @@ const SidebarMenuItem = React.memo(function SidebarMenuItem({
   showFullSidebar,
   onLogout,
   onAfterClick,
+  setShowLogoutDialog, // ✅ ADD THIS
 }) {
   const active = !nav.isLogout && nav.path ? isActive(nav.path) : false;
   const linkClassName = `${baseItem} ${justify(showFullSidebar)} ${active ? activeItem : inactiveItem}`;
@@ -112,9 +115,9 @@ const SidebarMenuItem = React.memo(function SidebarMenuItem({
         <button
           type="button"
           className={linkClassName}
-          onClick={async () => {
+          onClick={() => {
             onAfterClick?.();
-            await onLogout?.();
+            setShowLogoutDialog(true); // ✅ now works properly
           }}
           aria-label="Logout"
         >
@@ -134,6 +137,7 @@ const SidebarMenuItem = React.memo(function SidebarMenuItem({
     </li>
   );
 });
+
 
 /* ---------------------------
  *  Collapsible Parent
@@ -186,9 +190,8 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
       {canDropdown && (
         <div
           id={`submenu-${nav.key}`}
-          className={`grid transition-all duration-300 ease-in-out ${
-            open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-          }`}
+          className={`grid transition-all duration-300 ease-in-out ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+            }`}
         >
           <div className="overflow-hidden">
             <ul className="mt-1 ml-6 flex flex-col gap-1 border-l p-2">
@@ -198,9 +201,8 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
                   <li key={child.key}>
                     <Link
                       to={child.path}
-                      className={`block rounded-md px-2 py-1.5 text-sm transition-all duration-200 ${
-                        active ? activeItem : inactiveItem
-                      }`}
+                      className={`block rounded-md px-2 py-1.5 text-sm transition-all duration-200 ${active ? activeItem : inactiveItem
+                        }`}
                       onClick={onAfterClick}
                     >
                       {child.name}
@@ -222,9 +224,8 @@ function CollapsibleMenuItem({ nav, showFullSidebar, onAfterClick }) {
 const SectionBlock = ({ title, items, showFullSidebar, renderItem }) => (
   <div>
     <h2
-      className={`mb-3 text-sm font-medium text-gray-700 flex ${
-        !showFullSidebar ? "lg:justify-center" : "justify-start"
-      }`}
+      className={`mb-3 text-sm font-medium text-gray-700 flex ${!showFullSidebar ? "lg:justify-center" : "justify-start"
+        }`}
     >
       {showFullSidebar ? title : <MoreHorizontal className="w-5 h-5" />}
     </h2>
@@ -240,6 +241,9 @@ export default function AppSidebar() {
   const { logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
 
   const showFullSidebar = isExpanded || isHovered || isMobileOpen;
 
@@ -252,12 +256,16 @@ export default function AppSidebar() {
   );
 
   const onLogout = async () => {
+    setIsLoggingOut(true);
     try {
       await logout();
-    } finally {
       navigate("/login", { replace: true });
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutDialog(false);
     }
   };
+
 
   const onAfterClick = () => {
     if (window.innerWidth < 1024 && isMobileOpen && typeof toggleMobileSidebar === "function") {
@@ -297,9 +305,8 @@ export default function AppSidebar() {
 
         {/* Nav */}
         <div
-          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${
-            showFullSidebar ? "custom-scrollbar" : "scrollbar-hide"
-          } px-4 pb-6 pt-4 lg:pt-0`}
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${showFullSidebar ? "custom-scrollbar" : "scrollbar-hide"
+            } px-4 pb-6 pt-4 lg:pt-0`}
         >
           <nav className="flex flex-col gap-6">
             {sections.map((section) => (
@@ -327,7 +334,9 @@ export default function AppSidebar() {
                       showFullSidebar={showFullSidebar}
                       onLogout={onLogout}
                       onAfterClick={onAfterClick}
+                      setShowLogoutDialog={setShowLogoutDialog}  // ✅ ADD THIS
                     />
+
                   );
                 }}
               />
@@ -335,6 +344,18 @@ export default function AppSidebar() {
           </nav>
         </div>
       </div>
+
+
+
+      <ConfirmDialog
+        open={showLogoutDialog}
+        title="Logout Confirmation"
+        message="Are you sure you want to log out of your account?"
+        onConfirm={onLogout}
+        onCancel={() => setShowLogoutDialog(false)}
+        submitting={isLoggingOut}
+      />
+
     </aside>
   );
 }
