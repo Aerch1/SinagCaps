@@ -275,7 +275,7 @@ export default function AppSidebar() {
 
   return (
     <aside
-      className={`fixed top-0 h-screen mt-16 lg:mt-0 bg-white border-r border-gray-200 z-[99] transition-all duration-300 ease-in-out overflow-hidden
+      className={`fixed top-0 h-screen mt-16 lg:mt-0 bg-white border-r border-gray-200 z-[50] transition-all duration-300 ease-in-out overflow-hidden
         ${showFullSidebar ? "w-[260px]" : "w-[80px]"}
         ${isMobileOpen ? "left-0" : "-left-[290px] lg:left-0"}`}
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
