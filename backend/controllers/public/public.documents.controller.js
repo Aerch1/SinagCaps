@@ -47,7 +47,7 @@ export async function createPublicDocumentRequest(req, res) {
   const requestCode = `REQ-${Date.now()}`;
 
   try {
-    // ✅ Always link logged-in user to the request, regardless of typed email
+    // ✅ Auto-link if logged in OR email exists in DB
     if (!userId) {
       const [[existingUser]] = await pool.query(
         "SELECT id FROM users WHERE email = ?",
@@ -57,7 +57,7 @@ export async function createPublicDocumentRequest(req, res) {
     }
 
     // 🚨 Prevent duplicate active requests for same document type
-    // 📝 Skip duplication validation if document_type === 'other'
+    // 📝 Skip duplication check if document_type === 'other'
     if (document_type !== "other") {
       const [existing] = await pool.query(
         `
@@ -113,9 +113,11 @@ export async function createPublicDocumentRequest(req, res) {
     );
 
     // 🔔 Notify admins (non-blocking)
-    notifyAdminsOfNewDocumentRequest(full_name, document_type, insertedId).catch(
-      (e) => console.warn(`⚠️ Admin notification failed: ${e.message}`)
-    );
+    notifyAdminsOfNewDocumentRequest(
+      full_name,
+      document_type,
+      insertedId
+    ).catch((e) => console.warn(`⚠️ Admin notification failed: ${e.message}`));
 
     return res.status(201).json({
       success: true,
@@ -138,24 +140,35 @@ export async function createPublicDocumentRequest(req, res) {
 ===================================================== */
 export async function getMyDocumentRequests(req, res) {
   const userId = req.userId;
-  const userEmail = req.userEmail?.toLowerCase();
+  let userEmail = req.userEmail?.toLowerCase() || null;
 
   if (!userId) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
 
   try {
-    // 🧠 Link past guest requests (if the user had used their email as guest before)
-    await pool.query(
-      `
-      UPDATE document_requests
-      SET user_id = ?
-      WHERE email = ? AND user_id IS NULL
-      `,
-      [userId, userEmail]
-    );
+    // 🛡️ Fallback: if token has no email (e.g. old tokens), fetch from DB
+    if (!userEmail) {
+      const [[user]] = await pool.query(
+        "SELECT email FROM users WHERE id = ?",
+        [userId]
+      );
+      userEmail = user?.email || null;
+    }
 
-    // 🧾 Fetch all requests made under the account
+    if (userEmail) {
+      // 🧠 Link past guest requests if they used this email before
+      await pool.query(
+        `
+        UPDATE document_requests
+        SET user_id = ?
+        WHERE email = ? AND user_id IS NULL
+        `,
+        [userId, userEmail]
+      );
+    }
+
+    // 🧾 Fetch all requests made under this account
     const [rows] = await pool.query(
       `
       SELECT 

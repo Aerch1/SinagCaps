@@ -1,4 +1,3 @@
-// utils/generateTokenAndSetCookie.js
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
@@ -13,11 +12,14 @@ const cookieBase = {
   ...(cookieDomain ? { domain: cookieDomain } : {}),
 };
 
-export const generateTokenAndSetCookie = (res, userId) => {
+export const generateTokenAndSetCookie = (res, userId, userEmail = null) => {
   const jtiAccess = crypto.randomBytes(16).toString("hex");
   const jtiRefresh = crypto.randomBytes(16).toString("hex");
 
-  const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
+  // 🧠 Include email in payload only if provided
+  const payload = userEmail ? { userId, email: userEmail } : { userId };
+
+  const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: "15m",
     jwtid: jtiAccess,
   });
@@ -27,6 +29,7 @@ export const generateTokenAndSetCookie = (res, userId) => {
     jwtid: jtiRefresh,
   });
 
+  // 🍪 Set cookies
   res.cookie("token", accessToken, {
     ...cookieBase,
     maxAge: 15 * 60 * 1000, // 15 minutes
@@ -40,6 +43,9 @@ export const generateTokenAndSetCookie = (res, userId) => {
   return { accessToken, refreshToken };
 };
 
+/**
+ * 🧼 Clear Auth Cookies
+ */
 export const clearAuthCookies = (res) => {
   const base = { ...cookieBase, maxAge: undefined };
   res.clearCookie("token", base);

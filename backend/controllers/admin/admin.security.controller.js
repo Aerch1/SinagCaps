@@ -124,14 +124,14 @@ export const changeAdminPassword = handleAsyncError(async (req, res) => {
       console.warn("⚠️ Password change notice failed:", e.message);
     }
 
-    generateTokenAndSetCookie(res, admin.id);
+    // 🆕 Include email in token payload for better consistency
+    generateTokenAndSetCookie(res, admin.id, admin.email);
 
     return sendResponse(res, 200, true, "Password updated successfully");
   } finally {
     conn.release();
   }
 });
-
 /* ==================================================
    POST /api/admin/security/forgot-password
    → Send reset link via email
