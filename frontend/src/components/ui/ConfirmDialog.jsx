@@ -13,7 +13,7 @@ export default function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center min-h-screen bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[999] flex items-center justify-center min-h-screen bg-black/50 backdrop-blur-sm p-4">
 
       <div className="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-sm p-6 relative">
         {/* Header */}
