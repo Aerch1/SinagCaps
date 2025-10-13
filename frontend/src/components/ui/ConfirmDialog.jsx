@@ -13,15 +13,19 @@ export default function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-lg shadow-2xl border border-gray-200 max-w-sm w-full p-6 relative">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center min-h-screen bg-black/50 backdrop-blur-sm p-4">
+
+      <div className="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-sm p-6 relative">
+        {/* Header */}
         <div className="flex items-center gap-2 text-red-600 mb-3">
           <AlertTriangle className="h-5 w-5" />
           <h3 className="font-semibold text-base">{title}</h3>
         </div>
 
+        {/* Message */}
         <p className="text-sm text-gray-700 mb-4">{message}</p>
 
+        {/* Actions */}
         <div className="flex justify-end gap-2">
           <button
             onClick={onCancel}
