@@ -24,7 +24,6 @@ import publicNotificationsRoutes from "./routes/public.notifications.routes.js";
 import adminNotificationsRoutes from "./routes/admin.notifications.routes.js";
 import adminDocumentRequestsRoutes from "./routes/admin.documentrequests.routes.js";
 import publicContactRoutes from "./routes/public.contact.routes.js";
-
 import adminUserRoutes from "./routes/admin.users.routes.js";
 import adminSecurityRoutes from "./routes/admin.security.routes.js";
 import reportRoutes from "./routes/admin.reports.routes.js";
@@ -36,18 +35,32 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
+// ✅ Properly split CLIENT_URL into an array
+const clientUrls = (process.env.CLIENT_URL || "")
+  .split(",")
+  .map((url) => url.trim())
+  .filter(Boolean);
+
+// ✅ Add your dev/testing domains too
 const allowedOrigins = [
-  process.env.CLIENT_URL, // should be https://www.olpgvp.com
+  ...clientUrls,
   "http://localhost:5173",
   "http://localhost:5174",
   "https://sinagcaps.vercel.app",
   "https://sinag-caps.vercel.app",
-  "https://www.olpgvp.com",
   "https://olpgvp.com",
 ];
+
+// ✅ Updated CORS config
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
@@ -71,7 +84,6 @@ app.use("/api/public/services", publicServicesRoutes);
 app.use("/api/appointments", publicAppointmentsRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/events", adminEventRoutes);
-
 app.use("/api/admin/advisories", adminAdvisoriesRoutes);
 app.use("/api/admin/announcements", adminAnnouncementsRoutes);
 app.use("/api/chat", chatbotRoutes);
@@ -79,11 +91,9 @@ app.use("/api/public/documents", publicDocumentsRoutes);
 app.use("/api/notifications", publicNotificationsRoutes);
 app.use("/api/admin/notifications", adminNotificationsRoutes);
 app.use("/api/admin/document-requests", adminDocumentRequestsRoutes);
-
 app.use("/api/public", publicContactRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/security", adminSecurityRoutes);
-
 app.use("/api/admin/reports", reportRoutes);
 app.use("/api/admin/backup", backupRoutes);
 
@@ -130,17 +140,11 @@ app.use((err, req, res, next) => {
 =============================== */
 app.listen(PORT, async () => {
   await connectDB();
-
-  // // ⚠️ Optional: only run this in dev or when you really want a reset
-  // await resetDatabase();
-  // console.log("🧽 Database reset complete (users preserved)");
-
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Frontend: ${process.env.CLIENT_URL}`);
   console.log(`☁️  Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);
   console.log(`📧 Email Service: ${process.env.EMAIL_SERVICE}`);
   console.log("Current NODE_ENV:", process.env.NODE_ENV);
-
 });
 
 /* ===============================
