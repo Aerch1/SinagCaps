@@ -66,14 +66,11 @@ export default function TwoFeatureCards({ cards = DEFAULT_CARDS }) {
                             >
                                 {/* Background + Image */}
                                 <div className="absolute inset-0 bg-gray-200" />
-                                <motion.img
+                                <img
                                     src={image}
                                     alt={alt || title}
                                     loading="lazy"
                                     decoding="async"
-                                    initial={{ opacity: 0 }}
-                                    whileInView={{ opacity: 1 }}
-                                    transition={{ duration: 0.6, ease: "easeOut" }}
                                     className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                                 />
 

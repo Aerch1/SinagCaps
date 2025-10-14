@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import api from "@/api/api"; // ✅ centralized axios instance
+import api from "@/api/api";
 import { CalendarDays, Clock } from "lucide-react";
 import { formatDate, to12h } from "@/utils/availabilityUtils";
 
@@ -27,17 +27,21 @@ export default function ChurchUpdates() {
     const [updates, setUpdates] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // ✅ Fetch the latest News & Events from backend
+    // ✅ Fetch active news & events only
     useEffect(() => {
         const fetchUpdates = async () => {
             try {
                 const res = await api.get("/admin/events");
                 const data = res.data?.data || [];
 
-                // sort newest first
-                const sorted = [...data].sort(
+                // 🟢 Only keep active events/news
+                const activeOnly = data.filter((e) => e.status === "Active");
+
+                // Sort newest first
+                const sorted = [...activeOnly].sort(
                     (a, b) => new Date(b.date) - new Date(a.date)
                 );
+
                 setUpdates(sorted);
             } catch (err) {
                 console.error("Failed to fetch updates:", err);
@@ -98,23 +102,23 @@ export default function ChurchUpdates() {
 
                         return (
                             <motion.div key={u.id} variants={item}>
-                                <Card className="overflow-hidden rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:scale-[1.02] transition-transform duration-300 flex flex-col">
+                                <Card className="overflow-hidden rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:scale-[1.02] transition-transform duration-300 flex flex-col h-full min-h-[460px]">
                                     {/* ✅ Image */}
                                     {optimizedImg && (
-                                        <div className="w-full h-60 bg-gray-100 flex items-center justify-center">
+                                        <div className="w-full h-60 bg-gray-100 flex items-center justify-center overflow-hidden">
                                             <img
                                                 src={optimizedImg}
                                                 alt={u.title}
                                                 loading="lazy"
                                                 decoding="async"
-                                                className="max-h-60 w-auto object-contain"
+                                                className="h-full w-full object-cover"
                                             />
                                         </div>
                                     )}
 
                                     {/* ✅ Content */}
                                     <CardContent className="flex flex-col flex-1 p-5">
-                                        <div className="flex-1">
+                                        <div className="flex-1 flex flex-col">
                                             <h3 className="text-lg font-semibold">{u.title}</h3>
                                             <div className="mt-1 flex flex-col gap-1 text-sm text-gray-500">
                                                 <div className="flex items-center gap-2">
@@ -138,12 +142,12 @@ export default function ChurchUpdates() {
                                             </div>
 
                                             {/* ✅ Description preview */}
-                                            <p className="text-sm text-gray-700 mt-3 line-clamp-3">
+                                            <p className="text-sm text-gray-700 mt-3 line-clamp-3 flex-1">
                                                 {u.description}
                                             </p>
                                         </div>
 
-                                        {/* ✅ Read more button */}
+                                        {/* ✅ Read more button (sticks to bottom) */}
                                         <Button
                                             asChild
                                             variant="outline"
