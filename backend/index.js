@@ -48,6 +48,7 @@ const allowedOrigins = [
   "http://localhost:5174",
   "https://sinagcaps.vercel.app",
   "https://sinag-caps.vercel.app",
+  "https://lodlod.olpgvp.com",
   "https://olpgvp.com",
 ];
 

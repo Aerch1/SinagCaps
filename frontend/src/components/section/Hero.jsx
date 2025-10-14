@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 export default function Hero({
   slides = [],
   autoIntervalMs = 5500,
-  fadeDuration = 0.5, // 👈 faster fade (half a second)
+  fadeDuration = 1.2, // 🐢 slower fade (1.2s)
 }) {
   const [index, setIndex] = useState(0)
   const timerRef = useRef(null)
@@ -80,7 +80,7 @@ export default function Hero({
                         hidden: { opacity: 0, y: 20 },
                         visible: { opacity: 1, y: 0 }
                       }}
-                      transition={{ duration: 0.5 }}
+                      transition={{ duration: 0.8 }}
                       className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold leading-tight drop-shadow text-white"
                     >
                       {slides[index].heading}
@@ -91,7 +91,7 @@ export default function Hero({
                         hidden: { opacity: 0, y: 10 },
                         visible: { opacity: 1, y: 0 }
                       }}
-                      transition={{ duration: 0.5 }}
+                      transition={{ duration: 0.8 }}
                       className="mt-2 sm:mt-3 md:mt-4 text-sm sm:text-base md:text-lg lg:text-xl text-gray-200 max-w-lg sm:max-w-xl lg:max-w-2xl"
                     >
                       {slides[index].subheading}
@@ -102,7 +102,7 @@ export default function Hero({
                         hidden: { opacity: 0, y: 10 },
                         visible: { opacity: 1, y: 0 }
                       }}
-                      transition={{ duration: 0.5 }}
+                      transition={{ duration: 0.8 }}
                       className="mt-4 sm:mt-6 flex flex-row flex-wrap items-center gap-3"
                     >
                       {(slides[index].ctas || []).slice(0, 2).map((btn, idx) =>
@@ -151,11 +151,10 @@ export default function Hero({
               className="relative group transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center"
             >
               <div
-                className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-all duration-200 ${
-                  index === i
+                className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-all duration-200 ${index === i
                     ? "bg-white"
                     : "bg-white/50 group-hover:bg-white/80"
-                }`}
+                  }`}
               />
             </button>
           ))}
