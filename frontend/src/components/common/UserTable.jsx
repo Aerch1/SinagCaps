@@ -100,13 +100,16 @@ export default function UserTable({ rows = [], onAction }) {
                   </td>
                   <td className="px-2 md:px-3 lg:px-6 py-2 md:py-2.5">
                     <span
-                      className={`px-1.5 md:px-2.5 py-0.5 inline-flex text-[10px] md:text-xs font-semibold rounded-full whitespace-nowrap ${statusClass(
-                        r.status
-                      )}`}
+                      className={`px-1.5 md:px-2.5 py-0.5 inline-flex justify-center items-center text-[10px] md:text-xs font-semibold rounded-full text-center truncate
+      min-w-[120px] sm:min-w-[140px] md:min-w-[160px] lg:min-w-[180px]
+      max-w-[180px]
+      ${statusClass(r.status)}`}
+                      title={r.status}
                     >
                       {r.status}
                     </span>
                   </td>
+
                   <td className="px-2 md:px-3 lg:px-6 py-2 md:py-2.5 text-gray-600 truncate max-w-[150px]">
                     {r.lastAccess}
                   </td>
@@ -125,7 +128,9 @@ export default function UserTable({ rows = [], onAction }) {
                               message: `Are you sure you want to deactivate ${r.name}? They will no longer have access.`,
                             })
                           }
-                          className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-2.5 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-[10px] md:text-xs whitespace-nowrap"
+                          className="inline-flex justify-center items-center gap-0.5 md:gap-1 px-2 md:px-2.5 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-[10px] md:text-xs text-center truncate
+          min-w-[120px] sm:min-w-[140px] md:min-w-[160px] lg:min-w-[180px]
+          max-w-[180px]"
                         >
                           <UserX className="h-3 w-3 md:h-4 md:w-4" />
                           <span className="hidden sm:inline">Deactivate</span>
@@ -133,7 +138,9 @@ export default function UserTable({ rows = [], onAction }) {
                       ) : (
                         <button
                           onClick={() => onAction?.(r.id, "activate")}
-                          className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-2.5 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-[10px] md:text-xs whitespace-nowrap"
+                          className="inline-flex justify-center items-center gap-0.5 md:gap-1 px-2 md:px-2.5 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-[10px] md:text-xs text-center truncate
+          min-w-[120px] sm:min-w-[140px] md:min-w-[160px] lg:min-w-[180px]
+          max-w-[180px]"
                         >
                           <UserCheck className="h-3 w-3 md:h-4 md:w-4" />
                           <span className="hidden sm:inline">Activate</span>
@@ -151,7 +158,9 @@ export default function UserTable({ rows = [], onAction }) {
                               message: `Are you sure you want to permanently delete ${r.name}? This action cannot be undone.`,
                             })
                           }
-                          className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-2.5 py-1 border border-red-300 rounded-md text-red-600 hover:bg-red-50 text-[10px] md:text-xs whitespace-nowrap"
+                          className="inline-flex justify-center items-center gap-0.5 md:gap-1 px-2 md:px-2.5 py-1 border border-red-300 rounded-md text-red-600 hover:bg-red-50 text-[10px] md:text-xs text-center truncate
+          min-w-[120px] sm:min-w-[140px] md:min-w-[160px] lg:min-w-[180px]
+          max-w-[180px]"
                         >
                           <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
                           <span className="hidden sm:inline">Delete</span>

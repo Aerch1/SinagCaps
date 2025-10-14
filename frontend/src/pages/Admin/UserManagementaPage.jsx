@@ -122,7 +122,7 @@ export default function UserManagementPage() {
                 {/* ✅ Add Account Button */}
                 <button
                     onClick={() => setShowAddModal(true)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-sm transition"
+                    className="px-4 py-2 bg-secondary hover:bg-secondary/90 text-white rounded-lg text-sm font-medium shadow-sm transition"
                 >
                     + Add Account
                 </button>

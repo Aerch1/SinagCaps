@@ -271,7 +271,7 @@ export default function CalendarComponent() {
       {/* Floating Create Button */}
       <button
         onClick={() => setIsCreateModalOpen(true)}
-        className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 hover:bg-slate-800 text-white rounded-full shadow-lg flex items-center justify-center z-40 transition-all hover:scale-105 active:scale-95"
+        className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-secondary hover:bg-secondary/90 text-white rounded-full shadow-lg flex items-center justify-center z-40 transition-all hover:scale-105 active:scale-95"
         aria-label="Create Appointment"
       >
         <Plus className="w-6 h-6" />

@@ -4,13 +4,7 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import api from "@/api/api";
 
-/**
- * Dynamic Today's Schedule component for admin dashboard/calendar
- *
- * - Fetches from `/admin/appointments/today`
- * - Displays time, service, and client name
- * - Light-only (no dark mode classes)
- */
+
 export default function TodaySchedule({ onItemClick, className = "" }) {
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);

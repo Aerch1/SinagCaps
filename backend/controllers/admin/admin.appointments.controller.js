@@ -743,6 +743,7 @@ export const getTodayAppointments = async (req, res) => {
        FROM appointments a
        JOIN services s ON a.service_id = s.id
        WHERE DATE(a.date) = CURDATE()
+         AND a.status = 'approved'
        ORDER BY a.time ASC`
     );
 
@@ -755,6 +756,7 @@ export const getTodayAppointments = async (req, res) => {
     });
   }
 };
+
 
 /* =======================================================
    POST /api/admin/appointments/filter

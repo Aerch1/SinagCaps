@@ -12,9 +12,27 @@ const StatusChip = ({ status }) => {
       : "bg-slate-50 text-slate-600 ring-1 ring-slate-500/20";
   return (
     <span
-      className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color}`}
+      className={`inline-flex justify-center items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color}
+        min-w-[100px] sm:min-w-[120px] md:min-w-[140px] lg:min-w-[160px] max-w-[180px] truncate`}
+      title={status}
     >
       {status}
+    </span>
+  );
+};
+
+/* ---------- Category Chip (NEW) ---------- */
+const CategoryChip = ({ category }) => {
+  if (!category) return null;
+  return (
+    <span
+      className={`
+        inline-flex justify-center items-center rounded-md px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-300
+        min-w-[100px] sm:min-w-[120px] md:min-w-[140px] lg:min-w-[160px] max-w-[180px] truncate
+      `}
+      title={category}
+    >
+      {category}
     </span>
   );
 };
@@ -50,7 +68,6 @@ function EventCard({ item, onEdit, onDelete, onPreview }) {
     ? item.image_url.replace("/upload/", "/upload/f_auto,q_auto,w_800/")
     : item.image_url;
 
-  // ✅ Wrap onEdit to normalize date value before passing
   const handleEdit = () => {
     const fixed = { ...item, date: normalizeDate(item.date) };
     onEdit?.(fixed);
@@ -87,6 +104,13 @@ function EventCard({ item, onEdit, onDelete, onPreview }) {
               <StatusChip status={item.status} />
             </div>
           </div>
+
+          {/* ✅ Category chip */}
+          {item.category && (
+            <div className="mt-1">
+              <CategoryChip category={item.category} />
+            </div>
+          )}
 
           {item.description && (
             <p className="text-sm text-slate-600 leading-relaxed line-clamp-3">
@@ -178,6 +202,11 @@ function EventPreviewModal({ item, onClose }) {
                 </h2>
                 <div className="mt-2">
                   <TypeChip type={item.type} />
+                  {item.category && (
+                    <div className="mt-2">
+                      <CategoryChip category={item.category} />
+                    </div>
+                  )}
                 </div>
               </div>
               <StatusChip status={item.status} />
@@ -239,7 +268,7 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
 
         <button
           onClick={() => onCreate?.()}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-slate-800 transition-all w-full sm:w-auto"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/90 px-4 py-2.5 text-sm font-medium text-white shadow-sm  transition-all w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           New Event / News

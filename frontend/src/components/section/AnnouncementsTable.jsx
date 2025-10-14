@@ -135,7 +135,7 @@ export default function AnnouncementsTable() {
                         setEditItem(null);
                         setOpenModal(true);
                     }}
-                    className="inline-flex items-center gap-1.5 md:gap-2 bg-gray-900 hover:bg-gray-800 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm whitespace-nowrap"
+                    className="inline-flex items-center gap-1.5 md:gap-2 bg-secondary hover:bg-secondary/90 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm whitespace-nowrap"
                 >
                     <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" /> New Announcement
                 </button>
@@ -161,16 +161,48 @@ export default function AnnouncementsTable() {
                     <table className="min-w-full divide-y divide-gray-200 text-xs md:text-sm">
                         <thead className="bg-gray-50">
                             <tr>
-                                {["Title", "Category", "Author", "Date", "Actions"].map((h) => (
-                                    <th
-                                        key={h}
-                                        className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs font-medium uppercase text-gray-500 tracking-wider whitespace-nowrap"
-                                    >
-                                        {h}
-                                    </th>
-                                ))}
+                                <th
+                                    className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs
+                       font-medium uppercase text-gray-500 tracking-wider whitespace-nowrap
+                       min-w-[140px] sm:min-w-[180px] md:min-w-[220px] lg:min-w-[260px]
+                       max-w-[300px]"
+                                >
+                                    Title
+                                </th>
+                                <th
+                                    className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs
+                       font-medium uppercase text-gray-500 tracking-wider whitespace-nowrap
+                       min-w-[100px] sm:min-w-[120px] md:min-w-[140px] lg:min-w-[160px]
+                       max-w-[180px]"
+                                >
+                                    Category
+                                </th>
+                                <th
+                                    className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs
+                       font-medium uppercase text-gray-500 tracking-wider whitespace-nowrap
+                       min-w-[120px] sm:min-w-[140px] md:min-w-[160px] lg:min-w-[180px]
+                       max-w-[200px]"
+                                >
+                                    Author
+                                </th>
+                                <th
+                                    className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs
+                       font-medium uppercase text-gray-500 tracking-wider whitespace-nowrap
+                       min-w-[100px] sm:min-w-[120px] md:min-w-[140px] lg:min-w-[160px]"
+                                >
+                                    Date
+                                </th>
+                                <th
+                                    className="px-3 md:px-6 py-2 md:py-3 text-left text-[10px] md:text-xs
+                       font-medium uppercase text-gray-500 tracking-wider whitespace-nowrap
+                       min-w-[140px] sm:min-w-[160px] md:min-w-[180px] lg:min-w-[200px]
+                       max-w-[240px]"
+                                >
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
+
                         <tbody className="divide-y divide-gray-100">
                             {loading ? (
                                 <tr>
@@ -187,21 +219,40 @@ export default function AnnouncementsTable() {
                             ) : (
                                 paginatedData.map((item) => (
                                     <tr key={item.id} className="hover:bg-gray-50">
-                                        <td className="px-3 md:px-6 py-3 md:py-4 font-medium text-gray-900 max-w-[200px] truncate">
+                                        {/* Title column */}
+                                        <td
+                                            className="px-3 md:px-6 py-3 md:py-4 font-medium text-gray-900 
+                           truncate max-w-[300px]"
+                                            title={item.title}
+                                        >
                                             {item.title}
                                         </td>
-                                        <td className="px-3 md:px-6 py-3 md:py-4">
+
+                                        {/* Category column */}
+                                        <td
+                                            className="px-3 md:px-6 py-3 md:py-4
+                           min-w-[100px] sm:min-w-[120px] md:min-w-[140px] lg:min-w-[160px]
+                           max-w-[180px]"
+                                        >
                                             <span
-                                                className={`text-[10px] md:text-xs font-medium px-1.5 md:px-2 py-0.5 md:py-1 rounded-full whitespace-nowrap ${categoryColor(
-                                                    item.category
-                                                )}`}
+                                                className={`block text-center truncate text-[10px] md:text-xs font-medium 
+                    px-1.5 md:px-2 py-0.5 md:py-1 rounded-full 
+                    ${categoryColor(item.category)}`}
+                                                title={item.category}
                                             >
                                                 {item.category}
                                             </span>
                                         </td>
-                                        <td className="px-3 md:px-6 py-3 md:py-4 text-gray-700 max-w-[150px] truncate">
+
+                                        {/* Author column */}
+                                        <td
+                                            className="px-3 md:px-6 py-3 md:py-4 text-gray-700 truncate max-w-[200px]"
+                                            title={item.author}
+                                        >
                                             {item.author}
                                         </td>
+
+                                        {/* Date column */}
                                         <td className="px-3 md:px-6 py-3 md:py-4 text-gray-700 whitespace-nowrap">
                                             {new Date(item.date).toLocaleDateString("en-US", {
                                                 year: "numeric",
@@ -209,11 +260,19 @@ export default function AnnouncementsTable() {
                                                 day: "numeric",
                                             })}
                                         </td>
-                                        <td className="px-3 md:px-6 py-3 md:py-4">
-                                            <div className="flex justify-end gap-1 md:gap-2 flex-wrap">
+
+                                        {/* Actions column */}
+                                        <td
+                                            className="px-3 md:px-6 py-3 md:py-4
+                           min-w-[140px] sm:min-w-[160px] md:min-w-[180px] lg:min-w-[200px]
+                           max-w-[240px]"
+                                        >
+                                            <div className="flex justify-end gap-1 md:gap-2 flex-wrap sm:flex-nowrap">
                                                 <button
                                                     onClick={() => setViewItem(item)}
-                                                    className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-1 md:py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-[10px] md:text-xs whitespace-nowrap"
+                                                    className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-1 md:py-1.5 
+                               border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 
+                               text-[10px] md:text-xs whitespace-nowrap"
                                                 >
                                                     <Eye className="h-3 w-3 md:h-4 md:w-4" /> View
                                                 </button>
@@ -222,13 +281,17 @@ export default function AnnouncementsTable() {
                                                         setEditItem(item);
                                                         setOpenModal(true);
                                                     }}
-                                                    className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-1 md:py-1.5 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-[10px] md:text-xs whitespace-nowrap"
+                                                    className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-1 md:py-1.5 
+                               border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 
+                               text-[10px] md:text-xs whitespace-nowrap"
                                                 >
                                                     <Edit2 className="h-3 w-3 md:h-4 md:w-4" /> Edit
                                                 </button>
                                                 <button
                                                     onClick={() => confirmDelete(item)}
-                                                    className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-1 md:py-1.5 border border-red-300 rounded-md text-red-600 hover:bg-red-50 text-[10px] md:text-xs whitespace-nowrap"
+                                                    className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-1 md:py-1.5 
+                               border border-red-300 rounded-md text-red-600 hover:bg-red-50 
+                               text-[10px] md:text-xs whitespace-nowrap"
                                                 >
                                                     <Trash2 className="h-3 w-3 md:h-4 md:w-4" /> Delete
                                                 </button>
@@ -241,6 +304,7 @@ export default function AnnouncementsTable() {
                     </table>
                 </div>
             </div>
+
 
             {/* Pagination */}
             {totalPages > 1 && (
@@ -262,8 +326,8 @@ export default function AnnouncementsTable() {
                                 key={i}
                                 onClick={() => setPage(i + 1)}
                                 className={`h-8 w-8 md:h-9 md:w-9 rounded-md border text-xs md:text-sm ${page === i + 1
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-white hover:bg-gray-50"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-white hover:bg-gray-50"
                                     }`}
                             >
                                 {i + 1}

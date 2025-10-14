@@ -188,7 +188,7 @@ export default function ImportantReminders() {
                 <div className="sm:col-span-1 flex items-end">
                     <button
                         onClick={handleCreate}
-                        className="bg-gray-900 text-white hover:bg-gray-800 px-3 md:px-4 py-1.5 md:py-2 rounded-md text-xs md:text-sm w-full flex items-center justify-center gap-1"
+                        className="bg-secondary text-white hover:bg-secondary/90 px-3 md:px-4 py-1.5 md:py-2 rounded-md text-xs md:text-sm w-full flex items-center justify-center gap-1"
                     >
                         <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" /> Add
                     </button>
@@ -230,20 +230,30 @@ export default function ImportantReminders() {
                                     </p>
 
                                     <div className="mt-1 flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-gray-500 flex-wrap">
+                                        {/* ✅ STATUS badge */}
                                         <span
-                                            className={`px-1.5 md:px-2 py-0.5 rounded-full whitespace-nowrap ${a.status === "active"
+                                            className={`px-1.5 md:px-2 py-0.5 rounded-full text-center truncate
+      min-w-[100px] sm:min-w-[120px] md:min-w-[140px] lg:min-w-[160px]
+      max-w-[160px] 
+      ${a.status === "active"
                                                     ? "bg-green-100 text-green-700"
                                                     : "bg-gray-200 text-gray-700"
                                                 }`}
+                                            title={a.status}
                                         >
                                             {a.status}
                                         </span>
 
+                                        {/* ✅ TYPE badge */}
                                         <span
-                                            className={`px-1.5 md:px-2 py-0.5 rounded-full whitespace-nowrap ${a.type === "announcement"
-                                                    ? "bg-gray-900 text-white"
+                                            className={`px-1.5 md:px-2 py-0.5 rounded-full text-center truncate
+      min-w-[100px] sm:min-w-[120px] md:min-w-[140px] lg:min-w-[160px]
+      max-w-[160px]
+      ${a.type === "announcement"
+                                                    ? "bg-blue-100 text-blue-700"
                                                     : "bg-amber-100 text-amber-700"
                                                 }`}
+                                            title={a.type}
                                         >
                                             {a.type}
                                         </span>
@@ -252,6 +262,7 @@ export default function ImportantReminders() {
                                             Posted {new Date(a.created_at).toLocaleDateString()}
                                         </span>
                                     </div>
+
                                 </div>
                             </div>
 
@@ -375,7 +386,7 @@ export default function ImportantReminders() {
                             <button
                                 onClick={handleSaveEdit}
                                 disabled={saving}
-                                className="px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm rounded-md bg-gray-900 text-white hover:bg-gray-800 flex items-center gap-1.5 md:gap-2"
+                                className="px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm rounded-md bg-secondary text-white hover:bg-secondary/90 flex items-center gap-1.5 md:gap-2"
                             >
                                 {saving && (
                                     <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
