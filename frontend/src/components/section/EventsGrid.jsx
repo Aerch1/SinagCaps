@@ -10,10 +10,11 @@ const StatusChip = ({ status }) => {
     status === "Active"
       ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20"
       : "bg-slate-50 text-slate-600 ring-1 ring-slate-500/20";
+
   return (
     <span
       className={`inline-flex justify-center items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color}
-        min-w-[100px] sm:min-w-[120px] md:min-w-[140px] lg:min-w-[160px] max-w-[180px] truncate`}
+        w-[80px] sm:w-[90px] md:w-[100px] text-center truncate`}
       title={status}
     >
       {status}
@@ -21,14 +22,14 @@ const StatusChip = ({ status }) => {
   );
 };
 
-/* ---------- Category Chip (NEW) ---------- */
+/* ---------- Category Chip ---------- */
 const CategoryChip = ({ category }) => {
   if (!category) return null;
   return (
     <span
       className={`
         inline-flex justify-center items-center rounded-md px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-300
-        min-w-[100px] sm:min-w-[120px] md:min-w-[140px] lg:min-w-[160px] max-w-[180px] truncate
+        w-[80px] sm:w-[90px] md:w-[100px] text-center truncate
       `}
       title={category}
     >
@@ -48,7 +49,9 @@ const TypeChip = ({ type }) => {
 
   return (
     <span
-      className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color}`}
+      className={`inline-flex justify-center items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color}
+        w-[80px] sm:w-[90px] md:w-[100px] text-center truncate`}
+      title={label}
     >
       {label}
     </span>
@@ -200,10 +203,10 @@ function EventPreviewModal({ item, onClose }) {
                 <h2 className="text-3xl font-bold text-slate-900 leading-tight">
                   {item.title}
                 </h2>
-                <div className="mt-2">
+                <div className="mt-2 space-y-2">
                   <TypeChip type={item.type} />
                   {item.category && (
-                    <div className="mt-2">
+                    <div>
                       <CategoryChip category={item.category} />
                     </div>
                   )}
