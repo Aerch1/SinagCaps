@@ -66,7 +66,7 @@ export default function DataTable({
         endDate: null,
     });
 
-const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     /* ---------------- Tab & Range Effects ---------------- */
     useEffect(() => {
@@ -374,7 +374,7 @@ const [loading, setLoading] = useState(false);
             </div>
 
             {/* ===== Section 2: Table with header controls ===== */}
-            <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-x-auto flex flex-col max-h-[800px]">
+            <div className="rounded-lg border border-gray-200 bg-white shadow-sm flex flex-col max-h-[800px]">
                 {/* Top controls bar */}
                 <div className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -426,100 +426,98 @@ const [loading, setLoading] = useState(false);
                 </div>
 
                 {/* Table */}
-                <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-x-auto flex flex-col max-h-[800px]">
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        <table className="min-w-full divide-y divide-gray-200 text-xs md:text-sm">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-4 md:px-4 py-3 md:py-4 text-left cursor-pointer whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            ID{" "}
-                                            <ChevronsUpDown className="inline h-3 w-3 ml-1" />
-                                        </div>
-                                    </th>
-                                    <th className="px-4 md:px-4 py-3 md:py-4 text-left">
-                                        Client
-                                    </th>
-                                    <th className="px-4 md:px-4 py-3 md:py-4 text-left">
-                                        Contact
-                                    </th>
-                                    <th className="px-4 md:px-4 py-3 md:py-4 text-left">
-                                        Service
-                                    </th>
-                                    <th className="px-4 md:px-4 py-3 md:py-4 text-left">
-                                        Status
-                                    </th>
-                                    <th className="px-4 md:px-4 py-3 md:py-4 text-left">
-                                        Schedule
-                                    </th>
-                                    <th className="px-4 md:px-4 py-3 md:py-4 text-left">
-                                        Address
-                                    </th>
-                                    <th className="px-4 md:px-4 py-3 md:py-4 text-right">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                    <table className="w-full divide-y divide-gray-200 text-xs md:text-sm table-fixed">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="w-[5%] px-2 md:px-3 py-3 md:py-4 text-left cursor-pointer">
+                                    <div className="flex items-center">
+                                        ID{" "}
+                                        <ChevronsUpDown className="inline h-3 w-3 ml-1" />
+                                    </div>
+                                </th>
+                                <th className="w-[15%] px-2 md:px-3 py-3 md:py-4 text-left">
+                                    Client
+                                </th>
+                                <th className="w-[10%] px-2 md:px-3 py-3 md:py-4 text-left">
+                                    Contact
+                                </th>
+                                <th className="w-[12%] px-2 md:px-3 py-3 md:py-4 text-left">
+                                    Service
+                                </th>
+                                <th className="w-[10%] px-2 md:px-3 py-3 md:py-4 text-left">
+                                    Status
+                                </th>
+                                <th className="w-[13%] px-2 md:px-3 py-3 md:py-4 text-left">
+                                    Schedule
+                                </th>
+                                <th className="w-[15%] px-2 md:px-3 py-3 md:py-4 text-left">
+                                    Address
+                                </th>
+                                <th className="w-[20%] px-2 md:px-3 py-3 md:py-4 text-right">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
 
-                            <tbody className="bg-white divide-y divide-gray-200 text-gray-700">
-                                <AnimatePresence>
-                                    {loading ? (
-                                        <motion.tr key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                            <td colSpan={8} className="h-32 text-center text-gray-500">
-                                                Loading…
+                        <tbody className="bg-white divide-y divide-gray-200 text-gray-700">
+                            <AnimatePresence>
+                                {loading ? (
+                                    <motion.tr key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                        <td colSpan={8} className="h-32 text-center text-gray-500">
+                                            Loading…
+                                        </td>
+                                    </motion.tr>
+                                ) : rows.length === 0 ? (
+                                    <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                        <td colSpan={8} className="h-32 text-center text-gray-500">
+                                            No results.
+                                        </td>
+                                    </motion.tr>
+                                ) : (
+                                    rows.map((r) => (
+                                        <motion.tr
+                                            key={r.id}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            className="hover:bg-gray-50 transition-colors text-gray-700"
+                                        >
+                                            <td className="px-2 md:px-3 py-3 font-mono text-xs text-gray-500 truncate">#{r.id}</td>
+                                            <td className="px-2 md:px-3 py-3">
+                                                <div className="font-medium text-gray-700 truncate">{r.name}</div>
+                                                <div className="text-xs text-gray-500 truncate">{r.email}</div>
                                             </td>
-                                        </motion.tr>
-                                    ) : rows.length === 0 ? (
-                                        <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                            <td colSpan={8} className="h-32 text-center text-gray-500">
-                                                No results.
+                                            <td className="px-2 md:px-3 py-3 text-gray-600 truncate">{r.contactNumber || "—"}</td>
+                                            <td className="px-2 md:px-3 py-3 text-gray-600 truncate">{r.serviceName}</td>
+                                            <td className="px-2 md:px-3 py-3">
+                                                <span className={statusClass(r.status)}>
+                                                    {formatStatusLabel(r.status)}
+                                                </span>
                                             </td>
+                                            <td className="px-2 md:px-3 py-3 text-gray-600">
+                                                <div className="truncate">{formatDate(r.date)}</div>
+                                                <div className="text-xs text-gray-500 flex items-center gap-1">
+                                                    <span className="truncate">{formatTime(r.time)}</span>
+                                                    {r.was_rescheduled && (
+                                                        <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                                            <RefreshCcw className="w-3 h-3" />
+                                                            Rescheduled
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-2 md:px-3 py-3 text-gray-600 truncate">
+                                                {r.address || "—"}
+                                            </td>
+                                            <td className="px-2 md:px-3 py-3">{renderActions(r)}</td>
                                         </motion.tr>
-                                    ) : (
-                                        rows.map((r) => (
-                                            <motion.tr
-                                                key={r.id}
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                className="hover:bg-gray-50 transition-colors text-gray-700"
-                                            >
-                                                <td className="px-4 py-3 font-mono text-xs text-gray-500">#{r.id}</td>
-                                                <td className="px-4 py-3">
-                                                    <div className="font-medium text-gray-700 truncate">{r.name}</div>
-                                                    <div className="text-xs text-gray-500 truncate">{r.email}</div>
-                                                </td>
-                                                <td className="px-4 py-3 text-gray-600">{r.contactNumber || "—"}</td>
-                                                <td className="px-4 py-3 text-gray-600 truncate">{r.serviceName}</td>
-                                                <td className="px-4 py-3">
-                                                    <span className={statusClass(r.status)}>
-                                                        {formatStatusLabel(r.status)}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-3 text-gray-600">
-                                                    <div>{formatDate(r.date)}</div>
-                                                    <div className="text-xs text-gray-500 flex items-center gap-1">
-                                                        {formatTime(r.time)}
-                                                        {r.was_rescheduled && (
-                                                            <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-full">
-                                                                <RefreshCcw className="w-3 h-3" />
-                                                                Rescheduled
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                </td>
-                                                <td className="px-4 py-3 text-gray-600 truncate">
-                                                    {r.address || "—"}
-                                                </td>
-                                                <td className="px-4 py-3">{renderActions(r)}</td>
-                                            </motion.tr>
-                                        ))
-                                    )}
-                                </AnimatePresence>
-                            </tbody>
-                        </table>
-                    </div>
+                                    ))
+                                )}
+                            </AnimatePresence>
+                        </tbody>
+                    </table>
                 </div>
+
                 {/* Pagination */}
                 {total > 0 && (
                     <div className="border-t px-4 py-4 flex justify-between items-center">
