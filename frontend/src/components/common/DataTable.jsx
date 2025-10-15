@@ -426,8 +426,8 @@ export default function DataTable({
                 </div>
 
                 {/* Table */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    <table className="w-full divide-y divide-gray-200 text-xs md:text-sm table-fixed">
+                <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar md:overflow-x-hidden">
+                    <table className="w-full md:table-fixed divide-y divide-gray-200 text-xs md:text-sm min-w-[800px] md:min-w-0">
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="w-[5%] px-2 md:px-3 py-3 md:py-4 text-left cursor-pointer">
