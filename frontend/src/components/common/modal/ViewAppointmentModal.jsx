@@ -372,11 +372,26 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
 
           {/* FOOTER */}
           <footer className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-lg">
+            {/* 🔹 Left Side: Manual "Mark Completed" Button */}
             <div>
-              {status === "approved" && local?.date && local?.time && (() => {
+              {local?.status?.toLowerCase() === "approved" && local?.date && local?.time && (() => {
                 const now = new Date();
-                const apptDateTime = new Date(`${local.date}T${local.time}`);
+
+                // 🧠 Extract pure date (handles ISO format like "2025-10-14T00:00:00.000Z")
+                const datePart = local.date.split("T")[0]; // "2025-10-14"
+                let apptDateTime = new Date(`${datePart}T${local.time}`); // "2025-10-14T10:00:00"
+
+                // ⛑️ Fallback if invalid (e.g., time includes AM/PM)
+                if (isNaN(apptDateTime)) {
+                  apptDateTime = new Date(`${datePart} ${local.time}`);
+                }
+
+                // ✅ Adjust timezone if backend sends UTC date
+                // (Only needed if you notice 8-hour offset)
+                // apptDateTime.setMinutes(apptDateTime.getMinutes() + apptDateTime.getTimezoneOffset());
+
                 const isPast = now > apptDateTime;
+
                 if (isPast) {
                   return (
                     <button
@@ -387,10 +402,12 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
                     </button>
                   );
                 }
+
                 return null;
               })()}
             </div>
 
+            {/* 🔹 Right Side: Other Actions */}
             <div className="flex gap-2">
               {status === "pending" && (
                 <>
@@ -436,6 +453,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
               )}
             </div>
           </footer>
+
         </aside>
       )}
 
