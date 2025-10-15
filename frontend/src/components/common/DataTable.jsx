@@ -430,10 +430,16 @@ export default function DataTable({
                     <table className="w-full md:table-fixed divide-y divide-gray-200 text-xs md:text-sm min-w-[800px] md:min-w-0">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="w-[5%] px-2 md:px-3 py-3 md:py-4 text-left cursor-pointer">
+                                <th
+                                    onClick={() => cycleSort("id")}
+                                    className="w-[5%] px-2 md:px-3 py-3 md:py-4 text-left cursor-pointer select-none"
+                                >
                                     <div className="flex items-center">
-                                        ID{" "}
-                                        <ChevronsUpDown className="inline h-3 w-3 ml-1" />
+                                        <span>ID</span>
+                                        <ChevronsUpDown
+                                            className={`inline h-3 w-3 ml-1 transition-transform ${sort.key === "id" && sort.dir === "desc" ? "rotate-180" : ""
+                                                }`}
+                                        />
                                     </div>
                                 </th>
                                 <th className="w-[15%] px-2 md:px-3 py-3 md:py-4 text-left">
