@@ -12,34 +12,34 @@ import {
 
 /* ---------- Labels ---------- */
 const LABELS = {
-  service_id: "Serbisyo",
-  serviceName: "Serbisyo",
-  preferredDate: "Petsa",
-  preferredTime: "Oras",
-  childFullName: "Buong Pangalan ng Bata",
-  childDob: "Petsa ng Kapanganakan",
-  childBirthplace: "Lugar ng Kapanganakan",
-  fatherName: "Pangalan ng Ama",
-  motherMaidenName: "Pangalan ng Ina (Bago ikasal)",
-  parentsMarriageType: "Kalagayan ng Kasal ng mga Magulang",
-  phone: "Numero ng Telepono",
+  service_id: "Service",
+  serviceName: "Service",
+  preferredDate: "Date",
+  preferredTime: "Time",
+  childFullName: "Child's Full Name",
+  childDob: "Date of Birth",
+  childBirthplace: "Place of Birth",
+  fatherName: "Father's Name",
+  motherMaidenName: "Mother's Maiden Name",
+  parentsMarriageType: "Parents' Marital Status",
+  phone: "Phone Number",
   email: "Email",
-  address: "Tirahan",
-  sponsors: "Mga Ninong/Ninang",
-  firstName: "Unang Pangalan",
-  lastName: "Apelyido",
-  purpose: "Layunin / Dahilan",
-  notes: "Mga Tala",
-  additionalNotes: "Karagdagang Tala",
+  address: "Address",
+  sponsors: "Sponsors",
+  firstName: "First Name",
+  lastName: "Last Name",
+  purpose: "Purpose / Reason",
+  notes: "Notes",
+  additionalNotes: "Additional Notes",
 
-  // ✅ Confirmation (Kumpil)
-  confirmandName: "Buong Pangalan ng Kukumpilan",
-  age: "Edad",
-  fatherNameConfirmand: "Pangalan ng Ama",
-  motherMaidenNameConfirmand: "Pangalan ng Ina",
-  parishOrigin: "Parokya ng Pinagmulan",
-  baptizedAt: "Biniyagan sa (Lugar)",
-  baptizedOn: "Biniyagan noong (Petsa)",
+  // Confirmation
+  confirmandName: "Full Name of Confirmand",
+  age: "Age",
+  fatherNameConfirmand: "Father's Name",
+  motherMaidenNameConfirmand: "Mother's Maiden Name",
+  parishOrigin: "Parish of Origin",
+  baptizedAt: "Baptized At",
+  baptizedOn: "Baptized On",
 };
 
 /* ---------- Skip keys ---------- */
@@ -132,11 +132,11 @@ export default function Step4ReviewSubmit({
 
     // merge schedule line
     if (sections.Schedule.length === 2) {
-      const date = sections.Schedule.find((f) => f.label === "Petsa")?.value;
-      const time = sections.Schedule.find((f) => f.label === "Oras")?.value;
+      const date = sections.Schedule.find((f) => f.label === "Date")?.value;
+      const time = sections.Schedule.find((f) => f.label === "Time")?.value;
       sections.Schedule = [
         {
-          label: "Iskedyul",
+          label: "Schedule",
           value: date && time ? `${date} • ${time}` : date || time,
         },
       ];
@@ -145,7 +145,7 @@ export default function Step4ReviewSubmit({
     return sections;
   }, [formData]);
 
-  /* ---------- ✅ English Success Modal ---------- */
+  /* ---------- Success Modal ---------- */
   if (showSuccess) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
@@ -169,8 +169,8 @@ export default function Step4ReviewSubmit({
           )}
 
           <p className="text-gray-600 text-sm mb-6">
-            The parish office will contact you within 24–48 hours to confirm
-            your appointment. Please keep your phone and email open.
+            The parish office will contact you within 24–48 hours to confirm your
+            appointment. Please keep your phone and email available.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -201,17 +201,17 @@ export default function Step4ReviewSubmit({
     );
   }
 
-  /* ---------- Review Section (Tagalog stays) ---------- */
+  /* ---------- Review Section ---------- */
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex gap-3">
         <CheckCircle2 className="w-6 h-6 text-blue-600 mt-0.5" />
         <div>
           <h3 className="text-lg font-semibold text-gray-900">
-            Suriin ang Iyong Mga Detalye
+            Review Your Details
           </h3>
           <p className="text-sm text-gray-600">
-            Siguraduhing tama ang lahat ng impormasyon bago isumite.
+            Please make sure all information is correct before submitting.
           </p>
         </div>
       </div>
@@ -244,14 +244,13 @@ export default function Step4ReviewSubmit({
 
       <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
         <p className="mb-2">
-          Sa pag-submit ng appointment, sumasang-ayon ka sa mga patakaran ng
-          parokya.
+          By submitting an appointment, you agree to the parish rules and regulations.
         </p>
         <Link
           to="/services/generalinfo"
           className="text-blue-600 hover:text-blue-700 underline text-sm"
         >
-          Tingnan ang Pangkalahatang Impormasyon at Gabay
+          View General Information and Guidelines
         </Link>
       </div>
 
@@ -261,40 +260,39 @@ export default function Step4ReviewSubmit({
           disabled={isSubmitting}
           className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
         >
-          {isSubmitting ? "Ipinapasa..." : "Isumite ang Appointment"}
+          {isSubmitting ? "Submitting..." : "Submit Appointment"}
         </button>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
         <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-blue-600" /> Paalala
+          <Clock className="w-4 h-4 text-blue-600" /> Reminder
         </h4>
         <ul className="list-disc pl-5 space-y-1 text-gray-700">
-          <li>Panatilihing bukas ang iyong telepono at email para sa aming mensahe.</li>
-          <li>Kung walang tugon sa loob ng 48 oras, tawagan ang opisina ng parokya.</li>
-          <li>Ihanda ang lahat ng kinakailangang dokumento bago pumunta.</li>
-          <li>Dumating 15–30 minuto bago ang itinakdang oras.</li>
+          <li>Keep your phone and email available for our message.</li>
+          <li>If no response within 48 hours, contact the parish office.</li>
+          <li>Prepare all necessary documents before visiting.</li>
+          <li>Arrive 15–30 minutes before your scheduled time.</li>
         </ul>
       </div>
 
       <div className="border-t border-blue-200 pt-4">
         <p className="text-sm font-medium text-gray-900 mb-2">
-          Kailangan ng agarang tulong?
+          Need immediate assistance?
         </p>
         <p className="text-sm text-gray-700">
-          Tumawag sa{" "}
+          Call{" "}
           <a
             href="tel:+63966 854 8848"
             className="font-medium text-blue-600 hover:text-blue-700"
           >
             (+63) 966 854 8848
           </a>{" "}
-          o mag-email sa{" "}
+          or email{" "}
           <a
             href="mailto:appointments@parish.org"
             className="font-medium text-blue-600 hover:text-blue-700"
           >
-
             lodlod.olpgvp@gmail.com
           </a>
         </p>
