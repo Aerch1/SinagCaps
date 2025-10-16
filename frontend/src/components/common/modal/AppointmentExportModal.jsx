@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import { Calendar as CalendarIcon, FileDown, ChevronDown } from "lucide-react";
-import api from "@/api/api";
 import toast from "react-hot-toast";
+import api from "@/api/api";
+import Modal from "../../ui/Modal"; // ✅ Use your existing Modal
 
 const PERIODS = ["Last 7 days", "This Month", "This Year", "Custom"];
 const toDate = (s) => (s ? new Date(s) : null);
@@ -81,56 +82,68 @@ export default function AppointmentExportModal({ isOpen, onClose, adminName }) {
         }
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="w-full max-w-md rounded-lg bg-white p-6">
-                <h2 className="text-lg font-semibold mb-4">Export Appointments</h2>
-
-                {/* Scope */}
-                <div className="mb-4 flex gap-2">
-                    <label>
-                        <input type="radio" name="scope" value="all" checked={scope === "all"} onChange={() => setScope("all")} />
-                        All appointments
-                    </label>
-                    <label>
-                        <input type="radio" name="scope" value="pending" checked={scope === "pending"} onChange={() => setScope("pending")} />
-                        Pending only
-                    </label>
-                </div>
-
-                {/* Date Range */}
-                <div className="mb-4">
-                    <label className="block mb-1 text-sm">Date Range</label>
-                    <select className="border p-2 rounded w-full" value={period} onChange={(e) => setPeriod(e.target.value)}>
-                        {PERIODS.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                    {period === "Custom" && (
-                        <div className="mt-2 flex gap-2">
-                            <input type="date" className="border p-1 rounded flex-1" value={customStart} onChange={e => setCustomStart(e.target.value)} />
-                            <input type="date" className="border p-1 rounded flex-1" value={customEnd} onChange={e => setCustomEnd(e.target.value)} />
-                        </div>
-                    )}
-                </div>
-
-                {/* Format */}
-                <div className="mb-4 flex gap-2">
-                    {["Excel", "PDF"].map(f => (
-                        <label key={f} className="flex items-center gap-1">
-                            <input type="radio" name="format" value={f} checked={format === f} onChange={() => setFormat(f)} />
-                            {f}
-                        </label>
-                    ))}
-                </div>
-
-                <div className="flex justify-end gap-2">
-                    <button className="px-3 py-1 rounded border" onClick={onClose}>Cancel</button>
-                    <button className="px-3 py-1 rounded bg-blue-600 text-white" onClick={handleGenerate} disabled={loading}>
-                        {loading ? "Generating..." : "Generate"}
-                    </button>
-                </div>
+        <Modal open={isOpen} onClose={onClose} title="Export Appointments" className="max-w-md">
+            {/* Scope */}
+            <div className="mb-4 flex gap-2">
+                <label>
+                    <input type="radio" name="scope" value="all" checked={scope === "all"} onChange={() => setScope("all")} />
+                    All appointments
+                </label>
+                <label>
+                    <input type="radio" name="scope" value="pending" checked={scope === "pending"} onChange={() => setScope("pending")} />
+                    Pending only
+                </label>
             </div>
-        </div>
+
+            {/* Date Range */}
+            <div className="mb-4">
+                <label className="block mb-1 text-sm">Date Range</label>
+                <select
+                    className="border p-2 rounded w-full"
+                    value={period}
+                    onChange={(e) => setPeriod(e.target.value)}
+                >
+                    {PERIODS.map((p) => (
+                        <option key={p} value={p}>
+                            {p}
+                        </option>
+                    ))}
+                </select>
+                {period === "Custom" && (
+                    <div className="mt-2 flex gap-2">
+                        <input
+                            type="date"
+                            className="border p-1 rounded flex-1"
+                            value={customStart}
+                            onChange={(e) => setCustomStart(e.target.value)}
+                        />
+                        <input
+                            type="date"
+                            className="border p-1 rounded flex-1"
+                            value={customEnd}
+                            onChange={(e) => setCustomEnd(e.target.value)}
+                        />
+                    </div>
+                )}
+            </div>
+
+            {/* Format */}
+            <div className="mb-4 flex gap-2">
+                {["Excel", "PDF"].map((f) => (
+                    <label key={f} className="flex items-center gap-1">
+                        <input type="radio" name="format" value={f} checked={format === f} onChange={() => setFormat(f)} />
+                        {f}
+                    </label>
+                ))}
+            </div>
+
+            <div className="flex justify-end gap-2">
+                <button className="px-3 py-1 rounded border" onClick={onClose}>Cancel</button>
+                <button className="px-3 py-1 rounded bg-blue-600 text-white" onClick={handleGenerate} disabled={loading}>
+                    {loading ? "Generating..." : "Generate"}
+                </button>
+            </div>
+        </Modal>
     );
 }
