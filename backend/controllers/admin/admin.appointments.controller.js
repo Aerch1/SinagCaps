@@ -415,7 +415,7 @@ export const updateAppointmentAdmin = async (req, res) => {
 
       if (title) {
         await createNotification({
-          user_id: oldAppt.user_id || null,
+          user_id: oldAppt.user_id,
           title,
           message,
           type: "appointment",
@@ -553,66 +553,40 @@ export const getAppointments = async (req, res) => {
         AND TIMESTAMP(date, time) < NOW() - INTERVAL 3 DAY
     `);
 
-    // 2) Today & tomorrow counts in ONE query
-    const [counts] = await pool.query(
-      `
-      SELECT
-        SUM(CASE WHEN DATE(date) = CURDATE() THEN 1 ELSE 0 END) AS todayCount,
-        SUM(CASE WHEN DATE(date) = CURDATE() + INTERVAL 1 DAY THEN 1 ELSE 0 END) AS tomorrowCount
+    // 2) Fetch today & tomorrow appointments
+    const [todayAppointments] = await pool.query(`
+      SELECT id, name
       FROM appointments
-      WHERE status IN ('pending','approved')
-    `
-    );
-    const todayCount = counts?.[0]?.todayCount || 0;
-    const tomorrowCount = counts?.[0]?.tomorrowCount || 0;
+      WHERE DATE(date) = CURDATE() AND status IN ('pending','approved')
+      ORDER BY time ASC
+    `);
 
-    // 3) Optional randomized messages (kept logic)
-    const todayMessages = [
-      `You have ${todayCount} appointment${
-        todayCount > 1 ? "s" : ""
-      } scheduled for today.`,
-      `${todayCount} appointment${
-        todayCount > 1 ? "s" : ""
-      } are lined up for today — make sure to review them.`,
-      `Heads up! ${todayCount} appointment${
-        todayCount > 1 ? "s" : ""
-      } happening today.`,
-      `Today’s schedule includes ${todayCount} appointment${
-        todayCount > 1 ? "s" : ""
-      }.`,
-      `${todayCount} appointment${
-        todayCount > 1 ? "s" : ""
-      } awaiting attention today.`,
-    ];
+    const [tomorrowAppointments] = await pool.query(`
+      SELECT id, name
+      FROM appointments
+      WHERE DATE(date) = CURDATE() + INTERVAL 1 DAY AND status IN ('pending','approved')
+      ORDER BY time ASC
+    `);
 
-    const tomorrowMessages = [
-      `You have ${tomorrowCount} appointment${
-        tomorrowCount > 1 ? "s" : ""
-      } scheduled for tomorrow.`,
-      `Reminder: ${tomorrowCount} appointment${
-        tomorrowCount > 1 ? "s" : ""
-      } happening tomorrow.`,
-      `Prepare ahead — ${tomorrowCount} appointment${
-        tomorrowCount > 1 ? "s" : ""
-      } set for tomorrow.`,
-      `Tomorrow’s schedule has ${tomorrowCount} appointment${
-        tomorrowCount > 1 ? "s" : ""
-      }.`,
-      `Upcoming notice: ${tomorrowCount} appointment${
-        tomorrowCount > 1 ? "s" : ""
-      } tomorrow.`,
-    ];
+    const todayCount = todayAppointments.length;
+    const tomorrowCount = tomorrowAppointments.length;
 
-    const randomTodayMessage =
+    // 3) Admin notifications with IDs and names
+    const adminTodayMessage =
       todayCount > 0
-        ? todayMessages[Math.floor(Math.random() * todayMessages.length)]
-        : null;
-    const randomTomorrowMessage =
-      tomorrowCount > 0
-        ? tomorrowMessages[Math.floor(Math.random() * tomorrowMessages.length)]
+        ? `Today's Appointments:\n${todayAppointments
+            .map((appt) => `ID: ${appt.id}, Name: ${appt.name}`)
+            .join("\n")}`
         : null;
 
-    // 4) Optionally notify admins (avoid duplicates per day)
+    const adminTomorrowMessage =
+      tomorrowCount > 0
+        ? `Upcoming Appointments:\n${tomorrowAppointments
+            .map((appt) => `ID: ${appt.id}, Name: ${appt.name}`)
+            .join("\n")}`
+        : null;
+
+    // 4) Notify admins (avoid duplicates per day)
     if (todayCount > 0 || tomorrowCount > 0) {
       const [admins] = await pool.query(
         "SELECT id FROM users WHERE role='admin'"
@@ -620,7 +594,7 @@ export const getAppointments = async (req, res) => {
 
       await Promise.allSettled(
         admins.map(async (admin) => {
-          if (todayCount > 0 && randomTodayMessage) {
+          if (adminTodayMessage) {
             const [existsToday] = await pool.query(
               `SELECT id FROM notifications
                WHERE user_id=? AND title=? AND DATE(created_at)=CURDATE()`,
@@ -630,13 +604,13 @@ export const getAppointments = async (req, res) => {
               await createNotification({
                 user_id: admin.id,
                 title: "Today's Appointments",
-                message: randomTodayMessage,
+                message: adminTodayMessage,
                 type: "appointment",
               });
             }
           }
 
-          if (tomorrowCount > 0 && randomTomorrowMessage) {
+          if (adminTomorrowMessage) {
             const [existsTomorrow] = await pool.query(
               `SELECT id FROM notifications
                WHERE user_id=? AND title=? AND DATE(created_at)=CURDATE()`,
@@ -646,7 +620,7 @@ export const getAppointments = async (req, res) => {
               await createNotification({
                 user_id: admin.id,
                 title: "Upcoming Appointments",
-                message: randomTomorrowMessage,
+                message: adminTomorrowMessage,
                 type: "appointment",
               });
             }
