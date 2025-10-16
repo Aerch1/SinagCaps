@@ -427,7 +427,7 @@ export default function DataTable({
                         <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-600 flex-shrink-0">Show</span>
                             <div className="flex items-center gap-2">
-                                <div className="w-[160px] flex-shrink-0">
+                                <div className="w-[170px] flex-shrink-0">
                                     <FilterDropdown
                                         mode="range"
                                         selectionMode="single"
