@@ -85,6 +85,13 @@ export default function DataTable({
         setPage(1);
     }, [showRangeKey]);
 
+    const rangeLabel = showRangeKey === "custom"
+        ? `${startDate || "—"} to ${endDate || "—"}`
+        : showRangeKey !== "all"
+            ? computeRange(showRangeKey)?.label
+            : "All";
+
+
     /* ---------------- Fetch Appointments ---------------- */
     const fetchData = async () => {
         try {
@@ -424,31 +431,32 @@ export default function DataTable({
                                     mode="range"
                                     selectionMode="single"
                                     value={showRangeKey}
+                                    displayLabel={rangeLabel} // ✅ shows the custom range or predefined label
                                     onChange={setShowRangeKey}
                                     options={[
                                         { value: "all", label: "All" },
                                         { value: "7d", label: "Last 7 days" },
                                         { value: "month", label: "This month" },
                                         { value: "year", label: "This year" },
-                                        { value: "custom", label: "Custom Range" }, // ✅ add this
+                                        { value: "custom", label: "Custom Range" },
                                     ]}
-
                                 />
+
                                 {showRangeKey === "custom" && (
                                     <div className="flex gap-2 items-center mt-2">
                                         <input
                                             type="date"
                                             value={startDate || ""}
-                                            onChange={(e) => setRange({ startDate: e.target.value, endDate })}
+                                            onChange={(e) => setRange(prev => ({ ...prev, startDate: e.target.value }))}
                                             className="border rounded px-2 py-1 text-sm"
                                         />
-                                        <span className="text-gray-500">to</span>
                                         <input
                                             type="date"
                                             value={endDate || ""}
-                                            onChange={(e) => setRange({ startDate, endDate: e.target.value })}
+                                            onChange={(e) => setRange(prev => ({ ...prev, endDate: e.target.value }))}
                                             className="border rounded px-2 py-1 text-sm"
                                         />
+
                                     </div>
                                 )}
 
