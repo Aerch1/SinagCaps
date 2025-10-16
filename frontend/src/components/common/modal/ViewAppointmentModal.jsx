@@ -107,21 +107,28 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
   }, [isOpen, appointmentId]);
 
   /* 🔹 Handle status update */
+  /* 🔹 Handle status update */
   const handleStatusChange = async (newStatus) => {
     if (!appointmentId) return;
     const toastId = toast.loading("Updating appointment...");
     try {
-      await api.patch(`/admin/appointments/${appointmentId}`, {
-        status: newStatus,
-        service_id: local?.service_id,
-        date: local?.date,
-        time: local?.time,
-        name: local?.name,
-        email: local?.email,
-        contactNumber: local?.contactNumber,
-        address: local?.address,
-        notes: local?.notes || "",
-      });
+      // ✅ Only send date/time and other fields if not approving
+      const payload =
+        newStatus === "approved"
+          ? { status: newStatus } // simple payload avoids reschedule check
+          : {
+            status: newStatus,
+            service_id: local?.service_id,
+            date: local?.date,
+            time: local?.time,
+            name: local?.name,
+            email: local?.email,
+            contactNumber: local?.contactNumber,
+            address: local?.address,
+            notes: local?.notes || "",
+          };
+
+      await api.patch(`/admin/appointments/${appointmentId}`, payload);
 
       const updated = { ...local, status: newStatus };
       setLocal(updated);
@@ -132,6 +139,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
       toast.error("Failed to update appointment", { id: toastId });
     }
   };
+
 
   /* 🔹 Trigger modal with panel hide */
   const triggerWithHide = (modalSetter) => {
