@@ -424,9 +424,9 @@ export default function DataTable({
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm text-gray-600">Show</span>
-                            <div className="min-w-[220px] overflow-visible">
+                            <div className="min-w-[220px] overflow-visible flex items-center gap-2 flex-wrap">
                                 <FilterDropdown
                                     mode="range"
                                     selectionMode="single"
@@ -443,25 +443,29 @@ export default function DataTable({
                                 />
 
                                 {showRangeKey === "custom" && (
-                                    <div className="flex gap-2 items-center mt-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <input
                                             type="date"
                                             value={startDate || ""}
-                                            onChange={(e) => setRange(prev => ({ ...prev, startDate: e.target.value }))}
+                                            onChange={(e) =>
+                                                setRange((prev) => ({ ...prev, startDate: e.target.value }))
+                                            }
                                             className="border rounded px-2 py-1 text-sm"
                                         />
+                                        <span className="text-gray-500">to</span>
                                         <input
                                             type="date"
                                             value={endDate || ""}
-                                            onChange={(e) => setRange(prev => ({ ...prev, endDate: e.target.value }))}
+                                            onChange={(e) =>
+                                                setRange((prev) => ({ ...prev, endDate: e.target.value }))
+                                            }
                                             className="border rounded px-2 py-1 text-sm"
                                         />
-
                                     </div>
                                 )}
-
                             </div>
                         </div>
+
                         {/* ✅ Export button now opens modal */}
                         <button
                             onClick={() => setShowExportModal(true)}
@@ -480,6 +484,7 @@ export default function DataTable({
                         )}
                     </div>
                 </div>
+
 
                 {/* Table */}
                 <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar md:overflow-x-hidden">
