@@ -413,15 +413,24 @@ export const updateAppointmentAdmin = async (req, res) => {
         message = `${finalName}'s ${serviceName} appointment was cancelled.`;
       }
 
-      if (title) {
-        await createNotification({
-          user_id: oldAppt.user_id,
-          title,
-          message,
-          type: "appointment",
-          reference_id: id,
-          transaction_id: `APT-${String(id).padStart(5, "0")}`,
-        });
+      // 🛎️ Notifications - only for the public user
+      if (title && oldAppt.user_id) {
+        // ✅ Fetch user role to ensure it's a public user
+        const [[user]] = await pool.query(
+          `SELECT role FROM users WHERE id = ?`,
+          [oldAppt.user_id]
+        );
+
+        if (user?.role !== "admin") {
+          await createNotification({
+            user_id: oldAppt.user_id, // only the actual public user
+            title,
+            message,
+            type: "appointment",
+            reference_id: id,
+            transaction_id: `APT-${String(id).padStart(5, "0")}`,
+          });
+        }
       }
     });
   } catch (err) {
