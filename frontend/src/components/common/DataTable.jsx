@@ -424,28 +424,26 @@ export default function DataTable({
                     </div>
 
                     <div className="flex items-center gap-3 flex-wrap">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="text-sm text-gray-600 flex-shrink-0">Show</span>
-                            <div className="flex items-center gap-2">
-                                <div className="w-[160px] flex-shrink-0">
-                                    <FilterDropdown
-                                        mode="range"
-                                        selectionMode="single"
-                                        value={showRangeKey}
-                                        displayLabel={rangeLabel}
-                                        onChange={setShowRangeKey}
-                                        options={[
-                                            { value: "all", label: "All" },
-                                            { value: "7d", label: "Last 7 days" },
-                                            { value: "month", label: "This month" },
-                                            { value: "year", label: "This year" },
-                                            { value: "custom", label: "Custom Range" },
-                                        ]}
-                                    />
-                                </div>
+                            <div className="flex items-center gap-2 min-w-[160px]">
+                                <FilterDropdown
+                                    mode="range"
+                                    selectionMode="single"
+                                    value={showRangeKey}
+                                    displayLabel={rangeLabel}
+                                    onChange={setShowRangeKey}
+                                    options={[
+                                        { value: "all", label: "All" },
+                                        { value: "7d", label: "Last 7 days" },
+                                        { value: "month", label: "This month" },
+                                        { value: "year", label: "This year" },
+                                        { value: "custom", label: "Custom Range" },
+                                    ]}
+                                />
 
                                 {showRangeKey === "custom" && (
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-shrink-0">
                                         <input
                                             type="date"
                                             value={startDate || ""}
