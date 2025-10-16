@@ -1,7 +1,6 @@
 import pool from "../../config/db.js";
 import { sendAppointmentCreatedEmail } from "../../utils/appointmentEmails.js";
 import { createNotification } from "../../utils/createNotification.js";
-import { hasActiveBookingSameService } from "../../services/appointments.service.js";
 
 /* ==================================================
    CREATE Public Appointment (Default, Baptism, Kumpil)
@@ -18,6 +17,8 @@ export async function createPublicAppointment(req, res) {
       date,
       time,
       notes = null,
+
+      // Baptism fields
       childFullName,
       childDob,
       childBirthplace,
@@ -25,6 +26,8 @@ export async function createPublicAppointment(req, res) {
       motherMaidenName,
       parentsMarriageType,
       sponsors,
+
+      // Kumpil (Confirmation) fields
       confirmandName,
       age,
       parishOrigin,
@@ -51,16 +54,7 @@ export async function createPublicAppointment(req, res) {
     const userId = req.user?.id || null;
     await conn.beginTransaction();
 
-    /* 0️⃣ Prevent duplicate service booking for same person */
-    if (await hasActiveBookingSameService({ email, service_id })) {
-      await conn.rollback();
-      return res.status(400).json({
-        success: false,
-        error: "You already have an active appointment for this service.",
-      });
-    }
-
-    /* 1️⃣ Prevent duplicate booking (same slot/time) */
+    /* 1️⃣ Prevent duplicate booking (same slot and person) */
     const [dupes] = await conn.execute(
       `SELECT id FROM appointments 
        WHERE service_id=? AND date=? AND time=? 
@@ -77,7 +71,25 @@ export async function createPublicAppointment(req, res) {
       });
     }
 
-    /* 2️⃣ Check slot availability */
+    /* 2️⃣ Prevent same email from booking same service (double booking prevention) */
+    const [existingService] = await conn.execute(
+      `SELECT a.id 
+       FROM appointments a
+       LEFT JOIN baptism_details b ON a.id = b.appointment_id
+       WHERE a.service_id=? AND a.email=? 
+         AND a.status IN ('pending','approved')`,
+      [service_id, email]
+    );
+    if (existingService.length > 0) {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        error:
+          "You already have an active appointment for this service with the same email.",
+      });
+    }
+
+    /* 3️⃣ Check slot availability */
     const [bookedRows] = await conn.execute(
       `SELECT COUNT(*) as booked 
        FROM appointments 
@@ -106,7 +118,7 @@ export async function createPublicAppointment(req, res) {
       });
     }
 
-    /* 3️⃣ Insert base appointment */
+    /* 4️⃣ Insert base appointment */
     const [apptResult] = await conn.execute(
       `INSERT INTO appointments 
         (service_id, user_id, name, email, contactNumber, address, date, time, status, notes)
@@ -125,13 +137,13 @@ export async function createPublicAppointment(req, res) {
     );
     const appointmentId = apptResult.insertId;
 
-    /* 4️⃣ Get service info */
+    /* 5️⃣ Get service info */
     const [[service]] = await conn.execute(
       "SELECT form_type, name FROM services WHERE id=?",
       [service_id]
     );
 
-    /* 5️⃣ Handle special forms (baptism & confirmation) */
+    /* 6️⃣ Handle special forms */
     if (service?.form_type === "baptism") {
       if (
         !childFullName ||
@@ -222,7 +234,7 @@ export async function createPublicAppointment(req, res) {
 
     await conn.commit();
 
-    /* 6️⃣ Send email */
+    /* 7️⃣ Send email */
     try {
       await sendAppointmentCreatedEmail(email, {
         name,
@@ -235,7 +247,7 @@ export async function createPublicAppointment(req, res) {
       console.error("sendAppointmentCreatedEmail failed:", e.message);
     }
 
-    /* 7️⃣ Create notification for user */
+    /* 8️⃣ Create notification for user */
     try {
       await createNotification({
         user_id: userId,
@@ -250,28 +262,19 @@ export async function createPublicAppointment(req, res) {
       console.error("createNotification (user) failed:", e.message);
     }
 
-    /* 8️⃣ Notify all admins */
+    /* 9️⃣ Notify all admins */
     try {
       const [admins] = await conn.execute(
         "SELECT id FROM users WHERE role = 'admin'"
       );
 
       const messages = [
-        `${name} just booked a ${
-          service?.name || "service"
-        } appointment for ${date} at ${time}.`,
-        `A new ${
-          service?.name || "appointment"
-        } was created by ${name} — scheduled on ${date} at ${time}.`,
-        `${name} has submitted a ${
-          service?.name || "service"
-        } request for ${date}, ${time}.`,
-        `New booking alert: ${
-          service?.name || "Appointment"
-        } by ${name} on ${date} at ${time}.`,
+        `${name} just booked a ${service?.name || "service"} appointment for ${date} at ${time}.`,
+        `A new ${service?.name || "appointment"} was created by ${name} — scheduled on ${date} at ${time}.`,
+        `${name} has submitted a ${service?.name || "service"} request for ${date}, ${time}.`,
+        `New booking alert: ${service?.name || "Appointment"} by ${name} on ${date} at ${time}.`,
       ];
-      const adminMessage =
-        messages[Math.floor(Math.random() * messages.length)];
+      const adminMessage = messages[Math.floor(Math.random() * messages.length)];
 
       for (const admin of admins) {
         await createNotification({
@@ -298,7 +301,8 @@ export async function createPublicAppointment(req, res) {
   } finally {
     conn.release();
   }
-}
+};
+
 
 /* ==================================================
    GET /api/public/appointments/my
