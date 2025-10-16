@@ -85,6 +85,7 @@ export default function AdminDocumentManagement() {
                 r.full_name?.toLowerCase().includes(q) ||
                 r.email?.toLowerCase().includes(q) ||
                 r.document_type?.toLowerCase().includes(q) ||
+                r.request_code?.toLowerCase().includes(q) ||
                 r.id?.toString().includes(q);
             return matchesStatus && matchesSearch;
         });
@@ -222,7 +223,7 @@ export default function AdminDocumentManagement() {
                                 filteredRequests.map((r) => (
                                     <tr key={r.id} className="hover:bg-gray-50">
                                         <td className="px-3 lg:px-6 py-2 font-medium text-gray-900">
-                                            {r.id}
+                                            {r.request_code || r.id}
                                         </td>
                                         <td className="px-3 lg:px-6 py-2">
                                             <div className="font-medium text-gray-900">
@@ -284,8 +285,11 @@ export default function AdminDocumentManagement() {
                 open={showModal}
                 onClose={() => setShowModal(false)}
                 title={
-                    selectedRequest ? `Request Details – ${selectedRequest.id}` : ""
+                    selectedRequest
+                        ? `Request Details – ${selectedRequest.request_code || selectedRequest.id}`
+                        : ""
                 }
+
             >
                 {selectedRequest && (
                     <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-1 custom-scrollbar">
