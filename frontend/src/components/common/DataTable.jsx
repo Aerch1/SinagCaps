@@ -407,7 +407,7 @@ export default function DataTable({
             {/* ===== Section 2: Table with header controls ===== */}
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm flex flex-col max-h-[800px]">
                 {/* Top controls bar */}
-                <div className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+                <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3">
                     <div>
                         <div className="text-sm font-semibold text-gray-800">
                             Appointment Transactions
@@ -423,10 +423,12 @@ export default function DataTable({
                         ) : null}
                     </div>
 
-                    <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="text-sm text-gray-600 flex-shrink-0">Show</span>
-                            <div className="flex items-center gap-2 min-w-[160px]">
+
+                            {/* Dropdown wrapper: fixed min-width, prevent wrapping */}
+                            <div className="flex items-center gap-2 min-w-[160px] flex-shrink-0">
                                 <FilterDropdown
                                     mode="range"
                                     selectionMode="single"
@@ -466,7 +468,6 @@ export default function DataTable({
                             </div>
                         </div>
 
-                        {/* Export button */}
                         <button
                             onClick={() => setShowExportModal(true)}
                             className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 flex-shrink-0"
@@ -484,6 +485,7 @@ export default function DataTable({
                         )}
                     </div>
                 </div>
+
 
 
                 {/* Table */}
