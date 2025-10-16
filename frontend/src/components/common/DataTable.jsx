@@ -3,7 +3,6 @@ import { Link, useLocation } from "react-router-dom";
 import {
     getAppointments,
     filterAppointments,
-    exportAppointments,
 } from "../../api/appointments.js";
 import {
     Search,
@@ -80,7 +79,9 @@ export default function DataTable({
     }, [activeTab]);
 
     useEffect(() => {
-        setRange(computeRange(showRangeKey));
+        if (showRangeKey !== "custom") {
+            setRange(computeRange(showRangeKey));
+        }
         setPage(1);
     }, [showRangeKey]);
 
@@ -404,11 +405,15 @@ export default function DataTable({
                         <div className="text-sm font-semibold text-gray-800">
                             Appointment Transactions
                         </div>
-                        {showRangeKey !== "all" && (
+                        {showRangeKey === "custom" ? (
+                            <div className="text-xs text-gray-500 mt-0.5">
+                                Showing: {startDate || "—"} to {endDate || "—"}
+                            </div>
+                        ) : showRangeKey !== "all" ? (
                             <div className="text-xs text-gray-500 mt-0.5">
                                 Showing: {computeRange(showRangeKey).label}
                             </div>
-                        )}
+                        ) : null}
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -425,8 +430,28 @@ export default function DataTable({
                                         { value: "7d", label: "Last 7 days" },
                                         { value: "month", label: "This month" },
                                         { value: "year", label: "This year" },
+                                        { value: "custom", label: "Custom Range" }, // ✅ add this
                                     ]}
+
                                 />
+                                {showRangeKey === "custom" && (
+                                    <div className="flex gap-2 items-center mt-2">
+                                        <input
+                                            type="date"
+                                            value={startDate || ""}
+                                            onChange={(e) => setRange({ startDate: e.target.value, endDate })}
+                                            className="border rounded px-2 py-1 text-sm"
+                                        />
+                                        <span className="text-gray-500">to</span>
+                                        <input
+                                            type="date"
+                                            value={endDate || ""}
+                                            onChange={(e) => setRange({ startDate, endDate: e.target.value })}
+                                            className="border rounded px-2 py-1 text-sm"
+                                        />
+                                    </div>
+                                )}
+
                             </div>
                         </div>
                         {/* ✅ Export button now opens modal */}
