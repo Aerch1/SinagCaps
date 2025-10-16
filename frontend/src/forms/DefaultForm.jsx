@@ -69,6 +69,19 @@ export default function DefaultForm({
   }, [formData, registerValidator]);
 
   /* =====================================================
+     ✅ Scroll to first backend error
+  ===================================================== */
+  useEffect(() => {
+    if (!firstErrorRef.current) return;
+    if (Object.keys(formErrors).length > 0) {
+      firstErrorRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [formErrors]);
+
+  /* =====================================================
      🗓 Schedule Label
   ===================================================== */
   const scheduleLabel = useMemo(() => {

@@ -237,12 +237,20 @@ export default function AppointmentPage() {
       setShowSuccess(true);
     } catch (error) {
       toast.dismiss(toastId);
+
+      // If backend returns field-specific errors
       if (error?.response?.data?.errors) {
         const fieldErrors = {};
         error.response.data.errors.forEach(({ field, message }) => {
           fieldErrors[field] = message;
         });
         setFormErrors(fieldErrors);
+
+        // If backend returns a general error message
+      } else if (error?.response?.data?.error) {
+        toast.error(error.response.data.error);
+
+        // Fallback for network or unknown errors
       } else {
         toast.error("Submission failed. Please try again.");
       }
