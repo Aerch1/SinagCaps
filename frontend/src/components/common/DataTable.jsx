@@ -595,7 +595,7 @@ export default function DataTable({
                 )}
             </div>
 
-            <ExportAppointmentModal
+            <AppointmentExportModal
                 open={showExportModal}
                 onClose={() => setShowExportModal(false)}
             />
