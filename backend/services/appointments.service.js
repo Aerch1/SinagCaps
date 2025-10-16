@@ -49,9 +49,22 @@ export async function countBookedAt({
   return rows[0].booked;
 }
 
+/**
+ * ✅ Check if same email already has an active booking for the same service
+ */
+export async function hasActiveBookingSameService({ email, service_id }) {
+  const [rows] = await pool.query(
+    `SELECT id FROM appointments 
+     WHERE email = ? 
+       AND service_id = ? 
+       AND status IN ('pending','approved')`,
+    [email, service_id]
+  );
+  return rows.length > 0;
+}
 
 /**
- * ✅ Insert new appointment 
+ * ✅ Insert new appointment
  */
 export async function insertAppointment({
   user_id = null,

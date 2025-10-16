@@ -13,6 +13,7 @@ import {
 } from "../../services/availability.service.js";
 import {
   hasDuplicateBooking,
+  hasActiveBookingSameService,
   countBookedAt,
   insertAppointment,
   updateAppointment as applyUpdate,
@@ -141,6 +142,17 @@ export const createAppointmentAdmin = async (req, res) => {
         success: false,
         code: "DOUBLE_BOOKING",
         message: "You already have an appointment at this time.",
+      });
+    }
+
+    // 🔹 Prevent duplicate active booking for same email + same service
+    if (await hasActiveBookingSameService({ email, service_id })) {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        code: "SAME_SERVICE_BOOKING",
+        message:
+          "This person already has an active appointment for the same service.",
       });
     }
 
@@ -424,8 +436,6 @@ export const updateAppointmentAdmin = async (req, res) => {
     if (conn) conn.release();
   }
 };
-
-
 
 /* =======================================================
    GET /api/admin/appointments/:id
@@ -756,7 +766,6 @@ export const getTodayAppointments = async (req, res) => {
     });
   }
 };
-
 
 /* =======================================================
    POST /api/admin/appointments/filter
