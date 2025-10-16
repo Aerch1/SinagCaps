@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import DataTable from "../../components/common/DataTable";
 import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal";
 import CreateAppointmentModal from "../../components/common/modal/CreateAppointmentModal";
 import { Plus } from "lucide-react";
 import toast from "react-hot-toast";
+import api from "@/api/api"; // assuming you have an API helper
 
 export default function AppointmentsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -19,8 +20,9 @@ export default function AppointmentsPage() {
     const [viewAppt, setViewAppt] = useState(null);
     const [createOpen, setCreateOpen] = useState(false);
 
-    // ✅ rows shared with DataTable for optimistic UI
+    // ✅ rows shared with DataTable
     const [rows, setRows] = useState([]);
+    const [loading, setLoading] = useState(false);
 
     // ✅ Tabs
     const tabs = [
@@ -32,6 +34,26 @@ export default function AppointmentsPage() {
         { key: "rejected", label: "Rejected" },
         { key: "archived", label: "Archived" },
     ];
+
+    // ✅ Fetch rows whenever status changes
+    useEffect(() => {
+        const fetchAppointments = async () => {
+            setLoading(true);
+            try {
+                const res = await api.get("/admin/appointments", {
+                    params: status !== "all" ? { status } : {},
+                });
+                setRows(res.data?.appointments || []);
+            } catch (err) {
+                console.error("Failed to fetch appointments", err);
+                toast.error("Failed to load appointments");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAppointments();
+    }, [status]);
 
     // ✅ Tab changes update query param
     const handleTabChange = (newStatus) => {
@@ -98,7 +120,8 @@ export default function AppointmentsPage() {
                 initialPageSize={10}
                 activeTab={status}
                 rows={rows}
-                setRows={setRows} // ✅ DataTable controls state
+                setRows={setRows}
+                loading={loading} // optional: show loading spinner
             />
 
             {/* View Modal */}
@@ -109,8 +132,6 @@ export default function AppointmentsPage() {
                 onUpdate={(updated) => {
                     toast.success("Appointment updated");
                     setViewOpen(false);
-
-                    // Optimistic update local row
                     setRows((prev) =>
                         prev.map((row) =>
                             row.id === updated.id ? { ...row, ...updated } : row
@@ -126,16 +147,10 @@ export default function AppointmentsPage() {
                 onSave={(newAppt) => {
                     setCreateOpen(false);
                     toast.success("Appointment created");
-
-                    // ✅ Optimistically add the new appointment
                     setRows((prev) => [newAppt, ...prev]);
-
-                    // ✅ Trigger a global refresh event for DataTable
                     window.dispatchEvent(new Event("appointmentCreated"));
                 }}
             />
-
-
         </div>
     );
 }
