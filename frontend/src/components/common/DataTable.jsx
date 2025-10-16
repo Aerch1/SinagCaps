@@ -423,10 +423,10 @@ export default function DataTable({
                         ) : null}
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm text-gray-600">Show</span>
-                            <div className="min-w-[220px] overflow-visible flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 min-w-[300px]">
+                            <span className="text-sm text-gray-600 flex-shrink-0">Show</span>
+                            <div className="flex items-center gap-2 min-w-[220px]">
                                 <FilterDropdown
                                     mode="range"
                                     selectionMode="single"
@@ -443,7 +443,7 @@ export default function DataTable({
                                 />
 
                                 {showRangeKey === "custom" && (
-                                    <div className="flex items-center gap-2 flex-wrap">
+                                    <div className="flex items-center gap-2 flex-shrink-0">
                                         <input
                                             type="date"
                                             value={startDate || ""}
@@ -469,7 +469,7 @@ export default function DataTable({
                         {/* ✅ Export button now opens modal */}
                         <button
                             onClick={() => setShowExportModal(true)}
-                            className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2"
+                            className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 flex-shrink-0"
                         >
                             <FileDown className="h-4 w-4" />
                             Export
@@ -477,7 +477,7 @@ export default function DataTable({
 
                         {onDashboard && (
                             <Link to={manageHref}>
-                                <button className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2">
+                                <button className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 flex-shrink-0">
                                     Manage
                                 </button>
                             </Link>
