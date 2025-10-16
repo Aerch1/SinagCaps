@@ -19,7 +19,7 @@ const slides = [
             "Create your account to book counseling, ministry appointments, and keep up with services and events.",
         ctas: [
             { label: "Register", to: "/signup", variant: "primary" },
-            { label: "View Services", to: "/services/generalinfo", variant: "ghost" },
+            { label: "About Us", to: "/about", variant: "ghost" },
         ],
     },
     {
@@ -28,8 +28,8 @@ const slides = [
         subheading:
             "Pick a time that works for you, meet with leaders, and receive reminders directly to your inbox.",
         ctas: [
-            { label: "Make Appointment", to: "/appointments", variant: "primary" },
-            { label: "Register", to: "/signup", variant: "ghost" },
+            { label: "Make Appointment", to: "/services/appointments/terms", variant: "primary" },
+            { label: "Document Request", to: "/document-request", variant: "ghost" },
         ],
     },
     {
@@ -37,7 +37,10 @@ const slides = [
         heading: "Welcome Home",
         subheading:
             "Whether you’re new or returning, we’re glad you’re here. Manage your visits and stay connected.",
-        ctas: [{ label: "Register", to: "/signup", variant: "primary" }],
+        ctas: [
+            { label: "Register", to: "/signup", variant: "primary" },
+            { label: "Contact Us", to: "/contact", variant: "ghost" },
+        ],
     },
 ];
 

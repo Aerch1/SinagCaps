@@ -79,9 +79,6 @@ export default function FilterDropdown({
                     />
                 </svg>
             </button>
-
-
-
             {/* Dropdown menu */}
             {open && (
                 <div className="absolute z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-2 w-64">
