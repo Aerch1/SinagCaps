@@ -21,6 +21,7 @@ import FilterDropdown from "../ui/FilterDropdown.jsx";
 import ViewAppointmentModal from "../common/modal/ViewAppointmentModal.jsx";
 import RejectCancelModal from "../common/modal/RejectCancelModal.jsx";
 import RescheduleModal from "../common/modal/RescheduleModal.jsx";
+import AppointmentExportModal from "./modal/AppointmentExportModal.jsx";
 import {
     statusClass,
     formatDate,
@@ -60,6 +61,8 @@ export default function DataTable({
     const [selectedAppointment, setSelectedAppointment] = useState(null);
     const [viewingId, setViewingId] = useState(null);
 
+
+
     const [showRangeKey, setShowRangeKey] = useState("all");
     const [{ startDate, endDate }, setRange] = useState({
         startDate: null,
@@ -67,6 +70,8 @@ export default function DataTable({
     });
 
     const [loading, setLoading] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false); // ✅ export modal state
+
 
     /* ---------------- Tab & Range Effects ---------------- */
     useEffect(() => {
@@ -424,9 +429,9 @@ export default function DataTable({
                                 />
                             </div>
                         </div>
-
+                        {/* ✅ Export button now opens modal */}
                         <button
-                            onClick={exportAppointments}
+                            onClick={() => setShowExportModal(true)}
                             className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2"
                         >
                             <FileDown className="h-4 w-4" />
@@ -589,6 +594,11 @@ export default function DataTable({
                     </div>
                 )}
             </div>
+
+            <ExportAppointmentModal
+                open={showExportModal}
+                onClose={() => setShowExportModal(false)}
+            />
 
 
             {/* ✅ View Modal */}

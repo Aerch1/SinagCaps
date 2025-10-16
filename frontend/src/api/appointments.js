@@ -13,8 +13,3 @@ export async function filterAppointments(filters = {}) {
   return res.data;
 }
 
-// export all
-export async function exportAppointments() {
-  // ✅ ensure full baseURL is used
-  window.open(`${api.defaults.baseURL}/admin/appointments/export`, "_blank");
-}
