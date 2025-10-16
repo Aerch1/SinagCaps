@@ -407,8 +407,9 @@ export default function DataTable({
             {/* ===== Section 2: Table with header controls ===== */}
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm flex flex-col max-h-[800px]">
                 {/* Top controls bar */}
-                <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3 flex-nowrap">
-                    <div className="min-w-0">
+                <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3">
+                    {/* Left side */}
+                    <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="text-sm font-semibold text-gray-800 truncate">
                             Appointment Transactions
                         </div>
@@ -423,10 +424,11 @@ export default function DataTable({
                         ) : null}
                     </div>
 
+                    {/* Right side */}
                     <div className="flex items-center gap-3 flex-shrink-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="text-sm text-gray-600 flex-shrink-0">Show</span>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-shrink-0">
                                 <div className="w-[170px] flex-shrink-0">
                                     <FilterDropdown
                                         mode="range"
@@ -445,7 +447,7 @@ export default function DataTable({
                                 </div>
 
                                 {showRangeKey === "custom" && (
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-shrink-0">
                                         <input
                                             type="date"
                                             value={startDate || ""}
@@ -486,6 +488,7 @@ export default function DataTable({
                         )}
                     </div>
                 </div>
+
 
 
                 {/* Table */}

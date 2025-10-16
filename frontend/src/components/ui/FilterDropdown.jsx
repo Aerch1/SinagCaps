@@ -60,13 +60,13 @@ export default function FilterDropdown({
                 onClick={() => setOpen((p) => !p)}
                 className="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
-                <span className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-gray-500" />
-                    {computedLabel}
+                <span className="flex items-center gap-2 min-w-0 overflow-hidden">
+                    <Filter className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                    <span className="truncate">{computedLabel}</span>
                 </span>
+
                 <svg
-                    className={`h-4 w-4 text-gray-500 transition-transform ${open ? "rotate-180" : ""
-                        }`}
+                    className={`h-4 w-4 text-gray-500 transition-transform ${open ? "rotate-180" : ""}`}
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -79,6 +79,7 @@ export default function FilterDropdown({
                     />
                 </svg>
             </button>
+
 
             {/* Dropdown menu */}
             {open && (
