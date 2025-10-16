@@ -1,12 +1,6 @@
 import pool from "../config/db.js";
 import { createNotification } from "./createNotification.js";
 
-/**
- * Notify all admins when a new document request is created.
- * @param {string} fullName - Full name of the requester
- * @param {string} documentType - Type of document requested
- * @param {number} referenceId - ID of the document request
- */
 export async function notifyAdminsOfNewDocumentRequest(
   fullName,
   documentType,

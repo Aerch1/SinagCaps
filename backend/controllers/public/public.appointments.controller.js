@@ -1,6 +1,7 @@
 import pool from "../../config/db.js";
 import { sendAppointmentCreatedEmail } from "../../utils/appointmentEmails.js";
 import { createNotification } from "../../utils/createNotification.js";
+import { hasActiveBookingSameService } from "../../services/appointments.service.js";
 
 /* ==================================================
    CREATE Public Appointment (Default, Baptism, Kumpil)
@@ -17,8 +18,6 @@ export async function createPublicAppointment(req, res) {
       date,
       time,
       notes = null,
-
-      // Baptism fields
       childFullName,
       childDob,
       childBirthplace,
@@ -26,8 +25,6 @@ export async function createPublicAppointment(req, res) {
       motherMaidenName,
       parentsMarriageType,
       sponsors,
-
-      // Kumpil (Confirmation) fields
       confirmandName,
       age,
       parishOrigin,
@@ -54,7 +51,16 @@ export async function createPublicAppointment(req, res) {
     const userId = req.user?.id || null;
     await conn.beginTransaction();
 
-    /* 1️⃣ Prevent duplicate booking */
+    /* 0️⃣ Prevent duplicate service booking for same person */
+    if (await hasActiveBookingSameService({ email, service_id })) {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        error: "You already have an active appointment for this service.",
+      });
+    }
+
+    /* 1️⃣ Prevent duplicate booking (same slot/time) */
     const [dupes] = await conn.execute(
       `SELECT id FROM appointments 
        WHERE service_id=? AND date=? AND time=? 
@@ -125,7 +131,7 @@ export async function createPublicAppointment(req, res) {
       [service_id]
     );
 
-    /* 5️⃣ Handle special forms */
+    /* 5️⃣ Handle special forms (baptism & confirmation) */
     if (service?.form_type === "baptism") {
       if (
         !childFullName ||
@@ -250,7 +256,6 @@ export async function createPublicAppointment(req, res) {
         "SELECT id FROM users WHERE role = 'admin'"
       );
 
-      // Some variation in messages for better readability
       const messages = [
         `${name} just booked a ${
           service?.name || "service"
