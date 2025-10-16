@@ -118,7 +118,21 @@ export function generateSlots({
   }
 
   // Convert to sorted slots
-  const timesSorted = [...timeMap.keys()].sort();
+  let timesSorted = [...timeMap.keys()].sort();
+
+  // ✅ Filter out past-time slots if the day is today
+  const now = new Date();
+  const currentTime = now.toTimeString().slice(0, 5); // "HH:mm"
+
+  const firstRuleDate = rules?.find((r) => r.date)?.date;
+  if (firstRuleDate) {
+    const ruleDate = new Date(firstRuleDate).toISOString().split("T")[0];
+    const todayStr = now.toISOString().split("T")[0];
+    if (ruleDate === todayStr) {
+      timesSorted = timesSorted.filter((t) => t > currentTime);
+    }
+  }
+
   return timesSorted.map((t) => {
     const cap = timeMap.get(t).capacity || 0;
     const booked = apptCount[t] || 0;

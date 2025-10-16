@@ -21,6 +21,28 @@ router.get("/:serviceId/:date", async (req, res) => {
         .json({ success: false, error: "Invalid date format" });
     }
 
+    // ✅ Prevent returning availability for past dates
+    const today = new Date();
+    const todayOnly = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const targetOnly = new Date(
+      targetDate.getFullYear(),
+      targetDate.getMonth(),
+      targetDate.getDate()
+    );
+    if (targetOnly < todayOnly) {
+      return res.json({
+        success: true,
+        date,
+        status: "none",
+        slots: [],
+        message: "Past date — no slots available",
+      });
+    }
+
     const isoDate = formatDate(targetDate);
     const weekday = targetDate.getDay(); // 0..6
 
@@ -37,7 +59,7 @@ router.get("/:serviceId/:date", async (req, res) => {
          FROM appointments
          WHERE service_id = ?
            AND date = ?
-           AND status IN ('pending','approved')`, // ✅ removed in_progress
+           AND status IN ('pending','approved')`,
         [serviceId, isoDate]
       ),
       pool.execute(
@@ -90,7 +112,7 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
          WHERE service_id = ?
            AND YEAR(date) = ?
            AND MONTH(date) = ?
-           AND status IN ('pending','approved')`, // ✅ removed in_progress
+           AND status IN ('pending','approved')`,
         [serviceId, y, m]
       ),
       pool.execute(
@@ -105,6 +127,13 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
     }
 
     const days = {};
+    const now = new Date();
+    const todayOnly = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+
     for (let d = 1; d <= daysInMonth; d++) {
       const iso = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(
         2,
@@ -112,6 +141,22 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
       )}`;
       const dt = parseDate(iso);
       const weekday = dt.getDay();
+
+      // ✅ Skip or mark past days as unavailable
+      const targetOnly = new Date(
+        dt.getFullYear(),
+        dt.getMonth(),
+        dt.getDate()
+      );
+      if (targetOnly < todayOnly) {
+        days[iso] = {
+          status: "none",
+          remaining: 0,
+          capacity: 0,
+          booked: 0,
+        };
+        continue;
+      }
 
       const rulesForDay = rules.filter(
         (r) => r.date && formatDate(r.date) === iso

@@ -32,12 +32,28 @@ export function resolveAvailability({ rules, appointments, churchHours }) {
   }
 
   // 🔹 Generate slots (from rules + appts + church hours)
-  const slots = generateSlots({
+  let slots = generateSlots({
     rules: rules || [],
     appointments: appointments || [],
     churchOpen: churchHours.open_time?.slice(0, 5),
     churchClose: churchHours.close_time?.slice(0, 5),
   });
+
+  // ✅ Filter out past-time slots (only for *today*, not future dates)
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+  const firstSlotDate =
+    rules?.find((r) => r.date)?.date || appointments?.[0]?.date || null;
+
+  // Determine if this availability refers to today
+  const isToday =
+    firstSlotDate &&
+    new Date(firstSlotDate).toISOString().split("T")[0] === todayStr;
+
+  if (isToday) {
+    const currentTime = now.toTimeString().slice(0, 5); // "HH:mm"
+    slots = slots.filter((s) => s.time > currentTime);
+  }
 
   // 🔹 No slots at all
   if (!slots.length) {
