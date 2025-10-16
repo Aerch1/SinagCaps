@@ -58,7 +58,7 @@ export default function FilterDropdown({
             <button
                 type="button"
                 onClick={() => setOpen((p) => !p)}
-                className="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                className="flex items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 min-w-[120px] max-w-full"
             >
                 <span className="flex items-center gap-2 min-w-0 overflow-hidden">
                     <Filter className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -79,6 +79,7 @@ export default function FilterDropdown({
                     />
                 </svg>
             </button>
+
 
 
             {/* Dropdown menu */}

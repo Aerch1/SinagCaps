@@ -406,7 +406,6 @@ export default function DataTable({
 
             {/* ===== Section 2: Table with header controls ===== */}
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm flex flex-col max-h-[800px]">
-                {/* Top controls bar */}
                 <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3">
                     {/* Left side */}
                     <div className="flex-1 min-w-0 overflow-hidden">
@@ -429,22 +428,20 @@ export default function DataTable({
                         <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="text-sm text-gray-600 flex-shrink-0">Show</span>
                             <div className="flex items-center gap-2 flex-shrink-0">
-                                <div className="w-[170px] flex-shrink-0">
-                                    <FilterDropdown
-                                        mode="range"
-                                        selectionMode="single"
-                                        value={showRangeKey}
-                                        displayLabel={rangeLabel}
-                                        onChange={setShowRangeKey}
-                                        options={[
-                                            { value: "all", label: "All" },
-                                            { value: "7d", label: "Last 7 days" },
-                                            { value: "month", label: "This month" },
-                                            { value: "year", label: "This year" },
-                                            { value: "custom", label: "Custom Range" },
-                                        ]}
-                                    />
-                                </div>
+                                <FilterDropdown
+                                    mode="range"
+                                    selectionMode="single"
+                                    value={showRangeKey}
+                                    displayLabel={rangeLabel}
+                                    onChange={setShowRangeKey}
+                                    options={[
+                                        { value: "all", label: "All" },
+                                        { value: "7d", label: "Last 7 days" },
+                                        { value: "month", label: "This month" },
+                                        { value: "year", label: "This year" },
+                                        { value: "custom", label: "Custom Range" },
+                                    ]}
+                                />
 
                                 {showRangeKey === "custom" && (
                                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -488,6 +485,7 @@ export default function DataTable({
                         )}
                     </div>
                 </div>
+
 
 
 
