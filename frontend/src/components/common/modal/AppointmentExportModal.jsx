@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { Calendar as CalendarIcon, FileDown, ChevronDown } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/api/api";
 import Modal from "../../ui/Modal"; // ✅ Use your existing Modal
@@ -16,13 +15,16 @@ function startEndForPeriod(period) {
         return { start: s, end: t };
     }
     if (period === "This Month")
-        return { start: new Date(t.getFullYear(), t.getMonth(), 1), end: new Date(t.getFullYear(), t.getMonth() + 1, 0) };
-    if (period === "This Year")
-        return { start: new Date(t.getFullYear(), 0, 1), end: t };
+        return {
+            start: new Date(t.getFullYear(), t.getMonth(), 1),
+            end: new Date(t.getFullYear(), t.getMonth() + 1, 0),
+        };
+    if (period === "This Year") return { start: new Date(t.getFullYear(), 0, 1), end: t };
     return { start: null, end: null };
 }
 
-export default function AppointmentExportModal({ isOpen, onClose, adminName }) {
+// ✅ Accept `open` instead of `isOpen`
+export default function AppointmentExportModal({ open, onClose, adminName }) {
     const [period, setPeriod] = useState("Last 7 days");
     const [customStart, setCustomStart] = useState("");
     const [customEnd, setCustomEnd] = useState("");
@@ -83,15 +85,27 @@ export default function AppointmentExportModal({ isOpen, onClose, adminName }) {
     };
 
     return (
-        <Modal open={isOpen} onClose={onClose} title="Export Appointments" className="max-w-md">
+        <Modal open={open} onClose={onClose} title="Export Appointments" className="max-w-md">
             {/* Scope */}
             <div className="mb-4 flex gap-2">
                 <label>
-                    <input type="radio" name="scope" value="all" checked={scope === "all"} onChange={() => setScope("all")} />
+                    <input
+                        type="radio"
+                        name="scope"
+                        value="all"
+                        checked={scope === "all"}
+                        onChange={() => setScope("all")}
+                    />
                     All appointments
                 </label>
                 <label>
-                    <input type="radio" name="scope" value="pending" checked={scope === "pending"} onChange={() => setScope("pending")} />
+                    <input
+                        type="radio"
+                        name="scope"
+                        value="pending"
+                        checked={scope === "pending"}
+                        onChange={() => setScope("pending")}
+                    />
                     Pending only
                 </label>
             </div>
@@ -132,15 +146,27 @@ export default function AppointmentExportModal({ isOpen, onClose, adminName }) {
             <div className="mb-4 flex gap-2">
                 {["Excel", "PDF"].map((f) => (
                     <label key={f} className="flex items-center gap-1">
-                        <input type="radio" name="format" value={f} checked={format === f} onChange={() => setFormat(f)} />
+                        <input
+                            type="radio"
+                            name="format"
+                            value={f}
+                            checked={format === f}
+                            onChange={() => setFormat(f)}
+                        />
                         {f}
                     </label>
                 ))}
             </div>
 
             <div className="flex justify-end gap-2">
-                <button className="px-3 py-1 rounded border" onClick={onClose}>Cancel</button>
-                <button className="px-3 py-1 rounded bg-blue-600 text-white" onClick={handleGenerate} disabled={loading}>
+                <button className="px-3 py-1 rounded border" onClick={onClose}>
+                    Cancel
+                </button>
+                <button
+                    className="px-3 py-1 rounded bg-blue-600 text-white"
+                    onClick={handleGenerate}
+                    disabled={loading}
+                >
                     {loading ? "Generating..." : "Generate"}
                 </button>
             </div>
