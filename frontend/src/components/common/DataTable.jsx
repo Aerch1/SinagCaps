@@ -407,45 +407,45 @@ export default function DataTable({
             {/* ===== Section 2: Table with header controls ===== */}
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm flex flex-col max-h-[800px]">
                 {/* Top controls bar */}
-                <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3">
-                    <div>
-                        <div className="text-sm font-semibold text-gray-800">
+                <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3 flex-nowrap">
+                    <div className="min-w-0">
+                        <div className="text-sm font-semibold text-gray-800 truncate">
                             Appointment Transactions
                         </div>
                         {showRangeKey === "custom" ? (
-                            <div className="text-xs text-gray-500 mt-0.5">
+                            <div className="text-xs text-gray-500 mt-0.5 truncate">
                                 Showing: {startDate || "—"} to {endDate || "—"}
                             </div>
                         ) : showRangeKey !== "all" ? (
-                            <div className="text-xs text-gray-500 mt-0.5">
+                            <div className="text-xs text-gray-500 mt-0.5 truncate">
                                 Showing: {computeRange(showRangeKey).label}
                             </div>
                         ) : null}
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-600 flex-shrink-0">Show</span>
-
-                            {/* Dropdown wrapper: fixed min-width, prevent wrapping */}
-                            <div className="flex items-center gap-2 min-w-[160px] flex-shrink-0">
-                                <FilterDropdown
-                                    mode="range"
-                                    selectionMode="single"
-                                    value={showRangeKey}
-                                    displayLabel={rangeLabel}
-                                    onChange={setShowRangeKey}
-                                    options={[
-                                        { value: "all", label: "All" },
-                                        { value: "7d", label: "Last 7 days" },
-                                        { value: "month", label: "This month" },
-                                        { value: "year", label: "This year" },
-                                        { value: "custom", label: "Custom Range" },
-                                    ]}
-                                />
+                            <div className="flex items-center gap-2">
+                                <div className="w-[160px] flex-shrink-0">
+                                    <FilterDropdown
+                                        mode="range"
+                                        selectionMode="single"
+                                        value={showRangeKey}
+                                        displayLabel={rangeLabel}
+                                        onChange={setShowRangeKey}
+                                        options={[
+                                            { value: "all", label: "All" },
+                                            { value: "7d", label: "Last 7 days" },
+                                            { value: "month", label: "This month" },
+                                            { value: "year", label: "This year" },
+                                            { value: "custom", label: "Custom Range" },
+                                        ]}
+                                    />
+                                </div>
 
                                 {showRangeKey === "custom" && (
-                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                    <div className="flex items-center gap-2">
                                         <input
                                             type="date"
                                             value={startDate || ""}
@@ -468,6 +468,7 @@ export default function DataTable({
                             </div>
                         </div>
 
+                        {/* Export button */}
                         <button
                             onClick={() => setShowExportModal(true)}
                             className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 flex-shrink-0"
@@ -485,7 +486,6 @@ export default function DataTable({
                         )}
                     </div>
                 </div>
-
 
 
                 {/* Table */}
