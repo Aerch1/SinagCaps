@@ -126,9 +126,15 @@ export default function AppointmentsPage() {
                 onSave={(newAppt) => {
                     setCreateOpen(false);
                     toast.success("Appointment created");
-                    setRows((prev) => [newAppt, ...prev]); // ✅ instant update
+
+                    // ✅ Optimistically add the new appointment
+                    setRows((prev) => [newAppt, ...prev]);
+
+                    // ✅ Trigger a global refresh event for DataTable
+                    window.dispatchEvent(new Event("appointmentCreated"));
                 }}
             />
+
 
         </div>
     );

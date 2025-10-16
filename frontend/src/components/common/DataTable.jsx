@@ -138,6 +138,14 @@ export default function DataTable({
 
     useEffect(() => {
         fetchData();
+
+        // 🔁 Auto refresh every 30 seconds
+        const interval = setInterval(() => {
+            fetchData();
+        }, 30000);
+
+        // 🧹 Cleanup
+        return () => clearInterval(interval);
         // eslint-disable-next-line
     }, [
         page,
@@ -150,6 +158,16 @@ export default function DataTable({
         endDate,
         activeTab,
     ]);
+
+
+
+    // 🧩 Listen for admin-created appointment event
+    useEffect(() => {
+        const handleRefresh = () => fetchData();
+        window.addEventListener("appointmentCreated", handleRefresh);
+        return () => window.removeEventListener("appointmentCreated", handleRefresh);
+    }, []);
+
 
     /* ---------------- Debounced Search ---------------- */
     useEffect(() => {
