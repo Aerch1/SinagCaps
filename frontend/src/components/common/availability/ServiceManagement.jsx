@@ -297,7 +297,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                                     className="w-full max-w-xs md:max-w-sm border border-gray-300 rounded-lg px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm focus:ring-1 focus:outline-0 focus:ring-blue-500"
                                                     autoFocus
                                                 />
-                                                <div className="mt-1 max-w-[200px]">
+                                                <div className="mt-1 w-full max-w-xs md:max-w-sm">
                                                     <Dropdown
                                                         value={editValues.cutoff_days}
                                                         onChange={(val) =>
@@ -305,9 +305,10 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                                         }
                                                         options={cutoffOptions}
                                                         width="w-full"
+                                                        className="truncate"
                                                     />
-
                                                 </div>
+
                                             </>
                                         ) : (
                                             <div className="min-w-0">
