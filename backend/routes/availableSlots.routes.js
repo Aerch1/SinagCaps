@@ -69,7 +69,11 @@ router.get("/:serviceId/:date", async (req, res) => {
         [serviceId, formatDate(targetDate), targetOnly.getDay()]
       );
 
-      if (!rulesForDay.length && targetOnly < cutoffDate) {
+      if (
+        !rulesForDay.length &&
+        targetOnly > todayOnly &&
+        targetOnly < cutoffDate
+      ) {
         return res.json({
           success: true,
           date,
@@ -219,7 +223,7 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
         );
         const hasRule = rulesForDay.length || weeklyRules.length;
 
-        if (!hasRule) {
+        if (!hasRule && targetOnly > todayOnly && targetOnly < cutoffDate) {
           days[iso] = {
             status: "none",
             remaining: 0,
