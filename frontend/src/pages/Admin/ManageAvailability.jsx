@@ -77,11 +77,6 @@ export default function ManageAvailability() {
         const today = new Date();
         const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-        // Compute cutoff date
-        const cutoffDays = selectedService.cutoff_days || 0;
-        const cutoffDate = new Date(todayOnly);
-        cutoffDate.setDate(todayOnly.getDate() + cutoffDays);
-
         const days = [];
 
         const normalizeRule = (rule, dow) => {
@@ -112,17 +107,17 @@ export default function ManageAvailability() {
             let status = "neutral";
             let items = [];
 
+            // Hide all past dates completely
+            if (date < todayOnly) {
+                days.push({ isEmpty: false, day: d, date: iso, status: "none", items: [] });
+                continue;
+            }
+
             const weekly = rules.filter((r) => r.weekday === dow && !r.date);
             const custom = rules.filter((r) => formatDate(r.date) === iso);
 
             const weeklyNorm = weekly.map((r) => normalizeRule(r, dow)).filter(Boolean);
             const customNorm = custom.map((r) => normalizeRule(r, dow)).filter(Boolean);
-
-            // Hide past date only if no schedule exists
-            if (date < todayOnly && weeklyNorm.length === 0 && customNorm.length === 0) {
-                days.push({ isEmpty: false, day: d, date: iso, status: "none", items: [] });
-                continue;
-            }
 
             const weeklyBlocked = weeklyNorm.some((r) => r.type === "allday" && r.status === "blocked");
             const customBlocked = customNorm.some((r) => r.type === "allday" && r.status === "blocked");
@@ -152,7 +147,7 @@ export default function ManageAvailability() {
         return days;
     }, [viewDate, rules, churchHours, selectedService]);
 
-
+  
 
 
     const summary = useMemo(() => {
