@@ -51,6 +51,7 @@ export const signup = handleAsyncError(async (req, res) => {
   const { email, password, name } = req.body;
   const v = validateSignup({ name, email, password });
   if (!v.ok) throw new AppError(v.message, 400);
+
   const normalizedEmail = email.trim().toLowerCase();
 
   await withConn(async (conn) => {
@@ -60,11 +61,13 @@ export const signup = handleAsyncError(async (req, res) => {
     );
 
     const code = randomCode();
-    const expires = expireIn(24);
+    const expires = expireIn(24); // 24 hours
 
+    // ✅ Existing verified user cannot signup again
     if (existing.length && existing[0].isVerified)
       throw new AppError("User already exists", 400);
 
+    // ✅ Existing unverified user: resend verification
     if (existing.length && !existing[0].isVerified) {
       const userId = existing[0].id;
       await conn.execute(
@@ -77,17 +80,26 @@ export const signup = handleAsyncError(async (req, res) => {
       } catch (e) {
         console.error("Resend verification email failed:", e.message);
       }
-      return sendResponse(res, 200, true, "Verification code resent.", {
-        user: { id: userId, email: normalizedEmail, name, isVerified: false },
-      });
+
+      return sendResponse(
+        res,
+        200,
+        true,
+        "Verification code resent. Please check your email.",
+        {
+          user: { id: userId, email: normalizedEmail, name, isVerified: false },
+        }
+      );
     }
 
+    // ✅ New user: create inactive/unverified user
     const hashed = await bcryptjs.hash(password, 12);
     const [r] = await conn.execute(
       "INSERT INTO users (email, password, name, isVerified) VALUES (?, ?, ?, FALSE)",
       [normalizedEmail, hashed, name.trim()]
     );
 
+    // Save verification token
     await conn.execute(
       `INSERT INTO email_verification_tokens (user_id, token, purpose, sent_to_email, expires_at)
        VALUES (?, ?, 'signup', ?, ?)`,
@@ -101,14 +113,20 @@ export const signup = handleAsyncError(async (req, res) => {
       console.error("sendVerificationEmail failed:", e.message);
     }
 
-    return sendResponse(res, 201, true, "User created. Check your email.", {
-      user: {
-        id: r.insertId,
-        email: normalizedEmail,
-        name: name.trim(),
-        isVerified: false,
-      },
-    });
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Account created. Please verify your email before logging in.",
+      {
+        user: {
+          id: r.insertId,
+          email: normalizedEmail,
+          name: name.trim(),
+          isVerified: false,
+        },
+      }
+    );
   });
 });
 
@@ -303,6 +321,7 @@ export const refreshToken = handleAsyncError(async (req, res) => {
     });
   });
 });
+
 // ---------- FORGOT PASSWORD ----------
 export const forgotPassword = handleAsyncError(async (req, res) => {
   const { email } = req.body;
@@ -312,23 +331,35 @@ export const forgotPassword = handleAsyncError(async (req, res) => {
   const normalizedEmail = email.trim().toLowerCase();
 
   await withConn(async (conn) => {
-    const [users] = await conn.execute("SELECT id FROM users WHERE email = ?", [
-      normalizedEmail,
-    ]);
+    const [users] = await conn.execute(
+      "SELECT id, isVerified FROM users WHERE email = ?",
+      [normalizedEmail]
+    );
 
-    // 🟢 Validation: email must exist
+    // ✅ Validation: email must exist
     if (!users.length) {
       throw new AppError("No account found with this email", 404);
     }
 
+    const user = users[0];
+
+    // ✅ Validation: email must be verified
+    if (!user.isVerified) {
+      throw new AppError(
+        "Please verify your email before requesting a password reset",
+        403
+      );
+    }
+
+    // Generate password reset token
     const token = crypto.randomBytes(20).toString("hex");
     const expires = expireIn(1);
     await conn.execute(
       "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
-      [users[0].id, token, expires]
+      [user.id, token, expires]
     );
 
-    // 🟢 Refactored resetURL for multi-domain support
+    // Reset URL (supports multiple client domains)
     const clientUrls = (process.env.CLIENT_URL || "")
       .split(",")
       .map((url) => url.trim())
