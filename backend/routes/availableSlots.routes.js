@@ -61,19 +61,7 @@ router.get("/:serviceId/:date", async (req, res) => {
         targetDate.getMonth(),
         targetDate.getDate()
       );
-
-      // ✅ Only block if no rule exists for this day
-      const [[rulesForDay]] = await pool.execute(
-        `SELECT 1 FROM rules 
-     WHERE service_id = ? AND (date = ? OR (date IS NULL AND weekday = ?)) LIMIT 1`,
-        [serviceId, formatDate(targetDate), targetOnly.getDay()]
-      );
-
-      if (
-        !rulesForDay.length &&
-        targetOnly > todayOnly &&
-        targetOnly < cutoffDate
-      ) {
+      if (targetOnly < cutoffDate) {
         return res.json({
           success: true,
           date,
@@ -214,24 +202,13 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
 
       // ✅ Apply cutoff logic for monthly overview
       if (cutoffDays > 0 && targetOnly < cutoffDate) {
-        // ✅ Only block if no rule exists for this day
-        const rulesForDay = rules.filter(
-          (r) => r.date && formatDate(r.date) === iso
-        );
-        const weeklyRules = rules.filter(
-          (r) => !r.date && r.weekday === weekday
-        );
-        const hasRule = rulesForDay.length || weeklyRules.length;
-
-        if (!hasRule && targetOnly > todayOnly && targetOnly < cutoffDate) {
-          days[iso] = {
-            status: "none",
-            remaining: 0,
-            capacity: 0,
-            booked: 0,
-          };
-          continue;
-        }
+        days[iso] = {
+          status: "none",
+          remaining: 0,
+          capacity: 0,
+          booked: 0,
+        };
+        continue;
       }
 
       const rulesForDay = rules.filter(
