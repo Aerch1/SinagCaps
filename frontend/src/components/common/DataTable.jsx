@@ -393,90 +393,84 @@ export default function DataTable({
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm flex flex-col max-h-[800px]">
                 {/* Header - Fixed responsive layout */}
                 <div className="p-4 border-b border-gray-100">
-                    <div className="flex flex-col gap-3">
-                        {/* Row 1: Title */}
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                                <div className="text-sm font-semibold text-gray-800 truncate">
-                                    Appointment Transactions
-                                </div>
-                                {showRangeKey === "custom" ? (
-                                    <div className="text-xs text-gray-500 mt-0.5 break-words">
-                                        Showing: {startDate || "—"} to {endDate || "—"}
-                                    </div>
-                                ) : showRangeKey !== "all" ? (
-                                    <div className="text-xs text-gray-500 mt-0.5">
-                                        Showing: {computeRange(showRangeKey).label}
-                                    </div>
-                                ) : null}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        {/* Left: Title + Range info */}
+                        <div className="flex-1 min-w-0">
+                            <div className="text-sm font-semibold text-gray-800 truncate">
+                                Appointment Transactions
                             </div>
+                            {showRangeKey === "custom" ? (
+                                <div className="text-xs text-gray-500 mt-0.5 break-words">
+                                    Showing: {startDate || "—"} to {endDate || "—"}
+                                </div>
+                            ) : showRangeKey !== "all" ? (
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                    Showing: {computeRange(showRangeKey).label}
+                                </div>
+                            ) : null}
                         </div>
 
-                        {/* Row 2: Range selector and buttons */}
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                            {/* Left: Range selector */}
-                            <div className="flex flex-col xs:flex-row xs:items-center gap-2">
-                                <span className="text-sm text-gray-600 whitespace-nowrap">Show</span>
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
-                                    <div className="w-full sm:w-auto">
-                                        <FilterDropdown
-                                            mode="range"
-                                            selectionMode="single"
-                                            value={showRangeKey}
-                                            displayLabel={rangeLabel}
-                                            onChange={setShowRangeKey}
-                                            options={[
-                                                { value: "all", label: "All" },
-                                                { value: "7d", label: "Last 7 days" },
-                                                { value: "month", label: "This month" },
-                                                { value: "year", label: "This year" },
-                                                { value: "custom", label: "Custom Range" },
-                                            ]}
+                        {/* Right: FilterDropdown + Buttons */}
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
+                            <span className="text-sm text-gray-600 whitespace-nowrap">Show</span>
+
+                            <div className="w-full sm:w-auto flex flex-wrap items-center gap-2">
+                                <div className="w-full sm:w-auto">
+                                    <FilterDropdown
+                                        mode="range"
+                                        selectionMode="single"
+                                        value={showRangeKey}
+                                        displayLabel={rangeLabel}
+                                        onChange={setShowRangeKey}
+                                        options={[
+                                            { value: "all", label: "All" },
+                                            { value: "7d", label: "Last 7 days" },
+                                            { value: "month", label: "This month" },
+                                            { value: "year", label: "This year" },
+                                            { value: "custom", label: "Custom Range" },
+                                        ]}
+                                    />
+                                </div>
+
+                                {showRangeKey === "custom" && (
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <input
+                                            type="date"
+                                            value={startDate || ""}
+                                            onChange={(e) =>
+                                                setRange((prev) => ({ ...prev, startDate: e.target.value }))
+                                            }
+                                            className="border rounded px-2 py-1 text-sm flex-1 min-w-[120px]"
+                                        />
+                                        <span className="text-gray-500 text-sm">to</span>
+                                        <input
+                                            type="date"
+                                            value={endDate || ""}
+                                            onChange={(e) =>
+                                                setRange((prev) => ({ ...prev, endDate: e.target.value }))
+                                            }
+                                            className="border rounded px-2 py-1 text-sm flex-1 min-w-[120px]"
                                         />
                                     </div>
-
-                                    {showRangeKey === "custom" && (
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <input
-                                                type="date"
-                                                value={startDate || ""}
-                                                onChange={(e) =>
-                                                    setRange((prev) => ({ ...prev, startDate: e.target.value }))
-                                                }
-                                                className="border rounded px-2 py-1 text-sm flex-1 min-w-[120px]"
-                                            />
-                                            <span className="text-gray-500 text-sm">to</span>
-                                            <input
-                                                type="date"
-                                                value={endDate || ""}
-                                                onChange={(e) =>
-                                                    setRange((prev) => ({ ...prev, endDate: e.target.value }))
-                                                }
-                                                className="border rounded px-2 py-1 text-sm flex-1 min-w-[120px]"
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Right: Action buttons */}
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                                <button
-                                    onClick={() => setShowExportModal(true)}
-                                    className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
-                                >
-                                    <FileDown className="h-4 w-4" />
-                                    <span>Export</span>
-                                </button>
-
-                                {onDashboard && (
-                                    <Link to={manageHref}>
-                                        <button className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap">
-                                            Manage
-                                        </button>
-                                    </Link>
                                 )}
                             </div>
+
+                            {/* Action buttons */}
+                            <button
+                                onClick={() => setShowExportModal(true)}
+                                className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap"
+                            >
+                                <FileDown className="h-4 w-4" />
+                                <span>Export</span>
+                            </button>
+
+                            {onDashboard && (
+                                <Link to={manageHref}>
+                                    <button className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap">
+                                        Manage
+                                    </button>
+                                </Link>
+                            )}
                         </div>
                     </div>
                 </div>
