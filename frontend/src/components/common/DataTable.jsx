@@ -406,7 +406,7 @@ export default function DataTable({
 
             {/* ===== Section 2: Table with header controls ===== */}
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm flex flex-col max-h-[800px]">
-                <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3">
+                <div className="p-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
                     {/* Left side */}
                     <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="text-sm font-semibold text-gray-800 truncate">
@@ -424,10 +424,10 @@ export default function DataTable({
                     </div>
 
                     {/* Right side */}
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 justify-end">
+                        <div className="flex flex-wrap items-center gap-2">
                             <span className="text-sm text-gray-600 flex-shrink-0">Show</span>
-                            <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <FilterDropdown
                                     mode="range"
                                     selectionMode="single"
@@ -444,7 +444,7 @@ export default function DataTable({
                                 />
 
                                 {showRangeKey === "custom" && (
-                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <input
                                             type="date"
                                             value={startDate || ""}
@@ -467,22 +467,24 @@ export default function DataTable({
                             </div>
                         </div>
 
-                        {/* Export button */}
-                        <button
-                            onClick={() => setShowExportModal(true)}
-                            className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 flex-shrink-0"
-                        >
-                            <FileDown className="h-4 w-4" />
-                            Export
-                        </button>
+                        {/* Export & Manage Buttons */}
+                        <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
+                            <button
+                                onClick={() => setShowExportModal(true)}
+                                className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2"
+                            >
+                                <FileDown className="h-4 w-4" />
+                                Export
+                            </button>
 
-                        {onDashboard && (
-                            <Link to={manageHref}>
-                                <button className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 flex-shrink-0">
-                                    Manage
-                                </button>
-                            </Link>
-                        )}
+                            {onDashboard && (
+                                <Link to={manageHref}>
+                                    <button className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2">
+                                        Manage
+                                    </button>
+                                </Link>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -490,8 +492,9 @@ export default function DataTable({
 
 
                 {/* Table */}
-                <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar md:overflow-x-hidden">
-                    <table className="w-full md:table-fixed divide-y divide-gray-200 text-xs md:text-sm min-w-[800px] md:min-w-0">
+                <div className="flex-1 overflow-x-auto custom-scrollbar">
+                    <table className="w-full min-w-full md:min-w-0 divide-y divide-gray-200 text-xs md:text-sm table-auto md:table-fixed">
+
                         <thead className="bg-gray-50">
                             <tr>
                                 <th
@@ -590,12 +593,11 @@ export default function DataTable({
 
                 {/* Pagination */}
                 {total > 0 && (
-                    <div className="border-t px-4 py-4 flex justify-between items-center">
-                        <div className="text-sm text-gray-600">
-                            Showing {(page - 1) * pageSize + 1} to{" "}
-                            {Math.min(page * pageSize, total)} of {total}
+                    <div className="border-t px-4 py-4 flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-sm text-gray-600 flex-shrink-0">
+                            Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                                 disabled={page <= 1}
@@ -605,19 +607,14 @@ export default function DataTable({
                             </button>
                             {pages.map((n, i) =>
                                 n === "…" ? (
-                                    <span
-                                        key={`dots-${i}`}
-                                        className="h-9 w-9 flex items-center justify-center"
-                                    >
+                                    <span key={`dots-${i}`} className="h-9 w-9 flex items-center justify-center">
                                         …
                                     </span>
                                 ) : (
                                     <button
                                         key={`page-${n}`}
                                         onClick={() => setPage(n)}
-                                        className={`h-9 w-9 rounded-md border text-sm ${n === page
-                                            ? "bg-blue-600 text-white"
-                                            : "bg-white hover:bg-gray-50"
+                                        className={`h-9 w-9 rounded-md border text-sm ${n === page ? "bg-blue-600 text-white" : "bg-white hover:bg-gray-50"
                                             }`}
                                     >
                                         {n}
@@ -633,6 +630,7 @@ export default function DataTable({
                             </button>
                         </div>
                     </div>
+
                 )}
             </div>
 

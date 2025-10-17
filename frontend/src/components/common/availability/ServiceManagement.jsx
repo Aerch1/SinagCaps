@@ -316,8 +316,9 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                                     {capitalizeWords(svc.name)}
                                                 </div>
                                                 <div className="text-[10px] md:text-xs text-gray-500 font-mono">
-                                                    ID: {svc.id} | Cutoff: {svc.cutoff_days ?? 0} days
+                                                    ID: {svc.id} | Cutoff: {svc.cutoff_days > 0 ? `${svc.cutoff_days} days` : "No restriction"}
                                                 </div>
+
                                             </div>
                                         )}
                                     </td>
