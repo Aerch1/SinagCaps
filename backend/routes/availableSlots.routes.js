@@ -21,19 +21,23 @@ router.get("/:serviceId/:date", async (req, res) => {
         .json({ success: false, error: "Invalid date format" });
     }
 
-    // ✅ Prevent returning availability for past dates
-    const today = new Date();
-    const todayOnly = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate()
+    // ✅ Get today in Philippine timezone
+    const nowPH = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" })
     );
+    const todayOnly = new Date(
+      nowPH.getFullYear(),
+      nowPH.getMonth(),
+      nowPH.getDate()
+    );
+
     const targetOnly = new Date(
       targetDate.getFullYear(),
       targetDate.getMonth(),
       targetDate.getDate()
     );
 
+    // ✅ Prevent returning availability for past dates
     if (targetOnly < todayOnly) {
       return res.json({
         success: true,
@@ -127,11 +131,15 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
       [serviceId]
     );
     const cutoffDays = serviceRow?.cutoff_days || 0;
-    const now = new Date();
+
+    // ✅ Get today in Philippine timezone
+    const nowPH = new Date(
+      new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" })
+    );
     const todayOnly = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
+      nowPH.getFullYear(),
+      nowPH.getMonth(),
+      nowPH.getDate()
     );
 
     const [[rules], [appointments], [hours]] = await Promise.all([
