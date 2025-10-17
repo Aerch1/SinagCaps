@@ -65,58 +65,64 @@ export default function ManageAvailability() {
         }
     }, [selectedService, fetchRules]);
 
-    /* -------- Calendar generation (weekly + custom merge) -------- */
+    /* -------- Calendar generation (weekly + custom merge + cutoff) -------- */
     const calendarData = useMemo(() => {
+        if (!selectedService) return [];
+
         const year = viewDate.getFullYear();
         const month = viewDate.getMonth();
         const dim = getDaysInMonth(year, month);
         const first = getFirstDayOfMonth(year, month);
+
+        const today = new Date();
+        const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        // Compute cutoff date
+        const cutoffDays = selectedService.cutoff_days || 0;
+        const cutoffDate = new Date(todayOnly);
+        cutoffDate.setDate(todayOnly.getDate() + cutoffDays);
+
         const days = [];
 
-        // normalize helper (uses church hours for allday if missing start/end)
         const normalizeRule = (rule, dow) => {
+            if (!rule) return null;
             if (rule.type === "single") {
-                return {
-                    type: "single",
-                    time: rule.time ? rule.time.slice(0, 5) : null,
-                    slots: rule.slots,
-                    status: rule.status,
-                };
+                return { type: "single", time: rule.time?.slice(0, 5) || null, slots: rule.slots, status: rule.status };
             }
             if (rule.type === "recurring") {
-                return {
-                    type: "recurring",
-                    start: rule.start,
-                    end: rule.end,
-                    interval_mins: rule.interval_mins,
-                    slots: rule.slots,
-                    status: rule.status,
-                };
+                return { type: "recurring", start: rule.start, end: rule.end, interval_mins: rule.interval_mins, slots: rule.slots, status: rule.status };
             }
             if (rule.type === "allday") {
                 const hours = churchHours?.[dow];
                 const start = rule.start || hours?.open_time || null;
                 const end = rule.end || hours?.close_time || null;
-                return {
-                    type: "allday",
-                    start,
-                    end,
-                    slots: rule.slots,
-                    status: rule.status,
-                };
+                return { type: "allday", start, end, slots: rule.slots, status: rule.status };
             }
             return null;
         };
 
+        // Empty days for offset
         for (let i = 0; i < first; i++) days.push({ isEmpty: true });
 
         for (let d = 1; d <= dim; d++) {
             const date = new Date(year, month, d);
-            const dow = date.getDay();
             const iso = formatDate(date);
+            const dow = date.getDay();
 
             let status = "neutral";
             let items = [];
+
+            // Check past date
+            if (date < todayOnly) {
+                days.push({ isEmpty: false, day: d, date: iso, status: "none", items: [] });
+                continue;
+            }
+
+            // Check cutoff
+            if (date < cutoffDate) {
+                days.push({ isEmpty: false, day: d, date: iso, status: "none", items: [] });
+                continue;
+            }
 
             const weekly = rules.filter((r) => r.weekday === dow && !r.date);
             const custom = rules.filter((r) => formatDate(r.date) === iso);
@@ -124,57 +130,34 @@ export default function ManageAvailability() {
             const weeklyNorm = weekly.map((r) => normalizeRule(r, dow)).filter(Boolean);
             const customNorm = custom.map((r) => normalizeRule(r, dow)).filter(Boolean);
 
-            const weeklyBlocked = weeklyNorm.some(
-                (r) => r.type === "allday" && r.status === "blocked"
-            );
-            const customBlocked = customNorm.some(
-                (r) => r.type === "allday" && r.status === "blocked"
-            );
+            const weeklyBlocked = weeklyNorm.some((r) => r.type === "allday" && r.status === "blocked");
+            const customBlocked = customNorm.some((r) => r.type === "allday" && r.status === "blocked");
 
-            const weeklyAllDayAvail = weeklyNorm.find(
-                (r) => r.type === "allday" && r.status === "available"
-            );
-            const customAllDayAvail = customNorm.find(
-                (r) => r.type === "allday" && r.status === "available"
-            );
+            const weeklyAllDayAvail = weeklyNorm.find((r) => r.type === "allday" && r.status === "available");
+            const customAllDayAvail = customNorm.find((r) => r.type === "allday" && r.status === "available");
 
-            // Priority rules:
+            // Priority rules
             if (customBlocked || weeklyBlocked) {
                 status = "blocked";
                 items = [{ type: "allday", status: "blocked" }];
             } else if (customAllDayAvail || weeklyAllDayAvail) {
                 status = "available";
                 const chosen = customAllDayAvail || weeklyAllDayAvail;
-                items = [
-                    {
-                        type: "allday",
-                        status: "available",
-                        start: chosen.start || null,
-                        end: chosen.end || null,
-                    },
-                ];
+                items = [{ type: "allday", status: "available", start: chosen.start || null, end: chosen.end || null }];
             } else {
-                const additive = [
-                    ...weeklyNorm.filter((r) => r.type !== "allday"),
-                    ...customNorm.filter((r) => r.type !== "allday"),
-                ];
+                const additive = [...weeklyNorm.filter((r) => r.type !== "allday"), ...customNorm.filter((r) => r.type !== "allday")];
                 if (additive.length > 0) {
                     status = "available";
                     items = additive;
                 }
             }
 
-            days.push({
-                isEmpty: false,
-                day: d,
-                date: iso,
-                status,
-                items,
-            });
+            days.push({ isEmpty: false, day: d, date: iso, status, items });
         }
 
         return days;
-    }, [viewDate, rules, churchHours]);
+    }, [viewDate, rules, churchHours, selectedService]);
+
 
     const summary = useMemo(() => {
         const activeDays = calendarData.filter(
@@ -205,12 +188,13 @@ export default function ManageAvailability() {
         setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
 
     const openDay = (cell) => {
-        if (!cell.isEmpty && cell.date) {
+        if (!cell.isEmpty && cell.date && cell.status !== "none") {
             setSelectedRule(null);
             setSelectedDate(cell.date);
             setShowCustomModal(true);
         }
     };
+
 
     const statusIcon = (status) => {
         switch (status) {
@@ -262,8 +246,8 @@ export default function ManageAvailability() {
                             key={t.id}
                             onClick={() => setTopTab(t.id)}
                             className={`flex items-center gap-1.5 md:gap-2 px-1 py-2 md:py-3 text-xs md:text-sm font-medium border-b-2 whitespace-nowrap ${topTab === t.id
-                                    ? "border-blue-500 text-blue-600"
-                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                ? "border-blue-500 text-blue-600"
+                                : "border-transparent text-gray-500 hover:text-gray-700"
                                 }`}
                         >
                             <t.icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -320,8 +304,8 @@ export default function ManageAvailability() {
                                         <button
                                             onClick={() => setActiveTab("weekly")}
                                             className={`flex-1 px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm font-medium border-b-2 ${activeTab === "weekly"
-                                                    ? "border-blue-500 text-blue-600"
-                                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                                ? "border-blue-500 text-blue-600"
+                                                : "border-transparent text-gray-500 hover:text-gray-700"
                                                 }`}
                                         >
                                             Weekly Rules
@@ -329,8 +313,8 @@ export default function ManageAvailability() {
                                         <button
                                             onClick={() => setActiveTab("custom")}
                                             className={`flex-1 px-2 md:px-4 py-2 md:py-3 text-xs md:text-sm font-medium border-b-2 ${activeTab === "custom"
-                                                    ? "border-blue-500 text-blue-600"
-                                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                                ? "border-blue-500 text-blue-600"
+                                                : "border-transparent text-gray-500 hover:text-gray-700"
                                                 }`}
                                         >
                                             Custom Dates
