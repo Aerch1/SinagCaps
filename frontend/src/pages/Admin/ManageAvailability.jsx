@@ -65,55 +65,49 @@ export default function ManageAvailability() {
         }
     }, [selectedService, fetchRules]);
 
-    /* -------- Calendar generation (weekly + custom merge) -------- */
+    /* -------- Calendar generation (weekly + custom merge + cutoff) -------- */
     const calendarData = useMemo(() => {
+        if (!selectedService) return [];
+
         const year = viewDate.getFullYear();
         const month = viewDate.getMonth();
         const dim = getDaysInMonth(year, month);
         const first = getFirstDayOfMonth(year, month);
+
+        const today = new Date();
+        const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        // Compute cutoff date
+        const cutoffDays = selectedService.cutoff_days || 0;
+        const cutoffDate = new Date(todayOnly);
+        cutoffDate.setDate(todayOnly.getDate() + cutoffDays);
+
         const days = [];
 
-        // normalize helper (uses church hours for allday if missing start/end)
         const normalizeRule = (rule, dow) => {
+            if (!rule) return null;
             if (rule.type === "single") {
-                return {
-                    type: "single",
-                    time: rule.time ? rule.time.slice(0, 5) : null,
-                    slots: rule.slots,
-                    status: rule.status,
-                };
+                return { type: "single", time: rule.time?.slice(0, 5) || null, slots: rule.slots, status: rule.status };
             }
             if (rule.type === "recurring") {
-                return {
-                    type: "recurring",
-                    start: rule.start,
-                    end: rule.end,
-                    interval_mins: rule.interval_mins,
-                    slots: rule.slots,
-                    status: rule.status,
-                };
+                return { type: "recurring", start: rule.start, end: rule.end, interval_mins: rule.interval_mins, slots: rule.slots, status: rule.status };
             }
             if (rule.type === "allday") {
                 const hours = churchHours?.[dow];
                 const start = rule.start || hours?.open_time || null;
                 const end = rule.end || hours?.close_time || null;
-                return {
-                    type: "allday",
-                    start,
-                    end,
-                    slots: rule.slots,
-                    status: rule.status,
-                };
+                return { type: "allday", start, end, slots: rule.slots, status: rule.status };
             }
             return null;
         };
 
+        // Empty days for offset
         for (let i = 0; i < first; i++) days.push({ isEmpty: true });
 
         for (let d = 1; d <= dim; d++) {
             const date = new Date(year, month, d);
-            const dow = date.getDay();
             const iso = formatDate(date);
+            const dow = date.getDay();
 
             let status = "neutral";
             let items = [];
@@ -124,57 +118,42 @@ export default function ManageAvailability() {
             const weeklyNorm = weekly.map((r) => normalizeRule(r, dow)).filter(Boolean);
             const customNorm = custom.map((r) => normalizeRule(r, dow)).filter(Boolean);
 
-            const weeklyBlocked = weeklyNorm.some(
-                (r) => r.type === "allday" && r.status === "blocked"
-            );
-            const customBlocked = customNorm.some(
-                (r) => r.type === "allday" && r.status === "blocked"
-            );
+            // Hide past date only if no schedule exists
+            if (date < todayOnly && weeklyNorm.length === 0 && customNorm.length === 0) {
+                days.push({ isEmpty: false, day: d, date: iso, status: "none", items: [] });
+                continue;
+            }
 
-            const weeklyAllDayAvail = weeklyNorm.find(
-                (r) => r.type === "allday" && r.status === "available"
-            );
-            const customAllDayAvail = customNorm.find(
-                (r) => r.type === "allday" && r.status === "available"
-            );
+            const weeklyBlocked = weeklyNorm.some((r) => r.type === "allday" && r.status === "blocked");
+            const customBlocked = customNorm.some((r) => r.type === "allday" && r.status === "blocked");
 
-            // Priority rules:
+            const weeklyAllDayAvail = weeklyNorm.find((r) => r.type === "allday" && r.status === "available");
+            const customAllDayAvail = customNorm.find((r) => r.type === "allday" && r.status === "available");
+
+            // Priority rules
             if (customBlocked || weeklyBlocked) {
                 status = "blocked";
                 items = [{ type: "allday", status: "blocked" }];
             } else if (customAllDayAvail || weeklyAllDayAvail) {
                 status = "available";
                 const chosen = customAllDayAvail || weeklyAllDayAvail;
-                items = [
-                    {
-                        type: "allday",
-                        status: "available",
-                        start: chosen.start || null,
-                        end: chosen.end || null,
-                    },
-                ];
+                items = [{ type: "allday", status: "available", start: chosen.start || null, end: chosen.end || null }];
             } else {
-                const additive = [
-                    ...weeklyNorm.filter((r) => r.type !== "allday"),
-                    ...customNorm.filter((r) => r.type !== "allday"),
-                ];
+                const additive = [...weeklyNorm.filter((r) => r.type !== "allday"), ...customNorm.filter((r) => r.type !== "allday")];
                 if (additive.length > 0) {
                     status = "available";
                     items = additive;
                 }
             }
 
-            days.push({
-                isEmpty: false,
-                day: d,
-                date: iso,
-                status,
-                items,
-            });
+            days.push({ isEmpty: false, day: d, date: iso, status, items });
         }
 
         return days;
-    }, [viewDate, rules, churchHours]);
+    }, [viewDate, rules, churchHours, selectedService]);
+
+
+
 
     const summary = useMemo(() => {
         const activeDays = calendarData.filter(
@@ -204,26 +183,16 @@ export default function ManageAvailability() {
     const handleNextMonth = () =>
         setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
 
+
+
+
     const openDay = (cell) => {
-        if (!cell.isEmpty && cell.date) {
-            const today = new Date();
-            const cellDate = new Date(cell.date);
-            // Normalize to date-only
-            const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            const cellOnly = new Date(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate());
-
-            if (cellOnly < todayOnly) {
-                // Prevent opening past dates
-                return;
-            }
-
+        if (!cell.isEmpty && cell.date && cell.status !== "none") {
             setSelectedRule(null);
             setSelectedDate(cell.date);
             setShowCustomModal(true);
         }
     };
-
-
     const statusIcon = (status) => {
         switch (status) {
             case "available":
@@ -415,48 +384,77 @@ export default function ManageAvailability() {
                                             </div>
 
                                             <div className="grid grid-cols-7 gap-0.5 md:gap-1">
-                                                {calendarData.map((cell, idx) => {
-                                                    const today = new Date();
-                                                    const cellDate = new Date(cell.date);
-                                                    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                                                    const cellOnly = new Date(cellDate.getFullYear(), cellDate.getMonth(), cellDate.getDate());
-                                                    const isPast = cellOnly < todayOnly;
-
-                                                    return (
-                                                        <div
-                                                            key={idx}
-                                                            onClick={() => openDay(cell)}
-                                                            className={`p-1 md:p-2 w-full ${cellClass(cell.status, cell.isEmpty)}`}
-                                                            style={{ minHeight: "3rem", maxHeight: "5rem" }}
-                                                        >
-                                                            {!cell.isEmpty && (
-                                                                <div className="flex flex-col h-full overflow-hidden">
-                                                                    <div className="flex items-center justify-between mb-0.5 md:mb-1">
-                                                                        <span className="text-[10px] md:text-sm font-medium text-gray-900">
-                                                                            {cell.day}
-                                                                        </span>
-                                                                        {!isPast && statusIcon(cell.status)}
-                                                                    </div>
-                                                                    {!isPast && (
-                                                                        <div className="text-[9px] md:text-[11px] leading-tight space-y-0.5 break-words overflow-hidden">
-                                                                            {cell.items?.slice(0, 2).map((it, i) => (
-                                                                                <div key={i} className="text-left leading-tight truncate">
-                                                                                    {/* same render logic for it */}
-                                                                                </div>
-                                                                            ))}
-                                                                            {cell.items && cell.items.length > 2 && (
-                                                                                <div className="text-[8px] md:text-[9px] text-gray-500">
-                                                                                    +{cell.items.length - 2} more
-                                                                                </div>
+                                                {calendarData.map((cell, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        onClick={() => openDay(cell)}
+                                                        className={`p-1 md:p-2 w-full ${cellClass(
+                                                            cell.status,
+                                                            cell.isEmpty
+                                                        )}`}
+                                                        style={{ minHeight: "3rem", maxHeight: "5rem" }}
+                                                    >
+                                                        {!cell.isEmpty && (
+                                                            <div className="flex flex-col h-full overflow-hidden">
+                                                                <div className="flex items-center justify-between mb-0.5 md:mb-1">
+                                                                    <span className="text-[10px] md:text-sm font-medium text-gray-900">
+                                                                        {cell.day}
+                                                                    </span>
+                                                                    {statusIcon(cell.status)}
+                                                                </div>
+                                                                <div className="text-[9px] md:text-[11px] leading-tight space-y-0.5 break-words overflow-hidden">
+                                                                    {cell.items?.slice(0, 2).map((it, i) => (
+                                                                        <div key={i} className="text-left leading-tight truncate">
+                                                                            {it.type === "allday" ? (
+                                                                                it.status === "blocked" ? (
+                                                                                    <div className="text-red-600 font-semibold">Closed</div>
+                                                                                ) : (
+                                                                                    <div className="flex flex-col">
+                                                                                        <div className="text-emerald-600 text-[8px] md:text-[10px] font-medium">
+                                                                                            Available
+                                                                                        </div>
+                                                                                        <div className="font-semibold text-emerald-700 whitespace-nowrap truncate">
+                                                                                            {it.start && it.end
+                                                                                                ? `${to12h(it.start)} – ${to12h(it.end)}`
+                                                                                                : "All Day"}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                )
+                                                                            ) : it.type === "recurring" ? (
+                                                                                <>
+                                                                                    <div className="text-[8px] md:text-[10px] font-medium truncate">
+                                                                                        {it.start && it.end
+                                                                                            ? `${to12h(it.start)} – ${to12h(it.end)}`
+                                                                                            : "Recurring"}
+                                                                                    </div>
+                                                                                    <div className="text-gray-600 truncate">
+                                                                                        {it.slots == null
+                                                                                            ? `• Every ${it.interval_mins}m`
+                                                                                            : `• ${it.slots} slots`}
+                                                                                    </div>
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <div className="text-[8px] md:text-[10px] font-medium truncate">
+                                                                                        {to12h(it.time)}
+                                                                                    </div>
+                                                                                    <div className="text-emerald-600 truncate">
+                                                                                        {it.slots == null ? "• Available" : `• ${it.slots} slots`}
+                                                                                    </div>
+                                                                                </>
                                                                             )}
+                                                                        </div>
+                                                                    ))}
+                                                                    {cell.items && cell.items.length > 2 && (
+                                                                        <div className="text-[8px] md:text-[9px] text-gray-500">
+                                                                            +{cell.items.length - 2} more
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     </div>
