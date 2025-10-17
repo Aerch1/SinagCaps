@@ -204,7 +204,7 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
     }
 
     // 🆕 Include email in token payload
-    generateTokenAndSetCookie(res, evt.user_id);
+    generateTokenAndSetCookie(res, evt.user_id, evt.email);
 
     return sendResponse(res, 200, true, "Email verified successfully", {
       user: {
@@ -242,7 +242,7 @@ export const login = handleAsyncError(async (req, res) => {
       user.id,
     ]);
     // 🆕 Include email in token payload
-    generateTokenAndSetCookie(res, user.id);
+    generateTokenAndSetCookie(res, user.id, user.email);
 
     return sendResponse(res, 200, true, "Logged in successfully", {
       user: {
@@ -292,7 +292,8 @@ export const refreshToken = handleAsyncError(async (req, res) => {
     // 🆕 Include email in token payload
     const { accessToken, refreshToken: newRefresh } = generateTokenAndSetCookie(
       res,
-      decoded.userId
+      decoded.userId,
+      user.email
     );
 
     return sendResponse(res, 200, true, "Tokens refreshed", {
@@ -435,7 +436,7 @@ export const changePassword = handleAsyncError(async (req, res) => {
     }
 
     // 🆕 Include email in token payload
-    generateTokenAndSetCookie(res, user.id);
+    generateTokenAndSetCookie(res, user.id, user.email);
 
     return sendResponse(res, 200, true, "Password changed successfully", {
       user: {
