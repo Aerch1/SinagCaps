@@ -72,11 +72,12 @@ export const signup = handleAsyncError(async (req, res) => {
          VALUES (?, ?, 'signup', ?, ?)`,
         [userId, code, normalizedEmail, expires]
       );
-      try {
-        await sendVerificationEmail(normalizedEmail, code);
-      } catch (e) {
-        console.error("Resend verification email failed:", e.message);
-      }
+
+      // ✅ Non-blocking email send
+      sendVerificationEmail(normalizedEmail, code).catch((e) =>
+        console.error("Resend verification email failed:", e.message)
+      );
+
       return sendResponse(res, 200, true, "Verification code resent.", {
         user: { id: userId, email: normalizedEmail, name, isVerified: false },
       });
@@ -94,12 +95,10 @@ export const signup = handleAsyncError(async (req, res) => {
       [r.insertId, code, normalizedEmail, expires]
     );
 
-    try {
-      await sendVerificationEmail(normalizedEmail, code);
-      console.log(`✅ Verification email sent to ${normalizedEmail}`);
-    } catch (e) {
-      console.error("sendVerificationEmail failed:", e.message);
-    }
+    // ✅ Fire-and-forget email
+    sendVerificationEmail(normalizedEmail, code)
+      .then(() => console.log(`✅ Verification email sent to ${normalizedEmail}`))
+      .catch((e) => console.error("sendVerificationEmail failed:", e.message));
 
     return sendResponse(res, 201, true, "User created. Check your email.", {
       user: {
@@ -135,12 +134,11 @@ export const resendVerification = handleAsyncError(async (req, res) => {
        VALUES (?, ?, 'signup', ?, ?)`,
       [user.id, code, normalizedEmail, expires]
     );
-    try {
-      await sendVerificationEmail(normalizedEmail, code);
-    } catch (e) {
-      console.error("Resend verification email failed:", e.message);
-      throw new AppError("Failed to send verification email", 500);
-    }
+
+    // ✅ Non-blocking email
+    sendVerificationEmail(normalizedEmail, code).catch((e) =>
+      console.error("Resend verification email failed:", e.message)
+    );
 
     return sendResponse(res, 200, true, "Verification code resent.");
   });
@@ -174,11 +172,10 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
       [evt.id]
     );
 
-    try {
-      await sendWelcomeEmail(evt.email, evt.name);
-    } catch (e) {
-      console.error("Welcome email failed:", e.message);
-    }
+    // ✅ Run email + notification asynchronously
+    sendWelcomeEmail(evt.email, evt.name).catch((e) =>
+      console.error("Welcome email failed:", e.message)
+    );
 
     const messages = [
       "🎉 Welcome aboard, :name! Your account is now verified.",
@@ -192,18 +189,16 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
       evt.name
     );
 
-    try {
-      await createNotification({
-        user_id: evt.user_id,
-        title: "Welcome to Our Lady of Peace and Good Voyage Parish",
-        message: msg,
-        type: "announcement",
-      });
-    } catch (err) {
-      console.error("Welcome notification failed:", err.message);
-    }
+    createNotification({
+      user_id: evt.user_id,
+      title: "Welcome to Our Lady of Peace and Good Voyage Parish",
+      message: msg,
+      type: "announcement",
+    }).catch((err) =>
+      console.error("Welcome notification failed:", err.message)
+    );
 
-    // 🆕 Include email in token payload
+    // ✅ Include email in token payload
     generateTokenAndSetCookie(res, evt.user_id, evt.email);
 
     return sendResponse(res, 200, true, "Email verified successfully", {
@@ -241,7 +236,7 @@ export const login = handleAsyncError(async (req, res) => {
     await conn.execute("UPDATE users SET lastLogin = NOW() WHERE id = ?", [
       user.id,
     ]);
-    // 🆕 Include email in token payload
+
     generateTokenAndSetCookie(res, user.id, user.email);
 
     return sendResponse(res, 200, true, "Logged in successfully", {
@@ -289,7 +284,6 @@ export const refreshToken = handleAsyncError(async (req, res) => {
     const user = users[0];
     if (!user.isVerified) throw new AppError("Email not verified", 403);
 
-    // 🆕 Include email in token payload
     const { accessToken, refreshToken: newRefresh } = generateTokenAndSetCookie(
       res,
       decoded.userId,
@@ -303,6 +297,7 @@ export const refreshToken = handleAsyncError(async (req, res) => {
     });
   });
 });
+
 // ---------- FORGOT PASSWORD ----------
 export const forgotPassword = handleAsyncError(async (req, res) => {
   const { email } = req.body;
@@ -324,12 +319,12 @@ export const forgotPassword = handleAsyncError(async (req, res) => {
       [users[0].id, token, expires]
     );
     const resetURL = `${process.env.CLIENT_URL}/reset-password/${token}`;
-    try {
-      await sendPasswordResetEmail(normalizedEmail, resetURL);
-    } catch (e) {
-      console.error("Password reset email failed:", e.message);
-      throw new AppError("Failed to send reset email", 500);
-    }
+
+    // ✅ Send asynchronously
+    sendPasswordResetEmail(normalizedEmail, resetURL).catch((e) =>
+      console.error("Password reset email failed:", e.message)
+    );
+
     return sendResponse(res, 200, true, "Password reset link sent.");
   });
 });
@@ -362,14 +357,12 @@ export const resetPassword = handleAsyncError(async (req, res) => {
       "UPDATE password_resets SET consumed_at = NOW() WHERE id = ?",
       [pr.id]
     );
-    await conn.execute(
-      "UPDATE password_resets SET consumed_at = NOW() WHERE user_id = ? AND consumed_at IS NULL",
-      [pr.user_id]
+
+    // ✅ Non-blocking email
+    sendPasswordResetSuccessEmail(pr.email).catch(() =>
+      console.error("Password reset success email failed")
     );
 
-    try {
-      await sendPasswordResetSuccessEmail(pr.email);
-    } catch {}
     return sendResponse(res, 200, true, "Password reset successful");
   });
 });
@@ -429,13 +422,11 @@ export const changePassword = handleAsyncError(async (req, res) => {
       user.id,
     ]);
 
-    try {
-      await sendPasswordResetSuccessEmail(user.email);
-    } catch (e) {
-      console.error("Password change notice email failed:", e.message);
-    }
+    // ✅ Non-blocking email
+    sendPasswordResetSuccessEmail(user.email).catch((e) =>
+      console.error("Password change notice email failed:", e.message)
+    );
 
-    // 🆕 Include email in token payload
     generateTokenAndSetCookie(res, user.id, user.email);
 
     return sendResponse(res, 200, true, "Password changed successfully", {
@@ -498,11 +489,12 @@ export const changeEmailRequest = handleAsyncError(async (req, res) => {
        code = VALUES(code), expires_at = VALUES(expires_at), consumed_at = NULL, created_at = CURRENT_TIMESTAMP`,
       [req.userId, email, code, expires]
     );
-    try {
-      await sendChangeEmailCode(email, code);
-    } catch (e) {
-      console.error("sendChangeEmailCode failed:", e.message);
-    }
+
+    // ✅ Async send
+    sendChangeEmailCode(email, code).catch((e) =>
+      console.error("sendChangeEmailCode failed:", e.message)
+    );
+
     return sendResponse(res, 200, true, "Verification code sent");
   });
 });
@@ -510,52 +502,64 @@ export const changeEmailRequest = handleAsyncError(async (req, res) => {
 // ---------- CHANGE EMAIL CONFIRM ----------
 export const changeEmailConfirm = handleAsyncError(async (req, res) => {
   let { email, code } = req.body;
-  if (!email?.trim()) throw new AppError("Email is required", 400);
-  if (!code?.trim()) throw new AppError("Verification code is required", 400);
+  if (!email?.trim() || !code?.trim())
+    throw new AppError("Email and code are required", 400);
   email = email.trim().toLowerCase();
   code = code.trim();
 
   await withConn(async (conn) => {
     const [rows] = await conn.execute(
-      `SELECT * FROM change_email_requests
-       WHERE user_id = ? AND new_email = ? AND code = ?
-         AND consumed_at IS NULL AND expires_at > NOW()
-       LIMIT 1`,
+      `SELECT cer.*, u.email AS old_email, u.name
+       FROM change_email_requests cer
+       JOIN users u ON u.id = cer.user_id
+       WHERE cer.user_id = ? AND cer.new_email = ? AND cer.code = ?
+         AND cer.consumed_at IS NULL AND cer.expires_at > NOW()
+       ORDER BY cer.created_at DESC LIMIT 1`,
       [req.userId, email, code]
     );
-    if (!rows.length)
-      throw new AppError("Invalid or expired verification code", 400);
 
-    const reqRow = rows[0];
-    const [dup] = await conn.execute(
-      "SELECT id FROM users WHERE email = ? AND id <> ?",
-      [email, req.userId]
-    );
-    if (dup.length) throw new AppError("Email is already in use", 400);
+    if (!rows.length) throw new AppError("Invalid or expired code", 400);
+    const cer = rows[0];
 
-    const [[{ email: oldEmail }]] = await conn.query(
-      "SELECT email FROM users WHERE id = ? LIMIT 1",
-      [req.userId]
-    );
-    await conn.execute("UPDATE users SET email = ? WHERE id = ?", [
-      email,
-      req.userId,
-    ]);
-    await conn.execute(
-      "UPDATE change_email_requests SET consumed_at = NOW() WHERE id = ?",
-      [reqRow.id]
-    );
-
+    await conn.beginTransaction();
     try {
-      await sendEmailChangedNotice(oldEmail, email);
-    } catch (e) {
-      console.error("sendEmailChangedNotice failed:", e.message);
+      // Update email in users table
+      await conn.execute("UPDATE users SET email = ? WHERE id = ?", [
+        email,
+        req.userId,
+      ]);
+
+      // Mark the change request as consumed
+      await conn.execute(
+        "UPDATE change_email_requests SET consumed_at = NOW() WHERE id = ?",
+        [cer.id]
+      );
+
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
     }
 
-    const [updated] = await conn.execute(
-      "SELECT id, email, name, role, isVerified, lastLogin, phone, gender, dob, location, avatarUrl FROM users WHERE id = ?",
-      [req.userId]
+    // ✅ Fire emails asynchronously
+    sendEmailChangedNotice(cer.old_email).catch((e) =>
+      console.error("Email change notice failed:", e.message)
     );
-    return sendResponse(res, 200, true, "Email updated", { user: updated[0] });
+
+    sendVerificationEmail(email, code).catch((e) =>
+      console.error("Email verification (new) failed:", e.message)
+    );
+
+    // ✅ Issue new tokens with updated email
+    generateTokenAndSetCookie(res, req.userId, email);
+
+    return sendResponse(res, 200, true, "Email changed successfully", {
+      user: {
+        id: req.userId,
+        oldEmail: cer.old_email,
+        newEmail: email,
+        name: cer.name,
+      },
+    });
   });
 });
