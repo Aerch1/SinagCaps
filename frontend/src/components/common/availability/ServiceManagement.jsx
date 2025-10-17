@@ -196,25 +196,30 @@ export default function ServiceManagement({ onServicesUpdated }) {
         return inName || inRequirements || inStatus;
     });
 
-    // Add this near the top of your component, before the return:
+    // ---------------- CUT OFF OPTIONS ----------------
     const generateCutoffOptions = (maxMonths = 6) => {
         const options = [
-            { label: "0 days", value: 0 },
+            { label: "No restriction (book anytime)", value: 0 },
             { label: "1 day", value: 1 },
             { label: "2 days", value: 2 },
             { label: "3 days", value: 3 },
             { label: "1 week", value: 7 },
             { label: "2 weeks", value: 14 },
+            { label: "3 weeks", value: 21 },
         ];
 
         for (let i = 1; i <= maxMonths; i++) {
-            options.push({ label: `${i} month${i > 1 ? "s" : ""}`, value: i * 30 });
+            options.push({
+                label: `${i} month${i > 1 ? "s" : ""}`,
+                value: i * 30, // approximate 30 days per month
+            });
         }
 
         return options;
     };
 
-    const cutoffOptions = generateCutoffOptions(6); // Generates up to 6 months
+    const cutoffOptions = generateCutoffOptions(6); // use in dropdowns
+
 
 
 
@@ -295,10 +300,13 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                                 <div className="mt-1 max-w-[120px]">
                                                     <Dropdown
                                                         value={editValues.cutoff_days}
-                                                        onChange={(val) => setEditValues((prev) => ({ ...prev, cutoff_days: Number(val) }))}
+                                                        onChange={(val) =>
+                                                            setEditValues((prev) => ({ ...prev, cutoff_days: Number(val) }))
+                                                        }
                                                         options={cutoffOptions}
                                                         width="w-full"
                                                     />
+
                                                 </div>
                                             </>
                                         ) : (
@@ -498,7 +506,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                 width="w-full"
                             />
                             <p className="text-[10px] md:text-xs text-gray-500 mt-1">
-                                Number of days in advance users can book this service.
+                                Users cannot book this service within the selected cutoff period.
                             </p>
                         </div>
 

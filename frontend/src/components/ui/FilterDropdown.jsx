@@ -53,20 +53,20 @@ export default function FilterDropdown({
     }
 
     return (
-        <div className="relative" ref={ref}>
-            {/* Button */}
+        <div className="relative w-full sm:w-auto" ref={ref}>
+            {/* Button - Responsive width */}
             <button
                 type="button"
                 onClick={() => setOpen((p) => !p)}
-                className="flex items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 min-w-[120px] max-w-full"
+                className="flex items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full sm:min-w-[120px] sm:max-w-[240px]"
             >
-                <span className="flex items-center gap-2 min-w-0 overflow-hidden">
+                <span className="flex items-center gap-2 min-w-0 overflow-hidden flex-1">
                     <Filter className="h-4 w-4 text-gray-500 flex-shrink-0" />
                     <span className="truncate">{computedLabel}</span>
                 </span>
 
                 <svg
-                    className={`h-4 w-4 text-gray-500 transition-transform ${open ? "rotate-180" : ""}`}
+                    className={`h-4 w-4 text-gray-500 transition-transform flex-shrink-0 ml-2 ${open ? "rotate-180" : ""}`}
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -79,9 +79,10 @@ export default function FilterDropdown({
                     />
                 </svg>
             </button>
-            {/* Dropdown menu */}
+
+            {/* Dropdown menu - Responsive positioning and width */}
             {open && (
-                <div className="absolute z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-2 w-64">
+                <div className="absolute z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-2 w-full sm:w-64 left-0 sm:left-auto max-w-[calc(100vw-2rem)]">
                     <div className="max-h-64 overflow-y-auto text-sm">
                         {/* Multi-select */}
                         {selectionMode === "multi" &&
@@ -89,19 +90,19 @@ export default function FilterDropdown({
                                 options.map((opt) => (
                                     <label
                                         key={opt.value}
-                                        className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-gray-50"
+                                        className="flex items-center gap-3 px-3 sm:px-4 py-2 cursor-pointer hover:bg-gray-50 rounded"
                                     >
                                         <input
                                             type="checkbox"
                                             checked={values.includes(opt.value)}
                                             onChange={() => toggleOption(opt.value)}
-                                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                            className="h-4 w-4 text-blue-600 border-gray-300 rounded flex-shrink-0"
                                         />
-                                        <span>{opt.label}</span>
+                                        <span className="break-words flex-1">{opt.label}</span>
                                     </label>
                                 ))
                             ) : (
-                                <div className="px-4 py-2 text-gray-500">No options</div>
+                                <div className="px-3 sm:px-4 py-2 text-gray-500">No options</div>
                             ))}
 
                         {/* Single-select */}
@@ -113,7 +114,7 @@ export default function FilterDropdown({
                                             <button
                                                 type="button"
                                                 onClick={() => pickSingle(opt.value)}
-                                                className={`w-full text-left px-4 py-2 rounded hover:bg-gray-50 ${value === opt.value ? "font-medium" : ""
+                                                className={`w-full text-left px-3 sm:px-4 py-2 rounded hover:bg-gray-50 break-words ${value === opt.value ? "font-medium bg-gray-50" : ""
                                                     }`}
                                             >
                                                 {opt.label}
@@ -122,18 +123,26 @@ export default function FilterDropdown({
                                     ))}
                                 </ul>
                             ) : (
-                                <div className="px-4 py-2 text-gray-500">No options</div>
+                                <div className="px-3 sm:px-4 py-2 text-gray-500">No options</div>
                             ))}
                     </div>
 
                     {/* Multi footer */}
                     {selectionMode === "multi" && (
-                        <div className="flex justify-between border-t border-gray-200 px-3 py-2">
+                        <div className="flex justify-between items-center border-t border-gray-200 px-3 py-2 mt-1">
                             <button
-                                className="text-xs text-gray-600 hover:text-gray-800"
+                                type="button"
+                                className="text-xs text-gray-600 hover:text-gray-800 hover:underline"
                                 onClick={() => onChange([])}
                             >
                                 Clear
+                            </button>
+                            <button
+                                type="button"
+                                className="text-xs text-blue-600 hover:text-blue-800 hover:underline sm:hidden"
+                                onClick={() => setOpen(false)}
+                            >
+                                Done
                             </button>
                         </div>
                     )}
