@@ -33,6 +33,7 @@ router.get("/:serviceId/:date", async (req, res) => {
       targetDate.getMonth(),
       targetDate.getDate()
     );
+
     if (targetOnly < todayOnly) {
       return res.json({
         success: true,
@@ -43,25 +44,18 @@ router.get("/:serviceId/:date", async (req, res) => {
       });
     }
 
-    // ✅ Booking cutoff check (fetch from services table)
+    // ✅ Booking cutoff check (must book at least cutoff_days before target date)
     const [[serviceRow]] = await pool.execute(
       `SELECT cutoff_days FROM services WHERE id = ? LIMIT 1`,
       [serviceId]
     );
     const cutoffDays = serviceRow?.cutoff_days || 0;
+
     if (cutoffDays > 0) {
-      const now = new Date();
-      const cutoffDate = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() + cutoffDays
-      );
-      const targetOnly = new Date(
-        targetDate.getFullYear(),
-        targetDate.getMonth(),
-        targetDate.getDate()
-      );
-      if (targetOnly < cutoffDate) {
+      const diffTime = targetOnly.getTime() - todayOnly.getTime();
+      const diffDays = diffTime / (1000 * 60 * 60 * 24); // convert ms → days
+
+      if (diffDays < cutoffDays) {
         return res.json({
           success: true,
           date,
@@ -78,7 +72,7 @@ router.get("/:serviceId/:date", async (req, res) => {
     const [[rules], [appointments], [hours]] = await Promise.all([
       pool.execute(
         `SELECT * FROM rules
-         WHERE service_id = ?
+         WHERE service_id = ? 
            AND (date = ? OR (date IS NULL AND weekday = ?))
          ORDER BY FIELD(type,'blocked','allday','single','recurring')`,
         [serviceId, isoDate, weekday]
@@ -134,10 +128,10 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
     );
     const cutoffDays = serviceRow?.cutoff_days || 0;
     const now = new Date();
-    const cutoffDate = new Date(
+    const todayOnly = new Date(
       now.getFullYear(),
       now.getMonth(),
-      now.getDate() + cutoffDays
+      now.getDate()
     );
 
     const [[rules], [appointments], [hours]] = await Promise.all([
@@ -169,11 +163,6 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
     }
 
     const days = {};
-    const todayOnly = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
 
     for (let d = 1; d <= daysInMonth; d++) {
       const iso = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(
@@ -182,7 +171,6 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
       )}`;
       const dt = parseDate(iso);
       const weekday = dt.getDay();
-
       const targetOnly = new Date(
         dt.getFullYear(),
         dt.getMonth(),
@@ -191,24 +179,19 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
 
       // ✅ Skip or mark past days as unavailable
       if (targetOnly < todayOnly) {
-        days[iso] = {
-          status: "none",
-          remaining: 0,
-          capacity: 0,
-          booked: 0,
-        };
+        days[iso] = { status: "none", remaining: 0, capacity: 0, booked: 0 };
         continue;
       }
 
       // ✅ Apply cutoff logic for monthly overview
-      if (cutoffDays > 0 && targetOnly < cutoffDate) {
-        days[iso] = {
-          status: "none",
-          remaining: 0,
-          capacity: 0,
-          booked: 0,
-        };
-        continue;
+      if (cutoffDays > 0) {
+        const diffTime = targetOnly.getTime() - todayOnly.getTime();
+        const diffDays = diffTime / (1000 * 60 * 60 * 24); // convert ms → days
+
+        if (diffDays < cutoffDays) {
+          days[iso] = { status: "none", remaining: 0, capacity: 0, booked: 0 };
+          continue;
+        }
       }
 
       const rulesForDay = rules.filter(
@@ -227,7 +210,7 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
       });
 
       days[iso] = {
-        status: availability.status, // "available" | "blocked" | "none"
+        status: availability.status,
         remaining: availability.remaining,
         capacity: availability.capacity,
         booked: availability.booked,
