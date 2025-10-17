@@ -60,8 +60,6 @@ export default function DataTable({
     const [selectedAppointment, setSelectedAppointment] = useState(null);
     const [viewingId, setViewingId] = useState(null);
 
-
-
     const [showRangeKey, setShowRangeKey] = useState("all");
     const [{ startDate, endDate }, setRange] = useState({
         startDate: null,
@@ -69,8 +67,7 @@ export default function DataTable({
     });
 
     const [loading, setLoading] = useState(false);
-    const [showExportModal, setShowExportModal] = useState(false); // ✅ export modal state
-
+    const [showExportModal, setShowExportModal] = useState(false);
 
     /* ---------------- Tab & Range Effects ---------------- */
     useEffect(() => {
@@ -90,7 +87,6 @@ export default function DataTable({
         : showRangeKey !== "all"
             ? computeRange(showRangeKey)?.label
             : "All";
-
 
     /* ---------------- Fetch Appointments ---------------- */
     const fetchData = async () => {
@@ -152,12 +148,10 @@ export default function DataTable({
     useEffect(() => {
         fetchData();
 
-        // 🔁 Auto refresh every 30 seconds
         const interval = setInterval(() => {
             fetchData();
         }, 30000);
 
-        // 🧹 Cleanup
         return () => clearInterval(interval);
         // eslint-disable-next-line
     }, [
@@ -172,15 +166,11 @@ export default function DataTable({
         activeTab,
     ]);
 
-
-
-    // 🧩 Listen for admin-created appointment event
     useEffect(() => {
         const handleRefresh = () => fetchData();
         window.addEventListener("appointmentCreated", handleRefresh);
         return () => window.removeEventListener("appointmentCreated", handleRefresh);
     }, []);
-
 
     /* ---------------- Debounced Search ---------------- */
     useEffect(() => {
@@ -234,7 +224,6 @@ export default function DataTable({
 
         return (
             <div className="flex justify-end gap-1.5 whitespace-nowrap">
-                {/* 👁 View Button */}
                 <button
                     onClick={() => setViewingId(r.id)}
                     className="inline-flex items-center gap-1 px-2 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 text-xs"
@@ -326,7 +315,6 @@ export default function DataTable({
             {/* ===== Section 1: Filters ===== */}
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm p-6">
                 <div className="grid grid-cols-12 gap-4 items-end">
-                    {/* Search */}
                     <div className="col-span-12 md:col-span-6">
                         <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">
                             What are you looking for?
@@ -355,7 +343,6 @@ export default function DataTable({
                         </div>
                     </div>
 
-                    {/* Service filter */}
                     <div className="col-span-6 md:col-span-2">
                         <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">
                             Category
@@ -372,7 +359,6 @@ export default function DataTable({
                         />
                     </div>
 
-                    {/* Status filter */}
                     <div className="col-span-6 md:col-span-2">
                         <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">
                             Status
@@ -389,7 +375,6 @@ export default function DataTable({
                         />
                     </div>
 
-                    {/* Search button */}
                     <div className="col-span-12 md:col-span-2 flex">
                         <button
                             onClick={() => {
@@ -406,92 +391,92 @@ export default function DataTable({
 
             {/* ===== Section 2: Table with header controls ===== */}
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm flex flex-col max-h-[800px]">
-                <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3">
-                    {/* Left side */}
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                        <div className="text-sm font-semibold text-gray-800 truncate">
-                            Appointment Transactions
+                {/* Header - Now fully responsive with proper wrapping */}
+                <div className="p-4 border-b border-gray-100 flex flex-col gap-3">
+                    {/* Top row */}
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="flex-1 min-w-0">
+                            <div className="text-sm font-semibold text-gray-800 truncate">
+                                Appointment Transactions
+                            </div>
+                            {showRangeKey === "custom" ? (
+                                <div className="text-xs text-gray-500 mt-0.5 break-words">
+                                    Showing: {startDate || "—"} to {endDate || "—"}
+                                </div>
+                            ) : showRangeKey !== "all" ? (
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                    Showing: {computeRange(showRangeKey).label}
+                                </div>
+                            ) : null}
                         </div>
-                        {showRangeKey === "custom" ? (
-                            <div className="text-xs text-gray-500 mt-0.5 truncate">
-                                Showing: {startDate || "—"} to {endDate || "—"}
-                            </div>
-                        ) : showRangeKey !== "all" ? (
-                            <div className="text-xs text-gray-500 mt-0.5 truncate">
-                                Showing: {computeRange(showRangeKey).label}
-                            </div>
-                        ) : null}
+
+                        {/* Action buttons - stacked on mobile */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                                onClick={() => setShowExportModal(true)}
+                                className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2"
+                            >
+                                <FileDown className="h-4 w-4" />
+                                Export
+                            </button>
+
+                            {onDashboard && (
+                                <Link to={manageHref}>
+                                    <button className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2">
+                                        Manage
+                                    </button>
+                                </Link>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Right side */}
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-sm text-gray-600 flex-shrink-0">Show</span>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                                <FilterDropdown
-                                    mode="range"
-                                    selectionMode="single"
-                                    value={showRangeKey}
-                                    displayLabel={rangeLabel}
-                                    onChange={setShowRangeKey}
-                                    options={[
-                                        { value: "all", label: "All" },
-                                        { value: "7d", label: "Last 7 days" },
-                                        { value: "month", label: "This month" },
-                                        { value: "year", label: "This year" },
-                                        { value: "custom", label: "Custom Range" },
-                                    ]}
-                                />
+                    {/* Range selector row - full width on mobile */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+                        <span className="text-sm text-gray-600 whitespace-nowrap">Show</span>
+                        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                            <FilterDropdown
+                                mode="range"
+                                selectionMode="single"
+                                value={showRangeKey}
+                                displayLabel={rangeLabel}
+                                onChange={setShowRangeKey}
+                                options={[
+                                    { value: "all", label: "All" },
+                                    { value: "7d", label: "Last 7 days" },
+                                    { value: "month", label: "This month" },
+                                    { value: "year", label: "This year" },
+                                    { value: "custom", label: "Custom Range" },
+                                ]}
+                            />
 
-                                {showRangeKey === "custom" && (
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                        <input
-                                            type="date"
-                                            value={startDate || ""}
-                                            onChange={(e) =>
-                                                setRange((prev) => ({ ...prev, startDate: e.target.value }))
-                                            }
-                                            className="border rounded px-2 py-1 text-sm"
-                                        />
-                                        <span className="text-gray-500">to</span>
-                                        <input
-                                            type="date"
-                                            value={endDate || ""}
-                                            onChange={(e) =>
-                                                setRange((prev) => ({ ...prev, endDate: e.target.value }))
-                                            }
-                                            className="border rounded px-2 py-1 text-sm"
-                                        />
-                                    </div>
-                                )}
-                            </div>
+                            {showRangeKey === "custom" && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <input
+                                        type="date"
+                                        value={startDate || ""}
+                                        onChange={(e) =>
+                                            setRange((prev) => ({ ...prev, startDate: e.target.value }))
+                                        }
+                                        className="border rounded px-2 py-1 text-sm w-full sm:w-auto"
+                                    />
+                                    <span className="text-gray-500">to</span>
+                                    <input
+                                        type="date"
+                                        value={endDate || ""}
+                                        onChange={(e) =>
+                                            setRange((prev) => ({ ...prev, endDate: e.target.value }))
+                                        }
+                                        className="border rounded px-2 py-1 text-sm w-full sm:w-auto"
+                                    />
+                                </div>
+                            )}
                         </div>
-
-                        {/* Export button */}
-                        <button
-                            onClick={() => setShowExportModal(true)}
-                            className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 flex-shrink-0"
-                        >
-                            <FileDown className="h-4 w-4" />
-                            Export
-                        </button>
-
-                        {onDashboard && (
-                            <Link to={manageHref}>
-                                <button className="h-9 px-3 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 flex items-center gap-2 flex-shrink-0">
-                                    Manage
-                                </button>
-                            </Link>
-                        )}
                     </div>
                 </div>
 
-
-
-
                 {/* Table */}
-                <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar md:overflow-x-hidden">
-                    <table className="w-full md:table-fixed divide-y divide-gray-200 text-xs md:text-sm min-w-[800px] md:min-w-0">
+                <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
+                    <table className="w-full divide-y divide-gray-200 text-xs md:text-sm min-w-[800px]">
                         <thead className="bg-gray-50">
                             <tr>
                                 <th
@@ -588,18 +573,18 @@ export default function DataTable({
                     </table>
                 </div>
 
-                {/* Pagination */}
+                {/* Pagination - Now responsive */}
                 {total > 0 && (
-                    <div className="border-t px-4 py-4 flex justify-between items-center">
-                        <div className="text-sm text-gray-600">
+                    <div className="border-t px-3 py-3 md:px-4 md:py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+                        <div className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                             Showing {(page - 1) * pageSize + 1} to{" "}
                             {Math.min(page * pageSize, total)} of {total}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1 sm:gap-2 flex-wrap justify-center">
                             <button
                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                                 disabled={page <= 1}
-                                className="h-9 w-9 rounded-md border bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+                                className="h-8 w-8 sm:h-9 sm:w-9 rounded-md border bg-white text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center"
                             >
                                 ‹
                             </button>
@@ -607,7 +592,7 @@ export default function DataTable({
                                 n === "…" ? (
                                     <span
                                         key={`dots-${i}`}
-                                        className="h-9 w-9 flex items-center justify-center"
+                                        className="h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center text-xs sm:text-sm"
                                     >
                                         …
                                     </span>
@@ -615,7 +600,7 @@ export default function DataTable({
                                     <button
                                         key={`page-${n}`}
                                         onClick={() => setPage(n)}
-                                        className={`h-9 w-9 rounded-md border text-sm ${n === page
+                                        className={`h-8 w-8 sm:h-9 sm:w-9 rounded-md border text-xs sm:text-sm ${n === page
                                             ? "bg-blue-600 text-white"
                                             : "bg-white hover:bg-gray-50"
                                             }`}
@@ -627,7 +612,7 @@ export default function DataTable({
                             <button
                                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                                 disabled={page >= totalPages}
-                                className="h-9 w-9 rounded-md border bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+                                className="h-8 w-8 sm:h-9 sm:w-9 rounded-md border bg-white text-xs sm:text-sm hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center"
                             >
                                 ›
                             </button>
@@ -641,8 +626,6 @@ export default function DataTable({
                 onClose={() => setShowExportModal(false)}
             />
 
-
-            {/* ✅ View Modal */}
             {viewingId && (
                 <ViewAppointmentModal
                     isOpen={!!viewingId}
@@ -660,7 +643,6 @@ export default function DataTable({
                 />
             )}
 
-            {/* Reject Modal */}
             <RejectCancelModal
                 open={showRejectModal}
                 onClose={() => setShowRejectModal(false)}
@@ -672,7 +654,6 @@ export default function DataTable({
                 }}
             />
 
-            {/* Cancel Modal */}
             <RejectCancelModal
                 open={showCancelModal}
                 onClose={() => setShowCancelModal(false)}
@@ -684,7 +665,6 @@ export default function DataTable({
                 }}
             />
 
-            {/* Reschedule Modal */}
             <RescheduleModal
                 open={showRescheduleModal}
                 onClose={() => setShowRescheduleModal(false)}

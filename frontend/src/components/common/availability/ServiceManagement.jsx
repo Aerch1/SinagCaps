@@ -196,6 +196,30 @@ export default function ServiceManagement({ onServicesUpdated }) {
         return inName || inRequirements || inStatus;
     });
 
+    // Add this near the top of your component, before the return:
+    const generateCutoffOptions = (maxMonths = 6) => {
+        const options = [
+            { label: "0 days", value: 0 },
+            { label: "1 day", value: 1 },
+            { label: "2 days", value: 2 },
+            { label: "3 days", value: 3 },
+            { label: "1 week", value: 7 },
+            { label: "2 weeks", value: 14 },
+        ];
+
+        for (let i = 1; i <= maxMonths; i++) {
+            options.push({ label: `${i} month${i > 1 ? "s" : ""}`, value: i * 30 });
+        }
+
+        return options;
+    };
+
+    const cutoffOptions = generateCutoffOptions(6); // Generates up to 6 months
+
+
+
+
+
     return (
         <div className="bg-white rounded-lg md:rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full">
             {/* Toolbar */}
@@ -268,16 +292,14 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                                     className="w-full max-w-xs md:max-w-sm border border-gray-300 rounded-lg px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm focus:ring-1 focus:outline-0 focus:ring-blue-500"
                                                     autoFocus
                                                 />
-                                                <input
-                                                    type="number"
-                                                    min={0}
-                                                    value={editValues.cutoff_days}
-                                                    onChange={(e) =>
-                                                        setEditValues((prev) => ({ ...prev, cutoff_days: Number(e.target.value) }))
-                                                    }
-                                                    className="mt-1 w-full max-w-[80px] border border-gray-300 rounded px-2 py-1 text-xs md:text-sm focus:ring-1 focus:outline-0 focus:ring-blue-500"
-                                                    placeholder="Cutoff days"
-                                                />
+                                                <div className="mt-1 max-w-[120px]">
+                                                    <Dropdown
+                                                        value={editValues.cutoff_days}
+                                                        onChange={(val) => setEditValues((prev) => ({ ...prev, cutoff_days: Number(val) }))}
+                                                        options={cutoffOptions}
+                                                        width="w-full"
+                                                    />
+                                                </div>
                                             </>
                                         ) : (
                                             <div className="min-w-0">
@@ -469,17 +491,17 @@ export default function ServiceManagement({ onServicesUpdated }) {
 
                         <div>
                             <label className="block text-xs md:text-sm font-medium text-gray-800 mb-1">Booking Cutoff Days</label>
-                            <input
-                                type="number"
-                                min={0}
+                            <Dropdown
                                 value={newServiceCutoff}
-                                onChange={(e) => setNewServiceCutoff(Number(e.target.value))}
-                                className="w-full border rounded-lg px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm focus:ring-1 focus:outline-0 focus:ring-blue-500"
+                                onChange={(val) => setNewServiceCutoff(Number(val))}
+                                options={cutoffOptions}
+                                width="w-full"
                             />
                             <p className="text-[10px] md:text-xs text-gray-500 mt-1">
                                 Number of days in advance users can book this service.
                             </p>
                         </div>
+
 
                         {/* Requirements */}
                         <div>
