@@ -308,14 +308,18 @@ export const forgotPassword = handleAsyncError(async (req, res) => {
   const { email } = req.body;
   const v = validateForgotPassword({ email });
   if (!v.ok) throw new AppError(v.message, 400);
+
   const normalizedEmail = email.trim().toLowerCase();
 
   await withConn(async (conn) => {
     const [users] = await conn.execute("SELECT id FROM users WHERE email = ?", [
       normalizedEmail,
     ]);
-    if (!users.length)
-      return sendResponse(res, 200, true, "Password reset link sent.");
+
+    // 🟢 Validation: email must exist
+    if (!users.length) {
+      throw new AppError("No account found with this email", 404);
+    }
 
     const token = crypto.randomBytes(20).toString("hex");
     const expires = expireIn(1);
@@ -323,13 +327,22 @@ export const forgotPassword = handleAsyncError(async (req, res) => {
       "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
       [users[0].id, token, expires]
     );
-    const resetURL = `${process.env.CLIENT_URL}/reset-password/${token}`;
+
+    // 🟢 Refactored resetURL for multi-domain support
+    const clientUrls = (process.env.CLIENT_URL || "")
+      .split(",")
+      .map((url) => url.trim())
+      .filter(Boolean);
+    const baseClientUrl = clientUrls[0] || "http://localhost:5173"; // fallback
+    const resetURL = `${baseClientUrl}/reset-password/${token}`;
+
     try {
       await sendPasswordResetEmail(normalizedEmail, resetURL);
     } catch (e) {
       console.error("Password reset email failed:", e.message);
       throw new AppError("Failed to send reset email", 500);
     }
+
     return sendResponse(res, 200, true, "Password reset link sent.");
   });
 });
@@ -369,7 +382,10 @@ export const resetPassword = handleAsyncError(async (req, res) => {
 
     try {
       await sendPasswordResetSuccessEmail(pr.email);
-    } catch {}
+    } catch (e) {
+      console.error("Password reset success email failed:", e.message);
+    }
+
     return sendResponse(res, 200, true, "Password reset successful");
   });
 });
