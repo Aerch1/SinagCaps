@@ -49,7 +49,10 @@ export default function AdminResetPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 px-4">
+        <div
+            className="min-h-screen flex flex-col items-center justify-center bg-cover bg-center bg-no-repeat px-4"
+            style={{ backgroundImage: "url('/bg.jpg')" }}
+        >
             {/* Header */}
             <div className="mb-8 text-center">
                 <h1 className="text-2xl font-bold text-blue-800">Admin Password Reset</h1>

@@ -111,7 +111,10 @@ const EmailVerificationPage = () => {
   const useErrorStyle = Boolean(error) && attemptedCodeRef.current === code.join("");
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+    <div
+      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat p-4"
+      style={{ backgroundImage: "url('/bg.jpg')" }}
+    >
       <div className="w-full max-w-md bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="p-6 sm:p-8">
           {/* Logo */}

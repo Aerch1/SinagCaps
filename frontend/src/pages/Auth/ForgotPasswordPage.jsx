@@ -32,8 +32,10 @@ const ForgotPasswordPage = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-            <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-6 sm:p-8">
+        <div
+            className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat px-4"
+            style={{ backgroundImage: "url('/bg.jpg')" }}
+        >            <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-6 sm:p-8">
                 <div className="flex justify-center mb-6">
                     <img src="/logo.png" alt="OLOPGV Logo" className="w-14 h-14 sm:w-16 sm:h-16" />
                 </div>
