@@ -4,7 +4,7 @@ import pool from "../../config/db.js";
 export const getServices = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT id, name, active, form_type, created_at 
+      `SELECT id, name, active, form_type, cutoff_days, created_at 
        FROM services 
        ORDER BY created_at DESC`
     );
@@ -41,6 +41,7 @@ export const createService = async (req, res) => {
       active = true,
       requirements = [],
       formType = "default",
+      cutoff_days = 0, // ✅ Added for cutoff restriction
     } = req.body;
 
     if (!name || !name.trim()) {
@@ -63,10 +64,10 @@ export const createService = async (req, res) => {
         .json({ success: false, message: "Service already exists" });
     }
 
-    // Insert service with form_type
+    // ✅ Insert with cutoff_days
     const [result] = await conn.query(
-      `INSERT INTO services (name, active, form_type) VALUES (?, ?, ?)`,
-      [name.trim(), !!active, formType]
+      `INSERT INTO services (name, active, form_type, cutoff_days) VALUES (?, ?, ?, ?)`,
+      [name.trim(), !!active, formType, cutoff_days ?? 0]
     );
     const serviceId = result.insertId;
 
@@ -93,6 +94,7 @@ export const createService = async (req, res) => {
         name: name.trim(),
         active: !!active,
         formType,
+        cutoff_days: cutoff_days ?? 0,
         requirements,
       },
     });
@@ -121,7 +123,13 @@ export const updateService = async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const { id } = req.params;
-    const { name, active, requirements = [], formType = "default" } = req.body;
+    const {
+      name,
+      active,
+      requirements = [],
+      formType = "default",
+      cutoff_days = 0, // ✅ Added
+    } = req.body;
 
     if (!name || !name.trim()) {
       return res
@@ -144,9 +152,12 @@ export const updateService = async (req, res) => {
       });
     }
 
+    // ✅ Update cutoff_days too
     const [updateResult] = await conn.query(
-      `UPDATE services SET name = ?, active = ?, form_type = ? WHERE id = ?`,
-      [name.trim(), !!active, formType, id]
+      `UPDATE services 
+       SET name = ?, active = ?, form_type = ?, cutoff_days = ? 
+       WHERE id = ?`,
+      [name.trim(), !!active, formType, cutoff_days ?? 0, id]
     );
 
     if (updateResult.affectedRows === 0) {
@@ -175,7 +186,10 @@ export const updateService = async (req, res) => {
     }
 
     await conn.commit();
-    res.json({ success: true, message: "Service updated successfully" });
+    res.json({
+      success: true,
+      message: "Service updated successfully",
+    });
   } catch (err) {
     await conn.rollback();
     console.error("❌ updateService error:", err);
@@ -256,7 +270,7 @@ export const addServiceRequirement = async (req, res) => {
 
     const trimmedName = name.trim();
 
-    // ✅ Prevent duplicate requirement names for this service (case-insensitive)
+    // ✅ Prevent duplicate requirement names
     const [existing] = await conn.query(
       `SELECT id FROM requirements 
        WHERE service_id = ? AND LOWER(name) = LOWER(?) 
@@ -271,7 +285,7 @@ export const addServiceRequirement = async (req, res) => {
       });
     }
 
-    // ✅ Insert new requirement under this service
+    // ✅ Insert new requirement
     const [result] = await conn.query(
       `INSERT INTO requirements (service_id, name, description, is_mandatory)
        VALUES (?, ?, ?, ?)`,
@@ -300,4 +314,3 @@ export const addServiceRequirement = async (req, res) => {
     conn.release();
   }
 };
-

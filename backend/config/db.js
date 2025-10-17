@@ -162,16 +162,17 @@ async function ensureSchema(conn) {
 
   // ---- Services
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS services (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      description TEXT,
-      active BOOLEAN DEFAULT TRUE,
-      form_type ENUM('default','baptism','wedding','confirmation','confession','anointing')
-        DEFAULT 'default',
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  CREATE TABLE IF NOT EXISTS services (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    active BOOLEAN DEFAULT TRUE,
+    form_type ENUM('default','baptism','wedding','confirmation','confession','anointing')
+      DEFAULT 'default',
+    cutoff_days INT DEFAULT 0, -- ⬅️ Added for dynamic booking cutoff
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
   // ---- Requirements
   await conn.execute(`

@@ -43,6 +43,35 @@ router.get("/:serviceId/:date", async (req, res) => {
       });
     }
 
+    // ✅ Booking cutoff check (fetch from services table)
+    const [[serviceRow]] = await pool.execute(
+      `SELECT cutoff_days FROM services WHERE id = ? LIMIT 1`,
+      [serviceId]
+    );
+    const cutoffDays = serviceRow?.cutoff_days || 0;
+    if (cutoffDays > 0) {
+      const now = new Date();
+      const cutoffDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + cutoffDays
+      );
+      const targetOnly = new Date(
+        targetDate.getFullYear(),
+        targetDate.getMonth(),
+        targetDate.getDate()
+      );
+      if (targetOnly < cutoffDate) {
+        return res.json({
+          success: true,
+          date,
+          status: "none",
+          slots: [],
+          message: `Booking cutoff: must book at least ${cutoffDays} day(s) in advance.`,
+        });
+      }
+    }
+
     const isoDate = formatDate(targetDate);
     const weekday = targetDate.getDay(); // 0..6
 
@@ -98,6 +127,19 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
     const m = Number(month); // 1..12
     const daysInMonth = getDaysInMonth(y, m - 1);
 
+    // ✅ Fetch cutoff_days for this service
+    const [[serviceRow]] = await pool.execute(
+      `SELECT cutoff_days FROM services WHERE id = ? LIMIT 1`,
+      [serviceId]
+    );
+    const cutoffDays = serviceRow?.cutoff_days || 0;
+    const now = new Date();
+    const cutoffDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + cutoffDays
+    );
+
     const [[rules], [appointments], [hours]] = await Promise.all([
       pool.execute(
         `SELECT * FROM rules
@@ -127,7 +169,6 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
     }
 
     const days = {};
-    const now = new Date();
     const todayOnly = new Date(
       now.getFullYear(),
       now.getMonth(),
@@ -142,13 +183,25 @@ router.get("/:serviceId/month/:year/:month", async (req, res) => {
       const dt = parseDate(iso);
       const weekday = dt.getDay();
 
-      // ✅ Skip or mark past days as unavailable
       const targetOnly = new Date(
         dt.getFullYear(),
         dt.getMonth(),
         dt.getDate()
       );
+
+      // ✅ Skip or mark past days as unavailable
       if (targetOnly < todayOnly) {
+        days[iso] = {
+          status: "none",
+          remaining: 0,
+          capacity: 0,
+          booked: 0,
+        };
+        continue;
+      }
+
+      // ✅ Apply cutoff logic for monthly overview
+      if (cutoffDays > 0 && targetOnly < cutoffDate) {
         days[iso] = {
           status: "none",
           remaining: 0,

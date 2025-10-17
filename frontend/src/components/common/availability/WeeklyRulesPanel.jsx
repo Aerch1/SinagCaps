@@ -559,7 +559,7 @@ export default function WeeklyRulesPanel({ serviceId }) {
             <ConfirmDialog
                 open={showConfirm}
                 title="Override Existing Rules?"
-                message="This day already has custom or weekly schedules. Blocking will override them"
+                message="This day already has existing schedules. Applying all-day availability will override them."
                 onConfirm={() => {
                     setShowConfirm(false);
                     confirmAction?.();

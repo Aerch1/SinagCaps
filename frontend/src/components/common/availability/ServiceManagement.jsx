@@ -25,6 +25,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
     const [newServiceName, setNewServiceName] = useState("");
     const [newServiceStatus, setNewServiceStatus] = useState("active");
     const [newRequirements, setNewRequirements] = useState([]);
+    const [newServiceCutoff, setNewServiceCutoff] = useState(0);
 
     // Edit state
     const [editingId, setEditingId] = useState(null);
@@ -32,6 +33,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
         name: "",
         status: "active",
         requirements: [],
+        cutoff_days: 0,
     });
 
     useEffect(() => {
@@ -74,6 +76,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                 name: capitalizeWords(newServiceName.trim()),
                 active: newServiceStatus === "active",
                 requirements: cleanedReqs,
+                cutoff_days: newServiceCutoff, // ✅ send cutoff_days
             });
 
             if (data.success) {
@@ -83,6 +86,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                 setNewServiceName("");
                 setNewServiceStatus("active");
                 setNewRequirements([]);
+                setNewServiceCutoff(0);
                 toast.success("Service added successfully");
             } else {
                 toast.error(data.message || "Failed to add service");
@@ -110,6 +114,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                 name: capitalizeWords(editValues.name.trim()),
                 active: editValues.status === "active",
                 requirements: cleanedReqs,
+                cutoff_days: editValues.cutoff_days, // ✅ send updated cutoff_days
             });
 
             if (data.success) {
@@ -161,12 +166,13 @@ export default function ServiceManagement({ onServicesUpdated }) {
                     is_mandatory: r.is_mandatory !== false,
                 }))
                 : [],
+            cutoff_days: svc.cutoff_days || 0,
         });
     };
 
     const cancelEdit = () => {
         setEditingId(null);
-        setEditValues({ name: "", status: "active", requirements: [] });
+        setEditValues({ name: "", status: "active", requirements: [], cutoff_days: 0 });
     };
 
     /* ---------------- SEARCH (debounced) ---------------- */
@@ -204,9 +210,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                             placeholder="Search services..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") e.preventDefault();
-                            }}
+                            onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
                             className="block w-full sm:w-56 md:w-64 pl-8 md:pl-9 pr-2 md:pr-3 py-1.5 md:py-2 text-xs md:text-sm border border-gray-300 rounded-lg bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:outline-0"
                         />
                     </div>
@@ -214,11 +218,11 @@ export default function ServiceManagement({ onServicesUpdated }) {
                         onClick={() => setShowModal(true)}
                         className="inline-flex items-center justify-center gap-1.5 md:gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium shadow-sm"
                     >
-                        <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                        Add Service
+                        <Plus className="h-3.5 w-3.5 md:h-4 md:w-4" /> Add Service
                     </button>
                 </div>
             </div>
+
             {/* Table */}
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -244,10 +248,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                     <tbody className="bg-white divide-y divide-gray-200">
                         {filtered.length === 0 ? (
                             <tr>
-                                <td
-                                    colSpan={5}
-                                    className="px-3 md:px-6 py-8 md:py-10 text-center text-gray-500 text-xs md:text-sm italic"
-                                >
+                                <td colSpan={5} className="px-3 md:px-6 py-8 md:py-10 text-center text-gray-500 text-xs md:text-sm italic">
                                     No results found
                                 </td>
                             </tr>
@@ -257,25 +258,34 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                     {/* Service */}
                                     <td className="px-3 md:px-6 py-3 md:py-4">
                                         {editingId === svc.id ? (
-                                            <input
-                                                type="text"
-                                                value={editValues.name}
-                                                onChange={(e) =>
-                                                    setEditValues((prev) => ({
-                                                        ...prev,
-                                                        name: e.target.value,
-                                                    }))
-                                                }
-                                                className="w-full max-w-xs md:max-w-sm border border-gray-300 rounded-lg px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm focus:ring-1 focus:outline-0 focus:ring-blue-500"
-                                                autoFocus
-                                            />
+                                            <>
+                                                <input
+                                                    type="text"
+                                                    value={editValues.name}
+                                                    onChange={(e) =>
+                                                        setEditValues((prev) => ({ ...prev, name: e.target.value }))
+                                                    }
+                                                    className="w-full max-w-xs md:max-w-sm border border-gray-300 rounded-lg px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm focus:ring-1 focus:outline-0 focus:ring-blue-500"
+                                                    autoFocus
+                                                />
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    value={editValues.cutoff_days}
+                                                    onChange={(e) =>
+                                                        setEditValues((prev) => ({ ...prev, cutoff_days: Number(e.target.value) }))
+                                                    }
+                                                    className="mt-1 w-full max-w-[80px] border border-gray-300 rounded px-2 py-1 text-xs md:text-sm focus:ring-1 focus:outline-0 focus:ring-blue-500"
+                                                    placeholder="Cutoff days"
+                                                />
+                                            </>
                                         ) : (
                                             <div className="min-w-0">
                                                 <div className="text-xs md:text-sm font-medium text-gray-900 truncate">
                                                     {capitalizeWords(svc.name)}
                                                 </div>
                                                 <div className="text-[10px] md:text-xs text-gray-500 font-mono">
-                                                    ID: {svc.id}
+                                                    ID: {svc.id} | Cutoff: {svc.cutoff_days ?? 0} days
                                                 </div>
                                             </div>
                                         )}
@@ -294,10 +304,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                                             onChange={(e) => {
                                                                 const updated = [...editValues.requirements];
                                                                 updated[idx].name = e.target.value;
-                                                                setEditValues((prev) => ({
-                                                                    ...prev,
-                                                                    requirements: updated,
-                                                                }));
+                                                                setEditValues((prev) => ({ ...prev, requirements: updated }));
                                                             }}
                                                             className="flex-1 min-w-[120px] border rounded px-2 py-1 text-xs md:text-sm focus:ring-1 focus:outline-0 focus:ring-blue-500"
                                                         />
@@ -308,10 +315,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                                                 onChange={(e) => {
                                                                     const updated = [...editValues.requirements];
                                                                     updated[idx].is_mandatory = e.target.checked;
-                                                                    setEditValues((prev) => ({
-                                                                        ...prev,
-                                                                        requirements: updated,
-                                                                    }));
+                                                                    setEditValues((prev) => ({ ...prev, requirements: updated }));
                                                                 }}
                                                             />
                                                             Mandatory
@@ -320,9 +324,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                                             onClick={() =>
                                                                 setEditValues((prev) => ({
                                                                     ...prev,
-                                                                    requirements: prev.requirements.filter(
-                                                                        (_, i) => i !== idx
-                                                                    ),
+                                                                    requirements: prev.requirements.filter((_, i) => i !== idx),
                                                                 }))
                                                             }
                                                             className="text-red-500 text-[10px] md:text-xs whitespace-nowrap"
@@ -335,10 +337,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                                     onClick={() =>
                                                         setEditValues((prev) => ({
                                                             ...prev,
-                                                            requirements: [
-                                                                ...prev.requirements,
-                                                                { name: "", is_mandatory: true },
-                                                            ],
+                                                            requirements: [...prev.requirements, { name: "", is_mandatory: true }],
                                                         }))
                                                     }
                                                     className="text-blue-600 text-[10px] md:text-xs whitespace-nowrap"
@@ -350,15 +349,12 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                             <ul className="list-disc pl-3 md:pl-4 text-[10px] md:text-xs text-gray-700 space-y-0.5">
                                                 {svc.requirements.map((r) => (
                                                     <li key={r.id || r.name} className="break-words">
-                                                        {capitalizeWords(r.name)}{" "}
-                                                        {r.is_mandatory ? "(Mandatory)" : "(Optional)"}
+                                                        {capitalizeWords(r.name)} {r.is_mandatory ? "(Mandatory)" : "(Optional)"}
                                                     </li>
                                                 ))}
                                             </ul>
                                         ) : (
-                                            <span className="text-[10px] md:text-xs text-gray-400 italic">
-                                                No requirements
-                                            </span>
+                                            <span className="text-[10px] md:text-xs text-gray-400 italic">No requirements</span>
                                         )}
                                     </td>
 
@@ -368,9 +364,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                             <div className="max-w-[120px]">
                                                 <Dropdown
                                                     value={editValues.status}
-                                                    onChange={(val) =>
-                                                        setEditValues((prev) => ({ ...prev, status: val }))
-                                                    }
+                                                    onChange={(val) => setEditValues((prev) => ({ ...prev, status: val }))}
                                                     options={[
                                                         { value: "active", label: "Active" },
                                                         { value: "inactive", label: "Inactive" },
@@ -380,16 +374,14 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                             </div>
                                         ) : (
                                             <span
-                                                className={`inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-medium ${
-                                                    svc.active
-                                                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                                        : "bg-gray-100 text-gray-600 border border-gray-200"
-                                                }`}
+                                                className={`inline-flex items-center gap-1 md:gap-1.5 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-medium ${svc.active
+                                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                    : "bg-gray-100 text-gray-600 border border-gray-200"
+                                                    }`}
                                             >
                                                 <div
-                                                    className={`h-1 w-1 md:h-1.5 md:w-1.5 rounded-full ${
-                                                        svc.active ? "bg-emerald-500" : "bg-gray-400"
-                                                    }`}
+                                                    className={`h-1 w-1 md:h-1.5 md:w-1.5 rounded-full ${svc.active ? "bg-emerald-500" : "bg-gray-400"
+                                                        }`}
                                                 />
                                                 {svc.active ? "Active" : "Inactive"}
                                             </span>
@@ -453,9 +445,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                 <Modal open={true} onClose={() => setShowModal(false)} title="Add New Service">
                     <div className="space-y-3 md:space-y-4">
                         <div>
-                            <label className="block text-xs md:text-sm font-medium text-gray-800 mb-1">
-                                Service Name
-                            </label>
+                            <label className="block text-xs md:text-sm font-medium text-gray-800 mb-1">Service Name</label>
                             <input
                                 type="text"
                                 value={newServiceName}
@@ -463,10 +453,9 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                 className="w-full border rounded-lg px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm focus:ring-1 focus:ring-blue-500 focus:outline-0"
                             />
                         </div>
+
                         <div>
-                            <label className="block text-xs md:text-sm font-medium text-gray-800 mb-1">
-                                Status
-                            </label>
+                            <label className="block text-xs md:text-sm font-medium text-gray-800 mb-1">Status</label>
                             <Dropdown
                                 value={newServiceStatus}
                                 onChange={setNewServiceStatus}
@@ -478,11 +467,23 @@ export default function ServiceManagement({ onServicesUpdated }) {
                             />
                         </div>
 
+                        <div>
+                            <label className="block text-xs md:text-sm font-medium text-gray-800 mb-1">Booking Cutoff Days</label>
+                            <input
+                                type="number"
+                                min={0}
+                                value={newServiceCutoff}
+                                onChange={(e) => setNewServiceCutoff(Number(e.target.value))}
+                                className="w-full border rounded-lg px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm focus:ring-1 focus:outline-0 focus:ring-blue-500"
+                            />
+                            <p className="text-[10px] md:text-xs text-gray-500 mt-1">
+                                Number of days in advance users can book this service.
+                            </p>
+                        </div>
+
                         {/* Requirements */}
                         <div>
-                            <label className="block text-xs md:text-sm font-medium text-gray-800 mb-1">
-                                Requirements
-                            </label>
+                            <label className="block text-xs md:text-sm font-medium text-gray-800 mb-1">Requirements</label>
                             <div className="space-y-1.5 md:space-y-2">
                                 {newRequirements.map((req, idx) => (
                                     <div key={idx} className="flex gap-1.5 md:gap-2 items-center flex-wrap">
@@ -511,11 +512,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                                         </label>
                                         <button
                                             type="button"
-                                            onClick={() =>
-                                                setNewRequirements((prev) =>
-                                                    prev.filter((_, i) => i !== idx)
-                                                )
-                                            }
+                                            onClick={() => setNewRequirements((prev) => prev.filter((_, i) => i !== idx))}
                                             className="text-red-500 text-[10px] md:text-xs whitespace-nowrap"
                                         >
                                             Remove
@@ -525,12 +522,7 @@ export default function ServiceManagement({ onServicesUpdated }) {
                             </div>
                             <button
                                 type="button"
-                                onClick={() =>
-                                    setNewRequirements([
-                                        ...newRequirements,
-                                        { name: "", is_mandatory: true },
-                                    ])
-                                }
+                                onClick={() => setNewRequirements([...newRequirements, { name: "", is_mandatory: true }])}
                                 className="mt-1.5 md:mt-2 text-blue-600 text-xs md:text-sm"
                             >
                                 + Add Requirement
@@ -557,17 +549,9 @@ export default function ServiceManagement({ onServicesUpdated }) {
 
             {/* Delete Confirmation */}
             {showDeleteModal && selectedService && (
-                <Modal
-                    open={true}
-                    onClose={() => setShowDeleteModal(false)}
-                    title="Delete Service"
-                >
+                <Modal open={true} onClose={() => setShowDeleteModal(false)} title="Delete Service">
                     <p className="text-xs md:text-sm">
-                        Are you sure you want to delete{" "}
-                        <span className="font-medium">
-                            {capitalizeWords(selectedService.name)}
-                        </span>
-                        ?
+                        Are you sure you want to delete <span className="font-medium">{capitalizeWords(selectedService.name)}</span>?
                     </p>
                     <div className="flex justify-end gap-2 md:gap-3 mt-3 md:mt-4">
                         <button

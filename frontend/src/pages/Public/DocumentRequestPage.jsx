@@ -180,7 +180,7 @@ export default function DocumentRequestPage() {
                                             title="Enter a valid PH mobile number (e.g., 09123456789)"
                                             value={formData.phone}
                                             onChange={handleChange}
-                                            placeholder="09XX XXX XXXX"
+                                            placeholder="09XXXXXXXXX"
                                             required
                                         />
 
