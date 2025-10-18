@@ -130,6 +130,110 @@ export const signup = handleAsyncError(async (req, res) => {
   });
 });
 
+// ---------- FORGOT PASSWORD ----------
+export const forgotPassword = handleAsyncError(async (req, res) => {
+  const { email } = req.body;
+
+  // Validate email
+  const v = validateForgotPassword({ email });
+  if (!v.ok) throw new AppError(v.message, 400);
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  await withConn(async (conn) => {
+    const [users] = await conn.execute(
+      "SELECT id, isVerified FROM users WHERE email = ?",
+      [normalizedEmail]
+    );
+
+    // ✅ Email must exist
+    if (!users.length) {
+      throw new AppError("No account found with this email", 404);
+    }
+
+    const user = users[0];
+
+    // ✅ Email must be verified
+    if (!user.isVerified) {
+      throw new AppError(
+        "Please verify your email before requesting a password reset",
+        403
+      );
+    }
+
+    // Generate password reset token
+    const token = crypto.randomBytes(20).toString("hex");
+    const expires = expireIn(1);
+    await conn.execute(
+      "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
+      [user.id, token, expires]
+    );
+
+    // Construct reset URL
+    const clientUrls = (process.env.CLIENT_URL || "")
+      .split(",")
+      .map((url) => url.trim())
+      .filter(Boolean);
+    const baseClientUrl = clientUrls[0] || "http://localhost:5173";
+    const resetURL = `${baseClientUrl}/reset-password/${token}`;
+
+    // ✅ Fire-and-forget email sending
+    sendPasswordResetEmail(normalizedEmail, resetURL)
+      .then(() =>
+        console.log(`✅ Password reset email sent to ${normalizedEmail}`)
+      )
+      .catch((e) =>
+        console.error("❌ Password reset email failed:", e.message)
+      );
+
+    // Respond immediately
+    return sendResponse(res, 200, true, "Password reset link sent.");
+  });
+});
+
+// ---------- RESET PASSWORD ----------
+export const resetPassword = handleAsyncError(async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+
+  await withConn(async (conn) => {
+    const [rows] = await conn.execute(
+      `SELECT pr.*, u.email, u.password AS user_password
+       FROM password_resets pr JOIN users u ON u.id = pr.user_id
+       WHERE pr.token = ? AND pr.consumed_at IS NULL AND pr.expires_at > NOW()
+       LIMIT 1`,
+      [token.trim()]
+    );
+    if (!rows.length) throw new AppError("Invalid or expired reset token", 400);
+
+    const pr = rows[0];
+    const same = await bcryptjs.compare(password, pr.user_password);
+    if (same) throw new AppError("New password cannot be the same as old", 400);
+
+    const hashed = await bcryptjs.hash(password, 12);
+    await conn.execute("UPDATE users SET password = ? WHERE id = ?", [
+      hashed,
+      pr.user_id,
+    ]);
+    await conn.execute(
+      "UPDATE password_resets SET consumed_at = NOW() WHERE id = ?",
+      [pr.id]
+    );
+    await conn.execute(
+      "UPDATE password_resets SET consumed_at = NOW() WHERE user_id = ? AND consumed_at IS NULL",
+      [pr.user_id]
+    );
+
+    try {
+      await sendPasswordResetSuccessEmail(pr.email);
+    } catch (e) {
+      console.error("Password reset success email failed:", e.message);
+    }
+
+    return sendResponse(res, 200, true, "Password reset successful");
+  });
+});
+
 // ---------- RESEND VERIFICATION ----------
 export const resendVerification = handleAsyncError(async (req, res) => {
   const { email } = req.body;
@@ -319,105 +423,6 @@ export const refreshToken = handleAsyncError(async (req, res) => {
       accessToken,
       refreshToken: newRefresh,
     });
-  });
-});
-
-// ---------- FORGOT PASSWORD ----------
-export const forgotPassword = handleAsyncError(async (req, res) => {
-  const { email } = req.body;
-  const v = validateForgotPassword({ email });
-  if (!v.ok) throw new AppError(v.message, 400);
-
-  const normalizedEmail = email.trim().toLowerCase();
-
-  await withConn(async (conn) => {
-    const [users] = await conn.execute(
-      "SELECT id, isVerified FROM users WHERE email = ?",
-      [normalizedEmail]
-    );
-
-    // ✅ Validation: email must exist
-    if (!users.length) {
-      throw new AppError("No account found with this email", 404);
-    }
-
-    const user = users[0];
-
-    // ✅ Validation: email must be verified
-    if (!user.isVerified) {
-      throw new AppError(
-        "Please verify your email before requesting a password reset",
-        403
-      );
-    }
-
-    // Generate password reset token
-    const token = crypto.randomBytes(20).toString("hex");
-    const expires = expireIn(1);
-    await conn.execute(
-      "INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)",
-      [user.id, token, expires]
-    );
-
-    // Reset URL (supports multiple client domains)
-    const clientUrls = (process.env.CLIENT_URL || "")
-      .split(",")
-      .map((url) => url.trim())
-      .filter(Boolean);
-    const baseClientUrl = clientUrls[0] || "http://localhost:5173"; // fallback
-    const resetURL = `${baseClientUrl}/reset-password/${token}`;
-
-    try {
-      await sendPasswordResetEmail(normalizedEmail, resetURL);
-    } catch (e) {
-      console.error("Password reset email failed:", e.message);
-      throw new AppError("Failed to send reset email", 500);
-    }
-
-    return sendResponse(res, 200, true, "Password reset link sent.");
-  });
-});
-
-// ---------- RESET PASSWORD ----------
-export const resetPassword = handleAsyncError(async (req, res) => {
-  const { token } = req.params;
-  const { password } = req.body;
-
-  await withConn(async (conn) => {
-    const [rows] = await conn.execute(
-      `SELECT pr.*, u.email, u.password AS user_password
-       FROM password_resets pr JOIN users u ON u.id = pr.user_id
-       WHERE pr.token = ? AND pr.consumed_at IS NULL AND pr.expires_at > NOW()
-       LIMIT 1`,
-      [token.trim()]
-    );
-    if (!rows.length) throw new AppError("Invalid or expired reset token", 400);
-
-    const pr = rows[0];
-    const same = await bcryptjs.compare(password, pr.user_password);
-    if (same) throw new AppError("New password cannot be the same as old", 400);
-
-    const hashed = await bcryptjs.hash(password, 12);
-    await conn.execute("UPDATE users SET password = ? WHERE id = ?", [
-      hashed,
-      pr.user_id,
-    ]);
-    await conn.execute(
-      "UPDATE password_resets SET consumed_at = NOW() WHERE id = ?",
-      [pr.id]
-    );
-    await conn.execute(
-      "UPDATE password_resets SET consumed_at = NOW() WHERE user_id = ? AND consumed_at IS NULL",
-      [pr.user_id]
-    );
-
-    try {
-      await sendPasswordResetSuccessEmail(pr.email);
-    } catch (e) {
-      console.error("Password reset success email failed:", e.message);
-    }
-
-    return sendResponse(res, 200, true, "Password reset successful");
   });
 });
 

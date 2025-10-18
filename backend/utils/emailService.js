@@ -64,7 +64,7 @@ export const sendWelcomeEmail = async (email, name) => {
 };
 
 /* ==========================================================
-   🔐 EMAIL: Password Reset Request
+   🔐 EMAIL: Password Reset Request (async fire-and-forget)
 ========================================================== */
 export const sendPasswordResetEmail = async (email, resetURL) => {
   try {
@@ -73,18 +73,27 @@ export const sendPasswordResetEmail = async (email, resetURL) => {
       resetURL
     );
 
-    const info = await transporter.sendMail({
-      from: FROM,
-      to: email,
-      subject: "Reset Your Password",
-      html,
-    });
+    // Fire-and-forget email sending
+    transporter
+      .sendMail({
+        from: FROM,
+        to: email,
+        subject: "Reset Your Password",
+        html,
+      })
+      .then((info) =>
+        console.log("✅ Password reset email sent:", info.messageId)
+      )
+      .catch((error) =>
+        console.error("❌ Error sending password reset email:", error)
+      );
 
-    console.log("✅ Password reset email sent:", info.messageId);
+    // Return immediately
     return { success: true };
   } catch (error) {
-    console.error("❌ Error sending password reset email:", error);
-    throw new Error(`Failed to send password reset email: ${error.message}`);
+    // This catch is mostly for synchronous errors (unlikely)
+    console.error("❌ Unexpected error preparing password reset email:", error);
+    return { success: false };
   }
 };
 
