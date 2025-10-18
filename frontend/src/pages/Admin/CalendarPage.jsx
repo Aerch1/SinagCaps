@@ -33,47 +33,50 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 sm:space-y-8 lg:space-y-10  pb-8">
-      {/* ---------- Header ---------- */}
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Calendar</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage appointments, schedules, and upcoming parish events
-          </p>
-        </div>
-      </header>
 
-      {/* ---------- KPI Cards ---------- */}
-      <section className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-4">
-        <Card />
-      </section>
+    <>
+      <div className="w-full max-w-7xl mx-auto space-y-6 sm:space-y-8 lg:space-y-10  pb-8">
+        {/* ---------- Header ---------- */}
+        <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Calendar</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Manage appointments, schedules, and upcoming parish events
+            </p>
+          </div>
+        </header>
 
-      {/* ---------- Main Grid: Calendar + Right Column ---------- */}
-      <main className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-5 lg:gap-6">
-        {/* Left: Calendar */}
-        <div className="w-full bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 md:p-5">
-          <Calendar
-            appointments={appointments}
-            onAppointmentsChange={setAppointments}
-          />
-        </div>
+        {/* ---------- KPI Cards ---------- */}
+        <section className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 lg:gap-4">
+          <Card />
+        </section>
 
-        {/* Right: Today Schedule + Upcoming Events */}
-        <aside className="flex flex-col gap-4 sm:gap-3">
-          <TodaySchedule
-            appointments={appointments}
-            onItemClick={handleTodayItemClick}
-            className="flex-1 min-h-[300px] md:min-h-[45vh]"
-          />
+        {/* ---------- Main Grid: Calendar + Right Column ---------- */}
+        <main className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-5 lg:gap-6">
+          {/* Left: Calendar */}
+          <div className="w-full bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 md:p-5">
+            <Calendar
+              appointments={appointments}
+              onAppointmentsChange={setAppointments}
+            />
+          </div>
 
-          <UpcomingEvents
-            events={events}
-            onItemClick={(evt) => console.log("Clicked Upcoming:", evt)}
-            className="flex-1 min-h-[300px] md:min-h-[45vh]"
-          />
-        </aside>
-      </main>
+          {/* Right: Today Schedule + Upcoming Events */}
+          <aside className="flex flex-col gap-4 sm:gap-3">
+            <TodaySchedule
+              appointments={appointments}
+              onItemClick={handleTodayItemClick}
+              className="flex-1 min-h-[300px] md:min-h-[45vh]"
+            />
+
+            <UpcomingEvents
+              events={events}
+              onItemClick={(evt) => console.log("Clicked Upcoming:", evt)}
+              className="flex-1 min-h-[300px] md:min-h-[45vh]"
+            />
+          </aside>
+        </main>
+      </div>
 
       {/* ---------- Appointment View Modal ---------- */}
       <ViewAppointmentModal
@@ -88,7 +91,8 @@ export default function CalendarPage() {
         }}
         fetchAvailableTimes={fetchAvailableTimes}
       />
-    </div>
+    </>
+
   );
 
   /* Utility to generate time slots */
