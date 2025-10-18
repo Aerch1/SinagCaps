@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format, startOfDay } from "date-fns";
+import { format, startOfDay, parseISO } from "date-fns";
 import api from "@/api/api";
 
 export default function UpcomingEvents({ onItemClick, className = "" }) {
@@ -17,9 +17,18 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
 
                 if (res.data.success) {
                     const mapped = res.data.data.map((e) => {
-                        // Combine date + time
-                        const datetimeStr = `${e.date}T${e.time || "00:00:00"}`;
-                        const start = new Date(datetimeStr);
+                        // Parse date in local time
+                        const datePart = parseISO(e.date); // this gives local date
+                        const [hours, minutes, seconds] = (e.time || "00:00:00").split(":").map(Number);
+
+                        const start = new Date(
+                            datePart.getFullYear(),
+                            datePart.getMonth(),
+                            datePart.getDate(),
+                            hours,
+                            minutes,
+                            seconds
+                        );
 
                         return {
                             id: e.id,
@@ -34,10 +43,10 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
 
                     const today = startOfDay(new Date());
 
-                    // Separate today and upcoming
                     const todayList = mapped.filter(
                         (e) => startOfDay(e.start).getTime() === today.getTime()
                     );
+
                     const upcomingList = mapped
                         .filter((e) => startOfDay(e.start).getTime() > today.getTime())
                         .sort((a, b) => a.start - b.start);
@@ -97,15 +106,12 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
                 <p className="text-sm text-gray-500">No upcoming events.</p>
             ) : (
                 <ul className="divide-y divide-gray-100 overflow-y-auto scroll-thin flex-1 pr-1">
-                    {/* Today Events Section */}
                     {todayEvents.length > 0 && (
                         <>
                             <li className="py-1 px-2 text-xs font-semibold text-blue-600">Today’s Events</li>
                             {todayEvents.map(renderEventItem)}
                         </>
                     )}
-
-                    {/* Upcoming Events Section */}
                     {upcomingEvents.length > 0 && (
                         <>
                             {todayEvents.length > 0 && (
