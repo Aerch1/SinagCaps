@@ -1,9 +1,5 @@
 import pool from "../../config/db.js";
 import {
-  normalizeTime,
-  normalizeDateForMySQL,
-} from "../../utils/validateAppointment.js";
-import {
   formatReadableDate,
   formatReadableTime,
 } from "../../utils/dateUtils.js";
@@ -12,6 +8,18 @@ import {
   sendAppointmentCancelledEmail,
 } from "../../utils/appointmentEmails.js";
 import { createNotification } from "../../utils/createNotification.js";
+
+function normalizeDateForMySQL(date) {
+  if (!date) return null;
+  if (typeof date === "string" && date.includes("T")) return date.split("T")[0];
+  return date;
+}
+
+function normalizeTime(time) {
+  if (!time) return null;
+  const [h, m] = time.split(":");
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+}
 
 /* =========================
    Public: Request Reschedule
@@ -33,33 +41,27 @@ export async function requestReschedule(req, res) {
       [id, userId]
     );
     if (!appt)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Appointment not found or cannot be modified",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found or cannot be modified",
+      });
 
     const [[existing]] = await conn.execute(
       `SELECT * FROM appointment_requests WHERE appointment_id=? AND status='pending' AND type='reschedule'`,
       [id]
     );
     if (existing)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "You already have a pending reschedule request.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "You already have a pending reschedule request.",
+      });
 
     const requestedDateTime = new Date(`${requested_date}T${requested_time}`);
     if (requestedDateTime <= new Date())
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Requested date and time must be in the future.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Requested date and time must be in the future.",
+      });
 
     await conn.execute(
       `INSERT INTO appointment_requests (appointment_id, type, requested_date, requested_time, notes) VALUES (?, 'reschedule', ?, ?, ?)`,
@@ -98,24 +100,20 @@ export async function requestCancel(req, res) {
       [id, userId]
     );
     if (!appt)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Appointment not found or cannot be cancelled",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found or cannot be cancelled",
+      });
 
     const [[existing]] = await conn.execute(
       `SELECT * FROM appointment_requests WHERE appointment_id=? AND status='pending' AND type='cancel'`,
       [id]
     );
     if (existing)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "You already have a pending cancellation request.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "You already have a pending cancellation request.",
+      });
 
     await conn.execute(
       `INSERT INTO appointment_requests (appointment_id, type, notes) VALUES (?, 'cancel', ?)`,
@@ -147,14 +145,19 @@ export async function approveRequest(req, res) {
       [requestId]
     );
     if (!request)
-      return res.status(404).json({ success: false, message: "Request not found or already processed." });
+      return res.status(404).json({
+        success: false,
+        message: "Request not found or already processed.",
+      });
 
     const [[appt]] = await conn.execute(
       `SELECT * FROM appointments WHERE id=?`,
       [request.appointment_id]
     );
     if (!appt)
-      return res.status(404).json({ success: false, message: "Appointment not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Appointment not found" });
 
     if (request.type === "reschedule") {
       const safeDate = normalizeDateForMySQL(request.requested_date);
@@ -180,7 +183,11 @@ export async function approveRequest(req, res) {
         await createNotification({
           user_id: appt.user_id,
           title: "Appointment Rescheduled",
-          message: `${appt.name}'s appointment was rescheduled to ${formatReadableDate(safeDate)} at ${formatReadableTime(safeTime)}.`,
+          message: `${
+            appt.name
+          }'s appointment was rescheduled to ${formatReadableDate(
+            safeDate
+          )} at ${formatReadableTime(safeTime)}.`,
           type: "appointment",
           reference_id: appt.id,
           transaction_id: `APT-${String(appt.id).padStart(5, "0")}`,
@@ -189,7 +196,10 @@ export async function approveRequest(req, res) {
 
     if (request.type === "cancel") {
       // Directly update appointment in DB
-      await conn.execute(`UPDATE appointments SET status='cancelled' WHERE id=?`, [appt.id]);
+      await conn.execute(
+        `UPDATE appointments SET status='cancelled' WHERE id=?`,
+        [appt.id]
+      );
 
       if (appt.email)
         await sendAppointmentCancelledEmail(appt.email, {
@@ -213,9 +223,15 @@ export async function approveRequest(req, res) {
     }
 
     // Mark request as approved
-    await conn.execute(`UPDATE appointment_requests SET status='approved' WHERE id=?`, [requestId]);
+    await conn.execute(
+      `UPDATE appointment_requests SET status='approved' WHERE id=?`,
+      [requestId]
+    );
 
-    return res.json({ success: true, message: "Request approved successfully" });
+    return res.json({
+      success: true,
+      message: "Request approved successfully",
+    });
   } catch (err) {
     console.error("approveRequest error:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -223,7 +239,6 @@ export async function approveRequest(req, res) {
     conn.release();
   }
 }
-
 
 /* =========================
    Admin: Reject Request
@@ -238,12 +253,10 @@ export async function rejectRequest(req, res) {
       [requestId]
     );
     if (!request)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Request not found or already processed.",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Request not found or already processed.",
+      });
 
     await conn.execute(
       `UPDATE appointment_requests SET status='rejected' WHERE id=?`,
