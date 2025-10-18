@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import api from "@/api/api";
 
-export default function TodaySchedule({ onItemClick, className = "", appointments: refreshKey }) {
+export default function TodaySchedule({ onItemClick, className = "", refreshKey }) {
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // ✅ Fetch today's appointments dynamically
+    // ✅ Fetch today's approved appointments
     useEffect(() => {
         let mounted = true;
+
         const fetchToday = async () => {
             try {
+                setLoading(true);
                 const res = await api.get("/admin/appointments/today");
                 if (res.data.success && mounted) {
                     setAppointments(res.data.data || []);
@@ -23,9 +25,13 @@ export default function TodaySchedule({ onItemClick, className = "", appointment
                 if (mounted) setLoading(false);
             }
         };
+
         fetchToday();
-        return () => { mounted = false; };
-    }, [refreshKey]); // ✅ Re-fetch when refreshKey changes
+
+        return () => {
+            mounted = false;
+        };
+    }, [refreshKey]); // 🔁 refetch when refreshKey changes from CalendarComponent
 
     return (
         <div
@@ -49,6 +55,7 @@ export default function TodaySchedule({ onItemClick, className = "", appointment
                         const timeLabel = appt.time
                             ? format(new Date(`1970-01-01T${appt.time}`), "h:mm a")
                             : "All day";
+
                         const color = getServiceColor(appt.serviceName);
                         const title = appt.serviceName || "Appointment";
 
