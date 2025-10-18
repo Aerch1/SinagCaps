@@ -12,14 +12,16 @@ export default function CalendarPage() {
   const [appointments, setAppointments] = useState([]);
   const [events, setEvents] = useState([]);
   const [viewOpen, setViewOpen] = useState(false);
-  const [viewAppt, setViewAppt] = useState(null);
 
   const { churchHours } = useChurchHours();
 
-  const handleTodayItemClick = (appt) => {
-    setViewAppt(appt);
+  const [viewApptId, setViewApptId] = useState(null);
+
+  const handleTodayItemClick = (appointmentId) => {
+    setViewApptId(appointmentId);
     setViewOpen(true);
   };
+
 
   // Dynamic available times based on church hours
   const fetchAvailableTimes = async (date) => {
@@ -77,7 +79,7 @@ export default function CalendarPage() {
       <ViewAppointmentModal
         isOpen={viewOpen}
         onClose={() => setViewOpen(false)}
-        appointment={viewAppt}
+        appointmentId={viewApptId}
         onUpdate={(updated) => {
           setAppointments((prev) =>
             prev.map((a) => (a.id === updated.id ? { ...a, ...updated } : a))

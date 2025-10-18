@@ -554,7 +554,7 @@ export const getAppointmentById = async (req, res) => {
 ======================================================= */
 export const getAppointments = async (req, res) => {
   try {
-    // 1) Auto-mark old approved as completed
+    // 1) Auto-mark old approved as completed (3 days past)
     await pool.query(`
       UPDATE appointments
       SET status = 'completed'
@@ -562,40 +562,42 @@ export const getAppointments = async (req, res) => {
         AND TIMESTAMP(date, time) < NOW() - INTERVAL 3 DAY
     `);
 
-    // 2) Fetch today & tomorrow appointments
+    // 2) Fetch only APPROVED appointments for notifications
     const [todayAppointments] = await pool.query(`
       SELECT id, name
       FROM appointments
-      WHERE DATE(date) = CURDATE() AND status IN ('pending','approved')
+      WHERE DATE(date) = CURDATE() 
+        AND status = 'approved'
       ORDER BY time ASC
     `);
 
     const [tomorrowAppointments] = await pool.query(`
       SELECT id, name
       FROM appointments
-      WHERE DATE(date) = CURDATE() + INTERVAL 1 DAY AND status IN ('pending','approved')
+      WHERE DATE(date) = CURDATE() + INTERVAL 1 DAY 
+        AND status = 'approved'
       ORDER BY time ASC
     `);
 
     const todayCount = todayAppointments.length;
     const tomorrowCount = tomorrowAppointments.length;
 
-    // 3) Admin notifications with IDs and names
+    // 3) Admin notification messages
     const adminTodayMessage =
       todayCount > 0
-        ? `Today's Appointments:\n${todayAppointments
+        ? `Today's Approved Appointments:\n${todayAppointments
             .map((appt) => `ID: ${appt.id}, Name: ${appt.name}`)
             .join("\n")}`
         : null;
 
     const adminTomorrowMessage =
       tomorrowCount > 0
-        ? `Upcoming Appointments:\n${tomorrowAppointments
+        ? `Upcoming Approved Appointments:\n${tomorrowAppointments
             .map((appt) => `ID: ${appt.id}, Name: ${appt.name}`)
             .join("\n")}`
         : null;
 
-    // 4) Notify admins (avoid duplicates per day)
+    // 4) Notify admins (only once per day per title)
     if (todayCount > 0 || tomorrowCount > 0) {
       const [admins] = await pool.query(
         "SELECT id FROM users WHERE role='admin'"
@@ -607,12 +609,12 @@ export const getAppointments = async (req, res) => {
             const [existsToday] = await pool.query(
               `SELECT id FROM notifications
                WHERE user_id=? AND title=? AND DATE(created_at)=CURDATE()`,
-              [admin.id, "Today's Appointments"]
+              [admin.id, "Today's Approved Appointments"]
             );
             if (existsToday.length === 0) {
               await createNotification({
                 user_id: admin.id,
-                title: "Today's Appointments",
+                title: "Today's Approved Appointments",
                 message: adminTodayMessage,
                 type: "appointment",
               });
@@ -623,12 +625,12 @@ export const getAppointments = async (req, res) => {
             const [existsTomorrow] = await pool.query(
               `SELECT id FROM notifications
                WHERE user_id=? AND title=? AND DATE(created_at)=CURDATE()`,
-              [admin.id, "Upcoming Appointments"]
+              [admin.id, "Upcoming Approved Appointments"]
             );
             if (existsTomorrow.length === 0) {
               await createNotification({
                 user_id: admin.id,
-                title: "Upcoming Appointments",
+                title: "Upcoming Approved Appointments",
                 message: adminTomorrowMessage,
                 type: "appointment",
               });
@@ -638,7 +640,7 @@ export const getAppointments = async (req, res) => {
       );
     }
 
-    // 5) Pagination + listing
+    // 5) Pagination + listing (unchanged)
     const page = Number(req.query.page || 1);
     const pageSize = Number(req.query.pageSize || 10);
     const offset = (page - 1) * pageSize;
@@ -842,4 +844,3 @@ export const filterAppointments = async (req, res) => {
       .json({ success: false, error: "Failed to filter appointments" });
   }
 };
-

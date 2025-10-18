@@ -55,7 +55,7 @@ export default function TodaySchedule({ onItemClick, className = "" }) {
                             <li key={appt.id}>
                                 <button
                                     type="button"
-                                    onClick={() => onItemClick?.(appt)}
+                                    onClick={() => onItemClick?.(appt.id)}
                                     className="w-full text-left py-3 px-2 border-b border-gray-100 hover:bg-gray-50 transition"
                                 >
                                     <div className="grid grid-cols-[64px_5px_1fr] items-start gap-3">
