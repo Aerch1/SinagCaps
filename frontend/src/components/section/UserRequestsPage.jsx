@@ -20,15 +20,14 @@ export default function AdminUserRequestsTable() {
         try {
             const res = await api.get("/appointments/requests/all-requests");
             const data = res.data.requests.map(r => {
+                // Determine display date/time
                 let displayDateTime = "-";
 
                 if (r.type === "reschedule" && r.requestedDateTime) {
                     const parsed = parseISO(r.requestedDateTime);
                     if (isValid(parsed)) displayDateTime = format(parsed, "PP p");
-                } else if (r.type === "cancel" && r.appointment?.date && r.appointment?.time) {
-                    const parsed = parseISO(`${r.appointment.date}T${r.appointment.time}`);
-                    if (isValid(parsed)) displayDateTime = format(parsed, "PP p");
                 }
+                // For cancel requests, we just show "-" since no requested datetime exists
 
                 return {
                     requestId: r.id,

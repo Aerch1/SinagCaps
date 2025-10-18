@@ -151,6 +151,7 @@ export async function getAllUserRequests(req, res) {
       id: r.request_id,
       appointmentId: r.appointment_id,
       type: r.type,
+      // Only parse ISO for reschedule requests with valid date and time
       requestedDateTime:
         r.type === "reschedule" && r.requested_date && r.requested_time
           ? new Date(`${r.requested_date}T${r.requested_time}`).toISOString()
@@ -183,7 +184,6 @@ export async function approveRequest(req, res) {
   const conn = await pool.getConnection();
   try {
     const { requestId } = req.params;
-
     const [[request]] = await conn.execute(
       `SELECT * FROM appointment_requests WHERE id=? AND status='pending'`,
       [requestId]
