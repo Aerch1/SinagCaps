@@ -8,6 +8,8 @@ import CreateAppointmentModal from "../../components/common/modal/CreateAppointm
 import { Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/api/api"; // assuming you have an API helper
+import UserRequestsTable from "../../components/section/UserRequestsPage";
+
 
 export default function AppointmentsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -33,20 +35,40 @@ export default function AppointmentsPage() {
         { key: "cancelled", label: "Cancelled" },
         { key: "rejected", label: "Rejected" },
         { key: "archived", label: "Archived" },
+        { key: "requests", label: "User Requests" }, // ✅ new tab
     ];
-
     // ✅ Fetch rows whenever status changes
     useEffect(() => {
         const fetchAppointments = async () => {
             setLoading(true);
             try {
-                const res = await api.get("/admin/appointments", {
-                    params: status !== "all" ? { status } : {},
-                });
-                setRows(res.data?.appointments || []);
+                let res;
+                if (status === "requests") {
+                    // ✅ Fetch user requests
+                    res = await api.get("/appointments/requests/user-requests");
+                    // Map to match DataTable row structure
+                    setRows(
+                        res.data?.requests?.map((r) => ({
+                            id: r.id,
+                            type: r.type,
+                            appointmentId: r.appointment_id,
+                            status: r.status,
+                            requestedDate: r.requested_date,
+                            requestedTime: r.requested_time,
+                            notes: r.notes,
+                            createdAt: r.created_at,
+                        })) || []
+                    );
+                } else {
+                    // Existing appointment fetch
+                    res = await api.get("/admin/appointments", {
+                        params: status !== "all" ? { status } : {},
+                    });
+                    setRows(res.data?.appointments || []);
+                }
             } catch (err) {
-                console.error("Failed to fetch appointments", err);
-                toast.error("Failed to load appointments");
+                console.error("Failed to fetch data", err);
+                toast.error("Failed to load data");
             } finally {
                 setLoading(false);
             }
@@ -54,6 +76,7 @@ export default function AppointmentsPage() {
 
         fetchAppointments();
     }, [status]);
+
 
     // ✅ Tab changes update query param
     const handleTabChange = (newStatus) => {
@@ -116,13 +139,18 @@ export default function AppointmentsPage() {
             </div>
 
             {/* Table */}
-            <DataTable
-                initialPageSize={10}
-                activeTab={status}
-                rows={rows}
-                setRows={setRows}
-                loading={loading} // optional: show loading spinner
-            />
+            {status === "requests" ? (
+                <UserRequestsTable />
+            ) : (
+                <DataTable
+                    initialPageSize={10}
+                    activeTab={status}
+                    rows={rows}
+                    setRows={setRows}
+                    loading={loading}
+                />
+            )}
+
 
             {/* View Modal */}
             <ViewAppointmentModal
