@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format, parseISO, startOfDay } from "date-fns";
+import { format, startOfDay } from "date-fns";
 import api from "@/api/api";
 
 export default function UpcomingEvents({ onItemClick, className = "" }) {
-    const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [todayEvents, setTodayEvents] = useState([]);
     const [upcomingEvents, setUpcomingEvents] = useState([]);
@@ -14,12 +13,14 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
         const fetchEvents = async () => {
             try {
                 const res = await api.get("/admin/events/upcoming");
-                console.log("DEBUG: Raw API response", res.data); // 🔹 debugger to inspect backend data
+                console.log("DEBUG: Raw API response", res.data);
 
                 if (res.data.success) {
                     const mapped = res.data.data.map((e) => {
+                        // Combine date + time
                         const datetimeStr = `${e.date}T${e.time || "00:00:00"}`;
                         const start = new Date(datetimeStr);
+
                         return {
                             id: e.id,
                             title: e.title,
@@ -34,13 +35,15 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
                     const today = startOfDay(new Date());
 
                     // Separate today and upcoming
-                    const todayList = mapped.filter((e) => startOfDay(e.start).getTime() === today.getTime());
+                    const todayList = mapped.filter(
+                        (e) => startOfDay(e.start).getTime() === today.getTime()
+                    );
                     const upcomingList = mapped
                         .filter((e) => startOfDay(e.start).getTime() > today.getTime())
                         .sort((a, b) => a.start - b.start);
 
-                    console.log("DEBUG: Today Events", todayList); // 🔹 inspect today
-                    console.log("DEBUG: Upcoming Events", upcomingList); // 🔹 inspect upcoming
+                    console.log("DEBUG: Today Events", todayList);
+                    console.log("DEBUG: Upcoming Events", upcomingList);
 
                     setTodayEvents(todayList);
                     setUpcomingEvents(upcomingList);
@@ -84,7 +87,6 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
 
     return (
         <div className={`bg-white rounded-lg border border-gray-200 pt-6 px-4 flex flex-col ${className}`}>
-            {/* Header */}
             <div className="flex items-center justify-between gap-4 mb-4 min-h-[40px]">
                 <h3 className="text-lg font-semibold text-slate-900">Upcoming Events</h3>
             </div>
