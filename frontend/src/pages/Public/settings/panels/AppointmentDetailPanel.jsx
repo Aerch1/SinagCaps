@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 // ✅ Import the public modals
-import PublicRescheduleModal from "../../../../components/common/modal/PublicRescheduleModal";
+import PublicRescheduleModal from "../../../../components/common/availability/PublicRescheduleModal";
 import PublicCancelModal from "../../../../components/common/modal/PublicCancelModal";
 
 /* ---------------- Detail Row ---------------- */
