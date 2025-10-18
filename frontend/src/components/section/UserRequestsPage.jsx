@@ -15,13 +15,13 @@ export default function AdminUserRequestsTable() {
     const [page, setPage] = useState(1);
     const pageSize = 5;
 
-    // Fetch all users' requests for admin
     const fetchRequests = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await api.get("/appointments/requests/all-requests"); // Admin endpoint
-            const data = res.data.requests.map((r) => {
+            const res = await api.get("/appointments/requests/all-requests");
+            const data = res.data.requests.map(r => {
                 let displayDateTime = "-";
+
                 if (r.type === "reschedule" && r.requestedDateTime) {
                     const parsed = parseISO(r.requestedDateTime);
                     if (isValid(parsed)) displayDateTime = format(parsed, "PP p");
@@ -59,7 +59,6 @@ export default function AdminUserRequestsTable() {
         return () => window.removeEventListener("userRequestSubmitted", handleNewRequest);
     }, [fetchRequests]);
 
-    // Approve request
     const handleApprove = async (r) => {
         try {
             await api.patch(`/appointments/requests/${r.requestId}/approve`);
@@ -71,7 +70,6 @@ export default function AdminUserRequestsTable() {
         }
     };
 
-    // Deny request
     const handleDeny = async (r) => {
         try {
             await api.patch(`/appointments/requests/${r.requestId}/deny`, { notes: "Denied by admin" });
@@ -88,6 +86,7 @@ export default function AdminUserRequestsTable() {
             <button
                 onClick={() => setViewingId(r.appointmentId)}
                 className="px-2 py-1 border rounded text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-1"
+                disabled={!r.appointmentDetails?.date} // disable view if no appointment exists
             >
                 <Eye className="h-3 w-3" /> View
             </button>
@@ -122,34 +121,28 @@ export default function AdminUserRequestsTable() {
                 <table className="w-full text-sm table-auto divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            {["Appointment ID", "Client Name", "Requested Date/Time", "Notes", "Type", "Status", "Actions"].map(
-                                (h) => (
-                                    <th
-                                        key={h}
-                                        className="px-3 py-2 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                                    >
-                                        {h}
-                                    </th>
-                                )
-                            )}
+                            {["Appointment ID", "Client Name", "Requested Date/Time", "Notes", "Type", "Status", "Actions"].map(h => (
+                                <th
+                                    key={h}
+                                    className="px-3 py-2 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider"
+                                >
+                                    {h}
+                                </th>
+                            ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                         <AnimatePresence>
                             {loading ? (
                                 <motion.tr key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={7} className="py-8 text-center text-gray-500">
-                                        Loading…
-                                    </td>
+                                    <td colSpan={7} className="py-8 text-center text-gray-500">Loading…</td>
                                 </motion.tr>
                             ) : paginated.length === 0 ? (
                                 <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={7} className="py-8 text-center text-gray-500">
-                                        No requests found.
-                                    </td>
+                                    <td colSpan={7} className="py-8 text-center text-gray-500">No requests found.</td>
                                 </motion.tr>
                             ) : (
-                                paginated.map((r) => (
+                                paginated.map(r => (
                                     <motion.tr key={r.requestId} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                         <td className="px-3 py-2 font-mono text-gray-600">{r.appointmentId}</td>
                                         <td className="px-3 py-2">{r.name}</td>
@@ -167,29 +160,11 @@ export default function AdminUserRequestsTable() {
 
                 {totalPages > 1 && (
                     <div className="flex justify-center items-center gap-2 py-2 border-t bg-gray-50">
-                        <button
-                            onClick={() => setPage((p) => Math.max(1, p - 1))}
-                            disabled={page <= 1}
-                            className="px-2 py-1 border rounded disabled:opacity-50"
-                        >
-                            ‹
-                        </button>
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                            <button
-                                key={p}
-                                onClick={() => setPage(p)}
-                                className={`px-2 py-1 border rounded ${p === page ? "bg-blue-600 text-white" : "bg-white"}`}
-                            >
-                                {p}
-                            </button>
+                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="px-2 py-1 border rounded disabled:opacity-50">‹</button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                            <button key={p} onClick={() => setPage(p)} className={`px-2 py-1 border rounded ${p === page ? "bg-blue-600 text-white" : "bg-white"}`}>{p}</button>
                         ))}
-                        <button
-                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                            disabled={page >= totalPages}
-                            className="px-2 py-1 border rounded disabled:opacity-50"
-                        >
-                            ›
-                        </button>
+                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="px-2 py-1 border rounded disabled:opacity-50">›</button>
                     </div>
                 )}
             </div>

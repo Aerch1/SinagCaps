@@ -15,37 +15,39 @@ export async function requestReschedule(req, res) {
         .status(400)
         .json({ success: false, message: "All fields are required." });
 
-    // Check appointment exists and is modifiable
     const [[appt]] = await conn.execute(
       `SELECT * FROM appointments WHERE id=? AND user_id=? AND status NOT IN ('completed','cancelled')`,
       [id, userId]
     );
     if (!appt)
-      return res.status(404).json({
-        success: false,
-        message: "Appointment not found or cannot be modified.",
-      });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Appointment not found or cannot be modified.",
+        });
 
-    // Check if a pending reschedule request exists
     const [[existing]] = await conn.execute(
       `SELECT * FROM appointment_requests WHERE appointment_id=? AND type='reschedule' AND status='pending'`,
       [id]
     );
     if (existing)
-      return res.status(400).json({
-        success: false,
-        message: "You already have a pending reschedule request.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "You already have a pending reschedule request.",
+        });
 
-    // Validate requested datetime
     const requestedDateTime = new Date(`${requested_date}T${requested_time}`);
     if (requestedDateTime <= new Date())
-      return res.status(400).json({
-        success: false,
-        message: "Requested date and time must be in the future.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Requested date and time must be in the future.",
+        });
 
-    // Insert request
     await conn.execute(
       `INSERT INTO appointment_requests (appointment_id, type, requested_date, requested_time, notes) VALUES (?, 'reschedule', ?, ?, ?)`,
       [id, requested_date, requested_time, notes]
@@ -78,27 +80,29 @@ export async function requestCancel(req, res) {
         .status(400)
         .json({ success: false, message: "Reason is required." });
 
-    // Check appointment exists and is cancellable
     const [[appt]] = await conn.execute(
       `SELECT * FROM appointments WHERE id=? AND user_id=? AND status NOT IN ('completed','cancelled')`,
       [id, userId]
     );
     if (!appt)
-      return res.status(404).json({
-        success: false,
-        message: "Appointment not found or cannot be cancelled.",
-      });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Appointment not found or cannot be cancelled.",
+        });
 
-    // Check if a pending cancel request exists
     const [[existing]] = await conn.execute(
       `SELECT * FROM appointment_requests WHERE appointment_id=? AND type='cancel' AND status='pending'`,
       [id]
     );
     if (existing)
-      return res.status(400).json({
-        success: false,
-        message: "You already have a pending cancellation request.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "You already have a pending cancellation request.",
+        });
 
     await conn.execute(
       `INSERT INTO appointment_requests (appointment_id, type, notes) VALUES (?, 'cancel', ?)`,
@@ -123,24 +127,23 @@ export async function requestCancel(req, res) {
 export async function getAllUserRequests(req, res) {
   const conn = await pool.getConnection();
   try {
-    // Fetch all requests for all users
     const [requests] = await conn.execute(
       `SELECT 
-         ar.id AS request_id, 
-         ar.appointment_id, 
-         ar.type, 
-         ar.requested_date, 
-         ar.requested_time, 
-         ar.notes, 
+         ar.id AS request_id,
+         ar.appointment_id,
+         ar.type,
+         ar.requested_date,
+         ar.requested_time,
+         ar.notes,
          ar.status AS request_status,
-         a.date AS original_date, 
-         a.time AS original_time, 
-         a.name AS client_name, 
-         a.email AS client_email, 
-         a.service_id, 
+         a.date AS original_date,
+         a.time AS original_time,
+         a.name AS client_name,
+         a.email AS client_email,
+         a.service_id,
          a.status AS appointment_status
        FROM appointment_requests ar
-       JOIN appointments a ON ar.appointment_id = a.id
+       LEFT JOIN appointments a ON ar.appointment_id = a.id
        ORDER BY ar.created_at DESC`
     );
 
@@ -155,12 +158,12 @@ export async function getAllUserRequests(req, res) {
       notes: r.notes || "-",
       request_status: r.request_status || "pending",
       appointment: {
-        date: r.original_date,
-        time: r.original_time,
-        clientName: r.client_name,
-        clientEmail: r.client_email,
-        serviceId: r.service_id,
-        status: r.appointment_status,
+        date: r.original_date || null,
+        time: r.original_time || null,
+        clientName: r.client_name || "—",
+        clientEmail: r.client_email || "—",
+        serviceId: r.service_id || null,
+        status: r.appointment_status || "unknown",
       },
     }));
 
@@ -186,23 +189,15 @@ export async function approveRequest(req, res) {
       [requestId]
     );
     if (!request)
-      return res.status(404).json({
-        success: false,
-        message: "Request not found or already processed.",
-      });
-
-    const [[appt]] = await conn.execute(
-      `SELECT * FROM appointments WHERE id=?`,
-      [request.appointment_id]
-    );
-    if (!appt)
       return res
         .status(404)
-        .json({ success: false, message: "Appointment not found." });
+        .json({
+          success: false,
+          message: "Request not found or already processed.",
+        });
 
     await conn.beginTransaction();
 
-    // Update appointment
     if (request.type === "reschedule") {
       await conn.execute(
         `UPDATE appointments SET date=?, time=?, was_rescheduled=1 WHERE id=?`,
@@ -215,7 +210,6 @@ export async function approveRequest(req, res) {
       );
     }
 
-    // Update request status
     await conn.execute(
       `UPDATE appointment_requests SET status='approved' WHERE id=?`,
       [requestId]
@@ -255,10 +249,12 @@ export async function denyRequest(req, res) {
       [requestId]
     );
     if (!request)
-      return res.status(404).json({
-        success: false,
-        message: "Request not found or already processed.",
-      });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Request not found or already processed.",
+        });
 
     await conn.execute(
       `UPDATE appointment_requests SET status='rejected', notes=? WHERE id=?`,
