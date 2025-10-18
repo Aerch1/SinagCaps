@@ -47,10 +47,29 @@ export async function requestReschedule(req, res) {
 
     // Validate datetime
     const dt = new Date(`${requested_date}T${requested_time}`);
-    if (isNaN(dt.getTime()) || dt <= new Date())
+    if (isNaN(dt.getTime()))
       return res
         .status(400)
         .json({ success: false, message: "Invalid requested date/time." });
+
+    const now = new Date();
+    if (dt <= now)
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "You cannot select a past date/time.",
+        });
+
+    // Validate working hours (8:00 AM - 5:00 PM)
+    const [hour, minute] = requested_time.split(":").map(Number);
+    if (hour < 8 || hour > 17 || (hour === 17 && minute > 0)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Requested time must be within working hours (8:00 AM - 5:00 PM).",
+      });
+    }
 
     await conn.execute(
       `INSERT INTO appointment_requests (appointment_id, type, requested_date, requested_time, notes) VALUES (?, 'reschedule', ?, ?, ?)`,
