@@ -6,7 +6,7 @@ import api from "@/api/api";
 import { CalendarDays, Clock } from "lucide-react";
 import { formatDate, to12h } from "@/utils/availabilityUtils";
 
-const HERO_IMG = "/forgot.jpg";
+const HERO_IMG = "/bg2.jpg";
 
 export default function Events() {
     const [events, setEvents] = useState([]);
