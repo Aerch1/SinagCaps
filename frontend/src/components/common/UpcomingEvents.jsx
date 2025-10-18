@@ -1,15 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format, startOfDay } from "date-fns";
+import { parseISO, isAfter, isEqual, startOfDay, compareAsc } from "date-fns";
 import api from "@/api/api";
 
-/**
- * UpcomingEvents.jsx
- * - Fetches upcoming events dynamically from /admin/events/upcoming
- * - Only includes active events of type "event"
- * - Maintains UI and sorting for today and future events
- */
 export default function UpcomingEvents({ onItemClick, className = "" }) {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -19,17 +13,15 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
             try {
                 const res = await api.get("/admin/events/upcoming");
                 if (res.data.success) {
-                    // Only include type = 'event'
                     const filtered = res.data.data
                         .filter((e) => e.type === "event")
                         .map((e) => ({
                             id: e.id,
                             title: e.title,
                             description: e.description,
-                            start: new Date(`${e.date}T${e.time || "00:00:00"}`),
+                            start: parseISO(`${e.date}T${e.time || "00:00:00"}`),
                             image_url: e.image_url,
                         }));
-
                     setEvents(filtered);
                 }
             } catch (err) {
@@ -44,9 +36,40 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
 
     const today = startOfDay(new Date());
 
-    const upcoming = events
-        .filter((e) => e.start >= today)
-        .sort((a, b) => a.start - b.start);
+    const todayEvents = events
+        .filter((e) => isEqual(startOfDay(e.start), today))
+        .sort((a, b) => compareAsc(a.start, b.start));
+
+    const upcomingEvents = events
+        .filter((e) => isAfter(e.start, today))
+        .sort((a, b) => compareAsc(a.start, b.start));
+
+    const renderEventItem = (e) => {
+        const dateLabel = e.start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        const timeLabel = e.start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
+        return (
+            <li key={e.id}>
+                <button
+                    type="button"
+                    onClick={() => onItemClick?.(e)}
+                    className="w-full text-left py-3 px-2 border-b border-gray-100 hover:bg-gray-50 transition"
+                >
+                    <div className="grid grid-cols-[64px_1fr] items-start gap-3">
+                        <div className="text-xs text-gray-600 pt-0.5 whitespace-nowrap">
+                            <div className="font-medium text-gray-700">{dateLabel}</div>
+                            <div>{timeLabel}</div>
+                        </div>
+                        <div className="min-w-0">
+                            <div className="truncate font-medium text-slate-900">{e.title}</div>
+                            {e.description && (
+                                <p className="text-xs text-gray-500 truncate mt-0.5">{e.description}</p>
+                            )}
+                        </div>
+                    </div>
+                </button>
+            </li>
+        );
+    };
 
     return (
         <div
@@ -57,42 +80,29 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
                 <h3 className="text-lg font-semibold text-slate-900">Upcoming Events</h3>
             </div>
 
-            {/* Loading / Empty / List */}
             {loading ? (
                 <p className="text-sm text-gray-500">Loading events...</p>
-            ) : upcoming.length === 0 ? (
+            ) : todayEvents.length === 0 && upcomingEvents.length === 0 ? (
                 <p className="text-sm text-gray-500">No upcoming events.</p>
             ) : (
                 <ul className="divide-y divide-gray-100 overflow-y-auto scroll-thin flex-1 pr-1">
-                    {upcoming.map((e) => {
-                        const dateLabel = format(e.start, "MMM d");
-                        const timeLabel = format(e.start, "h:mm a");
-                        return (
-                            <li key={e.id}>
-                                <button
-                                    type="button"
-                                    onClick={() => onItemClick?.(e)}
-                                    className="w-full text-left py-3 px-2 border-b border-gray-100 hover:bg-gray-50 transition"
-                                >
-                                    <div className="grid grid-cols-[64px_1fr] items-start gap-3">
-                                        {/* Date/Time */}
-                                        <div className="text-xs text-gray-600 pt-0.5 whitespace-nowrap">
-                                            <div className="font-medium text-gray-700">{dateLabel}</div>
-                                            <div>{timeLabel}</div>
-                                        </div>
+                    {/* Today’s Events */}
+                    {todayEvents.length > 0 && (
+                        <>
+                            <li className="py-2 px-2 text-sm font-semibold text-blue-600">Today</li>
+                            {todayEvents.map(renderEventItem)}
+                        </>
+                    )}
 
-                                        {/* Content */}
-                                        <div className="min-w-0">
-                                            <div className="truncate font-medium text-slate-900">{e.title}</div>
-                                            {e.description && (
-                                                <p className="text-xs text-gray-500 truncate mt-0.5">{e.description}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </button>
-                            </li>
-                        );
-                    })}
+                    {/* Future Events */}
+                    {upcomingEvents.length > 0 && (
+                        <>
+                            {todayEvents.length > 0 && (
+                                <li className="py-2 px-2 text-sm font-semibold text-gray-500">Upcoming</li>
+                            )}
+                            {upcomingEvents.map(renderEventItem)}
+                        </>
+                    )}
                 </ul>
             )}
         </div>
