@@ -10,7 +10,7 @@ import path from "path";
 export const PARISH_INFO = {
   name: "Our Lady of Peace and Good Voyage Parish",
   address: "Lodlod, Lipa City, Batangas",
-logo: path.join(__dirname, "../../"),
+  logo: path.join(process.cwd(), "frontend/public/logotest.png"),
   footerNote: "·",
   theme: {
     primary: "CA141D", // red
