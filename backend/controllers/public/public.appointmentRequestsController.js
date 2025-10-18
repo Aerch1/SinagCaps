@@ -22,12 +22,10 @@ export async function requestReschedule(req, res) {
       [id, userId]
     );
     if (!appt)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Appointment not found or cannot be modified",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found or cannot be modified",
+      });
 
     const [[existing]] = await conn.execute(
       `SELECT * FROM appointment_requests 
@@ -35,21 +33,17 @@ export async function requestReschedule(req, res) {
       [id]
     );
     if (existing)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "You already have a pending reschedule request.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "You already have a pending reschedule request.",
+      });
 
     const requestedDateTime = new Date(`${requested_date}T${requested_time}`);
     if (requestedDateTime <= new Date())
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Requested date and time must be in the future.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Requested date and time must be in the future.",
+      });
 
     await conn.beginTransaction();
     await conn.execute(
@@ -94,12 +88,10 @@ export async function requestCancel(req, res) {
       [id, userId]
     );
     if (!appt)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Appointment not found or cannot be cancelled",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found or cannot be cancelled",
+      });
 
     const [[existing]] = await conn.execute(
       `SELECT * FROM appointment_requests 
@@ -107,12 +99,10 @@ export async function requestCancel(req, res) {
       [id]
     );
     if (existing)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "You already have a pending cancellation request.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "You already have a pending cancellation request.",
+      });
 
     await conn.execute(
       `INSERT INTO appointment_requests 
@@ -161,7 +151,18 @@ export async function getUserRequests(req, res) {
        ORDER BY ar.created_at DESC`,
       [userId]
     );
-    return res.json({ success: true, requests });
+
+    // Map directly to match frontend expectations
+    const mapped = requests.map((r) => ({
+      id: r.request_id,
+      appointmentId: r.appointment_id,
+      name: r.appointment_name || "—",
+      requestedDateTime: `${r.requested_date || "-"} ${r.requested_time || ""}`,
+      notes: r.notes || "—",
+      request_status: r.request_status || "pending",
+    }));
+
+    return res.json({ success: true, requests: mapped });
   } catch (err) {
     console.error("getUserRequests error:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -183,12 +184,10 @@ export async function approveRequest(req, res) {
       [requestId]
     );
     if (!request)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Request not found or already processed.",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Request not found or already processed.",
+      });
 
     await conn.beginTransaction();
 
@@ -238,12 +237,10 @@ export async function denyRequest(req, res) {
       [requestId]
     );
     if (!request)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Request not found or already processed.",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Request not found or already processed.",
+      });
 
     await conn.execute(
       `UPDATE appointment_requests SET status='denied' WHERE id=?`,

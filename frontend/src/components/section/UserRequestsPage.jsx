@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Eye, X, Check } from "lucide-react";
 import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal";
@@ -8,38 +8,47 @@ import toast from "react-hot-toast";
 import api from "@/api/api";
 
 export default function UserRequestsTable() {
-    const [rows, setRows] = useState([]);
+    const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(false);
     const [viewingId, setViewingId] = useState(null);
-
     const [page, setPage] = useState(1);
-    const [pageSize] = useState(5);
-    const [totalPages, setTotalPages] = useState(1);
+    const pageSize = 5;
 
-    const fetchRequests = async () => {
+    // Fetch requests from backend
+    const fetchRequests = useCallback(async () => {
         setLoading(true);
         try {
             const res = await api.get("/appointments/requests/user-requests");
+
+            // Map backend data directly to frontend fields
             const data = res.data.requests.map((r) => ({
-                ...r,
-                name: r.user_name,
-                appointmentId: r.appointment_id,
-                requestedDateTime: `${r.requested_date || "-"} ${r.requested_time || ""}`,
+                id: r.id, // request_id from backend mapping
+                appointmentId: r.appointmentId,
+                name: r.name || "—",
+                requestedDateTime: r.requestedDateTime || "—",
+                notes: r.notes || "—",
+                request_status: r.request_status || "pending",
+                type: r.type || "—",
             }));
-            setRows(data);
-            setTotalPages(Math.ceil(data.length / pageSize));
+
+            setRequests(data);
         } catch (err) {
             console.error(err);
-            toast.error("Failed to load requests");
+            toast.error("Failed to load user requests");
         } finally {
             setLoading(false);
         }
-    };
-
-    useEffect(() => {
-        fetchRequests();
     }, []);
 
+    // Initial fetch + refresh on custom global event
+    useEffect(() => {
+        fetchRequests();
+        const handleNewRequest = () => fetchRequests();
+        window.addEventListener("userRequestSubmitted", handleNewRequest);
+        return () => window.removeEventListener("userRequestSubmitted", handleNewRequest);
+    }, [fetchRequests]);
+
+    // Admin approve request
     const handleApprove = async (r) => {
         try {
             await api.patch(`/admin/appointments/requests/${r.id}/approve`);
@@ -47,10 +56,11 @@ export default function UserRequestsTable() {
             fetchRequests();
         } catch (err) {
             console.error(err);
-            toast.error("Failed to approve");
+            toast.error("Failed to approve request");
         }
     };
 
+    // Admin deny request
     const handleDeny = async (r) => {
         try {
             await api.patch(`/admin/appointments/requests/${r.id}/deny`);
@@ -58,10 +68,11 @@ export default function UserRequestsTable() {
             fetchRequests();
         } catch (err) {
             console.error(err);
-            toast.error("Failed to deny");
+            toast.error("Failed to deny request");
         }
     };
 
+    // Action buttons
     const renderActions = (r) => (
         <div className="flex gap-1 justify-end">
             <button
@@ -70,6 +81,7 @@ export default function UserRequestsTable() {
             >
                 <Eye className="inline h-3 w-3 mr-1" /> View
             </button>
+
             {r.request_status === "pending" && (
                 <>
                     <button
@@ -89,14 +101,16 @@ export default function UserRequestsTable() {
         </div>
     );
 
-    const paginatedRows = rows.slice((page - 1) * pageSize, page * pageSize);
+    // Pagination
+    const paginated = requests.slice((page - 1) * pageSize, page * pageSize);
+    const totalPages = Math.ceil(requests.length / pageSize);
 
     return (
         <div className="space-y-4">
             <h1 className="text-xl font-bold">User Requests</h1>
 
             <div className="overflow-x-auto border rounded-lg shadow-sm bg-white">
-                <table className="w-full min-w-full divide-y divide-gray-200 text-sm table-auto">
+                <table className="w-full text-sm table-auto divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="px-3 py-2 text-left">Appointment ID</th>
@@ -115,19 +129,19 @@ export default function UserRequestsTable() {
                                         Loading…
                                     </td>
                                 </motion.tr>
-                            ) : paginatedRows.length === 0 ? (
+                            ) : paginated.length === 0 ? (
                                 <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                     <td colSpan={6} className="py-8 text-center text-gray-500">
                                         No requests found.
                                     </td>
                                 </motion.tr>
                             ) : (
-                                paginatedRows.map((r) => (
+                                paginated.map((r) => (
                                     <motion.tr key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                         <td className="px-3 py-2 font-mono text-gray-600">{r.appointmentId}</td>
                                         <td className="px-3 py-2">{r.name}</td>
                                         <td className="px-3 py-2">{r.requestedDateTime}</td>
-                                        <td className="px-3 py-2">{r.notes || "-"}</td>
+                                        <td className="px-3 py-2">{r.notes}</td>
                                         <td className="px-3 py-2">{r.request_status}</td>
                                         <td className="px-3 py-2 text-right">{renderActions(r)}</td>
                                     </motion.tr>
