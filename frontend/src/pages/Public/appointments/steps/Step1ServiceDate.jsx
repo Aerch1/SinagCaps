@@ -48,8 +48,8 @@ export default function Step1Service({ formData, setFormData }) {
       <h3 className="text-lg font-medium">Select Service</h3>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-        {/* LEFT */}
-        <div className="md:col-span-6 space-y-6">
+        {/* LEFT ONLY */}
+        <div className="md:col-span-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Service Type <span className="text-red-500">*</span>
@@ -62,18 +62,6 @@ export default function Step1Service({ formData, setFormData }) {
               placeholder={loading ? "Loading..." : "Select a service"}
               className="w-full"
             />
-          </div>
-        </div>
-
-        {/* RIGHT: static info placeholder */}
-        <div className="md:col-span-6">
-          <div className="rounded-md bg-gray-50 p-5">
-            <h4 className="text-sm font-semibold text-gray-900">
-              Service Information
-            </h4>
-            <div className="mt-3 space-y-3 text-sm leading-6 text-gray-800">
-              <p>Select a service to see details and scheduling notes.</p>
-            </div>
           </div>
         </div>
       </div>
