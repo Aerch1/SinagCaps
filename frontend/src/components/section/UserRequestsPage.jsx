@@ -22,14 +22,15 @@ export default function UserRequestsTable() {
 
             // Map backend data directly to frontend fields
             const data = res.data.requests.map((r) => ({
-                id: r.id, // request_id from backend mapping
+                id: r.id,
                 appointmentId: r.appointmentId,
-                name: r.name || "—",
+                name: r.user.name || "—", // Show the user who made the request
                 requestedDateTime: r.requestedDateTime || "—",
                 notes: r.notes || "—",
                 request_status: r.request_status || "pending",
                 type: r.type || "—",
             }));
+
 
             setRequests(data);
         } catch (err) {

@@ -123,65 +123,51 @@ export async function requestCancel(req, res) {
   }
 }
 
-/* =========================
-   Get User Requests
-========================= */
-export async function getUserRequests(req, res) {
-  const userId = req.user?.id;
+// GET /appointments/requests/user-requests
+export async function getAllUserRequests(req, res) {
   const conn = await pool.getConnection();
-
   try {
     const [requests] = await conn.execute(
       `SELECT 
-          ar.id AS request_id,
-          ar.appointment_id,
-          ar.type,
-          ar.requested_date,
-          ar.requested_time,
-          ar.notes,
-          ar.status AS request_status,
-          ar.created_at AS request_created_at,
-          a.name AS appointment_name,
-          a.date AS appointment_date,
-          a.time AS appointment_time,
-          a.status AS appointment_status,
-          a.was_rescheduled
+         ar.id AS request_id,
+         ar.appointment_id,
+         ar.type,
+         ar.requested_date,
+         ar.requested_time,
+         ar.notes,
+         ar.status AS request_status,
+         ar.created_at,
+         a.date AS original_date,
+         a.time AS original_time,
+         u.id AS user_id,
+         u.name AS user_name,
+         u.email AS user_email
        FROM appointment_requests ar
        JOIN appointments a ON ar.appointment_id = a.id
-       WHERE a.user_id = ?
-       ORDER BY ar.created_at DESC`,
-      [userId]
+       JOIN users u ON a.user_id = u.id
+       ORDER BY ar.created_at DESC`
     );
 
-    // Map to frontend-friendly structure
-    const mapped = requests.map((r) => {
-      let requestedDateTime = "-";
-      if (r.type === "reschedule") {
-        // Use requested date/time for reschedule requests
-        requestedDateTime = `${r.requested_date || "-"} ${
-          r.requested_time || ""
-        }`;
-      } else if (r.type === "cancel") {
-        // Use original appointment date/time for cancel requests
-        requestedDateTime = `${r.appointment_date || "-"} ${
-          r.appointment_time || ""
-        }`;
-      }
-
-      return {
-        id: r.request_id,
-        appointmentId: r.appointment_id,
-        name: r.appointment_name || "—",
-        requestedDateTime,
-        notes: r.notes || "—",
-        request_status: r.request_status || "pending",
-        type: r.type, // reschedule or cancel
-      };
-    });
+    const mapped = requests.map((r) => ({
+      id: r.request_id,
+      appointmentId: r.appointment_id,
+      type: r.type,
+      requestedDateTime:
+        r.type === "reschedule"
+          ? `${r.requested_date || "-"} ${r.requested_time || ""}`
+          : `${r.original_date || "-"} ${r.original_time || ""}`, // show original date/time for cancel
+      notes: r.notes || "-",
+      request_status: r.request_status || "pending",
+      user: {
+        id: r.user_id,
+        name: r.user_name,
+        email: r.user_email,
+      },
+    }));
 
     return res.json({ success: true, requests: mapped });
   } catch (err) {
-    console.error("getUserRequests error:", err);
+    console.error("getAllUserRequests error:", err);
     res.status(500).json({ success: false, message: err.message });
   } finally {
     conn.release();
