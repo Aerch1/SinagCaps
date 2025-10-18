@@ -179,9 +179,12 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
   return (
     <>
       {!hidePanel && isOpen && (
-        <div className="fixed inset-0 bg-black/40 z-[999]" onClick={onClose} />
+        <div
+          className="fixed inset-0 h-screen w-screen bg-black/40 z-[9999]"
+          style={{ top: 0, left: 0 }}
+          onClick={onClose}
+        />
       )}
-
       {!hidePanel && isOpen && (
         <aside className="fixed right-0 top-0 z-[1000] w-full max-w-2xl h-screen bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
           {/* HEADER */}
