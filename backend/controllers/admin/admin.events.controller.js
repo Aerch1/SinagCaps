@@ -21,7 +21,14 @@ function validateEvent(data) {
 export async function createEvent(req, res) {
   const conn = await pool.getConnection();
   try {
-    const { title, description, date, time, status = "Active", type } = req.body;
+    const {
+      title,
+      description,
+      date,
+      time,
+      status = "Active",
+      type,
+    } = req.body;
     const errors = validateEvent(req.body);
     if (Object.keys(errors).length)
       return res.status(400).json({ success: false, errors });
@@ -182,7 +189,6 @@ export async function deleteEvent(req, res) {
     res.status(500).json({ success: false, error: "Server error" });
   }
 }
-
 /* ==================================================
    GET /api/admin/events/upcoming
    → Returns all active events happening today or later
@@ -214,10 +220,18 @@ export async function getUpcomingEvents(req, res) {
 
       for (const event of upcomingSoon) {
         const templates = [
-          `⏰ Reminder: "${event.title}" is happening ${event.date === today ? "today" : "tomorrow"} at ${event.time}.`,
-          `Don't miss it! "${event.title}" takes place ${event.date === today ? "today" : "tomorrow"} — check the details in Events & News.`,
-          `📅 "${event.title}" is ${event.date === today ? "today" : "tomorrow"}! Stay tuned.`,
-          `Upcoming ${event.type.toLowerCase()}: "${event.title}" starts ${event.date === today ? "today" : "tomorrow"}.`,
+          `⏰ Reminder: "${event.title}" is happening ${
+            event.date === today ? "today" : "tomorrow"
+          } at ${event.time}.`,
+          `Don't miss it! "${event.title}" takes place ${
+            event.date === today ? "today" : "tomorrow"
+          } — check the details in Events & News.`,
+          `📅 "${event.title}" is ${
+            event.date === today ? "today" : "tomorrow"
+          }! Stay tuned.`,
+          `Upcoming ${event.type.toLowerCase()}: "${event.title}" starts ${
+            event.date === today ? "today" : "tomorrow"
+          }.`,
         ];
 
         for (const u of users) {
@@ -226,7 +240,9 @@ export async function getUpcomingEvents(req, res) {
 
           await createNotification({
             user_id: u.id,
-            title: `🎟️ ${event.date === today ? "Today’s Event" : "Tomorrow’s Event"}`,
+            title: `🎟️ ${
+              event.date === today ? "Today’s Event" : "Tomorrow’s Event"
+            }`,
             message,
             type: "event",
             reference_id: event.id,
@@ -236,7 +252,19 @@ export async function getUpcomingEvents(req, res) {
       }
     }
 
-    res.json({ success: true, data: rows, count: rows.length });
+    // ✅ Separate today's events and upcoming events
+    const todaysEvents = rows.filter((e) => e.date === today);
+    const upcomingEvents = rows.filter((e) => e.date > today);
+
+    res.json({
+      success: true,
+      data: {
+        today: todaysEvents,
+        upcoming: upcomingEvents,
+        all: rows,
+      },
+      count: rows.length,
+    });
   } catch (err) {
     console.error("❌ GET UPCOMING EVENTS ERROR:", err);
     res.status(500).json({

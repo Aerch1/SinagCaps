@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { parseISO, isAfter, isEqual, startOfDay, compareAsc } from "date-fns";
+import { parseISO, compareAsc } from "date-fns";
 import api from "@/api/api";
 
 export default function UpcomingEvents({ onItemClick, className = "" }) {
-    const [events, setEvents] = useState([]);
+    const [todayEvents, setTodayEvents] = useState([]);
+    const [upcomingEvents, setUpcomingEvents] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -13,16 +14,17 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
             try {
                 const res = await api.get("/admin/events/upcoming");
                 if (res.data.success) {
-                    const filtered = res.data.data
-                        .filter((e) => e.type === "event")
-                        .map((e) => ({
-                            id: e.id,
-                            title: e.title,
-                            description: e.description,
-                            start: parseISO(`${e.date}T${e.time || "00:00:00"}`),
-                            image_url: e.image_url,
-                        }));
-                    setEvents(filtered);
+                    const mapEvent = (e) => ({
+                        id: e.id,
+                        title: e.title,
+                        description: e.description,
+                        start: parseISO(`${e.date}T${e.time || "00:00:00"}`),
+                        image_url: e.image_url,
+                    });
+
+                    // ✅ Use API-provided arrays directly
+                    setTodayEvents(res.data.data.today.map(mapEvent).sort((a, b) => compareAsc(a.start, b.start)));
+                    setUpcomingEvents(res.data.data.upcoming.map(mapEvent).sort((a, b) => compareAsc(a.start, b.start)));
                 }
             } catch (err) {
                 console.error("❌ Failed to fetch upcoming events:", err);
@@ -33,16 +35,6 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
 
         fetchEvents();
     }, []);
-
-    const today = startOfDay(new Date());
-
-    const todayEvents = events
-        .filter((e) => isEqual(startOfDay(e.start), today))
-        .sort((a, b) => compareAsc(a.start, b.start));
-
-    const upcomingEvents = events
-        .filter((e) => isAfter(e.start, today))
-        .sort((a, b) => compareAsc(a.start, b.start));
 
     const renderEventItem = (e) => {
         const dateLabel = e.start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
