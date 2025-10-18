@@ -10,42 +10,35 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        console.log("🔹 UpcomingEvents mounted");
-
         const fetchEvents = async () => {
             try {
-                console.log("🔹 Fetching upcoming events...");
                 const res = await api.get("/admin/events/upcoming");
-                console.log("🔹 API response:", res.data);
 
                 if (res.data.success) {
-                    // Map events
                     const mapEvent = (e) => {
-                        // Ensure valid Date object
-                        const dateStr = e.date || e.date_only || "1970-01-01";
+                        const dateStr = e.date || "1970-01-01";
                         const timeStr = e.time || "00:00:00";
+                        const startDate = parseISO(`${dateStr}T${timeStr}`);
                         return {
                             id: e.id,
                             title: e.title,
                             description: e.description,
-                            start: parseISO(`${dateStr}T${timeStr}`),
+                            start: startDate,
                             image_url: e.image_url,
                         };
                     };
 
-                    const todayMapped = res.data.data.today.map(mapEvent).sort((a, b) => compareAsc(a.start, b.start));
+                    const todayMapped = res.data.data.today
+                        .map(mapEvent)
+                        .sort((a, b) => compareAsc(a.start, b.start));
 
-                    // Filter upcoming events to exclude today’s events
                     const upcomingMapped = res.data.data.upcoming
                         .map(mapEvent)
-                        .filter((e) => !isToday(e.start))
+                        .filter((e) => !isToday(e.start)) // remove today events
                         .sort((a, b) => compareAsc(a.start, b.start));
 
                     setTodayEvents(todayMapped);
                     setUpcomingEvents(upcomingMapped);
-
-                    console.log("🔹 Today Events:", todayMapped);
-                    console.log("🔹 Upcoming Events:", upcomingMapped);
                 }
             } catch (err) {
                 console.error("❌ Failed to fetch upcoming events:", err);
@@ -58,8 +51,15 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
     }, []);
 
     const renderEventItem = (e) => {
-        const dateLabel = e.start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-        const timeLabel = e.start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
+        const dateLabel = e.start.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+        });
+        const timeLabel = e.start.toLocaleTimeString(undefined, {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        });
 
         return (
             <li key={e.id}>
@@ -97,7 +97,6 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
                 <p className="text-sm text-gray-500">No upcoming events.</p>
             ) : (
                 <ul className="divide-y divide-gray-100 overflow-y-auto scroll-thin flex-1 pr-1">
-                    {/* Today’s Events */}
                     {todayEvents.length > 0 && (
                         <>
                             <li className="py-2 px-2 text-sm font-semibold text-blue-600">Today</li>
@@ -105,12 +104,9 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
                         </>
                     )}
 
-                    {/* Future Events */}
                     {upcomingEvents.length > 0 && (
                         <>
-                            {todayEvents.length > 0 && (
-                                <li className="py-2 px-2 text-sm font-semibold text-gray-500">Upcoming</li>
-                            )}
+                            <li className="py-2 px-2 text-sm font-semibold text-gray-500">Upcoming</li>
                             {upcomingEvents.map(renderEventItem)}
                         </>
                     )}

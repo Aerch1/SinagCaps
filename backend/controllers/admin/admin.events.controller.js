@@ -199,7 +199,7 @@ export async function deleteEvent(req, res) {
 export async function getUpcomingEvents(req, res) {
   const conn = await pool.getConnection();
   try {
-    // ✅ Fetch all active events today or later using combined datetime
+    // Fetch all active events today or later using combined datetime
     const [rows] = await conn.query(`
       SELECT id, title, description, date, time, status, type, image_url
       FROM events
@@ -211,17 +211,19 @@ export async function getUpcomingEvents(req, res) {
     console.log("🔹 Fetched rows:", rows);
 
     // Map rows to proper Date objects
-    const events = rows.map((e) => ({
-      ...e,
-      dateTime: new Date(`${e.date.toISOString().slice(0, 10)}T${e.time}`),
-    }));
+    const events = rows.map((e) => {
+      const dateStr = e.date; // already "YYYY-MM-DD"
+      const timeStr = e.time || "00:00:00"; // default if null
+      return {
+        ...e,
+        dateTime: new Date(`${dateStr}T${timeStr}`),
+      };
+    });
 
     // Events happening today or tomorrow for reminders
     const upcomingSoon = events.filter(
       (e) => isToday(e.dateTime) || isTomorrow(e.dateTime)
     );
-
-    console.log("🔹 Upcoming Soon (today/tomorrow):", upcomingSoon);
 
     if (upcomingSoon.length > 0) {
       const [users] = await conn.query(
@@ -258,8 +260,8 @@ export async function getUpcomingEvents(req, res) {
 
     // Separate today's events and upcoming events
     const todaysEvents = events.filter((e) => isToday(e.dateTime));
-    const upcomingEvents = events.filter((e) =>
-      isAfter(e.dateTime, new Date())
+    const upcomingEvents = events.filter(
+      (e) => e.dateTime > new Date() && !isToday(e.dateTime) // exclude today
     );
 
     console.log("🔹 Today's Events:", todaysEvents);
