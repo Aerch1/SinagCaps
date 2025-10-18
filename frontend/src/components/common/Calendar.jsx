@@ -130,14 +130,20 @@ export default function CalendarComponent() {
      🔹 Render Calendar
   ===================================================== */
   const mappedEvents = useMemo(() => {
-    // Map all filtered appointments into FullCalendar event objects
-    return filteredAppointments.map((a) => ({
-      id: a.id,
-      title: a.serviceName,
-      start: `${a.date}T${a.time}`,
-      extendedProps: a,
-      display: "auto", // ensures events merge naturally
-    }));
+    // Map appointments and normalize the date to local ISO string
+    return filteredAppointments.map((a) => {
+      const [year, month, day] = a.date.split("-").map(Number);
+      const [hour, minute] = a.time.split(":").map(Number);
+      const startDate = new Date(year, month - 1, day, hour, minute);
+
+      return {
+        id: a.id,
+        title: a.serviceName,
+        start: startDate.toISOString(), // normalize to full ISO string
+        extendedProps: a,
+        display: "auto",
+      };
+    });
   }, [filteredAppointments, refreshKey]);
 
   return (
