@@ -7,6 +7,8 @@ import TodaySchedule from "../../components/common/TodaySchedule";
 import UpcomingEvents from "../../components/common/UpcomingEvents";
 import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal";
 import useChurchHours from "@/hooks/useChurchHours";
+import { useNavigate } from "react-router-dom"; // ✅ import navigate
+
 
 export default function CalendarPage() {
   const [viewOpen, setViewOpen] = useState(false);
@@ -16,6 +18,15 @@ export default function CalendarPage() {
 
 
   const { churchHours } = useChurchHours();
+  const navigate = useNavigate(); // ✅ initialize navigate
+
+
+
+
+  const handleUpcomingItemClick = (event) => {
+    // Navigate to Content Management, Events tab
+    navigate("/admin/content?tab=events");
+  };
 
   /* ---------- 📅 Handlers ---------- */
   const handleTodayItemClick = (appointmentId) => {
@@ -76,7 +87,7 @@ export default function CalendarPage() {
             />
 
             <UpcomingEvents
-              onItemClick={(evt) => console.log("Clicked Upcoming:", evt)}
+              onItemClick={handleUpcomingItemClick}
               className="flex-1 min-h-[300px] md:min-h-[45vh]"
             />
           </aside>
