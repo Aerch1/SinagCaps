@@ -27,14 +27,7 @@ export default function DefaultForm({
 
     const validator = () => {
       const errs = {};
-      const required = [
-        "firstName",
-        "lastName",
-        "email",
-        "phone",
-        "address",
-        "purpose",
-      ];
+      const required = ["firstName", "lastName", "email", "phone", "address"];
 
       // Check required fields
       for (const f of required) {
@@ -221,27 +214,6 @@ export default function DefaultForm({
         />
         {formErrors.address && (
           <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
-        )}
-      </div>
-
-      {/* ---------- Purpose / Reason ---------- */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Purpose / Reason <Req />
-        </label>
-        <Input
-          icon={FileText}
-          placeholder="Briefly describe why you’re booking"
-          as="textarea"
-          rows={3}
-          value={formData.purpose || ""}
-          onChange={(e) => updateField("purpose", e.target.value)}
-          className={
-            formErrors.purpose ? "border-red-500 focus:ring-red-500" : ""
-          }
-        />
-        {formErrors.purpose && (
-          <p className="text-red-500 text-xs mt-1">{formErrors.purpose}</p>
         )}
       </div>
 

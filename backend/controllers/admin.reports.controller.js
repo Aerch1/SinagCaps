@@ -157,6 +157,9 @@ export async function generateSystemReport(req, res) {
       /* ==================================================
        REPORT: EVENTS & NEWS
     ================================================== */
+      /* ==================================================
+   REPORT: EVENTS & NEWS
+================================================== */
     } else if (type === "events") {
       let where = "WHERE 1=1";
 
@@ -169,29 +172,30 @@ export async function generateSystemReport(req, res) {
       // ✅ Scope filter
       if (scope === "upcoming") {
         where += " AND date >= CURDATE()";
-      } else if (scope === "completed") {
+      } else if (scope === "past") {
+        // <-- updated to match frontend
         where += " AND date < CURDATE()";
       }
 
       const query = `
-        SELECT 
-          title,
-          type,
-          status,
-          DATE_FORMAT(date, '%Y-%m-%d') AS date,
-          time,
-          description
-        FROM events
-        ${where}
-        ORDER BY date DESC, time DESC
-      `;
+    SELECT 
+      title,
+      type,
+      status,
+      DATE_FORMAT(date, '%Y-%m-%d') AS date,
+      time,
+      description
+    FROM events
+    ${where}
+    ORDER BY date DESC, time DESC
+  `;
 
       const [data] = await conn.query(query, params);
       rows = data;
 
       title = `Events & News Report${
         scope !== "all"
-          ? ` (${scope.charAt(0).toUpperCase() + scope.slice(1)})`
+          ? ` (${scope.charAt(0).toUpperCase() + scope.slice(0)})`
           : ""
       }`;
 
@@ -231,19 +235,19 @@ export async function generateSystemReport(req, res) {
     const outPath = path.join(outputDir, fileName);
 
     /* ==================================================
-       METADATA
-    ================================================== */
+   METADATA
+================================================== */
     const metadata = {
       generatedBy: admin,
       generatedAt: new Date().toLocaleString("en-PH", {
         timeZone: "Asia/Manila",
       }),
       totalRecords: rows.length,
-      reportType: type,
+      reportType: type === "events" ? "Events & News" : type, // <-- tweak here
       scope,
       dateRange:
         startDate && endDate ? `${startDate} to ${endDate}` : "All time",
-    };
+    };  
 
     /* ==================================================
        GENERATE FILE
@@ -278,4 +282,3 @@ export async function generateSystemReport(req, res) {
     conn.release();
   }
 }
-

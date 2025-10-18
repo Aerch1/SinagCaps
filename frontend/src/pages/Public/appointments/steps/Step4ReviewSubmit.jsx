@@ -28,7 +28,6 @@ const LABELS = {
   sponsors: "Sponsors",
   firstName: "First Name",
   lastName: "Last Name",
-  purpose: "Purpose / Reason",
   notes: "Notes",
   additionalNotes: "Additional Notes",
 

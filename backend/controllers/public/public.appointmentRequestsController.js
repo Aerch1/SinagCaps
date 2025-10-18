@@ -112,8 +112,8 @@ export async function requestCancel(req, res) {
   }
 }
 
-/// ------------------------
-// Admin: Get All User Requests
+// ------------------------
+// Admin: Get All User Requests with Client Name
 // ------------------------
 export async function getAllUserRequests(req, res) {
   const conn = await pool.getConnection();
@@ -124,25 +124,24 @@ export async function getAllUserRequests(req, res) {
 
     const [requests] = await conn.execute(
       `SELECT 
-         id AS request_id,
-         appointment_id,
-         type,
-         requested_date,
-         requested_time,
-         notes,
-         status AS request_status,
-         created_at,
-         updated_at
-       FROM appointment_requests
-       ORDER BY created_at DESC`
+         ar.id AS request_id,
+         ar.appointment_id,
+         ar.type,
+         ar.requested_date,
+         ar.requested_time,
+         ar.notes,
+         ar.status AS request_status,
+         ar.created_at,
+         ar.updated_at,
+         a.name AS client_name
+       FROM appointment_requests ar
+       LEFT JOIN appointments a ON ar.appointment_id = a.id
+       ORDER BY ar.created_at DESC`
     );
-
-    console.log("Raw requests from DB:", requests);
 
     const mapped = requests.map((r) => {
       let requestedDateTime = "-";
 
-      // Only parse reschedule requests
       if (r.type === "reschedule" && r.requested_date && r.requested_time) {
         const date = new Date(r.requested_date);
         const [hours, minutes, seconds] = r.requested_time
@@ -164,6 +163,7 @@ export async function getAllUserRequests(req, res) {
       return {
         id: r.request_id,
         appointmentId: r.appointment_id,
+        clientName: r.client_name || "-", // <-- new field
         type: r.type,
         requestedDateTime,
         notes: r.notes || "-",

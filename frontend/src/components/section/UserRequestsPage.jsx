@@ -18,30 +18,26 @@ export default function AdminUserRequestsTable() {
         setLoading(true);
         try {
             const res = await api.get("/appointments/requests/all-requests");
-            console.log("Raw /all-requests response:", res.data);
 
             if (!res.data || !Array.isArray(res.data.requests)) {
-                console.error("Response data is missing or malformed:", res.data);
                 toast.error("Invalid response from server");
                 setRequests([]);
                 return;
             }
 
-            // Directly use requestedDateTime from backend
             const data = res.data.requests.map((r) => ({
                 requestId: r.id,
                 appointmentId: r.appointmentId,
-                requestedDateTime: r.requestedDateTime || "-", // already formatted
+                clientName: r.clientName || "-", // <-- added client name
+                requestedDateTime: r.requestedDateTime || "-",
                 notes: r.notes || "-",
                 request_status: r.request_status || "pending",
                 type: r.type || "-",
             }));
 
-            console.log("Mapped requests ready for table:", data);
             setRequests(data);
         } catch (err) {
             console.error("Fetch requests error:", err);
-            if (err.response) console.error("Server response:", err.response.data);
             toast.error("Failed to load user requests");
         } finally {
             setLoading(false);
@@ -60,8 +56,7 @@ export default function AdminUserRequestsTable() {
             await api.patch(`/appointments/requests/${r.requestId}/approve`);
             toast.success("Request approved");
             fetchRequests();
-        } catch (err) {
-            console.error("Approve error:", err);
+        } catch {
             toast.error("Failed to approve request");
         }
     };
@@ -71,8 +66,7 @@ export default function AdminUserRequestsTable() {
             await api.patch(`/appointments/requests/${r.requestId}/deny`, { notes: "Denied by admin" });
             toast.success("Request denied");
             fetchRequests();
-        } catch (err) {
-            console.error("Deny error:", err);
+        } catch {
             toast.error("Failed to deny request");
         }
     };
@@ -109,14 +103,12 @@ export default function AdminUserRequestsTable() {
     const totalPages = Math.ceil(requests.length / pageSize);
 
     return (
-        <div className="space-y-4">
-            <h1 className="text-xl font-bold">All User Requests (Admin)</h1>
-
+        <div className="space-y-4 min-h-screen">
             <div className="overflow-x-auto border rounded-lg shadow-sm bg-white">
                 <table className="w-full text-sm table-auto divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            {["Appointment ID", "Requested Date/Time", "Notes", "Type", "Status", "Actions"].map((h) => (
+                            {["Appointment ID", "Client Name", "Requested Date/Time", "Notes", "Type", "Actions"].map((h) => (
                                 <th
                                     key={h}
                                     className="px-3 py-2 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider"
@@ -130,24 +122,20 @@ export default function AdminUserRequestsTable() {
                         <AnimatePresence>
                             {loading ? (
                                 <motion.tr key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={6} className="py-8 text-center text-gray-500">
-                                        Loading…
-                                    </td>
+                                    <td colSpan={6} className="py-8 text-center text-gray-500">Loading…</td>
                                 </motion.tr>
                             ) : paginated.length === 0 ? (
                                 <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={6} className="py-8 text-center text-gray-500">
-                                        No requests found.
-                                    </td>
+                                    <td colSpan={6} className="py-8 text-center text-gray-500">No requests found.</td>
                                 </motion.tr>
                             ) : (
                                 paginated.map((r) => (
                                     <motion.tr key={r.requestId} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                         <td className="px-3 py-2 font-mono text-gray-600">{r.appointmentId}</td>
+                                        <td className="px-3 py-2">{r.clientName}</td>
                                         <td className="px-3 py-2">{r.requestedDateTime}</td>
                                         <td className="px-3 py-2">{r.notes}</td>
                                         <td className="px-3 py-2 capitalize">{r.type}</td>
-                                        <td className="px-3 py-2">{r.request_status}</td>
                                         <td className="px-3 py-2 text-right">{renderActions(r)}</td>
                                     </motion.tr>
                                 ))
@@ -188,7 +176,7 @@ export default function AdminUserRequestsTable() {
             {viewingId && (
                 <ViewAppointmentModal
                     isOpen={!!viewingId}
-                    appointmentId={viewingId} // works with appointment_requests data
+                    appointmentId={viewingId}
                     onClose={() => setViewingId(null)}
                 />
             )}

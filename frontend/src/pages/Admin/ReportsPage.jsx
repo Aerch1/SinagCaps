@@ -14,11 +14,16 @@ function startEndForPeriod(period, today = new Date()) {
         s.setDate(t.getDate() - 6);
         return { start: s, end: t };
     }
-    if (period === "This Month")
-        return { start: new Date(t.getFullYear(), t.getMonth(), 1), end: new Date(t.getFullYear(), t.getMonth() + 1, 0) };
+    if (period === "This Month") {
+        // ✅ Include the full last day of the month
+        const start = new Date(t.getFullYear(), t.getMonth(), 1);
+        const end = new Date(t.getFullYear(), t.getMonth() + 1, 0, 23, 59, 59);
+        return { start, end };
+    }
     if (period === "This Year") return { start: new Date(t.getFullYear(), 0, 1), end: t };
     return { start: null, end: null };
 }
+
 
 function formatRangeLabel({ start, end }) {
     if (!start || !end) return "All time";
@@ -96,7 +101,8 @@ export default function ReportsPage() {
         if (!type) return;
         setLoading(true);
         try {
-            const title = `${type.charAt(0).toUpperCase() + type.slice(1)} Report — ${period}`;
+            const reportTypeTitle = type === "events" ? "Events & News" : type.charAt(0).toUpperCase() + type.slice(1);
+            const title = `${reportTypeTitle} Report — ${period}`;
             const adminName = user?.name || "System";
 
             let startDate = null;
@@ -187,8 +193,8 @@ export default function ReportsPage() {
         return (
             <label
                 className={`flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs transition ${active
-                        ? "border-blue-300 bg-blue-50 text-gray-900"
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                    ? "border-blue-300 bg-blue-50 text-gray-900"
+                    : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                     } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
             >
                 <input
@@ -211,8 +217,9 @@ export default function ReportsPage() {
                 <div className="mb-6">
                     <h1 className="text-2xl font-semibold text-gray-900">Reports</h1>
                     <p className="mt-1 text-sm text-gray-600">
-                        Generate appointment reports by range and export as CSV/Excel/PDF.
+                        Generate reports for appointments, events & news, and document requests by range and export as CSV/Excel/PDF.
                     </p>
+
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -226,7 +233,7 @@ export default function ReportsPage() {
                             <div className="p-5 space-y-5">
                                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                     {typeCard("appointments", "Appointment Reports", "Overview of appointments by date & status.")}
-                                    {typeCard("events", "Event Reports", "Attendance & status.")}
+                                    {typeCard("events", "Events & News Reports", "Overview of events and news with status.")}
                                     {typeCard("documents", "Document Requests", "Requests & fulfillment.")}
                                 </div>
 
@@ -239,11 +246,12 @@ export default function ReportsPage() {
                                     )}
                                     {type === "events" && (
                                         <>
-                                            {radioWrap("all", "All events")}
-                                            {radioWrap("upcoming", "Upcoming")}
-                                            {radioWrap("completed", "Completed")}
+                                            {radioWrap("all", "All events & news")}
+                                            {radioWrap("upcoming", "Upcoming / Pending")}
+                                            {radioWrap("past", "Past / Completed")}
                                         </>
                                     )}
+
                                     {type === "documents" && (
                                         <>
                                             {radioWrap("all", "All requests")}
@@ -338,7 +346,7 @@ export default function ReportsPage() {
                                         type="button"
                                         onClick={handleGenerate}
                                         disabled={loading}
-                                        className="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 focus:outline-none disabled:opacity-50"
+                                        className="inline-flex items-center gap-2 rounded-md bg-secondary px-4 py-2 text-sm font-medium text-white hover:bg-secondary/90 focus:outline-none disabled:opacity-50"
                                     >
                                         <FileDown className="h-4 w-4" />
                                         {loading ? "Generating..." : "Generate Report"}
