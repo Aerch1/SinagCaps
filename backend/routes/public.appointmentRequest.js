@@ -3,8 +3,8 @@ import {
   requestReschedule,
   requestCancel,
   getAllUserRequests,
-  approveRequest, // ✅ import approve controller
-  denyRequest, // ✅ import deny controller
+  approveRequest,
+  denyRequest,
 } from "../controllers/public/public.appointmentRequestsController.js";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { isAdmin } from "../middleware/isAdmin.js";
@@ -16,7 +16,7 @@ router.post("/:id/request-reschedule", verifyToken, requestReschedule);
 router.post("/:id/request-cancel", verifyToken, requestCancel);
 router.get("/user-requests", verifyToken, isAdmin, getAllUserRequests);
 
-// Admin routes to approve/deny requests
+// Admin routes for approving/denying requests
 router.patch("/requests/:requestId/approve", verifyToken, approveRequest);
 router.patch("/requests/:requestId/deny", verifyToken, denyRequest);
 

@@ -4,7 +4,10 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 
+// Database
 import { connectDB } from "./config/db.js";
+
+// Routes
 import authRoutes from "./routes/auth.route.js";
 import profileRoutes from "./routes/profile.routes.js";
 import adminRoutes from "./routes/admin.appointments.routes.js";
@@ -28,24 +31,19 @@ import adminUserRoutes from "./routes/admin.users.routes.js";
 import adminSecurityRoutes from "./routes/admin.security.routes.js";
 import reportRoutes from "./routes/admin.reports.routes.js";
 import backupRoutes from "./routes/admin.backup.routes.js";
-
 import publicAppointmentRequestsRoutes from "./routes/public.appointmentRequest.js";
 
-// Then mount it under a path, for example:
-
 dotenv.config();
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
 
-// ✅ Properly split CLIENT_URL into an array
+// CORS configuration
 const clientUrls = (process.env.CLIENT_URL || "")
   .split(",")
   .map((url) => url.trim())
   .filter(Boolean);
 
-// ✅ Add your dev/testing domains too
 const allowedOrigins = [
   ...clientUrls,
   "http://localhost:5173",
@@ -56,7 +54,6 @@ const allowedOrigins = [
   "https://olpgvp.com",
 ];
 
-// ✅ Updated CORS config
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -75,9 +72,9 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
-/* ===============================
-   ROUTES
-=============================== */
+// ===============================
+// ROUTES
+// ===============================
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/admin", adminRoutes);
@@ -103,9 +100,9 @@ app.use("/api/admin/reports", reportRoutes);
 app.use("/api/admin/backup", backupRoutes);
 app.use("/api/appointments/requests", publicAppointmentRequestsRoutes);
 
-/* ===============================
-   HEALTH CHECK
-=============================== */
+// ===============================
+// HEALTH CHECK
+// ===============================
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
@@ -116,9 +113,9 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-/* ===============================
-   ERROR HANDLING
-=============================== */
+// ===============================
+// GLOBAL ERROR HANDLER
+// ===============================
 app.use((err, req, res, next) => {
   console.error("Global error handler:", err);
   if (err.type === "entity.parse.failed") {
@@ -141,9 +138,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-/* ===============================
-   START SERVER
-=============================== */
+// ===============================
+// START SERVER
+// ===============================
 app.listen(PORT, async () => {
   await connectDB();
   console.log(`🚀 Server running on port ${PORT}`);
@@ -153,9 +150,9 @@ app.listen(PORT, async () => {
   console.log("Current NODE_ENV:", process.env.NODE_ENV);
 });
 
-/* ===============================
-   SAFETY HANDLERS
-=============================== */
+// ===============================
+// SAFETY HANDLERS
+// ===============================
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled Promise Rejection:", err.message);
 });

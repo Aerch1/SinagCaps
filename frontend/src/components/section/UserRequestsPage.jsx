@@ -6,6 +6,7 @@ import { Eye, X, Check } from "lucide-react";
 import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal";
 import toast from "react-hot-toast";
 import api from "@/api/api";
+import { format, parseISO } from "date-fns";
 
 export default function UserRequestsTable() {
     const [requests, setRequests] = useState([]);
@@ -14,23 +15,36 @@ export default function UserRequestsTable() {
     const [page, setPage] = useState(1);
     const pageSize = 5;
 
-    // Fetch requests from backend
     const fetchRequests = useCallback(async () => {
         setLoading(true);
         try {
             const res = await api.get("/appointments/requests/user-requests");
+            const data = res.data.requests.map((r) => {
+                let displayDateTime = "-";
 
-            // Map backend data directly to frontend fields
-            const data = res.data.requests.map((r) => ({
-                id: r.id,
-                appointmentId: r.appointmentId,
-                name: r.user.name || "—", // Show the user who made the request
-                requestedDateTime: r.requestedDateTime || "—",
-                notes: r.notes || "—",
-                request_status: r.request_status || "pending",
-                type: r.type || "—",
-            }));
+                if (r.type === "reschedule" && r.requestedDateTime) {
+                    // Parse ISO and format nicely
+                    displayDateTime = format(parseISO(r.requestedDateTime), "PP p");
+                }
 
+                if (r.type === "cancel" && r.appointment?.date && r.appointment?.time) {
+                    // Show original appointment date/time for cancel
+                    displayDateTime = format(
+                        parseISO(`${r.appointment.date}T${r.appointment.time}`),
+                        "PP p"
+                    );
+                }
+
+                return {
+                    id: r.id,
+                    appointmentId: r.appointmentId,
+                    name: r.user?.name || "—",
+                    requestedDateTime: displayDateTime,
+                    notes: r.notes || "—",
+                    request_status: r.request_status || "pending",
+                    type: r.type || "—",
+                };
+            });
 
             setRequests(data);
         } catch (err) {
@@ -41,7 +55,6 @@ export default function UserRequestsTable() {
         }
     }, []);
 
-    // Initial fetch + refresh on custom global event
     useEffect(() => {
         fetchRequests();
         const handleNewRequest = () => fetchRequests();
@@ -49,10 +62,10 @@ export default function UserRequestsTable() {
         return () => window.removeEventListener("userRequestSubmitted", handleNewRequest);
     }, [fetchRequests]);
 
-    // Admin approve request
+    // ✅ Fixed API paths for approve/deny
     const handleApprove = async (r) => {
         try {
-            await api.patch(`/admin/appointments/requests/${r.id}/approve`);
+            await api.patch(`/appointments/requests/${r.id}/approve`);
             toast.success("Request approved");
             fetchRequests();
         } catch (err) {
@@ -61,10 +74,9 @@ export default function UserRequestsTable() {
         }
     };
 
-    // Admin deny request
     const handleDeny = async (r) => {
         try {
-            await api.patch(`/admin/appointments/requests/${r.id}/deny`);
+            await api.patch(`/appointments/requests/${r.id}/deny`);
             toast.success("Request denied");
             fetchRequests();
         } catch (err) {
@@ -73,7 +85,6 @@ export default function UserRequestsTable() {
         }
     };
 
-    // Action buttons
     const renderActions = (r) => (
         <div className="flex gap-1 justify-end">
             <button
@@ -102,7 +113,6 @@ export default function UserRequestsTable() {
         </div>
     );
 
-    // Pagination
     const paginated = requests.slice((page - 1) * pageSize, page * pageSize);
     const totalPages = Math.ceil(requests.length / pageSize);
 
