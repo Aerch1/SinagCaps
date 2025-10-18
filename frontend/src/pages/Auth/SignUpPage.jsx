@@ -63,11 +63,16 @@ export default function SignUpPage() {
 
     try {
       const ok = await signup(email, password, name);
-      if (ok) navigate("/verify-email");
+      if (ok) {
+        // ✅ Store pending email for verification page
+        localStorage.setItem("pendingEmail", email);
+        navigate("/verify-email");
+      }
     } catch {
       /* handled globally */
     }
   };
+
 
   return (
     <div

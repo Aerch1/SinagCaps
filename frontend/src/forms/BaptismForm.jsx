@@ -2,16 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseISO, format } from "date-fns";
-import {
-    User,
-    Mail,
-    Phone,
-    MapPin,
-    Info,
-    Plus,
-    Trash2,
-    House,
-} from "lucide-react";
+import { User, Mail, Phone, MapPin, Info, Plus, Trash2, House } from "lucide-react";
 
 import Input from "../components/ui/Input.jsx";
 import Dropdown from "../components/ui/Dropdown1.jsx";
@@ -21,22 +12,15 @@ const RequiredIndicator = () => <span className="text-red-500 ml-1">*</span>;
 const SectionHeader = ({ title, description }) => (
     <div className="pb-3 border-b border-gray-100">
         <h4 className="text-sm font-medium text-gray-900">{title}</h4>
-        {description && (
-            <p className="text-xs text-gray-600 mt-1">{description}</p>
-        )}
+        {description && <p className="text-xs text-gray-600 mt-1">{description}</p>}
     </div>
 );
 
-export default function BaptismForm({
-    formData,
-    setFormData,
-    registerValidator,
-    formErrors = {},
-}) {
+export default function BaptismForm({ formData, setFormData, registerValidator, formErrors = {} }) {
     const [showSponsorTip, setShowSponsorTip] = useState(false);
     const firstErrorRef = useRef(null);
 
-    /* ---------- Initialize sponsors ---------- */
+    // ---------- Initialize sponsors ----------
     useEffect(() => {
         if (!formData.sponsors) {
             setFormData((prev) => ({
@@ -49,29 +33,20 @@ export default function BaptismForm({
         }
     }, []);
 
-    /* ---------- Update helpers ---------- */
-    const updateField = (field, value) => {
-        setFormData((prev) => ({ ...prev, [field]: value }));
-    };
-
+    // ---------- Update helpers ----------
+    const updateField = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
     const updateSponsor = (idx, field, value) => {
         const sponsors = [...(formData.sponsors || [])];
         sponsors[idx][field] = value;
         setFormData((prev) => ({ ...prev, sponsors }));
     };
 
-
-
-
-    /* ---------- Sanitize before sending ---------- */
+    // ---------- Sanitize before sending ----------
     const sanitizeFormData = (data) => {
         const clean = { ...data };
         Object.keys(clean).forEach((key) => {
-            if (typeof clean[key] === "string") {
-                clean[key] = clean[key].trim();
-            }
+            if (typeof clean[key] === "string") clean[key] = clean[key].trim();
         });
-
         if (Array.isArray(clean.sponsors)) {
             clean.sponsors = clean.sponsors.map((s) => ({
                 ...s,
@@ -80,18 +55,13 @@ export default function BaptismForm({
                 address: s.address?.trim(),
             }));
         }
-
         return clean;
     };
-
 
     const addSponsor = () => {
         setFormData((prev) => ({
             ...prev,
-            sponsors: [
-                ...(prev.sponsors || []),
-                { role: "Ninong", name: "", address: "" },
-            ],
+            sponsors: [...(prev.sponsors || []), { role: "Ninong", name: "", address: "" }],
         }));
     };
 
@@ -102,16 +72,14 @@ export default function BaptismForm({
         }));
     };
 
-    /* ======================================================
-       ✅ Validation (Scroll + Highlight)
-    ====================================================== */
+    // ======================================================
+    // ✅ Validation (Scroll + Highlight)
+    // ======================================================
     useEffect(() => {
         if (!registerValidator) return;
 
         const validator = () => {
-            // ✨ Trim whitespace before validating
             const cleaned = sanitizeFormData(formData);
-
             const errs = {};
             const requiredFields = [
                 "childFullName",
@@ -125,25 +93,20 @@ export default function BaptismForm({
                 "address",
             ];
 
-            // required checks
             for (const f of requiredFields) {
-                const val = cleaned[f]?.toString().trim();
-                if (!val) errs[f] = "This field is required.";
+                if (!cleaned[f]?.toString().trim()) errs[f] = "This field is required.";
             }
 
-            // phone rule
             const phoneRegex = /^09\d{9}$/;
             if (cleaned.phone && !phoneRegex.test(cleaned.phone)) {
                 errs.phone = "Phone must start with 09 and be 11 digits.";
             }
 
-            // email rule
             const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
             if (cleaned.email && !emailRegex.test(cleaned.email)) {
                 errs.email = "Email must be a valid @gmail.com address.";
             }
 
-            // sponsors rule
             if (!cleaned.sponsors || cleaned.sponsors.length < 2) {
                 errs.sponsors = "At least 2 sponsors are required.";
             } else {
@@ -154,37 +117,32 @@ export default function BaptismForm({
                 });
             }
 
+            // Scroll to first error
             if (Object.keys(errs).length > 0 && firstErrorRef.current) {
-                firstErrorRef.current.scrollIntoView({
-                    behavior: "smooth",
-                    block: "center",
-                });
+                firstErrorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
             }
 
             return Object.keys(errs).length === 0 ? true : errs;
         };
 
-
         registerValidator(3, validator);
     }, [formData, registerValidator]);
 
-    /* ---------- Schedule Label ---------- */
+    // ---------- Schedule Label ----------
     const scheduleLabel = useMemo(() => {
         if (!formData.preferredDate) return "";
         try {
             const d = parseISO(formData.preferredDate);
             const dateStr = format(d, "EEE, MMM d, yyyy");
-            return formData.preferredTime
-                ? `${dateStr} • ${formData.preferredTime}`
-                : dateStr;
+            return formData.preferredTime ? `${dateStr} • ${formData.preferredTime}` : dateStr;
         } catch {
             return formData.preferredDate;
         }
     }, [formData.preferredDate, formData.preferredTime]);
 
-    /* ======================================================
-       🧱 UI Layout
-    ====================================================== */
+    // ======================================================
+    // 🧱 UI Layout
+    // ======================================================
     return (
         <div className="max-w-7xl mx-auto space-y-6" noValidate>
             {/* Header */}
@@ -199,17 +157,11 @@ export default function BaptismForm({
 
             {/* Child Info */}
             <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
-                <SectionHeader
-                    title="Child Information"
-                    description="Impormasyon ng Bibinyagan"
-                />
-
+                <SectionHeader title="Child Information" description="Impormasyon ng Bibinyagan" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                     <div
                         ref={
-                            formErrors.childFullName && !firstErrorRef.current
-                                ? firstErrorRef
-                                : null
+                            formErrors.childFullName && !firstErrorRef.current ? firstErrorRef : null
                         }
                         className="md:col-span-2"
                     >
@@ -221,36 +173,32 @@ export default function BaptismForm({
                             placeholder="Juan Dela Cruz"
                             value={formData.childFullName || ""}
                             onChange={(e) => updateField("childFullName", e.target.value)}
-                            className={
-                                formErrors.childFullName ? "border-red-500 focus:ring-red-500" : ""
-                            }
+                            className={formErrors.childFullName ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.childFullName && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.childFullName}
-                            </p>
+                            <p className="text-red-500 text-xs mt-1">{formErrors.childFullName}</p>
                         )}
                     </div>
 
-                    <div>
+                    <div
+                        ref={formErrors.childDob && !firstErrorRef.current ? firstErrorRef : null}
+                    >
                         <label className="block text-xs font-medium text-gray-900 mb-1">
                             Date of Birth <RequiredIndicator />
                         </label>
                         <DateInput
                             value={formData.childDob || ""}
                             onDateChange={(val) => updateField("childDob", val)}
-                            className={
-                                formErrors.childDob ? "border-red-500 focus:ring-red-500" : ""
-                            }
+                            className={formErrors.childDob ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.childDob && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.childDob}
-                            </p>
+                            <p className="text-red-500 text-xs mt-1">{formErrors.childDob}</p>
                         )}
                     </div>
 
-                    <div>
+                    <div
+                        ref={formErrors.childBirthplace && !firstErrorRef.current ? firstErrorRef : null}
+                    >
                         <label className="block text-xs font-medium text-gray-900 mb-1">
                             Place of Birth <RequiredIndicator />
                         </label>
@@ -258,19 +206,11 @@ export default function BaptismForm({
                             icon={MapPin}
                             placeholder="City / Hospital / Address"
                             value={formData.childBirthplace || ""}
-                            onChange={(e) =>
-                                updateField("childBirthplace", e.target.value)
-                            }
-                            className={
-                                formErrors.childBirthplace
-                                    ? "border-red-500 focus:ring-red-500"
-                                    : ""
-                            }
+                            onChange={(e) => updateField("childBirthplace", e.target.value)}
+                            className={formErrors.childBirthplace ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.childBirthplace && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.childBirthplace}
-                            </p>
+                            <p className="text-red-500 text-xs mt-1">{formErrors.childBirthplace}</p>
                         )}
                     </div>
                 </div>
@@ -278,12 +218,9 @@ export default function BaptismForm({
 
             {/* Parents Info */}
             <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
-                <SectionHeader
-                    title="Parents Information"
-                    description="Impormasyon ng mga Magulang"
-                />
+                <SectionHeader title="Parents Information" description="Impormasyon ng mga Magulang" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                    <div>
+                    <div ref={formErrors.fatherName && !firstErrorRef.current ? firstErrorRef : null}>
                         <label className="block text-xs font-medium text-gray-900 mb-1">
                             Father&apos;s Full Name <RequiredIndicator />
                         </label>
@@ -292,18 +229,16 @@ export default function BaptismForm({
                             placeholder="Father's complete name"
                             value={formData.fatherName || ""}
                             onChange={(e) => updateField("fatherName", e.target.value)}
-                            className={
-                                formErrors.fatherName ? "border-red-500 focus:ring-red-500" : ""
-                            }
+                            className={formErrors.fatherName ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.fatherName && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.fatherName}
-                            </p>
+                            <p className="text-red-500 text-xs mt-1">{formErrors.fatherName}</p>
                         )}
                     </div>
 
-                    <div>
+                    <div
+                        ref={formErrors.motherMaidenName && !firstErrorRef.current ? firstErrorRef : null}
+                    >
                         <label className="block text-xs font-medium text-gray-900 mb-1">
                             Mother&apos;s Maiden Name <RequiredIndicator />
                         </label>
@@ -311,24 +246,16 @@ export default function BaptismForm({
                             icon={User}
                             placeholder="Mother's complete maiden name"
                             value={formData.motherMaidenName || ""}
-                            onChange={(e) =>
-                                updateField("motherMaidenName", e.target.value)
-                            }
-                            className={
-                                formErrors.motherMaidenName
-                                    ? "border-red-500 focus:ring-red-500"
-                                    : ""
-                            }
+                            onChange={(e) => updateField("motherMaidenName", e.target.value)}
+                            className={formErrors.motherMaidenName ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.motherMaidenName && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {formErrors.motherMaidenName}
-                            </p>
+                            <p className="text-red-500 text-xs mt-1">{formErrors.motherMaidenName}</p>
                         )}
                     </div>
                 </div>
 
-                <div>
+                <div ref={formErrors.parentsMarriageType && !firstErrorRef.current ? firstErrorRef : null}>
                     <p className="text-xs font-medium mb-2">
                         Parents’ Marriage Status <RequiredIndicator />
                     </p>
@@ -359,22 +286,17 @@ export default function BaptismForm({
                         ))}
                     </div>
                     {formErrors.parentsMarriageType && (
-                        <p className="text-red-500 text-xs mt-1">
-                            {formErrors.parentsMarriageType}
-                        </p>
+                        <p className="text-red-500 text-xs mt-1">{formErrors.parentsMarriageType}</p>
                     )}
                 </div>
             </section>
 
             {/* Contact */}
             <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
-                <SectionHeader
-                    title="Contact & Address"
-                    description="Impormasyon sa Pakikipag-ugnayan"
-                />
+                <SectionHeader title="Contact & Address" description="Impormasyon sa Pakikipag-ugnayan" />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                    <div>
+                    <div ref={formErrors.phone && !firstErrorRef.current ? firstErrorRef : null}>
                         <label className="block text-xs font-medium text-gray-900 mb-1">
                             Contact No. <RequiredIndicator />
                         </label>
@@ -384,16 +306,14 @@ export default function BaptismForm({
                             placeholder="09XXXXXXXXX"
                             value={formData.phone || ""}
                             onChange={(e) => updateField("phone", e.target.value)}
-                            className={
-                                formErrors.phone ? "border-red-500 focus:ring-red-500" : ""
-                            }
+                            className={formErrors.phone ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.phone && (
                             <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
                         )}
                     </div>
 
-                    <div>
+                    <div ref={formErrors.email && !firstErrorRef.current ? firstErrorRef : null}>
                         <label className="block text-xs font-medium text-gray-900 mb-1">
                             Email <RequiredIndicator />
                         </label>
@@ -403,9 +323,7 @@ export default function BaptismForm({
                             placeholder="name@gmail.com"
                             value={formData.email || ""}
                             onChange={(e) => updateField("email", e.target.value)}
-                            className={
-                                formErrors.email ? "border-red-500 focus:ring-red-500" : ""
-                            }
+                            className={formErrors.email ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.email && (
                             <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
@@ -413,7 +331,7 @@ export default function BaptismForm({
                     </div>
                 </div>
 
-                <div>
+                <div ref={formErrors.address && !firstErrorRef.current ? firstErrorRef : null}>
                     <label className="block text-xs font-medium text-gray-900 mb-1">
                         Complete Address <RequiredIndicator />
                     </label>
@@ -422,9 +340,7 @@ export default function BaptismForm({
                         placeholder="House No., Street, Barangay, City"
                         value={formData.address || ""}
                         onChange={(e) => updateField("address", e.target.value)}
-                        className={
-                            formErrors.address ? "border-red-500 focus:ring-red-500" : ""
-                        }
+                        className={formErrors.address ? "border-red-500 focus:ring-red-500" : ""}
                     />
                     {formErrors.address && (
                         <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
@@ -454,9 +370,7 @@ export default function BaptismForm({
                                 </button>
                                 {showSponsorTip && (
                                     <div className="absolute z-50 left-full ml-2 top-0 w-80 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 shadow-lg">
-                                        <p className="font-medium text-gray-900 mb-2">
-                                            Sponsor Requirements:
-                                        </p>
+                                        <p className="font-medium text-gray-900 mb-2">Sponsor Requirements:</p>
                                         <ul className="list-disc list-inside space-y-1 text-gray-600">
                                             <li>Must be at least 16 years old</li>
                                             <li>Two sponsors minimum (1 Ninong + 1 Ninang)</li>
@@ -482,7 +396,18 @@ export default function BaptismForm({
 
                 <div className="space-y-6">
                     {(formData.sponsors || []).map((s, idx) => (
-                        <div key={idx} className="relative rounded-xl border border-gray-200 p-6">
+                        <div
+                            key={idx}
+                            ref={
+                                (formErrors[`sponsor_${idx}_role`] ||
+                                    formErrors[`sponsor_${idx}_name`] ||
+                                    formErrors[`sponsor_${idx}_address`]) &&
+                                    !firstErrorRef.current
+                                    ? firstErrorRef
+                                    : null
+                            }
+                            className="relative rounded-xl border border-gray-200 p-6"
+                        >
                             <div className="absolute top-4 right-4">
                                 {formData.sponsors.length > 2 && (
                                     <button
@@ -507,15 +432,10 @@ export default function BaptismForm({
                                         onChange={(val) => updateSponsor(idx, "role", val)}
                                         options={["Ninong", "Ninang"]}
                                         placeholder="Select role"
-                                        className={`h-12 ${formErrors[`sponsor_${idx}_role`]
-                                            ? "border-red-500 focus:ring-red-500"
-                                            : ""
-                                            }`}
+                                        className={`h-12 ${formErrors[`sponsor_${idx}_role`] ? "border-red-500 focus:ring-red-500" : ""}`}
                                     />
                                     {formErrors[`sponsor_${idx}_role`] && (
-                                        <p className="text-red-500 text-xs mt-1">
-                                            {formErrors[`sponsor_${idx}_role`]}
-                                        </p>
+                                        <p className="text-red-500 text-xs mt-1">{formErrors[`sponsor_${idx}_role`]}</p>
                                     )}
                                 </div>
 
@@ -528,18 +448,11 @@ export default function BaptismForm({
                                         icon={User}
                                         placeholder="Complete name"
                                         value={s.name}
-                                        onChange={(e) =>
-                                            updateSponsor(idx, "name", e.target.value)
-                                        }
-                                        className={`h-12 text-base ${formErrors[`sponsor_${idx}_name`]
-                                            ? "border-red-500 focus:ring-red-500"
-                                            : ""
-                                            }`}
+                                        onChange={(e) => updateSponsor(idx, "name", e.target.value)}
+                                        className={`h-12 text-base ${formErrors[`sponsor_${idx}_name`] ? "border-red-500 focus:ring-red-500" : ""}`}
                                     />
                                     {formErrors[`sponsor_${idx}_name`] && (
-                                        <p className="text-red-500 text-xs mt-1">
-                                            {formErrors[`sponsor_${idx}_name`]}
-                                        </p>
+                                        <p className="text-red-500 text-xs mt-1">{formErrors[`sponsor_${idx}_name`]}</p>
                                     )}
                                 </div>
 
@@ -552,18 +465,11 @@ export default function BaptismForm({
                                         icon={MapPin}
                                         placeholder="Complete address"
                                         value={s.address}
-                                        onChange={(e) =>
-                                            updateSponsor(idx, "address", e.target.value)
-                                        }
-                                        className={`h-12 text-base ${formErrors[`sponsor_${idx}_address`]
-                                            ? "border-red-500 focus:ring-red-500"
-                                            : ""
-                                            }`}
+                                        onChange={(e) => updateSponsor(idx, "address", e.target.value)}
+                                        className={`h-12 text-base ${formErrors[`sponsor_${idx}_address`] ? "border-red-500 focus:ring-red-500" : ""}`}
                                     />
                                     {formErrors[`sponsor_${idx}_address`] && (
-                                        <p className="text-red-500 text-xs mt-1">
-                                            {formErrors[`sponsor_${idx}_address`]}
-                                        </p>
+                                        <p className="text-red-500 text-xs mt-1">{formErrors[`sponsor_${idx}_address`]}</p>
                                     )}
                                 </div>
                             </div>

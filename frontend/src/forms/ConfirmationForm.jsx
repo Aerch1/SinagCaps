@@ -20,9 +20,7 @@ const RequiredIndicator = () => <span className="text-red-500 ml-1">*</span>;
 const SectionHeader = ({ title, description }) => (
   <div className="pb-3 border-b border-gray-100">
     <h4 className="text-sm font-medium text-gray-900">{title}</h4>
-    {description && (
-      <p className="text-xs text-gray-600 mt-1">{description}</p>
-    )}
+    {description && <p className="text-xs text-gray-600 mt-1">{description}</p>}
   </div>
 );
 
@@ -58,7 +56,7 @@ export default function ConfirmationForm({
   };
 
   /* ======================================================
-     ✅ Validation (Block Step 4 if incomplete)
+     ✅ Validation (Smooth scroll to first error)
   ====================================================== */
   useEffect(() => {
     if (!registerValidator) return;
@@ -84,27 +82,26 @@ export default function ConfirmationForm({
         if (!val) errs[f] = "This field is required.";
       }
 
-      // Phone
+      // Phone validation
       const phoneRegex = /^09\d{9}$/;
       if (formData.phone && !phoneRegex.test(formData.phone.trim())) {
         errs.phone = "Phone must start with 09 and contain 11 digits.";
       }
 
-      // Email
+      // Email validation
       const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
       if (formData.email && !emailRegex.test(formData.email.trim())) {
         errs.email = "Email must be a valid @gmail.com address.";
       }
 
-      // Sponsors
+      // Sponsors validation
       formData.sponsors?.forEach((s, i) => {
-        if (!s.role?.trim()) errs[`sponsor_${i}_role`] = "Role required.";
-        if (!s.name?.trim()) errs[`sponsor_${i}_name`] = "Name required.";
-        if (!s.address?.trim())
-          errs[`sponsor_${i}_address`] = "Address required.";
+        if (!s.role?.trim()) errs[`sponsor_${i}_role`] = "Role is required.";
+        if (!s.name?.trim()) errs[`sponsor_${i}_name`] = "Name is required.";
+        if (!s.address?.trim()) errs[`sponsor_${i}_address`] = "Address is required.";
       });
 
-      // 🔽 Smooth scroll to first invalid input
+      // Smooth scroll to first invalid input
       if (Object.keys(errs).length > 0 && firstErrorRef.current) {
         firstErrorRef.current.scrollIntoView({
           behavior: "smooth",
@@ -115,7 +112,6 @@ export default function ConfirmationForm({
       return Object.keys(errs).length === 0 ? true : errs;
     };
 
-    // ✅ Register validator for Step 3
     registerValidator(3, validator);
   }, [formData, registerValidator]);
 
@@ -140,9 +136,7 @@ export default function ConfirmationForm({
     <div className="max-w-7xl mx-auto space-y-6" noValidate>
       {/* Header */}
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
-        <h3 className="text-base font-medium">
-          Confirmation (Kumpil) Application
-        </h3>
+        <h3 className="text-base font-medium">Confirmation Application</h3>
         {scheduleLabel && (
           <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-800">
             Selected schedule: {scheduleLabel}
@@ -152,185 +146,125 @@ export default function ConfirmationForm({
 
       {/* Confirmand Info */}
       <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
-        <SectionHeader
-          title="Confirmand Information"
-          description="Impormasyon ng Kukumpilan"
-        />
+        <SectionHeader title="Confirmand Information" description="Confirmand details" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
           <div
-            ref={
-              formErrors.confirmandName && !firstErrorRef.current
-                ? firstErrorRef
-                : null
-            }
+            ref={formErrors.confirmandName && !firstErrorRef.current ? firstErrorRef : null}
           >
             <label className="block text-xs font-medium text-gray-900 mb-1">
-              Buong Pangalan ng Kukumpilan <RequiredIndicator />
+              Full Name <RequiredIndicator />
             </label>
             <Input
               icon={User}
               placeholder="Juan Dela Cruz"
               value={formData.confirmandName || ""}
               onChange={(e) => updateField("confirmandName", e.target.value)}
-              className={
-                formErrors.confirmandName ? "border-red-500 focus:ring-red-500" : ""
-              }
+              className={formErrors.confirmandName ? "border-red-500 focus:ring-red-500" : ""}
             />
             {formErrors.confirmandName && (
-              <p className="text-red-500 text-xs mt-1">
-                {formErrors.confirmandName}
-              </p>
+              <p className="text-red-500 text-xs mt-1">{formErrors.confirmandName}</p>
             )}
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-900 mb-1">
-              Edad <RequiredIndicator />
+              Age <RequiredIndicator />
             </label>
             <Input
               type="number"
-              placeholder="Hal. 18"
+              placeholder="e.g. 18"
               value={formData.age || ""}
               onChange={(e) => updateField("age", e.target.value)}
-              className={
-                formErrors.age ? "border-red-500 focus:ring-red-500" : ""
-              }
+              className={formErrors.age ? "border-red-500 focus:ring-red-500" : ""}
             />
-            {formErrors.age && (
-              <p className="text-red-500 text-xs mt-1">{formErrors.age}</p>
-            )}
+            {formErrors.age && <p className="text-red-500 text-xs mt-1">{formErrors.age}</p>}
           </div>
         </div>
       </section>
 
       {/* Parents Info */}
       <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
-        <SectionHeader
-          title="Parents Information"
-          description="Impormasyon ng mga Magulang"
-        />
+        <SectionHeader title="Parents Information" description="Parent details" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
           <div>
             <label className="block text-xs font-medium text-gray-900 mb-1">
-              Pangalan ng Ama <RequiredIndicator />
+              Father's Full Name <RequiredIndicator />
             </label>
             <Input
               icon={User}
               placeholder="Father's complete name"
               value={formData.fatherName || ""}
               onChange={(e) => updateField("fatherName", e.target.value)}
-              className={
-                formErrors.fatherName ? "border-red-500 focus:ring-red-500" : ""
-              }
+              className={formErrors.fatherName ? "border-red-500 focus:ring-red-500" : ""}
             />
-            {formErrors.fatherName && (
-              <p className="text-red-500 text-xs mt-1">
-                {formErrors.fatherName}
-              </p>
-            )}
+            {formErrors.fatherName && <p className="text-red-500 text-xs mt-1">{formErrors.fatherName}</p>}
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-900 mb-1">
-              Pangalan ng Ina <RequiredIndicator />
+              Mother's Maiden Name <RequiredIndicator />
             </label>
             <Input
               icon={User}
               placeholder="Mother's complete name"
               value={formData.motherMaidenName || ""}
-              onChange={(e) =>
-                updateField("motherMaidenName", e.target.value)
-              }
-              className={
-                formErrors.motherMaidenName
-                  ? "border-red-500 focus:ring-red-500"
-                  : ""
-              }
+              onChange={(e) => updateField("motherMaidenName", e.target.value)}
+              className={formErrors.motherMaidenName ? "border-red-500 focus:ring-red-500" : ""}
             />
-            {formErrors.motherMaidenName && (
-              <p className="text-red-500 text-xs mt-1">
-                {formErrors.motherMaidenName}
-              </p>
-            )}
+            {formErrors.motherMaidenName && <p className="text-red-500 text-xs mt-1">{formErrors.motherMaidenName}</p>}
           </div>
         </div>
       </section>
 
       {/* Baptism Record */}
       <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
-        <SectionHeader
-          title="Baptism Record"
-          description="Impormasyon ng Binyag ng Kukumpilan"
-        />
+        <SectionHeader title="Baptism Record" description="Baptism details" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
           <div>
             <label className="block text-xs font-medium text-gray-900 mb-1">
-              Biniyagan sa (Lugar) <RequiredIndicator />
+              Baptized At (Place) <RequiredIndicator />
             </label>
             <Input
               icon={Church}
               placeholder="Parish or Church Name"
               value={formData.baptizedAt || ""}
               onChange={(e) => updateField("baptizedAt", e.target.value)}
-              className={
-                formErrors.baptizedAt ? "border-red-500 focus:ring-red-500" : ""
-              }
+              className={formErrors.baptizedAt ? "border-red-500 focus:ring-red-500" : ""}
             />
-            {formErrors.baptizedAt && (
-              <p className="text-red-500 text-xs mt-1">
-                {formErrors.baptizedAt}
-              </p>
-            )}
+            {formErrors.baptizedAt && <p className="text-red-500 text-xs mt-1">{formErrors.baptizedAt}</p>}
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-900 mb-1">
-              Biniyagan noong (Petsa) <RequiredIndicator />
+              Baptized On (Date) <RequiredIndicator />
             </label>
             <DateInput
               value={formData.baptizedOn || ""}
               onDateChange={(val) => updateField("baptizedOn", val)}
-              className={
-                formErrors.baptizedOn ? "border-red-500 focus:ring-red-500" : ""
-              }
+              className={formErrors.baptizedOn ? "border-red-500 focus:ring-red-500" : ""}
             />
-            {formErrors.baptizedOn && (
-              <p className="text-red-500 text-xs mt-1">
-                {formErrors.baptizedOn}
-              </p>
-            )}
+            {formErrors.baptizedOn && <p className="text-red-500 text-xs mt-1">{formErrors.baptizedOn}</p>}
           </div>
 
           <div className="md:col-span-2">
             <label className="block text-xs font-medium text-gray-900 mb-1">
-              Pinagmulan ng Parokya <RequiredIndicator />
+              Parish Origin <RequiredIndicator />
             </label>
             <Input
               icon={BookOpen}
-              placeholder="Hal. Sto. Niño Parish, Lipa City"
+              placeholder="e.g. Sto. Niño Parish, Lipa City"
               value={formData.parishOrigin || ""}
               onChange={(e) => updateField("parishOrigin", e.target.value)}
-              className={
-                formErrors.parishOrigin
-                  ? "border-red-500 focus:ring-red-500"
-                  : ""
-              }
+              className={formErrors.parishOrigin ? "border-red-500 focus:ring-red-500" : ""}
             />
-            {formErrors.parishOrigin && (
-              <p className="text-red-500 text-xs mt-1">
-                {formErrors.parishOrigin}
-              </p>
-            )}
+            {formErrors.parishOrigin && <p className="text-red-500 text-xs mt-1">{formErrors.parishOrigin}</p>}
           </div>
         </div>
       </section>
 
       {/* Contact Info */}
       <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
-        <SectionHeader
-          title="Contact & Address"
-          description="Impormasyon sa Pakikipag-ugnayan"
-        />
+        <SectionHeader title="Contact & Address" description="Contact details" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
           <Input
             label="Contact No."
@@ -339,9 +273,7 @@ export default function ConfirmationForm({
             placeholder="09XXXXXXXXX"
             value={formData.phone || ""}
             onChange={(e) => updateField("phone", e.target.value)}
-            className={
-              formErrors.phone ? "border-red-500 focus:ring-red-500" : ""
-            }
+            className={formErrors.phone ? "border-red-500 focus:ring-red-500" : ""}
           />
           <Input
             label="Email"
@@ -350,17 +282,11 @@ export default function ConfirmationForm({
             placeholder="name@gmail.com"
             value={formData.email || ""}
             onChange={(e) => updateField("email", e.target.value)}
-            className={
-              formErrors.email ? "border-red-500 focus:ring-red-500" : ""
-            }
+            className={formErrors.email ? "border-red-500 focus:ring-red-500" : ""}
           />
         </div>
-        {formErrors.phone && (
-          <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
-        )}
-        {formErrors.email && (
-          <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
-        )}
+        {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
+        {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
 
         <Input
           label="Complete Address"
@@ -368,21 +294,14 @@ export default function ConfirmationForm({
           placeholder="House No., Street, Barangay, City"
           value={formData.address || ""}
           onChange={(e) => updateField("address", e.target.value)}
-          className={
-            formErrors.address ? "border-red-500 focus:ring-red-500" : ""
-          }
+          className={formErrors.address ? "border-red-500 focus:ring-red-500" : ""}
         />
-        {formErrors.address && (
-          <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
-        )}
+        {formErrors.address && <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>}
       </section>
 
       {/* Sponsors */}
       <section className="bg-white rounded-2xl border border-gray-100 p-6">
-        <SectionHeader
-          title="Sponsors (Ninong/Ninang)"
-          description="Dalawang sponsor lamang"
-        />
+        <SectionHeader title="Sponsors (Ninong/Ninang)" description="Two sponsors required" />
         <div className="space-y-6 pt-4">
           {(formData.sponsors || []).map((s, idx) => (
             <div key={idx} className="rounded-xl border border-gray-200 p-6">
@@ -396,17 +315,10 @@ export default function ConfirmationForm({
                     onChange={(val) => updateSponsor(idx, "role", val)}
                     options={["Ninong", "Ninang"]}
                     placeholder="Select role"
-                    className={`h-12 ${
-                      formErrors[`sponsor_${idx}_role`]
-                        ? "border-red-500 focus:ring-red-500"
-                        : ""
-                    }`}
+                    className={`h-12 ${formErrors[`sponsor_${idx}_role`] ? "border-red-500 focus:ring-red-500" : ""
+                      }`}
                   />
-                  {formErrors[`sponsor_${idx}_role`] && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {formErrors[`sponsor_${idx}_role`]}
-                    </p>
-                  )}
+                  {formErrors[`sponsor_${idx}_role`] && <p className="text-red-500 text-xs mt-1">{formErrors[`sponsor_${idx}_role`]}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-900 mb-2">
@@ -416,20 +328,11 @@ export default function ConfirmationForm({
                     icon={User}
                     placeholder="Complete name"
                     value={s.name}
-                    onChange={(e) =>
-                      updateSponsor(idx, "name", e.target.value)
-                    }
-                    className={`h-12 text-base ${
-                      formErrors[`sponsor_${idx}_name`]
-                        ? "border-red-500 focus:ring-red-500"
-                        : ""
-                    }`}
+                    onChange={(e) => updateSponsor(idx, "name", e.target.value)}
+                    className={`h-12 text-base ${formErrors[`sponsor_${idx}_name`] ? "border-red-500 focus:ring-red-500" : ""
+                      }`}
                   />
-                  {formErrors[`sponsor_${idx}_name`] && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {formErrors[`sponsor_${idx}_name`]}
-                    </p>
-                  )}
+                  {formErrors[`sponsor_${idx}_name`] && <p className="text-red-500 text-xs mt-1">{formErrors[`sponsor_${idx}_name`]}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-900 mb-2">
@@ -439,20 +342,11 @@ export default function ConfirmationForm({
                     icon={MapPin}
                     placeholder="Complete address"
                     value={s.address}
-                    onChange={(e) =>
-                      updateSponsor(idx, "address", e.target.value)
-                    }
-                    className={`h-12 text-base ${
-                      formErrors[`sponsor_${idx}_address`]
-                        ? "border-red-500 focus:ring-red-500"
-                        : ""
-                    }`}
+                    onChange={(e) => updateSponsor(idx, "address", e.target.value)}
+                    className={`h-12 text-base ${formErrors[`sponsor_${idx}_address`] ? "border-red-500 focus:ring-red-500" : ""
+                      }`}
                   />
-                  {formErrors[`sponsor_${idx}_address`] && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {formErrors[`sponsor_${idx}_address`]}
-                    </p>
-                  )}
+                  {formErrors[`sponsor_${idx}_address`] && <p className="text-red-500 text-xs mt-1">{formErrors[`sponsor_${idx}_address`]}</p>}
                 </div>
               </div>
             </div>

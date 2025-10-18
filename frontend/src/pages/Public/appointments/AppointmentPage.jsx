@@ -304,6 +304,25 @@ export default function AppointmentPage() {
     }
   };
 
+
+
+  // Track the latest form type for cleanup
+  const formTypeRef = useRef(formData.formType);
+
+  useEffect(() => {
+    formTypeRef.current = formData.formType;
+  }, [formData.formType]);
+
+  // Clear storage on unmount
+  useEffect(() => {
+    return () => {
+      if (formTypeRef.current) resetStorage(formTypeRef.current);
+      localStorage.removeItem("appointment_activeType");
+    };
+  }, []);
+
+
+
   /* =====================================================
      🖥️ Layout
   ===================================================== */
