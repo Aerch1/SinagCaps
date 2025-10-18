@@ -26,10 +26,9 @@ export default function CalendarComponent() {
   const [todayLabel, setTodayLabel] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
-
-  // 🔹 View Details modal
   const [viewOpen, setViewOpen] = useState(false);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const calendarRef = useRef(null);
 
@@ -40,12 +39,10 @@ export default function CalendarComponent() {
     try {
       const [servicesRes, appointmentsRes] = await Promise.all([
         api.get("/admin/services"),
-        api.get("/admin/appointments?status=pending,approved,completed"), // ✅ already filtered
+        api.get("/admin/appointments?status=pending,approved,completed"),
       ]);
 
-      if (servicesRes.data.success)
-        setServices(servicesRes.data.services || []);
-
+      if (servicesRes.data.success) setServices(servicesRes.data.services || []);
       if (appointmentsRes.data.success)
         setAppointments(appointmentsRes.data.data || []);
     } catch (err) {
@@ -55,13 +52,13 @@ export default function CalendarComponent() {
 
   useEffect(() => {
     fetchData();
-    const today = new Date();
-    const formatted = today.toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
-    setTodayLabel(formatted);
+    setTodayLabel(
+      new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    );
   }, []);
 
   /* =====================================================
@@ -79,7 +76,7 @@ export default function CalendarComponent() {
   }, [appointments, selectedService, selectedStatus]);
 
   /* =====================================================
-     🔹 Event Handlers
+     🔹 Handlers
   ===================================================== */
   const handleDateClick = useCallback((arg) => {
     setSelectedDate(arg.date);
@@ -87,23 +84,12 @@ export default function CalendarComponent() {
   }, []);
 
   const handleEventClick = useCallback((clickInfo) => {
-    const appointmentId = clickInfo.event.id;
-    setSelectedAppointmentId(appointmentId);
+    setSelectedAppointmentId(clickInfo.event.id);
     setViewOpen(true);
   }, []);
 
-  const handleModalClose = () => {
-    setIsCreateModalOpen(false);
-    setSelectedDate(null);
-  };
+  const handleAppointmentSaved = () => fetchData();
 
-  const handleAppointmentSaved = () => {
-    fetchData();
-  };
-
-  /* =====================================================
-     🔹 Render Event
-  ===================================================== */
   const renderEventContent = (eventInfo) => {
     const { serviceName, name, status } = eventInfo.event.extendedProps;
     const time = eventInfo.timeText;
@@ -113,9 +99,9 @@ export default function CalendarComponent() {
       eventInfo.event.end - eventInfo.event.start < 3600000;
 
     const statusColors = {
-      pending: "#f59e0b", // 🟡 Pending
-      approved: "#3b82f6", // 🔵 Approved
-      completed: "#22c55e", // 🟢 Completed
+      pending: "#f59e0b",
+      approved: "#3b82f6",
+      completed: "#22c55e",
     };
 
     const bgColor = statusColors[status?.toLowerCase()] || "#64748b";
@@ -125,23 +111,17 @@ export default function CalendarComponent() {
         className="flex flex-col h-full w-full px-2 py-1.5 overflow-hidden rounded-md"
         style={{ backgroundColor: bgColor }}
       >
-        <div className="flex items-start gap-1.5 min-w-0">
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-white text-xs leading-tight truncate">
-              {serviceName}
-            </div>
-            {!isShort && name && (
-              <div className="text-white/90 text-[0.6875rem] leading-tight truncate mt-0.5">
-                {name}
-              </div>
-            )}
-            {!isShort && time && (
-              <div className="text-white/70 text-[0.625rem] leading-tight mt-0.5">
-                {time}
-              </div>
-            )}
-          </div>
+        <div className="font-semibold text-white text-xs truncate">
+          {serviceName}
         </div>
+        {!isShort && name && (
+          <div className="text-white/90 text-[0.6875rem] truncate mt-0.5">
+            {name}
+          </div>
+        )}
+        {!isShort && time && (
+          <div className="text-white/70 text-[0.625rem] mt-0.5">{time}</div>
+        )}
       </div>
     );
   };
@@ -151,35 +131,33 @@ export default function CalendarComponent() {
   ===================================================== */
   return (
     <div className="w-full max-w-7xl mx-auto">
-      {/* Header Section */}
+      {/* Header */}
       <section className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5 mb-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           {/* Navigation */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => calendarRef.current?.getApi().prev()}
-              className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              aria-label="Previous"
+              className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => calendarRef.current?.getApi().today()}
-              className="px-4 py-2 text-sm font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+              className="px-4 py-2 text-sm font-medium bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200"
             >
               Today
             </button>
             <button
               onClick={() => calendarRef.current?.getApi().next()}
-              className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              aria-label="Next"
+              className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
           {/* Calendar Title */}
-          <h2 className="text-base font-semibold text-slate-900 flex-1 text-center min-w-0 truncate">
+          <h2 className="text-base font-semibold text-slate-900 flex-1 text-center truncate">
             {calendarRef.current
               ? calendarRef.current.getApi().view.title
               : todayLabel}
@@ -198,23 +176,52 @@ export default function CalendarComponent() {
               onChange={setSelectedService}
               buttonLabel="Service"
             />
-
-            {/* ✅ Updated Status Filter */}
             <FilterDropdown
               mode="status"
               selectionMode="single"
               options={[
                 { value: "All Status", label: "All Status" },
-                { value: "Pending", label: <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>Pending</div> },
-                { value: "Approved", label: <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>Approved</div> },
-                { value: "Completed", label: <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>Completed</div> },
-                { value: "Cancelled", label: <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>Cancelled</div> },
+                {
+                  value: "Pending",
+                  label: (
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
+                      Pending
+                    </div>
+                  ),
+                },
+                {
+                  value: "Approved",
+                  label: (
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                      Approved
+                    </div>
+                  ),
+                },
+                {
+                  value: "Completed",
+                  label: (
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                      Completed
+                    </div>
+                  ),
+                },
+                {
+                  value: "Cancelled",
+                  label: (
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                      Cancelled
+                    </div>
+                  ),
+                },
               ]}
               value={selectedStatus}
               onChange={setSelectedStatus}
               buttonLabel="Status"
             />
-
           </div>
         </div>
 
@@ -227,9 +234,9 @@ export default function CalendarComponent() {
                 setCurrentView(opt.value);
                 calendarRef.current?.getApi().changeView(opt.value);
               }}
-              className={`w-full px-3 py-1.5 text-sm font-semibold rounded-md transition-all ${currentView === opt.value
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              className={`w-full px-3 py-1.5 text-sm font-semibold rounded-md ${currentView === opt.value
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 }`}
             >
               {opt.label}
@@ -238,7 +245,7 @@ export default function CalendarComponent() {
         </div>
       </section>
 
-      {/* Calendar Container */}
+      {/* Calendar */}
       <div className="bg-white rounded-xl border border-slate-200 p-2 sm:p-4 shadow-sm">
         <FullCalendar
           ref={calendarRef}
@@ -276,20 +283,25 @@ export default function CalendarComponent() {
         <Plus className="w-6 h-6" />
       </button>
 
-      {/* Create Appointment Modal */}
+      {/* Modals */}
       <CreateAppointmentModal
         isOpen={isCreateModalOpen}
-        onClose={handleModalClose}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setSelectedDate(null);
+        }}
         onSave={handleAppointmentSaved}
         selectedDate={selectedDate}
       />
 
-      {/* View Appointment Modal */}
       <ViewAppointmentModal
         isOpen={viewOpen}
         onClose={() => setViewOpen(false)}
         appointmentId={selectedAppointmentId}
-        onUpdate={handleAppointmentSaved}
+        onUpdate={() => {
+          handleAppointmentSaved(); // refresh calendar
+          setRefreshKey((k) => k + 1); // refresh TodaySchedule
+        }}
       />
     </div>
   );
