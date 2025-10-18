@@ -16,7 +16,7 @@ const VIEW_OPTIONS = [
   { value: "timeGridWeek", label: "Week" },
   { value: "timeGridDay", label: "Day" },
 ];
-export default function CalendarComponent({ refreshKey }) {
+export default function CalendarComponent({ refreshKey, onAppointmentsUpdate }) {
   const [currentView, setCurrentView] = useState("dayGridMonth");
   const [selectedService, setSelectedService] = useState("All Services");
   const [selectedStatus, setSelectedStatus] = useState("All Status");
@@ -93,7 +93,11 @@ export default function CalendarComponent({ refreshKey }) {
     setViewOpen(true);
   }, []);
 
-  const handleAppointmentSaved = () => fetchData();
+  const handleAppointmentSaved = () => {
+    fetchData().then(() => {
+      onAppointmentsUpdate?.(); // trigger TodaySchedule refresh
+    });
+  };
 
   const renderEventContent = (eventInfo) => {
     const { serviceName, name, status } = eventInfo.event.extendedProps;

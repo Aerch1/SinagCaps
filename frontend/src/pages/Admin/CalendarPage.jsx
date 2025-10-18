@@ -62,8 +62,10 @@ export default function CalendarPage() {
         <main className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-5 lg:gap-6">
           {/* Left: Calendar */}
           <div className="w-full bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 md:p-5">
-            <Calendar refreshKey={calendarRefreshKey} />
-          </div>
+            <Calendar
+              refreshKey={calendarRefreshKey}
+              onAppointmentsUpdate={(updatedAppt) => setRefreshToday((prev) => prev + 1)}
+            />          </div>
 
           {/* Right: Today Schedule + Upcoming Events */}
           <aside className="flex flex-col gap-4 sm:gap-3">
