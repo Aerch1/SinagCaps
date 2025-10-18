@@ -585,14 +585,14 @@ export const getAppointments = async (req, res) => {
     // 3) Admin notification messages
     const adminTodayMessage =
       todayCount > 0
-        ? `Today's Approved Appointments:\n${todayAppointments
+        ? `Today's Appointments:\n${todayAppointments
             .map((appt) => `ID: ${appt.id}, Name: ${appt.name}`)
             .join("\n")}`
         : null;
 
     const adminTomorrowMessage =
       tomorrowCount > 0
-        ? `Upcoming Approved Appointments:\n${tomorrowAppointments
+        ? `Upcoming Appointments:\n${tomorrowAppointments
             .map((appt) => `ID: ${appt.id}, Name: ${appt.name}`)
             .join("\n")}`
         : null;
@@ -609,12 +609,12 @@ export const getAppointments = async (req, res) => {
             const [existsToday] = await pool.query(
               `SELECT id FROM notifications
                WHERE user_id=? AND title=? AND DATE(created_at)=CURDATE()`,
-              [admin.id, "Today's Approved Appointments"]
+              [admin.id, "Today's Appointments"]
             );
             if (existsToday.length === 0) {
               await createNotification({
                 user_id: admin.id,
-                title: "Today's Approved Appointments",
+                title: "Today's  Appointments",
                 message: adminTodayMessage,
                 type: "appointment",
               });
@@ -625,12 +625,12 @@ export const getAppointments = async (req, res) => {
             const [existsTomorrow] = await pool.query(
               `SELECT id FROM notifications
                WHERE user_id=? AND title=? AND DATE(created_at)=CURDATE()`,
-              [admin.id, "Upcoming Approved Appointments"]
+              [admin.id, "Upcoming Appointments"]
             );
             if (existsTomorrow.length === 0) {
               await createNotification({
                 user_id: admin.id,
-                title: "Upcoming Approved Appointments",
+                title: "Upcoming Appointments",
                 message: adminTomorrowMessage,
                 type: "appointment",
               });
