@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { parseISO, compareAsc } from "date-fns";
+import { parseISO, compareAsc, isToday } from "date-fns";
 import api from "@/api/api";
 
 export default function UpcomingEvents({ onItemClick, className = "" }) {
@@ -19,27 +19,33 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
                 console.log("🔹 API response:", res.data);
 
                 if (res.data.success) {
-                    const mapEvent = (e) => ({
-                        id: e.id,
-                        title: e.title,
-                        description: e.description,
-                        start: parseISO(`${e.date}T${e.time || "00:00:00"}`),
-                        image_url: e.image_url,
-                    });
+                    // Map events
+                    const mapEvent = (e) => {
+                        // Ensure valid Date object
+                        const dateStr = e.date || e.date_only || "1970-01-01";
+                        const timeStr = e.time || "00:00:00";
+                        return {
+                            id: e.id,
+                            title: e.title,
+                            description: e.description,
+                            start: parseISO(`${dateStr}T${timeStr}`),
+                            image_url: e.image_url,
+                        };
+                    };
 
-                    setTodayEvents(
-                        res.data.data.today
-                            .map(mapEvent)
-                            .sort((a, b) => compareAsc(a.start, b.start))
-                    );
-                    setUpcomingEvents(
-                        res.data.data.upcoming
-                            .map(mapEvent)
-                            .sort((a, b) => compareAsc(a.start, b.start))
-                    );
+                    const todayMapped = res.data.data.today.map(mapEvent).sort((a, b) => compareAsc(a.start, b.start));
 
-                    console.log("🔹 Today Events:", res.data.data.today);
-                    console.log("🔹 Upcoming Events:", res.data.data.upcoming);
+                    // Filter upcoming events to exclude today’s events
+                    const upcomingMapped = res.data.data.upcoming
+                        .map(mapEvent)
+                        .filter((e) => !isToday(e.start))
+                        .sort((a, b) => compareAsc(a.start, b.start));
+
+                    setTodayEvents(todayMapped);
+                    setUpcomingEvents(upcomingMapped);
+
+                    console.log("🔹 Today Events:", todayMapped);
+                    console.log("🔹 Upcoming Events:", upcomingMapped);
                 }
             } catch (err) {
                 console.error("❌ Failed to fetch upcoming events:", err);
@@ -51,10 +57,10 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
         fetchEvents();
     }, []);
 
-
     const renderEventItem = (e) => {
         const dateLabel = e.start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
         const timeLabel = e.start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
+
         return (
             <li key={e.id}>
                 <button
@@ -80,10 +86,7 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
     };
 
     return (
-        <div
-            className={`bg-white rounded-lg border border-gray-200 pt-6 px-4 flex flex-col ${className}`}
-        >
-            {/* Header */}
+        <div className={`bg-white rounded-lg border border-gray-200 pt-6 px-4 flex flex-col ${className}`}>
             <div className="flex items-center justify-between gap-4 mb-4 min-h-[40px]">
                 <h3 className="text-lg font-semibold text-slate-900">Upcoming Events</h3>
             </div>
