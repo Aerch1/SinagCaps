@@ -235,8 +235,8 @@ export default function CalendarComponent() {
                 calendarRef.current?.getApi().changeView(opt.value);
               }}
               className={`w-full px-3 py-1.5 text-sm font-semibold rounded-md ${currentView === opt.value
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 }`}
             >
               {opt.label}
@@ -298,11 +298,27 @@ export default function CalendarComponent() {
         isOpen={viewOpen}
         onClose={() => setViewOpen(false)}
         appointmentId={selectedAppointmentId}
-        onUpdate={() => {
-          handleAppointmentSaved(); // refresh calendar
-          setRefreshKey((k) => k + 1); // refresh TodaySchedule
+        onUpdate={(updated) => {
+          handleAppointmentSaved(); // always refresh calendar
+
+          // ✅ Only refresh TodaySchedule if the appointment is approved AND the date is today
+          const isToday = (() => {
+            if (!updated?.date) return false;
+            const today = new Date();
+            const apptDate = new Date(updated.date);
+            return (
+              apptDate.getFullYear() === today.getFullYear() &&
+              apptDate.getMonth() === today.getMonth() &&
+              apptDate.getDate() === today.getDate()
+            );
+          })();
+
+          if (updated?.status?.toLowerCase() === "approved" && isToday) {
+            setRefreshKey((k) => k + 1);
+          }
         }}
       />
+
     </div>
   );
 }
