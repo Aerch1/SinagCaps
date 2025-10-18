@@ -6,7 +6,7 @@ import path from "path";
 /* ==========================================================
    CONFIGURATION
 ========================================================== */
-import path from "path";
+
 
 export const PARISH_INFO = {
   name: "Our Lady of Peace and Good Voyage Parish",
