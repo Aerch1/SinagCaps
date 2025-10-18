@@ -264,8 +264,8 @@ export default function GeneralInformation() {
           📌 MODAL (DB Data)
       ============================ */}
       {showModal && selectedService && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative min-h-[380px] flex flex-col">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative my-auto max-h-[calc(100vh-2rem)] flex flex-col">
             {/* Close Button */}
             <button
               onClick={handleCloseModal}

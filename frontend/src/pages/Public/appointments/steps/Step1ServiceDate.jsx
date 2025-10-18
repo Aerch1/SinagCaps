@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import Dropdown from "../../../../components/ui/Dropdown1.jsx";
 import api from "../../../../api/api.js";
 import toast from "react-hot-toast";
@@ -28,26 +28,18 @@ export default function Step1Service({ formData, setFormData }) {
     loadServices();
   }, []);
 
-  // Selected service object
-  const selectedService = useMemo(
-    () => services.find((s) => String(s.id) === String(formData.service_id)),
-    [formData.service_id, services]
-  );
-
-  const selectedServiceLabel = selectedService?.name || "";
-
   const onServiceChange = (label) => {
     const picked = services.find((s) => s.name === label);
     if (!picked) return;
 
     setFormData((prev) => ({
       ...prev,
-      service_id: picked.id,          // numeric ID (from DB)
-      formType: picked.form_type,     // ✅ direct from backend, no guessing
-      serviceName: picked.name,     // ✅ NEW field for display later
+      service_id: picked.id,
+      formType: picked.form_type,
+      serviceName: picked.name,
       preferredDate: "",
       preferredTime: "",
-      extraData: {},                  // reset extra form data (baptism, wedding, etc.)
+      extraData: {},
     }));
   };
 
@@ -59,18 +51,12 @@ export default function Step1Service({ formData, setFormData }) {
         {/* LEFT */}
         <div className="md:col-span-6 space-y-6">
           <div>
-            <div className="flex items-center justify-between gap-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Service Type <span className="text-red-500">*</span>
-              </label>
-
-              {selectedService?.reminder && (
-                <span className="text-xs text-gray-600">{selectedService.reminder}</span>
-              )}
-            </div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Service Type <span className="text-red-500">*</span>
+            </label>
 
             <Dropdown
-              value={selectedServiceLabel}
+              value={formData.serviceName || ""}
               onChange={onServiceChange}
               options={services.map((s) => s.name)}
               placeholder={loading ? "Loading..." : "Select a service"}
@@ -79,32 +65,14 @@ export default function Step1Service({ formData, setFormData }) {
           </div>
         </div>
 
-        {/* RIGHT: dynamic info */}
+        {/* RIGHT: static info placeholder */}
         <div className="md:col-span-6">
           <div className="rounded-md bg-gray-50 p-5">
             <h4 className="text-sm font-semibold text-gray-900">
-              {selectedService ? selectedService.name : "Service Information"}
+              Service Information
             </h4>
-
             <div className="mt-3 space-y-3 text-sm leading-6 text-gray-800">
-              {!selectedService ? (
-                <p>Select a service to see details and scheduling notes.</p>
-              ) : (
-                <>
-                  <p>{selectedService.description}</p>
-
-                  <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-700">
-                    {selectedService.requirements?.map((req) => (
-                      <li key={req.id || req.name}>
-                        {req.name}{" "}
-                        {req.is_mandatory && (
-                          <span className="text-red-500 text-xs">(required)</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
+              <p>Select a service to see details and scheduling notes.</p>
             </div>
           </div>
         </div>
@@ -125,6 +93,10 @@ export default function Step1Service({ formData, setFormData }) {
           <li>
             Use your active phone and email. Official updates are sent through parish channels.
             Avoid fixers or third-party coordinators.
+          </li>
+          <li>
+            If your appointment is approved, please comply with the church office immediately for
+            the required documents and requirements.
           </li>
         </ol>
       </div>
