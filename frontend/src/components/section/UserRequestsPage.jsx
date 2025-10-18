@@ -103,8 +103,8 @@ export default function AdminUserRequestsTable() {
     const totalPages = Math.ceil(requests.length / pageSize);
 
     return (
-        <div className="space-y-4 min-h-screen p-4 sm:p-6 lg:p-8">
-            <div className="overflow-x-auto border rounded-lg shadow-sm bg-white">
+        <div className="space-y-4 ">
+            <div className="overflow-x-auto border rounded-lg shadow-sm bg-white p-4 sm:p-6">
                 <table className="w-full text-sm table-auto divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
