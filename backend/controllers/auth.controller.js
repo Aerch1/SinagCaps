@@ -275,29 +275,63 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
   if (!v.ok) throw new AppError(v.message, 400);
 
   await withConn(async (conn) => {
-    const [rows] = await conn.execute(
-      `SELECT evt.*, u.email, u.name, u.role
-       FROM email_verification_tokens evt
-       JOIN users u ON u.id = evt.user_id
-       WHERE evt.token = ? AND evt.purpose = 'signup'
-         AND evt.consumed_at IS NULL AND evt.expires_at > NOW()
-       ORDER BY evt.created_at DESC LIMIT 1`,
+    // 1️⃣ Get the user ID associated with the input code (if exists and not expired/consumed)
+    const [tokenRows] = await conn.execute(
+      `SELECT user_id, created_at, expires_at, consumed_at
+       FROM email_verification_tokens
+       WHERE token = ? AND purpose = 'signup' AND consumed_at IS NULL AND expires_at > NOW()
+       LIMIT 1`,
       [code.trim()]
     );
-    if (!rows.length)
+
+    if (!tokenRows.length)
       throw new AppError("Invalid or expired verification code", 400);
 
-    const evt = rows[0];
+    const inputToken = tokenRows[0];
+
+    // 2️⃣ Get the latest token for this user
+    const [latestRows] = await conn.execute(
+      `SELECT *
+       FROM email_verification_tokens
+       WHERE user_id = ? AND purpose = 'signup' AND consumed_at IS NULL AND expires_at > NOW()
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [inputToken.user_id]
+    );
+
+    if (!latestRows.length)
+      throw new AppError("Invalid or expired verification code", 400);
+
+    const latestToken = latestRows[0];
+
+    // 3️⃣ Check if input code matches the latest token
+    if (latestToken.token !== code.trim()) {
+      throw new AppError(
+        "Invalid verification code. Please use the latest code sent to your email.",
+        400
+      );
+    }
+
+    // ✅ Mark user as verified
+    const [userRows] = await conn.execute(
+      "SELECT u.id, u.email, u.name, u.role FROM users u WHERE u.id = ?",
+      [latestToken.user_id]
+    );
+    if (!userRows.length) throw new AppError("User not found", 404);
+
+    const user = userRows[0];
+
     await conn.execute("UPDATE users SET isVerified = TRUE WHERE id = ?", [
-      evt.user_id,
+      user.id,
     ]);
+
     await conn.execute(
       "UPDATE email_verification_tokens SET consumed_at = NOW() WHERE id = ?",
-      [evt.id]
+      [latestToken.id]
     );
 
     try {
-      await sendWelcomeEmail(evt.email, evt.name);
+      await sendWelcomeEmail(user.email, user.name);
     } catch (e) {
       console.error("Welcome email failed:", e.message);
     }
@@ -311,12 +345,12 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
     ];
     const msg = messages[Math.floor(Math.random() * messages.length)].replace(
       ":name",
-      evt.name
+      user.name
     );
 
     try {
       await createNotification({
-        user_id: evt.user_id,
+        user_id: user.id,
         title: "Welcome to Our Lady of Peace and Good Voyage Parish",
         message: msg,
         type: "announcement",
@@ -326,14 +360,14 @@ export const verifyEmail = handleAsyncError(async (req, res) => {
     }
 
     // 🆕 Include email in token payload
-    generateTokenAndSetCookie(res, evt.user_id, evt.email);
+    generateTokenAndSetCookie(res, user.id, user.email);
 
     return sendResponse(res, 200, true, "Email verified successfully", {
       user: {
-        id: evt.user_id,
-        email: evt.email,
-        name: evt.name,
-        role: evt.role,
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
         isVerified: true,
       },
     });
