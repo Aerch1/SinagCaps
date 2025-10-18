@@ -18,18 +18,14 @@ export default function UserRequestsTable() {
     const fetchRequests = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await api.get("/appointments/requests/user-requests");
-            console.log("Raw API response:", res.data.requests);
-
+            const res = await api.get("/appointments/requests/all-requests"); // admin route
             const data = res.data.requests.map((r) => {
                 let displayDateTime = "-";
 
                 if (r.type === "reschedule" && r.requestedDateTime) {
                     const parsed = parseISO(r.requestedDateTime);
                     if (isValid(parsed)) displayDateTime = format(parsed, "PP p");
-                }
-
-                if (r.type === "cancel" && r.appointment?.date && r.appointment?.time) {
+                } else if (r.type === "cancel" && r.appointment?.date && r.appointment?.time) {
                     const parsed = parseISO(`${r.appointment.date}T${r.appointment.time}`);
                     if (isValid(parsed)) displayDateTime = format(parsed, "PP p");
                 }
@@ -42,10 +38,10 @@ export default function UserRequestsTable() {
                     notes: r.notes || "—",
                     request_status: r.request_status || "pending",
                     type: r.type || "—",
+                    appointmentDetails: r.appointment || {},
                 };
             });
 
-            console.log("Processed request data:", data);
             setRequests(data);
         } catch (err) {
             console.error(err);
@@ -73,14 +69,14 @@ export default function UserRequestsTable() {
         }
     };
 
-    const handleReject = async (r) => {
+    const handleDeny = async (r) => {
         try {
-            await api.patch(`/appointments/requests/${r.requestId}/reject`);
-            toast.success("Request rejected");
+            await api.patch(`/appointments/requests/${r.requestId}/deny`);
+            toast.success("Request denied");
             fetchRequests();
         } catch (err) {
-            console.error("Reject error:", err);
-            toast.error("Failed to reject request");
+            console.error("Deny error:", err);
+            toast.error("Failed to deny request");
         }
     };
 
@@ -102,10 +98,10 @@ export default function UserRequestsTable() {
                         <Check className="inline h-3 w-3 mr-1" /> Approve
                     </button>
                     <button
-                        onClick={() => handleReject(r)}
+                        onClick={() => handleDeny(r)}
                         className="px-2 py-1 border rounded text-xs text-red-600 hover:bg-red-50"
                     >
-                        <X className="inline h-3 w-3 mr-1" /> Reject
+                        <X className="inline h-3 w-3 mr-1" /> Deny
                     </button>
                 </>
             )}

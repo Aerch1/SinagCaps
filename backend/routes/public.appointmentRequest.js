@@ -11,13 +11,22 @@ import { isAdmin } from "../middleware/isAdmin.js";
 
 const router = express.Router();
 
-// User request routes
+/* =========================
+   Public User Routes
+========================= */
 router.post("/:id/request-reschedule", verifyToken, requestReschedule);
 router.post("/:id/request-cancel", verifyToken, requestCancel);
-router.get("/user-requests", verifyToken, isAdmin, getAllUserRequests);
 
-// Admin routes for approving/denying requests
-router.patch("/requests/:requestId/approve", verifyToken, approveRequest);
-router.patch("/requests/:requestId/deny", verifyToken, denyRequest);
+/* =========================
+   Admin Routes
+========================= */
+router.get("/all-requests", verifyToken, isAdmin, getAllUserRequests); // fetch all requests
+router.patch(
+  "/requests/:requestId/approve",
+  verifyToken,
+  isAdmin,
+  approveRequest
+);
+router.patch("/requests/:requestId/deny", verifyToken, isAdmin, denyRequest);
 
 export default router;
