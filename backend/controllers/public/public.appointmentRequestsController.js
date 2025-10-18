@@ -1,4 +1,5 @@
 import pool from "../../config/db.js";
+import { format } from "date-fns";
 
 // ------------------------
 // Public: Request Reschedule
@@ -111,17 +112,14 @@ export async function requestCancel(req, res) {
   }
 }
 
-// ------------------------
+/// ------------------------
 // Admin: Get All User Requests
 // ------------------------
 export async function getAllUserRequests(req, res) {
   const conn = await pool.getConnection();
   try {
-    console.log(
-      "Fetching all user requests from appointment_requests table..."
-    );
+    console.log("Fetching all user requests from appointment_requests table...");
 
-    // Only fetch from appointment_requests, no JOIN needed
     const [requests] = await conn.execute(
       `SELECT 
          id AS request_id,
@@ -140,17 +138,16 @@ export async function getAllUserRequests(req, res) {
     console.log("Raw requests from DB:", requests);
 
     const mapped = requests.map((r) => {
-      let requestedDateTime = null;
+      let requestedDateTime = "-";
 
-      // Parse reschedule requests date/time if valid
+      // Only parse reschedule requests
       if (r.type === "reschedule" && r.requested_date && r.requested_time) {
-        const dt = new Date(`${r.requested_date}T${r.requested_time}`);
-        if (!isNaN(dt.getTime())) {
-          requestedDateTime = dt.toISOString();
-          console.log(
-            `Parsed requestedDateTime for request ${r.request_id}:`,
-            requestedDateTime
-          );
+        const date = new Date(r.requested_date);
+        const [hours, minutes, seconds] = r.requested_time.split(":").map(Number);
+
+        if (!isNaN(date.getTime()) && ![hours, minutes, seconds].some(isNaN)) {
+          date.setHours(hours, minutes, seconds, 0);
+          requestedDateTime = format(date, "MM/dd/yyyy, h:mm a"); // e.g., 10/17/2025, 11:11 AM
         } else {
           console.warn(
             `Invalid date/time for request ${r.request_id}:`,
@@ -173,7 +170,6 @@ export async function getAllUserRequests(req, res) {
     });
 
     console.log("Mapped requests for API response:", mapped);
-
     return res.json({ success: true, requests: mapped });
   } catch (err) {
     console.error("getAllUserRequests error:", err);

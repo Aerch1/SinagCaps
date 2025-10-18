@@ -6,7 +6,6 @@ import { Eye, X, Check } from "lucide-react";
 import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal";
 import toast from "react-hot-toast";
 import api from "@/api/api";
-import { format, parseISO, isValid } from "date-fns";
 
 export default function AdminUserRequestsTable() {
     const [requests, setRequests] = useState([]);
@@ -28,28 +27,15 @@ export default function AdminUserRequestsTable() {
                 return;
             }
 
-            const data = res.data.requests.map((r, i) => {
-                console.log(`Processing request at index ${i}:`, r);
-
-                let displayDateTime = "-";
-                if (r.type === "reschedule" && r.requestedDateTime) {
-                    const parsed = parseISO(r.requestedDateTime);
-                    if (isValid(parsed)) {
-                        displayDateTime = format(parsed, "PP p");
-                    } else {
-                        console.warn(`Invalid requestedDateTime for request ${r.id}:`, r.requestedDateTime);
-                    }
-                }
-
-                return {
-                    requestId: r.id,
-                    appointmentId: r.appointmentId, // used for View modal
-                    requestedDateTime: displayDateTime,
-                    notes: r.notes || "—",
-                    request_status: r.request_status || "pending",
-                    type: r.type || "—",
-                };
-            });
+            // Directly use requestedDateTime from backend
+            const data = res.data.requests.map((r) => ({
+                requestId: r.id,
+                appointmentId: r.appointmentId,
+                requestedDateTime: r.requestedDateTime || "-", // already formatted
+                notes: r.notes || "-",
+                request_status: r.request_status || "pending",
+                type: r.type || "-",
+            }));
 
             console.log("Mapped requests ready for table:", data);
             setRequests(data);
@@ -130,7 +116,7 @@ export default function AdminUserRequestsTable() {
                 <table className="w-full text-sm table-auto divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            {["Appointment ID", "Requested Date/Time", "Notes", "Type", "Status", "Actions"].map(h => (
+                            {["Appointment ID", "Requested Date/Time", "Notes", "Type", "Status", "Actions"].map((h) => (
                                 <th
                                     key={h}
                                     className="px-3 py-2 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider"
@@ -144,14 +130,18 @@ export default function AdminUserRequestsTable() {
                         <AnimatePresence>
                             {loading ? (
                                 <motion.tr key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={6} className="py-8 text-center text-gray-500">Loading…</td>
+                                    <td colSpan={6} className="py-8 text-center text-gray-500">
+                                        Loading…
+                                    </td>
                                 </motion.tr>
                             ) : paginated.length === 0 ? (
                                 <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={6} className="py-8 text-center text-gray-500">No requests found.</td>
+                                    <td colSpan={6} className="py-8 text-center text-gray-500">
+                                        No requests found.
+                                    </td>
                                 </motion.tr>
                             ) : (
-                                paginated.map(r => (
+                                paginated.map((r) => (
                                     <motion.tr key={r.requestId} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                         <td className="px-3 py-2 font-mono text-gray-600">{r.appointmentId}</td>
                                         <td className="px-3 py-2">{r.requestedDateTime}</td>
@@ -168,11 +158,29 @@ export default function AdminUserRequestsTable() {
 
                 {totalPages > 1 && (
                     <div className="flex justify-center items-center gap-2 py-2 border-t bg-gray-50">
-                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="px-2 py-1 border rounded disabled:opacity-50">‹</button>
-                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                            <button key={p} onClick={() => setPage(p)} className={`px-2 py-1 border rounded ${p === page ? "bg-blue-600 text-white" : "bg-white"}`}>{p}</button>
+                        <button
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={page <= 1}
+                            className="px-2 py-1 border rounded disabled:opacity-50"
+                        >
+                            ‹
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                            <button
+                                key={p}
+                                onClick={() => setPage(p)}
+                                className={`px-2 py-1 border rounded ${p === page ? "bg-blue-600 text-white" : "bg-white"}`}
+                            >
+                                {p}
+                            </button>
                         ))}
-                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="px-2 py-1 border rounded disabled:opacity-50">›</button>
+                        <button
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                            disabled={page >= totalPages}
+                            className="px-2 py-1 border rounded disabled:opacity-50"
+                        >
+                            ›
+                        </button>
                     </div>
                 )}
             </div>
@@ -180,7 +188,7 @@ export default function AdminUserRequestsTable() {
             {viewingId && (
                 <ViewAppointmentModal
                     isOpen={!!viewingId}
-                    appointmentId={viewingId} // now works with appointment_requests data
+                    appointmentId={viewingId} // works with appointment_requests data
                     onClose={() => setViewingId(null)}
                 />
             )}
