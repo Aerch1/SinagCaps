@@ -199,11 +199,12 @@ export async function deleteEvent(req, res) {
 export async function getUpcomingEvents(req, res) {
   const conn = await pool.getConnection();
   try {
+    // ✅ Fetch all active events today or later using combined datetime
     const [rows] = await conn.query(`
-      SELECT id, title, description, DATE(date) as date_only, time, status, type, image_url
+      SELECT id, title, description, date, time, status, type, image_url
       FROM events
       WHERE LOWER(TRIM(status))='active'
-        AND (DATE(date) > CURDATE() OR (DATE(date) = CURDATE() AND time >= CURTIME()))
+        AND STR_TO_DATE(CONCAT(date,' ',time), '%Y-%m-%d %H:%i:%s') >= NOW()
       ORDER BY date ASC, time ASC
     `);
 
@@ -212,7 +213,7 @@ export async function getUpcomingEvents(req, res) {
     // Map rows to proper Date objects
     const events = rows.map((e) => ({
       ...e,
-      dateTime: parseISO(`${e.date_only}T${e.time || "00:00:00"}`),
+      dateTime: new Date(`${e.date.toISOString().slice(0, 10)}T${e.time}`),
     }));
 
     // Events happening today or tomorrow for reminders
