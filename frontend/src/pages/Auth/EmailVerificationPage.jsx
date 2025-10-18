@@ -17,6 +17,13 @@ const EmailVerificationPage = () => {
   const navigate = useNavigate();
   const { error, isLoading, verifyEmail, message, clearError, clearMessage, user } = useAuthStore();
 
+  // ================= Remove pendingEmail on unmount =================
+  useEffect(() => {
+    return () => {
+      localStorage.removeItem("pendingEmail");
+    };
+  }, []);
+
   const handleChange = (index, value) => {
     clearError();
     const onlyDigits = value.replace(/\D/g, "");
@@ -42,7 +49,7 @@ const EmailVerificationPage = () => {
 
   const handleFocus = (index) => {
     if (error) clearError();
-    inputRefs.current[index].select(); // select on focus
+    inputRefs.current[index].select();
   };
 
   const handleKeyDown = (index, e) => {
@@ -58,6 +65,10 @@ const EmailVerificationPage = () => {
     try {
       const result = await verifyEmail(codeStr);
       toast.success("Email verified successfully");
+
+      // Remove pending email after successful verification
+      localStorage.removeItem("pendingEmail");
+
       if (result?.user?.role === "admin") navigate("/admin");
       else navigate("/");
     } catch {
@@ -75,15 +86,21 @@ const EmailVerificationPage = () => {
     await submitCode(codeStr);
   };
 
-  // ✅ NEW: handle resend code
+  // ================= Resend code =================
   const handleResendCode = async () => {
     try {
       setIsResending(true);
+
+      // Get email from user store or localStorage
       const emailToUse = user?.email || localStorage.getItem("pendingEmail");
       if (!emailToUse) {
         toast.error("Missing email. Please sign up again.");
         return;
       }
+
+      // Save pending email for later reloads
+      localStorage.setItem("pendingEmail", emailToUse);
+
       const res = await api.post("/auth/resend-verification", { email: emailToUse });
       toast.success(res.data.message || "Verification code resent!");
     } catch (err) {
@@ -164,7 +181,6 @@ const EmailVerificationPage = () => {
               {isLoading ? "Verifying..." : "Verify Email"}
             </button>
 
-            {/* ✅ NEW: Resend link */}
             <div className="text-center mt-4">
               <button
                 type="button"
