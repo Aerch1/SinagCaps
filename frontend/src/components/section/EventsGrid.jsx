@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { CalendarDays, Clock, Edit2, Trash2, X, Plus } from "lucide-react";
 import { formatDate, to12h } from "@/utils/availabilityUtils";
+import ConfirmDialog from "../ui/ConfirmDialog";
 
 /* ---------- Status Badge ---------- */
 const StatusChip = ({ status }) => {
@@ -250,6 +251,11 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
   const [page, setPage] = useState(1);
   const pageSize = 6;
 
+  const [confirmDelete, setConfirmDelete] = useState({
+    open: false,
+    item: null,
+    submitting: false,
+  })
   const totalPages = Math.ceil(events.length / pageSize);
   const visibleEvents = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -286,8 +292,9 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
               key={item.id}
               item={item}
               onEdit={onEdit}
-              onDelete={onDelete}
-              onPreview={(i) => setPreviewItem(i)}
+              onDelete={(item) =>
+                setConfirmDelete({ open: true, item, submitting: false })
+              } onPreview={(i) => setPreviewItem(i)}
             />
           ))}
         </div>
@@ -320,8 +327,8 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
               key={i}
               onClick={() => setPage(i + 1)}
               className={`h-9 w-9 rounded-md border text-sm ${page === i + 1
-                  ? "bg-blue-600 text-white"
-                  : "bg-white hover:bg-gray-50"
+                ? "bg-blue-600 text-white"
+                : "bg-white hover:bg-gray-50"
                 }`}
             >
               {i + 1}
@@ -342,6 +349,27 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
         item={previewItem}
         onClose={() => setPreviewItem(null)}
       />
+
+
+      <ConfirmDialog
+        open={confirmDelete.open}
+        title="Delete Event / News"
+        message={`Are you sure you want to delete "${confirmDelete.item?.title}"? This action cannot be undone.`}
+        submitting={confirmDelete.submitting}
+        onCancel={() => setConfirmDelete({ open: false, item: null, submitting: false })}
+        onConfirm={async () => {
+          if (!confirmDelete.item) return;
+          try {
+            setConfirmDelete((prev) => ({ ...prev, submitting: true }));
+            await onDelete?.(confirmDelete.item); // call your original onDelete
+            setConfirmDelete({ open: false, item: null, submitting: false });
+          } catch (err) {
+            console.error(err);
+            setConfirmDelete({ open: false, item: null, submitting: false });
+          }
+        }}
+      />
+
     </div>
   );
 }
