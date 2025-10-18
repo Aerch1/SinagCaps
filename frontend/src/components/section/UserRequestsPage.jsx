@@ -19,25 +19,33 @@ export default function UserRequestsTable() {
         setLoading(true);
         try {
             const res = await api.get("/appointments/requests/user-requests");
+            console.log("Raw API response:", res.data.requests); // 🔍 Debug API response
+
             const data = res.data.requests.map((r) => {
                 let displayDateTime = "-";
 
+                // Reschedule requested time
                 if (r.type === "reschedule" && r.requestedDateTime) {
                     const parsed = parseISO(r.requestedDateTime);
                     if (isValid(parsed)) {
                         displayDateTime = format(parsed, "PP p");
+                    } else {
+                        console.warn("Invalid requestedDateTime:", r.requestedDateTime);
                     }
                 }
 
+                // Cancel request shows original appointment time
                 if (r.type === "cancel" && r.appointment?.date && r.appointment?.time) {
                     const parsed = parseISO(`${r.appointment.date}T${r.appointment.time}`);
                     if (isValid(parsed)) {
                         displayDateTime = format(parsed, "PP p");
+                    } else {
+                        console.warn("Invalid appointment date/time:", r.appointment.date, r.appointment.time);
                     }
                 }
 
                 return {
-                    id: r.id,
+                    requestId: r.id,               // <-- ensure this is request ID, not appointment ID
                     appointmentId: r.appointmentId,
                     name: r.user?.name || "—",
                     requestedDateTime: displayDateTime,
@@ -47,6 +55,7 @@ export default function UserRequestsTable() {
                 };
             });
 
+            console.log("Processed request data:", data); // 🔍 Debug processed data
             setRequests(data);
         } catch (err) {
             console.error(err);
@@ -64,23 +73,25 @@ export default function UserRequestsTable() {
     }, [fetchRequests]);
 
     const handleApprove = async (r) => {
+        console.log("Approving request ID:", r.requestId);
         try {
-            await api.patch(`/appointments/requests/${r.id}/approve`);
+            await api.patch(`/appointments/requests/${r.requestId}/approve`);
             toast.success("Request approved");
             fetchRequests();
         } catch (err) {
-            console.error(err);
+            console.error("Approve error:", err);
             toast.error("Failed to approve request");
         }
     };
 
     const handleDeny = async (r) => {
+        console.log("Denying request ID:", r.requestId);
         try {
-            await api.patch(`/appointments/requests/${r.id}/deny`);
+            await api.patch(`/appointments/requests/${r.requestId}/deny`);
             toast.success("Request denied");
             fetchRequests();
         } catch (err) {
-            console.error(err);
+            console.error("Deny error:", err);
             toast.error("Failed to deny request");
         }
     };
@@ -149,7 +160,7 @@ export default function UserRequestsTable() {
                                 </motion.tr>
                             ) : (
                                 paginated.map((r) => (
-                                    <motion.tr key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                    <motion.tr key={r.requestId} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                         <td className="px-3 py-2 font-mono text-gray-600">{r.appointmentId}</td>
                                         <td className="px-3 py-2">{r.name}</td>
                                         <td className="px-3 py-2">{r.requestedDateTime}</td>
