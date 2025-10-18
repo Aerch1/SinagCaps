@@ -2,7 +2,6 @@
 import pool from "../../config/db.js";
 import { v2 as cloudinary } from "cloudinary";
 import { createNotification } from "../../utils/createNotification.js";
-import { parseISO, format, isToday, isTomorrow, isAfter } from "date-fns";
 
 /* ==================================================
    VALIDATION HELPER
@@ -22,14 +21,7 @@ function validateEvent(data) {
 export async function createEvent(req, res) {
   const conn = await pool.getConnection();
   try {
-    const {
-      title,
-      description,
-      date,
-      time,
-      status = "Active",
-      type,
-    } = req.body;
+    const { title, description, date, time, status = "Active", type } = req.body;
     const errors = validateEvent(req.body);
     if (Object.keys(errors).length)
       return res.status(400).json({ success: false, errors });
@@ -200,27 +192,20 @@ export async function getUpcomingEvents(req, res) {
   const conn = await pool.getConnection();
   try {
     const [rows] = await conn.query(`
-      SELECT id, title, description, DATE(date) as date_only, time, status, type, image_url
+      SELECT id, title, description, date, time, status, type, image_url
       FROM events
       WHERE LOWER(TRIM(status))='active'
-        AND (DATE(date) > CURDATE() OR (DATE(date) = CURDATE() AND time >= CURTIME()))
+        AND (date > CURDATE() OR (date = CURDATE() AND time >= CURTIME()))
       ORDER BY date ASC, time ASC
     `);
 
-    console.log("🔹 Fetched rows:", rows);
+    // ✅ Auto-send reminder notifications for events happening today/tomorrow
+    const today = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
-    // Map rows to proper Date objects
-    const events = rows.map((e) => ({
-      ...e,
-      dateTime: parseISO(`${e.date_only}T${e.time || "00:00:00"}`),
-    }));
-
-    // Events happening today or tomorrow for reminders
-    const upcomingSoon = events.filter(
-      (e) => isToday(e.dateTime) || isTomorrow(e.dateTime)
+    const upcomingSoon = rows.filter(
+      (e) => e.date === today || e.date === tomorrow
     );
-
-    console.log("🔹 Upcoming Soon (today/tomorrow):", upcomingSoon);
 
     if (upcomingSoon.length > 0) {
       const [users] = await conn.query(
@@ -229,12 +214,10 @@ export async function getUpcomingEvents(req, res) {
 
       for (const event of upcomingSoon) {
         const templates = [
-          `⏰ Reminder: "${event.title}" is happening ${
-            isToday(event.dateTime) ? "today" : "tomorrow"
-          } at ${event.time}.`,
-          `Don't miss it! "${event.title}" takes place ${
-            isToday(event.dateTime) ? "today" : "tomorrow"
-          } — check the details in Events & News.`,
+          `⏰ Reminder: "${event.title}" is happening ${event.date === today ? "today" : "tomorrow"} at ${event.time}.`,
+          `Don't miss it! "${event.title}" takes place ${event.date === today ? "today" : "tomorrow"} — check the details in Events & News.`,
+          `📅 "${event.title}" is ${event.date === today ? "today" : "tomorrow"}! Stay tuned.`,
+          `Upcoming ${event.type.toLowerCase()}: "${event.title}" starts ${event.date === today ? "today" : "tomorrow"}.`,
         ];
 
         for (const u of users) {
@@ -243,9 +226,7 @@ export async function getUpcomingEvents(req, res) {
 
           await createNotification({
             user_id: u.id,
-            title: `🎟️ ${
-              isToday(event.dateTime) ? "Today’s Event" : "Tomorrow’s Event"
-            }`,
+            title: `🎟️ ${event.date === today ? "Today’s Event" : "Tomorrow’s Event"}`,
             message,
             type: "event",
             reference_id: event.id,
@@ -255,24 +236,7 @@ export async function getUpcomingEvents(req, res) {
       }
     }
 
-    // Separate today's events and upcoming events
-    const todaysEvents = events.filter((e) => isToday(e.dateTime));
-    const upcomingEvents = events.filter((e) =>
-      isAfter(e.dateTime, new Date())
-    );
-
-    console.log("🔹 Today's Events:", todaysEvents);
-    console.log("🔹 Upcoming Events:", upcomingEvents);
-
-    res.json({
-      success: true,
-      data: {
-        today: todaysEvents,
-        upcoming: upcomingEvents,
-        all: rows,
-      },
-      count: rows.length,
-    });
+    res.json({ success: true, data: rows, count: rows.length });
   } catch (err) {
     console.error("❌ GET UPCOMING EVENTS ERROR:", err);
     res.status(500).json({
