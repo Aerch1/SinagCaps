@@ -27,7 +27,7 @@ export async function createPublicAppointment(req, res) {
       parentsMarriageType,
       sponsors,
 
-      // Kumpil (Confirmation) fields
+      // Confirmation fields
       confirmandName,
       age,
       parishOrigin,
@@ -35,7 +35,6 @@ export async function createPublicAppointment(req, res) {
       baptizedOn,
     } = req.body;
 
-    /* ✅ Basic required field validation */
     if (
       !service_id ||
       !name ||
@@ -45,24 +44,26 @@ export async function createPublicAppointment(req, res) {
       !date ||
       !time
     ) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields for appointment.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Missing required fields for appointment.",
+        });
     }
 
     const userId = req.user?.id || null;
     await conn.beginTransaction();
 
-    /* 1️⃣ Prevent duplicate booking (same slot and person) */
-    const [dupes] = await conn.execute(
-      `SELECT id FROM appointments 
-       WHERE service_id=? AND date=? AND time=? 
-         AND (email=? OR contactNumber=?)
+    // -------------------------------
+    // 1️⃣ Prevent same slot + same person
+    const [slotDupes] = await conn.execute(
+      `SELECT id FROM appointments
+       WHERE service_id=? AND date=? AND time=? AND (email=? OR contactNumber=?)
          AND status IN ('pending','approved')`,
       [service_id, date, time, email, contactNumber]
     );
-    if (dupes.length > 0) {
+    if (slotDupes.length > 0) {
       await conn.rollback();
       return res.status(400).json({
         success: false,
@@ -71,16 +72,14 @@ export async function createPublicAppointment(req, res) {
       });
     }
 
-    /* 2️⃣ Prevent same email from booking same service (double booking prevention) */
-    const [existingService] = await conn.execute(
-      `SELECT a.id 
-       FROM appointments a
-       LEFT JOIN baptism_details b ON a.id = b.appointment_id
-       WHERE a.service_id=? AND a.email=? 
-         AND a.status IN ('pending','approved')`,
+    // -------------------------------
+    // 2️⃣ Prevent same email booking the same service (any time)
+    const [emailDupes] = await conn.execute(
+      `SELECT id FROM appointments
+       WHERE service_id=? AND email=? AND status IN ('pending','approved')`,
       [service_id, email]
     );
-    if (existingService.length > 0) {
+    if (emailDupes.length > 0) {
       await conn.rollback();
       return res.status(400).json({
         success: false,
@@ -89,61 +88,98 @@ export async function createPublicAppointment(req, res) {
       });
     }
 
-    /* 3️⃣ Check slot availability */
+    // -------------------------------
+    // 3️⃣ Special forms check (prevent duplicate child/confirmand)
+    const [[service]] = await conn.execute(
+      "SELECT form_type, name FROM services WHERE id=?",
+      [service_id]
+    );
+
+    if (service?.form_type === "baptism" && childFullName) {
+      const [bapDupes] = await conn.execute(
+        `SELECT a.id FROM appointments a
+         JOIN baptism_details b ON a.id = b.appointment_id
+         WHERE a.service_id=? AND b.childFullName=? AND a.status IN ('pending','approved')`,
+        [service_id, childFullName]
+      );
+      if (bapDupes.length > 0) {
+        await conn.rollback();
+        return res.status(400).json({
+          success: false,
+          error:
+            "This child already has a pending/approved baptism appointment.",
+        });
+      }
+    }
+
+    if (service?.form_type === "confirmation" && confirmandName) {
+      const [confDupes] = await conn.execute(
+        `SELECT a.id FROM appointments a
+         JOIN confirmation_details c ON a.id = c.appointment_id
+         WHERE a.service_id=? AND c.confirmandName=? AND a.status IN ('pending','approved')`,
+        [service_id, confirmandName]
+      );
+      if (confDupes.length > 0) {
+        await conn.rollback();
+        return res.status(400).json({
+          success: false,
+          error:
+            "This confirmand already has a pending/approved confirmation appointment.",
+        });
+      }
+    }
+
+    // -------------------------------
+    // 4️⃣ Check slot availability
     const [bookedRows] = await conn.execute(
-      `SELECT COUNT(*) as booked 
-       FROM appointments 
-       WHERE service_id=? AND date=? AND time=? 
-         AND status IN ('pending','approved')`,
+      `SELECT COUNT(*) as booked FROM appointments
+       WHERE service_id=? AND date=? AND time=? AND status IN ('pending','approved')`,
       [service_id, date, time]
     );
     const booked = bookedRows[0].booked;
 
     const [slotRules] = await conn.execute(
       `SELECT slots FROM rules
-       WHERE service_id=? 
+       WHERE service_id=?
          AND (date=? OR (date IS NULL AND weekday=?))
-         AND (type='single' AND time=? OR type IN ('allday','recurring')) 
-       ORDER BY FIELD(type,'single','recurring','allday') DESC 
+         AND (type='single' AND time=? OR type IN ('allday','recurring'))
+       ORDER BY FIELD(type,'single','recurring','allday') DESC
        LIMIT 1`,
       [service_id, date, new Date(date).getDay(), time]
     );
-
     const slotLimit = slotRules?.[0]?.slots || 0;
     if (slotLimit > 0 && booked >= slotLimit) {
       await conn.rollback();
-      return res.status(400).json({
-        success: false,
-        error: "This schedule is already fully booked.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "This schedule is already fully booked.",
+        });
     }
 
-    /* 4️⃣ Insert base appointment */
+    // -------------------------------
+    // 5️⃣ Insert base appointment
     const [apptResult] = await conn.execute(
-      `INSERT INTO appointments 
+      `INSERT INTO appointments
         (service_id, user_id, name, email, contactNumber, address, date, time, status, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
-        service_id ?? null,
-        userId ?? null,
-        name ?? null,
-        email ?? null,
-        contactNumber ?? null,
-        address ?? null,
-        date ?? null,
-        time ?? null,
-        notes ?? null,
+        service_id,
+        userId,
+        name,
+        email,
+        contactNumber,
+        address,
+        date,
+        time,
+        notes,
       ]
     );
     const appointmentId = apptResult.insertId;
 
-    /* 5️⃣ Get service info */
-    const [[service]] = await conn.execute(
-      "SELECT form_type, name FROM services WHERE id=?",
-      [service_id]
-    );
-
-    /* 6️⃣ Handle special forms */
+    // -------------------------------
+    // 6️⃣ Handle special forms
     if (service?.form_type === "baptism") {
       if (
         !childFullName ||
@@ -154,10 +190,9 @@ export async function createPublicAppointment(req, res) {
         !parentsMarriageType
       ) {
         await conn.rollback();
-        return res.status(400).json({
-          success: false,
-          error: "Missing required baptism fields.",
-        });
+        return res
+          .status(400)
+          .json({ success: false, error: "Missing required baptism fields." });
       }
 
       const [bapResult] = await conn.execute(
@@ -174,9 +209,9 @@ export async function createPublicAppointment(req, res) {
           parentsMarriageType,
         ]
       );
-
       const baptismId = bapResult.insertId;
-      if (Array.isArray(sponsors) && sponsors.length > 0) {
+
+      if (Array.isArray(sponsors)) {
         for (const s of sponsors) {
           if (!s.name || !s.role) continue;
           await conn.execute(
@@ -197,10 +232,12 @@ export async function createPublicAppointment(req, res) {
         !baptizedOn
       ) {
         await conn.rollback();
-        return res.status(400).json({
-          success: false,
-          error: "Missing required confirmation fields.",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            error: "Missing required confirmation fields.",
+          });
       }
 
       const [confResult] = await conn.execute(
@@ -218,9 +255,9 @@ export async function createPublicAppointment(req, res) {
           baptizedOn,
         ]
       );
-
       const confirmationId = confResult.insertId;
-      if (Array.isArray(sponsors) && sponsors.length > 0) {
+
+      if (Array.isArray(sponsors)) {
         for (const s of sponsors) {
           if (!s.name || !s.role) continue;
           await conn.execute(
@@ -234,7 +271,8 @@ export async function createPublicAppointment(req, res) {
 
     await conn.commit();
 
-    /* 7️⃣ Send email */
+    // -------------------------------
+    // 7️⃣ Send email
     try {
       await sendAppointmentCreatedEmail(email, {
         name,
@@ -247,7 +285,8 @@ export async function createPublicAppointment(req, res) {
       console.error("sendAppointmentCreatedEmail failed:", e.message);
     }
 
-    /* 8️⃣ Create notification for user */
+    // -------------------------------
+    // 8️⃣ Create notification for user
     try {
       await createNotification({
         user_id: userId,
@@ -262,12 +301,12 @@ export async function createPublicAppointment(req, res) {
       console.error("createNotification (user) failed:", e.message);
     }
 
-    /* 9️⃣ Notify all admins */
+    // -------------------------------
+    // 9️⃣ Notify all admins
     try {
       const [admins] = await conn.execute(
         "SELECT id FROM users WHERE role = 'admin'"
       );
-
       const messages = [
         `${name} just booked a ${
           service?.name || "service"
@@ -311,7 +350,6 @@ export async function createPublicAppointment(req, res) {
     conn.release();
   }
 }
-
 /* ==================================================
    GET /api/public/appointments/my
    → Get all appointments for the logged-in user

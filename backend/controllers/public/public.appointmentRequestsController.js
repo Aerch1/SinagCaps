@@ -26,6 +26,15 @@ export async function requestReschedule(req, res) {
         message: "Appointment not found or cannot be modified.",
       });
 
+    // Prevent reschedule to the same date/time
+    if (appt.date === requested_date && appt.time === requested_time) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "You cannot reschedule to the same date/time as your current appointment.",
+      });
+    }
+
     const [[existing]] = await conn.execute(
       `SELECT * FROM appointment_requests WHERE appointment_id=? AND type='reschedule' AND status='pending'`,
       [id]
@@ -36,7 +45,7 @@ export async function requestReschedule(req, res) {
         message: "You already have a pending reschedule request.",
       });
 
-    // Validate datetime properly
+    // Validate datetime
     const dt = new Date(`${requested_date}T${requested_time}`);
     if (isNaN(dt.getTime()) || dt <= new Date())
       return res
@@ -191,9 +200,11 @@ export async function approveRequest(req, res) {
   try {
     const { requestId } = req.params;
 
-    // Fetch pending request
     const [[request]] = await conn.execute(
-      `SELECT * FROM appointment_requests WHERE id=? AND status='pending'`,
+      `SELECT ar.*, a.user_id, a.email, a.date AS current_date, a.time AS current_time
+       FROM appointment_requests ar
+       JOIN appointments a ON a.id = ar.appointment_id
+       WHERE ar.id=? AND ar.status='pending'`,
       [requestId]
     );
 
@@ -206,26 +217,48 @@ export async function approveRequest(req, res) {
     await conn.beginTransaction();
 
     if (request.type === "reschedule") {
-      // Update main appointment with requested date/time
-      if (request.requested_date && request.requested_time) {
-        await conn.execute(
-          `UPDATE appointments SET date=?, time=?, was_rescheduled=1 WHERE id=?`,
-          [
-            request.requested_date,
-            request.requested_time,
-            request.appointment_id,
-          ]
-        );
+      const { requested_date, requested_time, appointment_id, email } = request;
+
+      // Prevent approving same datetime as current appointment
+      if (
+        request.current_date === requested_date &&
+        request.current_time === requested_time
+      ) {
+        await conn.rollback();
+        return res.status(400).json({
+          success: false,
+          message:
+            "Cannot approve: requested date/time is the same as current appointment.",
+        });
       }
+
+      // Check if another appointment exists for the same user/email on requested date/time
+      const [[conflict]] = await conn.execute(
+        `SELECT * FROM appointments 
+         WHERE id != ? AND email = ? AND date = ? AND time = ? AND status NOT IN ('cancelled','completed')`,
+        [appointment_id, request.email, requested_date, requested_time]
+      );
+      if (conflict) {
+        await conn.rollback();
+        return res.status(400).json({
+          success: false,
+          message:
+            "Cannot approve: another appointment already exists on the requested date/time for this user.",
+        });
+      }
+
+      // Update main appointment
+      await conn.execute(
+        `UPDATE appointments SET date=?, time=?, was_rescheduled=1 WHERE id=?`,
+        [requested_date, requested_time, appointment_id]
+      );
     } else if (request.type === "cancel") {
-      // Approve cancellation: mark appointment as cancelled
       await conn.execute(
         `UPDATE appointments SET status='cancelled', cancelled_at=NOW() WHERE id=?`,
         [request.appointment_id]
       );
     }
 
-    // Mark request as approved
     await conn.execute(
       `UPDATE appointment_requests SET status='approved' WHERE id=?`,
       [requestId]
