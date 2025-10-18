@@ -10,9 +10,14 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        console.log("🔹 UpcomingEvents mounted");
+
         const fetchEvents = async () => {
             try {
+                console.log("🔹 Fetching upcoming events...");
                 const res = await api.get("/admin/events/upcoming");
+                console.log("🔹 API response:", res.data);
+
                 if (res.data.success) {
                     const mapEvent = (e) => ({
                         id: e.id,
@@ -22,9 +27,19 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
                         image_url: e.image_url,
                     });
 
-                    // ✅ Use API-provided arrays directly
-                    setTodayEvents(res.data.data.today.map(mapEvent).sort((a, b) => compareAsc(a.start, b.start)));
-                    setUpcomingEvents(res.data.data.upcoming.map(mapEvent).sort((a, b) => compareAsc(a.start, b.start)));
+                    setTodayEvents(
+                        res.data.data.today
+                            .map(mapEvent)
+                            .sort((a, b) => compareAsc(a.start, b.start))
+                    );
+                    setUpcomingEvents(
+                        res.data.data.upcoming
+                            .map(mapEvent)
+                            .sort((a, b) => compareAsc(a.start, b.start))
+                    );
+
+                    console.log("🔹 Today Events:", res.data.data.today);
+                    console.log("🔹 Upcoming Events:", res.data.data.upcoming);
                 }
             } catch (err) {
                 console.error("❌ Failed to fetch upcoming events:", err);
@@ -35,6 +50,7 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
 
         fetchEvents();
     }, []);
+
 
     const renderEventItem = (e) => {
         const dateLabel = e.start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
