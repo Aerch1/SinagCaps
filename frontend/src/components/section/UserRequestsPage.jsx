@@ -8,20 +8,19 @@ import toast from "react-hot-toast";
 import api from "@/api/api";
 import { format, parseISO, isValid } from "date-fns";
 
-export default function UserRequestsTable() {
+export default function AdminUserRequestsTable() {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(false);
     const [viewingId, setViewingId] = useState(null);
     const [page, setPage] = useState(1);
     const pageSize = 5;
 
-    // Fetch all user requests (admin only)
+    // Fetch all users' requests for admin
     const fetchRequests = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await api.get("/appointments/requests/all-requests");
+            const res = await api.get("/appointments/requests/all-requests"); // Admin endpoint
             const data = res.data.requests.map((r) => {
-                // Requested date/time display
                 let displayDateTime = "-";
                 if (r.type === "reschedule" && r.requestedDateTime) {
                     const parsed = parseISO(r.requestedDateTime);
@@ -34,7 +33,6 @@ export default function UserRequestsTable() {
                 return {
                     requestId: r.id,
                     appointmentId: r.appointmentId,
-                    // ✅ Correct mapping from backend
                     name: r.appointment?.clientName || "—",
                     email: r.appointment?.clientEmail || "—",
                     requestedDateTime: displayDateTime,
@@ -76,7 +74,7 @@ export default function UserRequestsTable() {
     // Deny request
     const handleDeny = async (r) => {
         try {
-            await api.patch(`/appointments/requests/${r.requestId}/deny`);
+            await api.patch(`/appointments/requests/${r.requestId}/deny`, { notes: "Denied by admin" });
             toast.success("Request denied");
             fetchRequests();
         } catch (err) {
@@ -85,7 +83,6 @@ export default function UserRequestsTable() {
         }
     };
 
-    // Action buttons
     const renderActions = (r) => (
         <div className="flex gap-1 justify-end flex-wrap">
             <button
@@ -114,13 +111,12 @@ export default function UserRequestsTable() {
         </div>
     );
 
-    // Pagination
     const paginated = requests.slice((page - 1) * pageSize, page * pageSize);
     const totalPages = Math.ceil(requests.length / pageSize);
 
     return (
         <div className="space-y-4">
-            <h1 className="text-xl font-bold">User Requests</h1>
+            <h1 className="text-xl font-bold">All User Requests (Admin)</h1>
 
             <div className="overflow-x-auto border rounded-lg shadow-sm bg-white">
                 <table className="w-full text-sm table-auto divide-y divide-gray-200">
