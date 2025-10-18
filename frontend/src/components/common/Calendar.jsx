@@ -129,31 +129,6 @@ export default function CalendarComponent() {
   /* =====================================================
      🔹 Render Calendar
   ===================================================== */
- const mappedEvents = useMemo(() => {
-  return filteredAppointments.map((a) => {
-    // Parse the ISO date string from backend
-    const datePart = new Date(a.date); // e.g., 2025-10-18T00:00:00.000Z
-    const [hour, minute] = a.time.split(":").map(Number);
-
-    // Combine date and time in local timezone
-    const startDate = new Date(
-      datePart.getFullYear(),
-      datePart.getMonth(),
-      datePart.getDate(),
-      hour,
-      minute
-    );
-
-    return {
-      id: a.id,
-      title: a.serviceName,
-      start: startDate.toISOString(),
-      extendedProps: a,
-      display: "auto", // ensures proper merging
-    };
-  });
-}, [filteredAppointments, refreshKey]);
-
   return (
     <div className="w-full max-w-7xl mx-auto">
       {/* Header */}
@@ -260,8 +235,8 @@ export default function CalendarComponent() {
                 calendarRef.current?.getApi().changeView(opt.value);
               }}
               className={`w-full px-3 py-1.5 text-sm font-semibold rounded-md ${currentView === opt.value
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 }`}
             >
               {opt.label}
@@ -277,7 +252,12 @@ export default function CalendarComponent() {
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView={currentView}
           headerToolbar={false}
-          events={mappedEvents}
+          events={filteredAppointments.map((a) => ({
+            id: a.id,
+            title: a.serviceName,
+            start: `${a.date}T${a.time}`,
+            extendedProps: a,
+          }))}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
           eventContent={renderEventContent}
