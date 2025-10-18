@@ -117,6 +117,8 @@ export async function requestCancel(req, res) {
 export async function getAllUserRequests(req, res) {
   const conn = await pool.getConnection();
   try {
+    console.log("Fetching all user requests from database...");
+
     const [requests] = await conn.execute(
       `SELECT 
          ar.id AS request_id,
@@ -126,8 +128,8 @@ export async function getAllUserRequests(req, res) {
          ar.requested_time,
          ar.notes,
          ar.status AS request_status,
-         a.date AS original_date,
-         a.time AS original_time,
+         a.date AS \`original_date\`,
+         a.time AS \`original_time\`,
          a.name AS client_name,
          a.email AS client_email,
          a.status AS appointment_status
@@ -136,13 +138,27 @@ export async function getAllUserRequests(req, res) {
        ORDER BY ar.created_at DESC`
     );
 
+    console.log("Raw database results:", requests);
+
     const mapped = requests.map((r) => {
       let requestedDateTime = null;
 
       // Only parse reschedule requests with valid date & time
       if (r.type === "reschedule" && r.requested_date && r.requested_time) {
         const dt = new Date(`${r.requested_date}T${r.requested_time}`);
-        if (!isNaN(dt.getTime())) requestedDateTime = dt.toISOString();
+        if (!isNaN(dt.getTime())) {
+          requestedDateTime = dt.toISOString();
+          console.log(
+            `Parsed requestedDateTime for request ${r.request_id}:`,
+            requestedDateTime
+          );
+        } else {
+          console.warn(
+            `Invalid date/time for request ${r.request_id}:`,
+            r.requested_date,
+            r.requested_time
+          );
+        }
       }
 
       return {
@@ -161,6 +177,8 @@ export async function getAllUserRequests(req, res) {
         },
       };
     });
+
+    console.log("Mapped requests for API response:", mapped);
 
     return res.json({ success: true, requests: mapped });
   } catch (err) {
