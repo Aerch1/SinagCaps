@@ -18,7 +18,7 @@ export default function Step3Forms({
     // If no service is chosen, block this step
     if (!formData.service_id && !formData.serviceType) {
         return (
-            <div className="p-6 text-sm text-gray-600 border rounded-md">
+            <div className="p-6 sm:p-8 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-xl">
                 Please go back to Step 1 and select a service first.
             </div>
         );
@@ -26,17 +26,18 @@ export default function Step3Forms({
 
     return (
         <div className="space-y-6">
-
-            <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-                <FormComponent
-                    formData={formData}
-                    setFormData={setFormData}
-                    registerValidator={registerValidator}
-                    formErrors={formErrors}
-                />
+            <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+                <div className="p-4 sm:p-6 lg:p-8">
+                    <FormComponent
+                        formData={formData}
+                        setFormData={setFormData}
+                        registerValidator={registerValidator}
+                        formErrors={formErrors}
+                    />
+                </div>
             </div>
 
-            <p className="text-xs text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-600 px-2 sm:px-4">
                 ⚠️ All information will be validated by the parish office. Incomplete or incorrect
                 details may cause delays or rejection.
             </p>

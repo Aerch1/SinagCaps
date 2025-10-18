@@ -269,12 +269,11 @@ export default function Step4ReviewSubmit({
         </h4>
         <ul className="list-disc pl-5 space-y-1 text-gray-700">
           <li>Keep your phone and email available for our message.</li>
-          <li>If no response within 48 hours, contact the parish office.</li>
+          <li>If the appointment you created is approved, go immediately to the parish office to comply with the requirements.</li>
           <li>Prepare all necessary documents before visiting.</li>
           <li>Arrive 15–30 minutes before your scheduled time.</li>
         </ul>
       </div>
-
       <div className="border-t border-blue-200 pt-4">
         <p className="text-sm font-medium text-gray-900 mb-2">
           Need immediate assistance?

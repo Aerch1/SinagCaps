@@ -28,7 +28,7 @@ export default function AdminUserRequestsTable() {
             const data = res.data.requests.map((r) => ({
                 requestId: r.id,
                 appointmentId: r.appointmentId,
-                clientName: r.clientName || "-", // <-- added client name
+                clientName: r.clientName || "-",
                 requestedDateTime: r.requestedDateTime || "-",
                 notes: r.notes || "-",
                 request_status: r.request_status || "pending",
@@ -75,7 +75,7 @@ export default function AdminUserRequestsTable() {
         <div className="flex gap-1 justify-end flex-wrap">
             <button
                 onClick={() => setViewingId(r.appointmentId)}
-                className="px-2 py-1 border rounded text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-1"
+                className="px-2 py-1 border rounded text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-1 whitespace-nowrap"
             >
                 <Eye className="h-3 w-3" /> View
             </button>
@@ -84,13 +84,13 @@ export default function AdminUserRequestsTable() {
                 <>
                     <button
                         onClick={() => handleApprove(r)}
-                        className="px-2 py-1 border rounded text-xs text-green-600 hover:bg-green-50 flex items-center gap-1"
+                        className="px-2 py-1 border rounded text-xs text-green-600 hover:bg-green-50 flex items-center gap-1 whitespace-nowrap"
                     >
                         <Check className="h-3 w-3" /> Approve
                     </button>
                     <button
                         onClick={() => handleDeny(r)}
-                        className="px-2 py-1 border rounded text-xs text-red-600 hover:bg-red-50 flex items-center gap-1"
+                        className="px-2 py-1 border rounded text-xs text-red-600 hover:bg-red-50 flex items-center gap-1 whitespace-nowrap"
                     >
                         <X className="h-3 w-3" /> Deny
                     </button>
@@ -103,7 +103,7 @@ export default function AdminUserRequestsTable() {
     const totalPages = Math.ceil(requests.length / pageSize);
 
     return (
-        <div className="space-y-4 min-h-screen">
+        <div className="space-y-4 min-h-screen p-4 sm:p-6 lg:p-8">
             <div className="overflow-x-auto border rounded-lg shadow-sm bg-white">
                 <table className="w-full text-sm table-auto divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -111,7 +111,7 @@ export default function AdminUserRequestsTable() {
                             {["Appointment ID", "Client Name", "Requested Date/Time", "Notes", "Type", "Actions"].map((h) => (
                                 <th
                                     key={h}
-                                    className="px-3 py-2 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider"
+                                    className="px-4 py-3 sm:px-6 sm:py-4 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
                                 >
                                     {h}
                                 </th>
@@ -122,21 +122,21 @@ export default function AdminUserRequestsTable() {
                         <AnimatePresence>
                             {loading ? (
                                 <motion.tr key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={6} className="py-8 text-center text-gray-500">Loading…</td>
+                                    <td colSpan={6} className="py-12 px-4 text-center text-gray-500">Loading…</td>
                                 </motion.tr>
                             ) : paginated.length === 0 ? (
                                 <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={6} className="py-8 text-center text-gray-500">No requests found.</td>
+                                    <td colSpan={6} className="py-12 px-4 text-center text-gray-500">No requests found.</td>
                                 </motion.tr>
                             ) : (
                                 paginated.map((r) => (
-                                    <motion.tr key={r.requestId} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                        <td className="px-3 py-2 font-mono text-gray-600">{r.appointmentId}</td>
-                                        <td className="px-3 py-2">{r.clientName}</td>
-                                        <td className="px-3 py-2">{r.requestedDateTime}</td>
-                                        <td className="px-3 py-2">{r.notes}</td>
-                                        <td className="px-3 py-2 capitalize">{r.type}</td>
-                                        <td className="px-3 py-2 text-right">{renderActions(r)}</td>
+                                    <motion.tr key={r.requestId} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hover:bg-gray-50">
+                                        <td className="px-4 py-3 sm:px-6 sm:py-4 font-mono text-gray-600 whitespace-nowrap">{r.appointmentId}</td>
+                                        <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap">{r.clientName}</td>
+                                        <td className="px-4 py-3 sm:px-6 sm:py-4 whitespace-nowrap">{r.requestedDateTime}</td>
+                                        <td className="px-4 py-3 sm:px-6 sm:py-4 max-w-xs truncate" title={r.notes}>{r.notes}</td>
+                                        <td className="px-4 py-3 sm:px-6 sm:py-4 capitalize whitespace-nowrap">{r.type}</td>
+                                        <td className="px-4 py-3 sm:px-6 sm:py-4 text-right whitespace-nowrap">{renderActions(r)}</td>
                                     </motion.tr>
                                 ))
                             )}
@@ -145,11 +145,11 @@ export default function AdminUserRequestsTable() {
                 </table>
 
                 {totalPages > 1 && (
-                    <div className="flex justify-center items-center gap-2 py-2 border-t bg-gray-50">
+                    <div className="flex justify-center items-center gap-2 py-3 px-4 sm:py-4 border-t bg-gray-50">
                         <button
                             onClick={() => setPage((p) => Math.max(1, p - 1))}
                             disabled={page <= 1}
-                            className="px-2 py-1 border rounded disabled:opacity-50"
+                            className="px-3 py-1.5 border rounded disabled:opacity-50 hover:bg-white transition-colors"
                         >
                             ‹
                         </button>
@@ -157,7 +157,7 @@ export default function AdminUserRequestsTable() {
                             <button
                                 key={p}
                                 onClick={() => setPage(p)}
-                                className={`px-2 py-1 border rounded ${p === page ? "bg-blue-600 text-white" : "bg-white"}`}
+                                className={`px-3 py-1.5 border rounded transition-colors ${p === page ? "bg-blue-600 text-white" : "bg-white hover:bg-gray-100"}`}
                             >
                                 {p}
                             </button>
@@ -165,7 +165,7 @@ export default function AdminUserRequestsTable() {
                         <button
                             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                             disabled={page >= totalPages}
-                            className="px-2 py-1 border rounded disabled:opacity-50"
+                            className="px-3 py-1.5 border rounded disabled:opacity-50 hover:bg-white transition-colors"
                         >
                             ›
                         </button>

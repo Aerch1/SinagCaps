@@ -380,87 +380,80 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
 
           {/* FOOTER */}
           <footer className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-lg">
-            {/* 🔹 Left Side: Manual "Mark Completed" Button */}
-            <div>
-              {local?.status?.toLowerCase() === "approved" && local?.date && local?.time && (() => {
-                const now = new Date();
+            {window.location.href !== "https://lodlod.olpgvp.com/admin/appointments?status=requests" && (
+              <>
+                {/* 🔹 Left Side: Manual "Mark Completed" Button */}
+                <div>
+                  {local?.status?.toLowerCase() === "approved" && local?.date && local?.time && (() => {
+                    const now = new Date();
+                    const datePart = local.date.split("T")[0];
+                    let apptDateTime = new Date(`${datePart}T${local.time}`);
+                    if (isNaN(apptDateTime)) apptDateTime = new Date(`${datePart} ${local.time}`);
+                    const isPast = now > apptDateTime;
 
-                // 🧠 Extract pure date (handles ISO format like "2025-10-14T00:00:00.000Z")
-                const datePart = local.date.split("T")[0]; // "2025-10-14"
-                let apptDateTime = new Date(`${datePart}T${local.time}`); // "2025-10-14T10:00:00"
+                    if (isPast) {
+                      return (
+                        <button
+                          onClick={() => handleStatusChange("completed")}
+                          className="px-3 py-2 text-sm rounded-md border border-green-600 text-green-700 hover:bg-green-50 flex items-center gap-1"
+                        >
+                          <Check className="w-4 h-4" /> Mark Completed
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
 
-                // ⛑️ Fallback if invalid (e.g., time includes AM/PM)
-                if (isNaN(apptDateTime)) {
-                  apptDateTime = new Date(`${datePart} ${local.time}`);
-                }
+                {/* 🔹 Right Side: Other Actions */}
+                <div className="flex gap-2">
+                  {status === "pending" && (
+                    <>
+                      <button
+                        onClick={() => handleStatusChange("approved")}
+                        className="px-3 py-2 text-sm rounded-md border border-green-500 text-green-600 hover:bg-green-50 flex items-center gap-1"
+                      >
+                        <Check className="w-4 h-4" /> Approve
+                      </button>
+                      <button
+                        onClick={() => triggerWithHide(setShowRejectModal)}
+                        className="px-3 py-2 text-sm rounded-md border border-red-500 text-red-600 hover:bg-red-50 flex items-center gap-1"
+                      >
+                        <X className="w-4 h-4" /> Reject
+                      </button>
+                    </>
+                  )}
 
-                // ✅ Adjust timezone if backend sends UTC date
-                // (Only needed if you notice 8-hour offset)
-                // apptDateTime.setMinutes(apptDateTime.getMinutes() + apptDateTime.getTimezoneOffset());
+                  {status === "approved" && (
+                    <>
+                      <button
+                        onClick={() => triggerWithHide(setShowRescheduleModal)}
+                        className="px-3 py-2 text-sm rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 flex items-center gap-1"
+                      >
+                        <CalendarClock className="w-4 h-4" /> Reschedule
+                      </button>
+                      <button
+                        onClick={() => triggerWithHide(setShowCancelModal)}
+                        className="px-3 py-2 text-sm rounded-md border border-red-500 text-red-600 hover:bg-red-50 flex items-center gap-1"
+                      >
+                        <X className="w-4 h-4" /> Cancel
+                      </button>
+                    </>
+                  )}
 
-                const isPast = now > apptDateTime;
-
-                if (isPast) {
-                  return (
+                  {status === "completed" && (
                     <button
-                      onClick={() => handleStatusChange("completed")}
-                      className="px-3 py-2 text-sm rounded-md border border-green-600 text-green-700 hover:bg-green-50 flex items-center gap-1"
+                      onClick={() => handleStatusChange("archived")}
+                      className="px-3 py-2 text-sm rounded-md border border-gray-400 text-gray-700 hover:bg-gray-50 flex items-center gap-1"
                     >
-                      <Check className="w-4 h-4" /> Mark Completed
+                      <Archive className="w-4 h-4" /> Archive
                     </button>
-                  );
-                }
-
-                return null;
-              })()}
-            </div>
-
-            {/* 🔹 Right Side: Other Actions */}
-            <div className="flex gap-2">
-              {status === "pending" && (
-                <>
-                  <button
-                    onClick={() => handleStatusChange("approved")}
-                    className="px-3 py-2 text-sm rounded-md border border-green-500 text-green-600 hover:bg-green-50 flex items-center gap-1"
-                  >
-                    <Check className="w-4 h-4" /> Approve
-                  </button>
-                  <button
-                    onClick={() => triggerWithHide(setShowRejectModal)}
-                    className="px-3 py-2 text-sm rounded-md border border-red-500 text-red-600 hover:bg-red-50 flex items-center gap-1"
-                  >
-                    <X className="w-4 h-4" /> Reject
-                  </button>
-                </>
-              )}
-
-              {status === "approved" && (
-                <>
-                  <button
-                    onClick={() => triggerWithHide(setShowRescheduleModal)}
-                    className="px-3 py-2 text-sm rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 flex items-center gap-1"
-                  >
-                    <CalendarClock className="w-4 h-4" /> Reschedule
-                  </button>
-                  <button
-                    onClick={() => triggerWithHide(setShowCancelModal)}
-                    className="px-3 py-2 text-sm rounded-md border border-red-500 text-red-600 hover:bg-red-50 flex items-center gap-1"
-                  >
-                    <X className="w-4 h-4" /> Cancel
-                  </button>
-                </>
-              )}
-
-              {status === "completed" && (
-                <button
-                  onClick={() => handleStatusChange("archived")}
-                  className="px-3 py-2 text-sm rounded-md border border-gray-400 text-gray-700 hover:bg-gray-50 flex items-center gap-1"
-                >
-                  <Archive className="w-4 h-4" /> Archive
-                </button>
-              )}
-            </div>
+                  )}
+                </div>
+              </>
+            )}
           </footer>
+
 
         </aside>
       )}

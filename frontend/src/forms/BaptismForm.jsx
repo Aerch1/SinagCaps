@@ -10,9 +10,9 @@ import DateInput from "../components/ui/DateInput.jsx";
 
 const RequiredIndicator = () => <span className="text-red-500 ml-1">*</span>;
 const SectionHeader = ({ title, description }) => (
-    <div className="pb-3 border-b border-gray-100">
-        <h4 className="text-sm font-medium text-gray-900">{title}</h4>
-        {description && <p className="text-xs text-gray-600 mt-1">{description}</p>}
+    <div className="pb-4 border-b border-gray-200">
+        <h4 className="text-base font-semibold text-gray-900">{title}</h4>
+        {description && <p className="text-sm text-gray-600 mt-1.5">{description}</p>}
     </div>
 );
 
@@ -144,28 +144,28 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
     // 🧱 UI Layout
     // ======================================================
     return (
-        <div className="max-w-7xl mx-auto space-y-6" noValidate>
+        <div className="w-full space-y-8 px-2 sm:px-4 lg:px-6" noValidate>
             {/* Header */}
-            <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
-                <h3 className="text-base font-medium">Baptism Application</h3>
+            <div className="flex items-center justify-between flex-wrap gap-4 pb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Baptism Application</h3>
                 {scheduleLabel && (
-                    <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-800">
+                    <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800">
                         Selected schedule: {scheduleLabel}
                     </span>
                 )}
             </div>
 
             {/* Child Info */}
-            <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
+            <section className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 lg:p-8 space-y-6 shadow-sm">
                 <SectionHeader title="Child Information" description="Impormasyon ng Bibinyagan" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 pt-2">
                     <div
                         ref={
                             formErrors.childFullName && !firstErrorRef.current ? firstErrorRef : null
                         }
-                        className="md:col-span-2"
+                        className="lg:col-span-2"
                     >
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
                             Child&apos;s Full Name <RequiredIndicator />
                         </label>
                         <Input
@@ -176,14 +176,14 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                             className={formErrors.childFullName ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.childFullName && (
-                            <p className="text-red-500 text-xs mt-1">{formErrors.childFullName}</p>
+                            <p className="text-red-500 text-xs mt-1.5">{formErrors.childFullName}</p>
                         )}
                     </div>
 
                     <div
                         ref={formErrors.childDob && !firstErrorRef.current ? firstErrorRef : null}
                     >
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
                             Date of Birth <RequiredIndicator />
                         </label>
                         <DateInput
@@ -192,14 +192,14 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                             className={formErrors.childDob ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.childDob && (
-                            <p className="text-red-500 text-xs mt-1">{formErrors.childDob}</p>
+                            <p className="text-red-500 text-xs mt-1.5">{formErrors.childDob}</p>
                         )}
                     </div>
 
                     <div
                         ref={formErrors.childBirthplace && !firstErrorRef.current ? firstErrorRef : null}
                     >
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
                             Place of Birth <RequiredIndicator />
                         </label>
                         <Input
@@ -210,18 +210,18 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                             className={formErrors.childBirthplace ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.childBirthplace && (
-                            <p className="text-red-500 text-xs mt-1">{formErrors.childBirthplace}</p>
+                            <p className="text-red-500 text-xs mt-1.5">{formErrors.childBirthplace}</p>
                         )}
                     </div>
                 </div>
             </section>
 
             {/* Parents Info */}
-            <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
+            <section className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 lg:p-8 space-y-6 shadow-sm">
                 <SectionHeader title="Parents Information" description="Impormasyon ng mga Magulang" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 pt-2">
                     <div ref={formErrors.fatherName && !firstErrorRef.current ? firstErrorRef : null}>
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
                             Father&apos;s Full Name <RequiredIndicator />
                         </label>
                         <Input
@@ -232,14 +232,14 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                             className={formErrors.fatherName ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.fatherName && (
-                            <p className="text-red-500 text-xs mt-1">{formErrors.fatherName}</p>
+                            <p className="text-red-500 text-xs mt-1.5">{formErrors.fatherName}</p>
                         )}
                     </div>
 
                     <div
                         ref={formErrors.motherMaidenName && !firstErrorRef.current ? firstErrorRef : null}
                     >
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
                             Mother&apos;s Maiden Name <RequiredIndicator />
                         </label>
                         <Input
@@ -250,16 +250,16 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                             className={formErrors.motherMaidenName ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.motherMaidenName && (
-                            <p className="text-red-500 text-xs mt-1">{formErrors.motherMaidenName}</p>
+                            <p className="text-red-500 text-xs mt-1.5">{formErrors.motherMaidenName}</p>
                         )}
                     </div>
                 </div>
 
-                <div ref={formErrors.parentsMarriageType && !firstErrorRef.current ? firstErrorRef : null}>
-                    <p className="text-xs font-medium mb-2">
-                        Parents’ Marriage Status <RequiredIndicator />
+                <div ref={formErrors.parentsMarriageType && !firstErrorRef.current ? firstErrorRef : null} className="pt-2">
+                    <p className="text-sm font-medium text-gray-900 mb-3">
+                        Parents' Marriage Status <RequiredIndicator />
                     </p>
-                    <div className="flex flex-wrap gap-4">
+                    <div className="flex flex-wrap gap-3">
                         {[
                             { v: "church", label: "Church Wedding" },
                             { v: "civil", label: "Civil Wedding" },
@@ -267,8 +267,8 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                         ].map((opt) => (
                             <label
                                 key={opt.v}
-                                className={`flex items-center gap-2 rounded-lg border px-4 py-2 cursor-pointer transition ${formData.parentsMarriageType === opt.v
-                                    ? "border-blue-400 bg-blue-50"
+                                className={`flex items-center gap-2.5 rounded-lg border px-4 py-3 cursor-pointer transition-all ${formData.parentsMarriageType === opt.v
+                                    ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
                                     : "border-gray-300 hover:border-blue-400 hover:bg-blue-50"
                                     }`}
                             >
@@ -281,23 +281,23 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                     }
                                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                                 />
-                                <span className="text-sm text-gray-700">{opt.label}</span>
+                                <span className="text-sm font-medium text-gray-700">{opt.label}</span>
                             </label>
                         ))}
                     </div>
                     {formErrors.parentsMarriageType && (
-                        <p className="text-red-500 text-xs mt-1">{formErrors.parentsMarriageType}</p>
+                        <p className="text-red-500 text-xs mt-2">{formErrors.parentsMarriageType}</p>
                     )}
                 </div>
             </section>
 
             {/* Contact */}
-            <section className="bg-white rounded-2xl border p-6 space-y-6 border-gray-100">
+            <section className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 lg:p-8 space-y-6 shadow-sm">
                 <SectionHeader title="Contact & Address" description="Impormasyon sa Pakikipag-ugnayan" />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 pt-2">
                     <div ref={formErrors.phone && !firstErrorRef.current ? firstErrorRef : null}>
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
                             Contact No. <RequiredIndicator />
                         </label>
                         <Input
@@ -309,12 +309,12 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                             className={formErrors.phone ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.phone && (
-                            <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
+                            <p className="text-red-500 text-xs mt-1.5">{formErrors.phone}</p>
                         )}
                     </div>
 
                     <div ref={formErrors.email && !firstErrorRef.current ? firstErrorRef : null}>
-                        <label className="block text-xs font-medium text-gray-900 mb-1">
+                        <label className="block text-sm font-medium text-gray-900 mb-2">
                             Email <RequiredIndicator />
                         </label>
                         <Input
@@ -326,13 +326,13 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                             className={formErrors.email ? "border-red-500 focus:ring-red-500" : ""}
                         />
                         {formErrors.email && (
-                            <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+                            <p className="text-red-500 text-xs mt-1.5">{formErrors.email}</p>
                         )}
                     </div>
                 </div>
 
                 <div ref={formErrors.address && !firstErrorRef.current ? firstErrorRef : null}>
-                    <label className="block text-xs font-medium text-gray-900 mb-1">
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
                         Complete Address <RequiredIndicator />
                     </label>
                     <Input
@@ -343,17 +343,17 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                         className={formErrors.address ? "border-red-500 focus:ring-red-500" : ""}
                     />
                     {formErrors.address && (
-                        <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
+                        <p className="text-red-500 text-xs mt-1.5">{formErrors.address}</p>
                     )}
                 </div>
             </section>
 
             {/* Sponsors */}
-            <section className="bg-white rounded-2xl border border-gray-100 p-6">
-                <div className="flex items-start justify-between mb-6">
-                    <div>
+            <section className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 lg:p-8 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+                    <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                            <h4 className="text-sm font-medium text-gray-900">
+                            <h4 className="text-base font-semibold text-gray-900">
                                 Sponsors (Ninong/Ninang) <RequiredIndicator />
                             </h4>
                             <div
@@ -369,9 +369,9 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                     <Info className="h-4 w-4" />
                                 </button>
                                 {showSponsorTip && (
-                                    <div className="absolute z-50 left-full ml-2 top-0 w-80 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 shadow-lg">
-                                        <p className="font-medium text-gray-900 mb-2">Sponsor Requirements:</p>
-                                        <ul className="list-disc list-inside space-y-1 text-gray-600">
+                                    <div className="absolute z-50 left-0 sm:left-full sm:ml-2 top-full sm:top-0 mt-2 sm:mt-0 w-72 sm:w-80 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 shadow-xl">
+                                        <p className="font-semibold text-gray-900 mb-2">Sponsor Requirements:</p>
+                                        <ul className="list-disc list-inside space-y-1.5 text-gray-600">
                                             <li>Must be at least 16 years old</li>
                                             <li>Two sponsors minimum (1 Ninong + 1 Ninang)</li>
                                             <li>Additional sponsors may incur extra fees</li>
@@ -381,20 +381,20 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                 )}
                             </div>
                         </div>
-                        <p className="text-xs text-gray-600">16 taong gulang pataas</p>
+                        <p className="text-sm text-gray-600">16 taong gulang pataas</p>
                     </div>
 
                     <button
                         type="button"
                         onClick={addSponsor}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors whitespace-nowrap"
                     >
                         <Plus className="h-4 w-4" />
                         Add Sponsor
                     </button>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-5">
                     {(formData.sponsors || []).map((s, idx) => (
                         <div
                             key={idx}
@@ -406,10 +406,10 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                     ? firstErrorRef
                                     : null
                             }
-                            className="relative rounded-xl border border-gray-200 p-6"
+                            className="relative rounded-xl border border-gray-200 p-5 sm:p-6 bg-gray-50"
                         >
-                            <div className="absolute top-4 right-4">
-                                {formData.sponsors.length > 2 && (
+                            {formData.sponsors.length > 2 && (
+                                <div className="absolute top-4 right-4">
                                     <button
                                         type="button"
                                         onClick={() => removeSponsor(idx)}
@@ -418,13 +418,13 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </button>
-                                )}
-                            </div>
+                                </div>
+                            )}
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5 pr-10 sm:pr-0">
                                 {/* Role */}
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-900 mb-2">
+                                    <label className="block text-sm font-medium text-gray-900 mb-2">
                                         Role <RequiredIndicator />
                                     </label>
                                     <Dropdown
@@ -435,13 +435,13 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                         className={`h-12 ${formErrors[`sponsor_${idx}_role`] ? "border-red-500 focus:ring-red-500" : ""}`}
                                     />
                                     {formErrors[`sponsor_${idx}_role`] && (
-                                        <p className="text-red-500 text-xs mt-1">{formErrors[`sponsor_${idx}_role`]}</p>
+                                        <p className="text-red-500 text-xs mt-1.5">{formErrors[`sponsor_${idx}_role`]}</p>
                                     )}
                                 </div>
 
                                 {/* Full Name */}
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-900 mb-2">
+                                    <label className="block text-sm font-medium text-gray-900 mb-2">
                                         Full Name <RequiredIndicator />
                                     </label>
                                     <Input
@@ -452,13 +452,13 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                         className={`h-12 text-base ${formErrors[`sponsor_${idx}_name`] ? "border-red-500 focus:ring-red-500" : ""}`}
                                     />
                                     {formErrors[`sponsor_${idx}_name`] && (
-                                        <p className="text-red-500 text-xs mt-1">{formErrors[`sponsor_${idx}_name`]}</p>
+                                        <p className="text-red-500 text-xs mt-1.5">{formErrors[`sponsor_${idx}_name`]}</p>
                                     )}
                                 </div>
 
                                 {/* Address */}
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-900 mb-2">
+                                <div className="sm:col-span-2 lg:col-span-1">
+                                    <label className="block text-sm font-medium text-gray-900 mb-2">
                                         Address <RequiredIndicator />
                                     </label>
                                     <Input
@@ -469,7 +469,7 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                         className={`h-12 text-base ${formErrors[`sponsor_${idx}_address`] ? "border-red-500 focus:ring-red-500" : ""}`}
                                     />
                                     {formErrors[`sponsor_${idx}_address`] && (
-                                        <p className="text-red-500 text-xs mt-1">{formErrors[`sponsor_${idx}_address`]}</p>
+                                        <p className="text-red-500 text-xs mt-1.5">{formErrors[`sponsor_${idx}_address`]}</p>
                                     )}
                                 </div>
                             </div>
