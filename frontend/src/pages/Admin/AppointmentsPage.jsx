@@ -7,14 +7,13 @@ import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentM
 import CreateAppointmentModal from "../../components/common/modal/CreateAppointmentModal";
 import { Plus } from "lucide-react";
 import toast from "react-hot-toast";
+import UserRequestsTable from "../../components/section/UserRequestsPage"; // ✅ import the requests table
 import api from "@/api/api"; // assuming you have an API helper
-import UserRequestsTable from "../../components/section/UserRequestsPage";
-
 
 export default function AppointmentsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // ✅ Status comes from URL
+    // Status comes from URL
     const status = searchParams.get("status") || "all";
 
     // Modal states
@@ -22,11 +21,11 @@ export default function AppointmentsPage() {
     const [viewAppt, setViewAppt] = useState(null);
     const [createOpen, setCreateOpen] = useState(false);
 
-    // ✅ rows shared with DataTable
+    // Rows shared with DataTable
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // ✅ Tabs
+    // Tabs (added requests tab)
     const tabs = [
         { key: "all", label: "All Transactions" },
         { key: "pending", label: "Pending" },
@@ -37,38 +36,21 @@ export default function AppointmentsPage() {
         { key: "archived", label: "Archived" },
         { key: "requests", label: "User Requests" }, // ✅ new tab
     ];
-    // ✅ Fetch rows whenever status changes
+
+    // Fetch rows whenever status changes (only for non-requests tabs)
     useEffect(() => {
+        if (status === "requests") return; // ✅ skip fetch; handled by UserRequestsTable
+
         const fetchAppointments = async () => {
             setLoading(true);
             try {
-                let res;
-                if (status === "requests") {
-                    // ✅ Fetch user requests
-                    res = await api.get("/appointments/requests/user-requests");
-                    // Map to match DataTable row structure
-                    setRows(
-                        res.data?.requests?.map((r) => ({
-                            id: r.id,
-                            type: r.type,
-                            appointmentId: r.appointment_id,
-                            status: r.status,
-                            requestedDate: r.requested_date,
-                            requestedTime: r.requested_time,
-                            notes: r.notes,
-                            createdAt: r.created_at,
-                        })) || []
-                    );
-                } else {
-                    // Existing appointment fetch
-                    res = await api.get("/admin/appointments", {
-                        params: status !== "all" ? { status } : {},
-                    });
-                    setRows(res.data?.appointments || []);
-                }
+                const res = await api.get("/admin/appointments", {
+                    params: status !== "all" ? { status } : {},
+                });
+                setRows(res.data?.appointments || []);
             } catch (err) {
-                console.error("Failed to fetch data", err);
-                toast.error("Failed to load data");
+                console.error("Failed to fetch appointments", err);
+                toast.error("Failed to load appointments");
             } finally {
                 setLoading(false);
             }
@@ -77,8 +59,7 @@ export default function AppointmentsPage() {
         fetchAppointments();
     }, [status]);
 
-
-    // ✅ Tab changes update query param
+    // Tab changes update query param
     const handleTabChange = (newStatus) => {
         const newParams = new URLSearchParams(searchParams);
         if (newStatus === "all") {
@@ -126,7 +107,7 @@ export default function AppointmentsPage() {
                                 key={t.key}
                                 onClick={() => handleTabChange(t.key)}
                                 className={`relative px-3 py-2 text-sm font-medium transition-colors duration-200
-                  ${active
+                                    ${active
                                         ? "text-red-600 border-b-2 border-red-600"
                                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                                     }`}
@@ -140,17 +121,16 @@ export default function AppointmentsPage() {
 
             {/* Table */}
             {status === "requests" ? (
-                <UserRequestsTable />
+                <UserRequestsTable /> // ✅ show requests table only for this tab
             ) : (
                 <DataTable
                     initialPageSize={10}
                     activeTab={status}
                     rows={rows}
                     setRows={setRows}
-                    loading={loading}
+                    loading={loading} // optional: show loading spinner
                 />
             )}
-
 
             {/* View Modal */}
             <ViewAppointmentModal
