@@ -19,15 +19,16 @@ export default function AdminUserRequestsTable() {
         setLoading(true);
         try {
             const res = await api.get("/appointments/requests/all-requests");
+
             const data = res.data.requests.map(r => {
-                // Determine display date/time
                 let displayDateTime = "-";
 
                 if (r.type === "reschedule" && r.requestedDateTime) {
                     const parsed = parseISO(r.requestedDateTime);
-                    if (isValid(parsed)) displayDateTime = format(parsed, "PP p");
+                    if (isValid(parsed)) {
+                        displayDateTime = format(parsed, "PP p");
+                    }
                 }
-                // For cancel requests, we just show "-" since no requested datetime exists
 
                 return {
                     requestId: r.id,
@@ -85,7 +86,7 @@ export default function AdminUserRequestsTable() {
             <button
                 onClick={() => setViewingId(r.appointmentId)}
                 className="px-2 py-1 border rounded text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-1"
-                disabled={!r.appointmentDetails?.date} // disable view if no appointment exists
+                disabled={!r.appointmentDetails?.date}
             >
                 <Eye className="h-3 w-3" /> View
             </button>

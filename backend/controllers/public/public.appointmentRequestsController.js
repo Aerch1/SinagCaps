@@ -1,8 +1,8 @@
 import pool from "../../config/db.js";
 
-/* =========================
-   Public: Request Reschedule
-========================= */
+// ------------------------
+// Public: Request Reschedule
+// ------------------------
 export async function requestReschedule(req, res) {
   const conn = await pool.getConnection();
   try {
@@ -39,14 +39,12 @@ export async function requestReschedule(req, res) {
           message: "You already have a pending reschedule request.",
         });
 
-    const requestedDateTime = new Date(`${requested_date}T${requested_time}`);
-    if (requestedDateTime <= new Date())
+    // Validate datetime properly
+    const dt = new Date(`${requested_date}T${requested_time}`);
+    if (isNaN(dt.getTime()) || dt <= new Date())
       return res
         .status(400)
-        .json({
-          success: false,
-          message: "Requested date and time must be in the future.",
-        });
+        .json({ success: false, message: "Invalid requested date/time." });
 
     await conn.execute(
       `INSERT INTO appointment_requests (appointment_id, type, requested_date, requested_time, notes) VALUES (?, 'reschedule', ?, ?, ?)`,
@@ -65,9 +63,9 @@ export async function requestReschedule(req, res) {
   }
 }
 
-/* =========================
-   Public: Request Cancel
-========================= */
+// ------------------------
+// Public: Request Cancel
+// ------------------------
 export async function requestCancel(req, res) {
   const conn = await pool.getConnection();
   try {
@@ -121,9 +119,9 @@ export async function requestCancel(req, res) {
   }
 }
 
-/* =========================
-   Admin: Get All User Requests
-========================= */
+// ------------------------
+// Admin: Get All User Requests
+// ------------------------
 export async function getAllUserRequests(req, res) {
   const conn = await pool.getConnection();
   try {
@@ -136,11 +134,10 @@ export async function getAllUserRequests(req, res) {
          ar.requested_time,
          ar.notes,
          ar.status AS request_status,
-         a.date AS original_date,
-         a.time AS original_time,
+         a.date AS current_date,
+         a.time AS current_time,
          a.name AS client_name,
          a.email AS client_email,
-         a.service_id,
          a.status AS appointment_status
        FROM appointment_requests ar
        LEFT JOIN appointments a ON ar.appointment_id = a.id
@@ -151,7 +148,6 @@ export async function getAllUserRequests(req, res) {
       id: r.request_id,
       appointmentId: r.appointment_id,
       type: r.type,
-      // Only parse ISO for reschedule requests with valid date and time
       requestedDateTime:
         r.type === "reschedule" && r.requested_date && r.requested_time
           ? new Date(`${r.requested_date}T${r.requested_time}`).toISOString()
@@ -159,11 +155,10 @@ export async function getAllUserRequests(req, res) {
       notes: r.notes || "-",
       request_status: r.request_status || "pending",
       appointment: {
-        date: r.original_date || null,
-        time: r.original_time || null,
+        date: r.current_date || null,
+        time: r.current_time || null,
         clientName: r.client_name || "—",
         clientEmail: r.client_email || "—",
-        serviceId: r.service_id || null,
         status: r.appointment_status || "unknown",
       },
     }));
@@ -177,9 +172,9 @@ export async function getAllUserRequests(req, res) {
   }
 }
 
-/* =========================
-   Admin: Approve Request
-========================= */
+// ------------------------
+// Admin: Approve Request
+// ------------------------
 export async function approveRequest(req, res) {
   const conn = await pool.getConnection();
   try {
@@ -199,6 +194,7 @@ export async function approveRequest(req, res) {
     await conn.beginTransaction();
 
     if (request.type === "reschedule") {
+      // Update main appointment table with requested date/time
       await conn.execute(
         `UPDATE appointments SET date=?, time=?, was_rescheduled=1 WHERE id=?`,
         [request.requested_date, request.requested_time, request.appointment_id]
@@ -210,13 +206,13 @@ export async function approveRequest(req, res) {
       );
     }
 
+    // Mark request as approved
     await conn.execute(
       `UPDATE appointment_requests SET status='approved' WHERE id=?`,
       [requestId]
     );
 
     await conn.commit();
-
     return res.json({
       success: true,
       message: "Request approved successfully.",
@@ -230,15 +226,14 @@ export async function approveRequest(req, res) {
   }
 }
 
-/* =========================
-   Admin: Deny Request
-========================= */
+// ------------------------
+// Admin: Deny Request
+// ------------------------
 export async function denyRequest(req, res) {
   const conn = await pool.getConnection();
   try {
     const { requestId } = req.params;
     const { notes } = req.body;
-
     if (!notes?.trim())
       return res
         .status(400)
