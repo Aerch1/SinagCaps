@@ -129,6 +129,17 @@ export default function CalendarComponent() {
   /* =====================================================
      🔹 Render Calendar
   ===================================================== */
+  const mappedEvents = useMemo(() => {
+    // Map all filtered appointments into FullCalendar event objects
+    return filteredAppointments.map((a) => ({
+      id: a.id,
+      title: a.serviceName,
+      start: `${a.date}T${a.time}`,
+      extendedProps: a,
+      display: "auto", // ensures events merge naturally
+    }));
+  }, [filteredAppointments, refreshKey]);
+
   return (
     <div className="w-full max-w-7xl mx-auto">
       {/* Header */}
@@ -235,8 +246,8 @@ export default function CalendarComponent() {
                 calendarRef.current?.getApi().changeView(opt.value);
               }}
               className={`w-full px-3 py-1.5 text-sm font-semibold rounded-md ${currentView === opt.value
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 }`}
             >
               {opt.label}
@@ -252,12 +263,7 @@ export default function CalendarComponent() {
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView={currentView}
           headerToolbar={false}
-          events={filteredAppointments.map((a) => ({
-            id: a.id,
-            title: a.serviceName,
-            start: `${a.date}T${a.time}`,
-            extendedProps: a,
-          }))}
+          events={mappedEvents}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
           eventContent={renderEventContent}
