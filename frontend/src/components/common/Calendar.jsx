@@ -129,22 +129,30 @@ export default function CalendarComponent() {
   /* =====================================================
      🔹 Render Calendar
   ===================================================== */
-  const mappedEvents = useMemo(() => {
-    // Map appointments and normalize the date to local ISO string
-    return filteredAppointments.map((a) => {
-      const [year, month, day] = a.date.split("-").map(Number);
-      const [hour, minute] = a.time.split(":").map(Number);
-      const startDate = new Date(year, month - 1, day, hour, minute);
+ const mappedEvents = useMemo(() => {
+  return filteredAppointments.map((a) => {
+    // Parse the ISO date string from backend
+    const datePart = new Date(a.date); // e.g., 2025-10-18T00:00:00.000Z
+    const [hour, minute] = a.time.split(":").map(Number);
 
-      return {
-        id: a.id,
-        title: a.serviceName,
-        start: startDate.toISOString(), // normalize to full ISO string
-        extendedProps: a,
-        display: "auto",
-      };
-    });
-  }, [filteredAppointments, refreshKey]);
+    // Combine date and time in local timezone
+    const startDate = new Date(
+      datePart.getFullYear(),
+      datePart.getMonth(),
+      datePart.getDate(),
+      hour,
+      minute
+    );
+
+    return {
+      id: a.id,
+      title: a.serviceName,
+      start: startDate.toISOString(),
+      extendedProps: a,
+      display: "auto", // ensures proper merging
+    };
+  });
+}, [filteredAppointments, refreshKey]);
 
   return (
     <div className="w-full max-w-7xl mx-auto">
