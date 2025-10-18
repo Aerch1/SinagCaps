@@ -118,7 +118,9 @@ export async function requestCancel(req, res) {
 export async function getAllUserRequests(req, res) {
   const conn = await pool.getConnection();
   try {
-    console.log("Fetching all user requests from appointment_requests table...");
+    console.log(
+      "Fetching all user requests from appointment_requests table..."
+    );
 
     const [requests] = await conn.execute(
       `SELECT 
@@ -143,7 +145,9 @@ export async function getAllUserRequests(req, res) {
       // Only parse reschedule requests
       if (r.type === "reschedule" && r.requested_date && r.requested_time) {
         const date = new Date(r.requested_date);
-        const [hours, minutes, seconds] = r.requested_time.split(":").map(Number);
+        const [hours, minutes, seconds] = r.requested_time
+          .split(":")
+          .map(Number);
 
         if (!isNaN(date.getTime()) && ![hours, minutes, seconds].some(isNaN)) {
           date.setHours(hours, minutes, seconds, 0);
@@ -186,10 +190,13 @@ export async function approveRequest(req, res) {
   const conn = await pool.getConnection();
   try {
     const { requestId } = req.params;
+
+    // Fetch pending request
     const [[request]] = await conn.execute(
       `SELECT * FROM appointment_requests WHERE id=? AND status='pending'`,
       [requestId]
     );
+
     if (!request)
       return res.status(404).json({
         success: false,
@@ -199,14 +206,21 @@ export async function approveRequest(req, res) {
     await conn.beginTransaction();
 
     if (request.type === "reschedule") {
-      // Update main appointment table with requested date/time
-      await conn.execute(
-        `UPDATE appointments SET date=?, time=?, was_rescheduled=1 WHERE id=?`,
-        [request.requested_date, request.requested_time, request.appointment_id]
-      );
+      // Update main appointment with requested date/time
+      if (request.requested_date && request.requested_time) {
+        await conn.execute(
+          `UPDATE appointments SET date=?, time=?, was_rescheduled=1 WHERE id=?`,
+          [
+            request.requested_date,
+            request.requested_time,
+            request.appointment_id,
+          ]
+        );
+      }
     } else if (request.type === "cancel") {
+      // Approve cancellation: mark appointment as cancelled
       await conn.execute(
-        `UPDATE appointments SET status='cancelled' WHERE id=?`,
+        `UPDATE appointments SET status='cancelled', cancelled_at=NOW() WHERE id=?`,
         [request.appointment_id]
       );
     }
@@ -239,21 +253,25 @@ export async function denyRequest(req, res) {
   try {
     const { requestId } = req.params;
     const { notes } = req.body;
+
     if (!notes?.trim())
       return res
         .status(400)
         .json({ success: false, message: "Reason is required." });
 
+    // Fetch pending request
     const [[request]] = await conn.execute(
       `SELECT * FROM appointment_requests WHERE id=? AND status='pending'`,
       [requestId]
     );
+
     if (!request)
       return res.status(404).json({
         success: false,
         message: "Request not found or already processed.",
       });
 
+    // Only update request status and notes, keep appointment as-is
     await conn.execute(
       `UPDATE appointment_requests SET status='rejected', notes=? WHERE id=?`,
       [notes, requestId]
