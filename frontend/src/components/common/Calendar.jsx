@@ -88,7 +88,19 @@ export default function CalendarComponent() {
     setViewOpen(true);
   }, []);
 
-  const handleAppointmentSaved = () => fetchData();
+  const handleAppointmentSaved = (newAppointment) => {
+    if (!newAppointment) {
+      // fallback: full refresh
+      fetchData();
+      return;
+    }
+
+    setAppointments((prev) => {
+      // remove old version of the same appointment if exists
+      const filtered = prev.filter((a) => a.id !== newAppointment.id);
+      return [...filtered, newAppointment];
+    });
+  };
 
   const renderEventContent = (eventInfo) => {
     const { serviceName, name, status } = eventInfo.event.extendedProps;
@@ -290,7 +302,7 @@ export default function CalendarComponent() {
           setIsCreateModalOpen(false);
           setSelectedDate(null);
         }}
-        onSave={handleAppointmentSaved}
+        onSave={(createdAppointment) => handleAppointmentSaved(createdAppointment)}
         selectedDate={selectedDate}
       />
 
