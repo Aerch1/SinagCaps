@@ -10,7 +10,7 @@ import {
 
 const router = express.Router();
 
-router.use(verifyToken, isAdmin);
+router.use(verifyToken);
 
 router.get("/", getChurchHours);
 router.put("/:day", updateChurchHour);

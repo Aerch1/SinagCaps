@@ -76,6 +76,7 @@ function ActionsMenu({ disabled = false, onReschedule, onCancel }) {
         </div>
     );
 }
+
 /* ---------------- Status Metadata ---------------- */
 const STATUS_META = {
     pending: {
@@ -120,20 +121,17 @@ const STATUS_META = {
 function buildSteps({ status, wasRescheduled }) {
     const base = ["pending", "approved", "completed"];
 
-    // Insert "rescheduled" if it was updated that way
     if (wasRescheduled) {
         const idx = base.indexOf("approved");
         base.splice(idx + 1, 0, "rescheduled");
     }
 
-    // Handle cancelled, rejected, or rescheduled states
     const lowered = status?.toLowerCase();
     if (["cancelled", "canceled", "rejected"].includes(lowered)) {
         const stopIdx = Math.max(base.indexOf("approved"), 0);
         return [...base.slice(0, stopIdx + 1), lowered];
     }
 
-    // Archived — no step indicator
     if (lowered === "archived") return base;
 
     return base;
@@ -148,7 +146,7 @@ function StatusStepper({ status, wasRescheduled }) {
 
     const lowered = status?.toLowerCase();
     const currentStatus =
-        lowered === "archived" ? "completed" : lowered; // treat archived as completed for UI
+        lowered === "archived" ? "completed" : lowered;
     const currentIdx = Math.max(steps.indexOf(currentStatus), 0);
     const isVisited = (i) => i <= currentIdx;
 
@@ -190,10 +188,7 @@ function StatusStepper({ status, wasRescheduled }) {
                                     className={`flex h-8 w-8 items-center justify-center rounded-full ring-2 ${ring} ${node}`}
                                 >
                                     <Icon
-                                        className={`h-4 w-4 ${visited || isCurrent
-                                            ? ""
-                                            : "text-gray-200"
-                                            }`}
+                                        className={`h-4 w-4 ${visited || isCurrent ? "" : "text-gray-200"}`}
                                     />
                                 </div>
                                 <div className="mt-2 text-xs font-medium text-gray-700">
@@ -203,9 +198,7 @@ function StatusStepper({ status, wasRescheduled }) {
 
                             {i < steps.length - 1 && (
                                 <div
-                                    className={`mx-2 h-0.5 flex-1 ${segmentColor(
-                                        i
-                                    )}`}
+                                    className={`mx-2 h-0.5 flex-1 ${segmentColor(i)}`}
                                 />
                             )}
                         </Fragment>
@@ -226,12 +219,21 @@ export default function AppointmentDetailPanel() {
     const [showRescheduleModal, setShowRescheduleModal] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
 
+    // ✅ Track pending request
+    const [pendingRequest, setPendingRequest] = useState(null); // "reschedule" | "cancel" | null
+
     useEffect(() => {
         async function fetchAppointment() {
             try {
                 const res = await api.get(`/appointments/${id}`);
                 if (res.data.success) {
                     setAppt(res.data.appointment);
+
+                    // Reset pending request if admin denied
+                    const statusLower = res.data.appointment.status?.toLowerCase();
+                    if (!["rescheduled", "cancelled"].includes(statusLower)) {
+                        setPendingRequest(null);
+                    }
                 }
             } catch (err) {
                 console.error("❌ Failed to fetch appointment:", err);
@@ -323,11 +325,17 @@ export default function AppointmentDetailPanel() {
                     <DetailRow label="Time" value={timePretty} />
                     <DetailRow label="Transaction No." value={appt.id} />
 
-                    {/* Stepper */}
-                    <StatusStepper
-                        status={appt.status}
-                        wasRescheduled={appt.status === "rescheduled"}
-                    />
+                    {/* Stepper or pending request message */}
+                    {pendingRequest ? (
+                        <div className="px-6 py-8 text-center text-sm text-gray-600">
+                            Waiting for admin confirmation of {pendingRequest === "reschedule" ? "reschedule" : "cancellation"} request...
+                        </div>
+                    ) : (
+                        <StatusStepper
+                            status={appt.status}
+                            wasRescheduled={appt.status === "rescheduled"}
+                        />
+                    )}
                 </div>
             </div>
 
@@ -336,13 +344,13 @@ export default function AppointmentDetailPanel() {
                 open={showRescheduleModal}
                 onClose={() => setShowRescheduleModal(false)}
                 appointment={appt}
-                onSuccess={() => setAppt({ ...appt, status: "rescheduled" })}
+                onSuccess={() => setPendingRequest("reschedule")}
             />
             <PublicCancelModal
                 open={showCancelModal}
                 onClose={() => setShowCancelModal(false)}
                 appointment={appt}
-                onSuccess={() => setAppt({ ...appt, status: "cancelled" })}
+                onSuccess={() => setPendingRequest("cancel")}
             />
         </section>
     );

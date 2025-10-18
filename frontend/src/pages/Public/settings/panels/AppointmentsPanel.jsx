@@ -18,44 +18,38 @@ const splitDate = (iso) => {
     };
 };
 
+// Dynamic status label
 const statusLabel = (status) => {
-    switch ((status || "").toLowerCase()) {
-        case "pending":
-            return "Pending";
-        case "approved":
-            return "Approved";
-        case "completed":
-            return "Completed";
-        case "rescheduled":
-            return "Rescheduled";
-        case "cancelled":
-        case "canceled":
-            return "Cancelled";
-        case "rejected":
-            return "Rejected";
-        case "processing":
-            return "Processing";
-        default:
-            return null;
-    }
+    if (!status) return null;
+    const key = status.toLowerCase();
+    const map = {
+        pending: "Pending",
+        approved: "Approved",
+        completed: "Completed",
+        rescheduled: "Rescheduled",
+        cancelled: "Cancelled",
+        canceled: "Cancelled",
+        rejected: "Rejected",
+        processing: "Processing",
+    };
+    return map[key] || status;
 };
 
-const getStatusColor = (label) => {
-    switch (label) {
-        case "Pending":
-            return "text-yellow-600";
-        case "Approved":
-            return "text-green-600";
-        case "Completed":
-            return "text-blue-600";
-        case "Cancelled":
-        case "Rejected":
-        case "Rescheduled":
-        case "Processing":
-            return "text-red-600";
-        default:
-            return "text-gray-600";
-    }
+// Dynamic status color
+const getStatusColor = (status) => {
+    if (!status) return "text-gray-600";
+    const key = status.toLowerCase();
+    const map = {
+        pending: "text-yellow-600",
+        approved: "text-green-600",
+        completed: "text-blue-600",
+        rescheduled: "text-red-600",
+        cancelled: "text-red-600",
+        canceled: "text-red-600",
+        rejected: "text-red-600",
+        processing: "text-red-600",
+    };
+    return map[key] || "text-gray-600";
 };
 
 const capitalizeFirst = (str) =>
@@ -75,8 +69,7 @@ export default function AppointmentsPanel() {
         try {
             const res = await api.get(endpoint);
             if (res.data.success) {
-                const list =
-                    res.data.appointments || res.data.requests || [];
+                const list = res.data.appointments || res.data.requests || [];
                 list.sort((a, b) => new Date(b[key]) - new Date(a[key]));
                 setData(list);
             }
@@ -89,7 +82,6 @@ export default function AppointmentsPanel() {
 
     useEffect(() => {
         fetchData("/appointments/my", setAppointments, setLoadingAppointments, "date");
-        // 🆕 this will now return ALL document requests tied to the user
         fetchData("/public/documents/my", setDocumentRequests, setLoadingDocuments, "created_at");
     }, []);
 
@@ -99,8 +91,11 @@ export default function AppointmentsPanel() {
 
         const { dow, day } = splitDate(dateValue);
         const time = isAppt ? to12h(item.time) : "--";
+
+        // ✅ Dynamic status
         const sLabel = statusLabel(item.status);
-        const colorClass = getStatusColor(sLabel);
+        const colorClass = getStatusColor(item.status);
+
         const isArchived = item.status?.toLowerCase() === "archived";
         const title = isAppt
             ? item.serviceName || "Transaction"
@@ -152,8 +147,7 @@ export default function AppointmentsPanel() {
                         </div>
 
                         <div
-                            className={`min-w-0 text-sm font-semibold ${isArchived ? "invisible" : colorClass
-                                }`}
+                            className={`min-w-0 text-sm font-semibold ${isArchived ? "invisible" : colorClass}`}
                         >
                             {sLabel}
                         </div>
