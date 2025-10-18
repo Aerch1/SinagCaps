@@ -554,7 +554,7 @@ export const getAppointmentById = async (req, res) => {
 ======================================================= */
 export const getAppointments = async (req, res) => {
   try {
-    // 1) Auto-mark old approved as completed (3 days past)
+    // 1️⃣ Auto-mark old approved as completed (3 days past)
     await pool.query(`
       UPDATE appointments
       SET status = 'completed'
@@ -562,7 +562,7 @@ export const getAppointments = async (req, res) => {
         AND TIMESTAMP(date, time) < NOW() - INTERVAL 3 DAY
     `);
 
-    // 2) Fetch only APPROVED appointments for notifications
+    // 2️⃣ Fetch approved appointments for notifications (unchanged)
     const [todayAppointments] = await pool.query(`
       SELECT id, name
       FROM appointments
@@ -582,7 +582,7 @@ export const getAppointments = async (req, res) => {
     const todayCount = todayAppointments.length;
     const tomorrowCount = tomorrowAppointments.length;
 
-    // 3) Admin notification messages
+    // 3️⃣ Admin notifications (unchanged)
     const adminTodayMessage =
       todayCount > 0
         ? `Today's Appointments:\n${todayAppointments
@@ -597,7 +597,6 @@ export const getAppointments = async (req, res) => {
             .join("\n")}`
         : null;
 
-    // 4) Notify admins (only once per day per title)
     if (todayCount > 0 || tomorrowCount > 0) {
       const [admins] = await pool.query(
         "SELECT id FROM users WHERE role='admin'"
@@ -614,7 +613,7 @@ export const getAppointments = async (req, res) => {
             if (existsToday.length === 0) {
               await createNotification({
                 user_id: admin.id,
-                title: "Today's  Appointments",
+                title: "Today's Appointments",
                 message: adminTodayMessage,
                 type: "appointment",
               });
@@ -640,7 +639,7 @@ export const getAppointments = async (req, res) => {
       );
     }
 
-    // 5) Pagination + listing (unchanged)
+    // 4️⃣ Pagination + listing
     const page = Number(req.query.page || 1);
     const pageSize = Number(req.query.pageSize || 10);
     const offset = (page - 1) * pageSize;
@@ -650,11 +649,24 @@ export const getAppointments = async (req, res) => {
       req.query.sortDir
     );
 
+    // ✅ 4.1 Handle optional status filter
+    const { status } = req.query;
+    let whereClause = "";
+    let params = [];
+
+    if (status) {
+      const allowed = status.split(",").map((s) => s.trim());
+      whereClause = `WHERE a.status IN (${allowed.map(() => "?").join(",")})`;
+      params = allowed;
+    }
+
+    // ✅ 4.2 Count total (unchanged — still counts all)
     const [[{ total }]] = await pool.query(
       `SELECT COUNT(*) as total FROM appointments`
     );
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+    // ✅ 4.3 Main fetch query (with optional WHERE)
     const [rows] = await pool.query(
       `SELECT 
          a.id, a.service_id,
@@ -665,15 +677,18 @@ export const getAppointments = async (req, res) => {
          a.time, a.notes
        FROM appointments a
        JOIN services s ON a.service_id = s.id
+       ${whereClause}
        ORDER BY ${safeKey} ${safeDir}
        LIMIT ? OFFSET ?`,
-      [pageSize, offset]
+      [...params, pageSize, offset]
     );
 
+    // ✅ 4.4 Service list (unchanged)
     const [serviceRows] = await pool.query(
       `SELECT id, name FROM services WHERE active = TRUE ORDER BY name ASC`
     );
 
+    // ✅ 4.5 Response
     res.json({
       success: true,
       data: rows,

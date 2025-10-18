@@ -40,7 +40,7 @@ export default function CalendarComponent() {
     try {
       const [servicesRes, appointmentsRes] = await Promise.all([
         api.get("/admin/services"),
-        api.get("/admin/appointments"),
+        api.get("/admin/appointments?status=pending,approved,completed"), // ✅ already filtered
       ]);
 
       if (servicesRes.data.success)
@@ -113,12 +113,9 @@ export default function CalendarComponent() {
       eventInfo.event.end - eventInfo.event.start < 3600000;
 
     const statusColors = {
-      pending: "#f59e0b",
-      approved: "#3b82f6",
-      completed: "#22c55e",
-      cancelled: "#ef4444",
-      rejected: "#e2e8f0",
-      archived: "#94a3b8",
+      pending: "#f59e0b", // 🟡 Pending
+      approved: "#3b82f6", // 🔵 Approved
+      completed: "#22c55e", // 🟢 Completed
     };
 
     const bgColor = statusColors[status?.toLowerCase()] || "#64748b";
@@ -201,20 +198,23 @@ export default function CalendarComponent() {
               onChange={setSelectedService}
               buttonLabel="Service"
             />
+
+            {/* ✅ Updated Status Filter */}
             <FilterDropdown
               mode="status"
               selectionMode="single"
               options={[
                 { value: "All Status", label: "All Status" },
-                { value: "Pending", label: "Pending" },
-                { value: "Approved", label: "Approved" },
-                { value: "Completed", label: "Completed" },
-                { value: "Cancelled", label: "Cancelled" },
+                { value: "Pending", label: <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>Pending</div> },
+                { value: "Approved", label: <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>Approved</div> },
+                { value: "Completed", label: <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>Completed</div> },
+                { value: "Cancelled", label: <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>Cancelled</div> },
               ]}
               value={selectedStatus}
               onChange={setSelectedStatus}
               buttonLabel="Status"
             />
+
           </div>
         </div>
 
@@ -227,11 +227,10 @@ export default function CalendarComponent() {
                 setCurrentView(opt.value);
                 calendarRef.current?.getApi().changeView(opt.value);
               }}
-              className={`w-full px-3 py-1.5 text-sm font-semibold rounded-md transition-all ${
-                currentView === opt.value
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-              }`}
+              className={`w-full px-3 py-1.5 text-sm font-semibold rounded-md transition-all ${currentView === opt.value
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                }`}
             >
               {opt.label}
             </button>
