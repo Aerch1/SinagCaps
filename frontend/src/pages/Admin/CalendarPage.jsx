@@ -12,6 +12,8 @@ export default function CalendarPage() {
   const [viewOpen, setViewOpen] = useState(false);
   const [viewApptId, setViewApptId] = useState(null);
   const [refreshToday, setRefreshToday] = useState(0);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+
 
   const { churchHours } = useChurchHours();
 
@@ -22,10 +24,12 @@ export default function CalendarPage() {
   };
 
   const handleAppointmentUpdate = (updated) => {
-    // Refresh TodaySchedule
+    // Refresh both TodaySchedule and Calendar
     setRefreshToday((prev) => prev + 1);
+    setCalendarRefreshKey((prev) => prev + 1);
     setViewOpen(false);
   };
+
 
   /* ---------- 🕒 Generate Time Slots ---------- */
   const fetchAvailableTimes = async (date) => {
@@ -58,7 +62,7 @@ export default function CalendarPage() {
         <main className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-5 lg:gap-6">
           {/* Left: Calendar */}
           <div className="w-full bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 md:p-5">
-            <Calendar />
+            <Calendar refreshKey={calendarRefreshKey} />
           </div>
 
           {/* Right: Today Schedule + Upcoming Events */}

@@ -16,8 +16,7 @@ const VIEW_OPTIONS = [
   { value: "timeGridWeek", label: "Week" },
   { value: "timeGridDay", label: "Day" },
 ];
-
-export default function CalendarComponent() {
+export default function CalendarComponent({ refreshKey }) {
   const [currentView, setCurrentView] = useState("dayGridMonth");
   const [selectedService, setSelectedService] = useState("All Services");
   const [selectedStatus, setSelectedStatus] = useState("All Status");
@@ -28,7 +27,6 @@ export default function CalendarComponent() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const calendarRef = useRef(null);
 
@@ -60,6 +58,13 @@ export default function CalendarComponent() {
       })
     );
   }, []);
+
+  useEffect(() => {
+    if (refreshKey !== undefined) {
+      fetchData();
+    }
+  }, [refreshKey]);
+
 
   /* =====================================================
      🔹 Filters
@@ -300,7 +305,6 @@ export default function CalendarComponent() {
         appointmentId={selectedAppointmentId}
         onUpdate={() => {
           handleAppointmentSaved(); // refresh calendar
-          setRefreshKey((k) => k + 1); // refresh TodaySchedule
         }}
       />
     </div>
