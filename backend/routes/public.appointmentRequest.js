@@ -21,12 +21,7 @@ router.post("/:id/request-cancel", verifyToken, requestCancel);
    Admin Routes
 ========================= */
 router.get("/all-requests", verifyToken, isAdmin, getAllUserRequests); // fetch all requests
-router.patch(
-  "/requests/:requestId/approve",
-  verifyToken,
-  isAdmin,
-  approveRequest
-);
-router.patch("/requests/:requestId/deny", verifyToken, isAdmin, denyRequest);
+router.patch("/:requestId/approve", verifyToken, isAdmin, approveRequest);
+router.patch("/:requestId/deny", verifyToken, isAdmin, denyRequest);
 
 export default router;
