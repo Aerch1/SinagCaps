@@ -2,6 +2,7 @@
 import pool from "../../config/db.js";
 import { v2 as cloudinary } from "cloudinary";
 import { createNotification } from "../../utils/createNotification.js";
+import { parseISO, format, isToday, isTomorrow, isAfter } from "date-fns";
 
 /* ==================================================
    VALIDATION HELPER
@@ -189,6 +190,7 @@ export async function deleteEvent(req, res) {
     res.status(500).json({ success: false, error: "Server error" });
   }
 }
+
 /* ==================================================
    GET /api/admin/events/upcoming
    → Returns all active events happening today or later
@@ -205,14 +207,17 @@ export async function getUpcomingEvents(req, res) {
       ORDER BY date ASC, time ASC
     `);
 
-    const today = new Date().toISOString().slice(0, 10);
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-
-    console.log("🔹 Today:", today);
     console.log("🔹 Fetched rows:", rows);
 
-    const upcomingSoon = rows.filter(
-      (e) => e.date_only === today || e.date_only === tomorrow
+    // Map rows to proper Date objects
+    const events = rows.map((e) => ({
+      ...e,
+      dateTime: parseISO(`${e.date_only}T${e.time || "00:00:00"}`),
+    }));
+
+    // Events happening today or tomorrow for reminders
+    const upcomingSoon = events.filter(
+      (e) => isToday(e.dateTime) || isTomorrow(e.dateTime)
     );
 
     console.log("🔹 Upcoming Soon (today/tomorrow):", upcomingSoon);
@@ -225,10 +230,10 @@ export async function getUpcomingEvents(req, res) {
       for (const event of upcomingSoon) {
         const templates = [
           `⏰ Reminder: "${event.title}" is happening ${
-            event.date_only === today ? "today" : "tomorrow"
+            isToday(event.dateTime) ? "today" : "tomorrow"
           } at ${event.time}.`,
           `Don't miss it! "${event.title}" takes place ${
-            event.date_only === today ? "today" : "tomorrow"
+            isToday(event.dateTime) ? "today" : "tomorrow"
           } — check the details in Events & News.`,
         ];
 
@@ -239,7 +244,7 @@ export async function getUpcomingEvents(req, res) {
           await createNotification({
             user_id: u.id,
             title: `🎟️ ${
-              event.date_only === today ? "Today’s Event" : "Tomorrow’s Event"
+              isToday(event.dateTime) ? "Today’s Event" : "Tomorrow’s Event"
             }`,
             message,
             type: "event",
@@ -250,8 +255,11 @@ export async function getUpcomingEvents(req, res) {
       }
     }
 
-    const todaysEvents = rows.filter((e) => e.date_only === today);
-    const upcomingEvents = rows.filter((e) => e.date_only > today);
+    // Separate today's events and upcoming events
+    const todaysEvents = events.filter((e) => isToday(e.dateTime));
+    const upcomingEvents = events.filter((e) =>
+      isAfter(e.dateTime, new Date())
+    );
 
     console.log("🔹 Today's Events:", todaysEvents);
     console.log("🔹 Upcoming Events:", upcomingEvents);
