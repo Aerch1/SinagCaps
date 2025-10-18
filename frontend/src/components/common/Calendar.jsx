@@ -88,19 +88,7 @@ export default function CalendarComponent() {
     setViewOpen(true);
   }, []);
 
-  const handleAppointmentSaved = (newAppointment) => {
-    if (!newAppointment) {
-      // fallback: full refresh
-      fetchData();
-      return;
-    }
-
-    setAppointments((prev) => {
-      // remove old version of the same appointment if exists
-      const filtered = prev.filter((a) => a.id !== newAppointment.id);
-      return [...filtered, newAppointment];
-    });
-  };
+  const handleAppointmentSaved = () => fetchData();
 
   const renderEventContent = (eventInfo) => {
     const { serviceName, name, status } = eventInfo.event.extendedProps;
@@ -302,7 +290,7 @@ export default function CalendarComponent() {
           setIsCreateModalOpen(false);
           setSelectedDate(null);
         }}
-        onSave={(createdAppointment) => handleAppointmentSaved(createdAppointment)}
+        onSave={handleAppointmentSaved}
         selectedDate={selectedDate}
       />
 
@@ -310,27 +298,11 @@ export default function CalendarComponent() {
         isOpen={viewOpen}
         onClose={() => setViewOpen(false)}
         appointmentId={selectedAppointmentId}
-        onUpdate={(updated) => {
-          handleAppointmentSaved(); // always refresh calendar
-
-          // ✅ Only refresh TodaySchedule if the appointment is approved AND the date is today
-          const isToday = (() => {
-            if (!updated?.date) return false;
-            const today = new Date();
-            const apptDate = new Date(updated.date);
-            return (
-              apptDate.getFullYear() === today.getFullYear() &&
-              apptDate.getMonth() === today.getMonth() &&
-              apptDate.getDate() === today.getDate()
-            );
-          })();
-
-          if (updated?.status?.toLowerCase() === "approved" && isToday) {
-            setRefreshKey((k) => k + 1);
-          }
+        onUpdate={() => {
+          handleAppointmentSaved(); // refresh calendar
+          setRefreshKey((k) => k + 1); // refresh TodaySchedule
         }}
       />
-
     </div>
   );
 }
