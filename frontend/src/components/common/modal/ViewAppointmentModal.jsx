@@ -133,7 +133,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
       const updated = { ...local, status: newStatus };
       setLocal(updated);
       toast.success("Appointment updated successfully!", { id: toastId });
-      setTimeout(() => onUpdate?.(updated), 200);
+      onUpdate?.(updated); // 🔄 Trigger TodaySchedule refresh immediately
     } catch (err) {
       console.error("❌ update failed:", err);
       toast.error("Failed to update appointment", { id: toastId });
