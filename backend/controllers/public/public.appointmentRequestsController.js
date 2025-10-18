@@ -129,6 +129,7 @@ export async function requestCancel(req, res) {
 export async function getUserRequests(req, res) {
   const userId = req.user?.id;
   const conn = await pool.getConnection();
+
   try {
     const [requests] = await conn.execute(
       `SELECT 
@@ -152,15 +153,31 @@ export async function getUserRequests(req, res) {
       [userId]
     );
 
-    // Map directly to match frontend expectations
-    const mapped = requests.map((r) => ({
-      id: r.request_id,
-      appointmentId: r.appointment_id,
-      name: r.appointment_name || "—",
-      requestedDateTime: `${r.requested_date || "-"} ${r.requested_time || ""}`,
-      notes: r.notes || "—",
-      request_status: r.request_status || "pending",
-    }));
+    // Map to frontend-friendly structure
+    const mapped = requests.map((r) => {
+      let requestedDateTime = "-";
+      if (r.type === "reschedule") {
+        // Use requested date/time for reschedule requests
+        requestedDateTime = `${r.requested_date || "-"} ${
+          r.requested_time || ""
+        }`;
+      } else if (r.type === "cancel") {
+        // Use original appointment date/time for cancel requests
+        requestedDateTime = `${r.appointment_date || "-"} ${
+          r.appointment_time || ""
+        }`;
+      }
+
+      return {
+        id: r.request_id,
+        appointmentId: r.appointment_id,
+        name: r.appointment_name || "—",
+        requestedDateTime,
+        notes: r.notes || "—",
+        request_status: r.request_status || "pending",
+        type: r.type, // reschedule or cancel
+      };
+    });
 
     return res.json({ success: true, requests: mapped });
   } catch (err) {
