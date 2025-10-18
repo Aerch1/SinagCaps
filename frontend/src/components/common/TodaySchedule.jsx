@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import api from "@/api/api";
 
-
-export default function TodaySchedule({ onItemClick, className = "", appointments: propAppointments }) {
+export default function TodaySchedule({ onItemClick, className = "", appointments: refreshKey }) {
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -14,13 +13,9 @@ export default function TodaySchedule({ onItemClick, className = "", appointment
         let mounted = true;
         const fetchToday = async () => {
             try {
-                if (propAppointments) {
-                    if (mounted) setAppointments(propAppointments || []);
-                } else {
-                    const res = await api.get("/admin/appointments/today");
-                    if (res.data.success && mounted) {
-                        setAppointments(res.data.data || []);
-                    }
+                const res = await api.get("/admin/appointments/today");
+                if (res.data.success && mounted) {
+                    setAppointments(res.data.data || []);
                 }
             } catch (err) {
                 console.error("❌ Failed to fetch today's appointments:", err);
@@ -30,8 +25,7 @@ export default function TodaySchedule({ onItemClick, className = "", appointment
         };
         fetchToday();
         return () => { mounted = false; };
-    }, [propAppointments]);
-
+    }, [refreshKey]); // ✅ Re-fetch when refreshKey changes
 
     return (
         <div
