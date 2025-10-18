@@ -202,8 +202,7 @@ async function ensureSchema(conn) {
       party_size INT NOT NULL DEFAULT 1,
       status ENUM('pending','approved','completed','cancelled','rejected','archived') DEFAULT 'pending',
       notes TEXT,
-          was_rescheduled BOOLEAN DEFAULT FALSE,          -- ✅ NEW COLUMN
-
+      was_rescheduled BOOLEAN DEFAULT FALSE,          -- ✅ NEW COLUMN
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       approved_at TIMESTAMP NULL DEFAULT NULL,
@@ -213,6 +212,21 @@ async function ensureSchema(conn) {
       CONSTRAINT fk_appt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
       CONSTRAINT fk_appt_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
       INDEX idx_service (service_id, date, time, status)
+    )
+  `);
+
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS appointment_requests  (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+    appointment_id INT NOT NULL,
+    type ENUM('reschedule','cancel') NOT NULL,
+    requested_date DATE NULL,
+    requested_time TIME NULL,
+    notes TEXT NULL,
+    status ENUM('pending','approved','rejected') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
     )
   `);
 

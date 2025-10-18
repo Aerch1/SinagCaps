@@ -29,6 +29,10 @@ import adminSecurityRoutes from "./routes/admin.security.routes.js";
 import reportRoutes from "./routes/admin.reports.routes.js";
 import backupRoutes from "./routes/admin.backup.routes.js";
 
+import publicAppointmentRequestsRoutes from "./routes/public.appointmentRequest.js";
+
+// Then mount it under a path, for example:
+
 dotenv.config();
 
 const app = express();
@@ -97,6 +101,7 @@ app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/security", adminSecurityRoutes);
 app.use("/api/admin/reports", reportRoutes);
 app.use("/api/admin/backup", backupRoutes);
+app.use("/api/appointments/requests", publicAppointmentRequestsRoutes);
 
 /* ===============================
    HEALTH CHECK

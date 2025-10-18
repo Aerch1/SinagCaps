@@ -12,6 +12,10 @@ import {
     MoreVertical,
 } from "lucide-react";
 
+// ✅ Import the public modals
+import PublicRescheduleModal from "../../../../components/common/modal/PublicRescheduleModal";
+import PublicCancelModal from "../../../../components/common/modal/PublicCancelModal";
+
 /* ---------------- Detail Row ---------------- */
 function DetailRow({ label, value }) {
     return (
@@ -25,7 +29,7 @@ function DetailRow({ label, value }) {
 }
 
 /* ---------------- Actions Menu ---------------- */
-function ActionsMenu({ disabled = false }) {
+function ActionsMenu({ disabled = false, onReschedule, onCancel }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
 
@@ -56,15 +60,15 @@ function ActionsMenu({ disabled = false }) {
             </button>
             <div
                 className={`absolute right-0 mt-2 w-56 rounded-md border border-gray-200 bg-white shadow-lg transition origin-top-right ${open
-                        ? "opacity-100 scale-100 z-50"
-                        : "pointer-events-none opacity-0 scale-95"
+                    ? "opacity-100 scale-100 z-50"
+                    : "pointer-events-none opacity-0 scale-95"
                     }`}
             >
                 <div className="p-2">
-                    <button className={item} onClick={() => setOpen(false)}>
+                    <button className={item} onClick={() => { setOpen(false); onReschedule(); }}>
                         Request reschedule
                     </button>
-                    <button className={item} onClick={() => setOpen(false)}>
+                    <button className={item} onClick={() => { setOpen(false); onCancel(); }}>
                         Cancel appointment
                     </button>
                 </div>
@@ -72,7 +76,6 @@ function ActionsMenu({ disabled = false }) {
         </div>
     );
 }
-
 /* ---------------- Status Metadata ---------------- */
 const STATUS_META = {
     pending: {
@@ -188,8 +191,8 @@ function StatusStepper({ status, wasRescheduled }) {
                                 >
                                     <Icon
                                         className={`h-4 w-4 ${visited || isCurrent
-                                                ? ""
-                                                : "text-gray-200"
+                                            ? ""
+                                            : "text-gray-200"
                                             }`}
                                     />
                                 </div>
@@ -218,6 +221,10 @@ export default function AppointmentDetailPanel() {
     const { id } = useParams();
     const [appt, setAppt] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    // ✅ State for modals
+    const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
 
     useEffect(() => {
         async function fetchAppointment() {
@@ -268,13 +275,10 @@ export default function AppointmentDetailPanel() {
         day: "numeric",
         year: "numeric",
     });
-    const timePretty = new Date(
-        `1970-01-01T${appt.time}`
-    ).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    const timePretty = new Date(`1970-01-01T${appt.time}`).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
     const status = appt.status?.toLowerCase();
-    const actionsDisabled =
-        ["completed", "cancelled", "archived", "rejected"].includes(status);
+    const actionsDisabled = ["completed", "cancelled", "archived", "rejected"].includes(status);
 
     return (
         <section className="bg-white">
@@ -304,15 +308,17 @@ export default function AppointmentDetailPanel() {
                                 </div>
                             </div>
                         </div>
-                        <ActionsMenu disabled={actionsDisabled} />
+                        {/* ✅ Pass callbacks for modals */}
+                        <ActionsMenu
+                            disabled={actionsDisabled}
+                            onReschedule={() => setShowRescheduleModal(true)}
+                            onCancel={() => setShowCancelModal(true)}
+                        />
                     </div>
 
                     {/* Details */}
                     <DetailRow label="Name" value={appt.name} />
-                    <DetailRow
-                        label="Service"
-                        value={appt.serviceName || "Transaction"}
-                    />
+                    <DetailRow label="Service" value={appt.serviceName || "Transaction"} />
                     <DetailRow label="Date" value={datePretty} />
                     <DetailRow label="Time" value={timePretty} />
                     <DetailRow label="Transaction No." value={appt.id} />
@@ -324,6 +330,20 @@ export default function AppointmentDetailPanel() {
                     />
                 </div>
             </div>
+
+            {/* ✅ Public Modals */}
+            <PublicRescheduleModal
+                open={showRescheduleModal}
+                onClose={() => setShowRescheduleModal(false)}
+                appointment={appt}
+                onSuccess={() => setAppt({ ...appt, status: "rescheduled" })}
+            />
+            <PublicCancelModal
+                open={showCancelModal}
+                onClose={() => setShowCancelModal(false)}
+                appointment={appt}
+                onSuccess={() => setAppt({ ...appt, status: "cancelled" })}
+            />
         </section>
     );
 }
