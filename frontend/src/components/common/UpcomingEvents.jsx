@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { parseISO, compareAsc, isToday } from "date-fns";
+import { parseISO, compareAsc } from "date-fns";
 import api from "@/api/api";
 
 export default function UpcomingEvents({ onItemClick, className = "" }) {
@@ -10,35 +10,36 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        console.log("🔹 UpcomingEvents mounted");
+
         const fetchEvents = async () => {
             try {
+                console.log("🔹 Fetching upcoming events...");
                 const res = await api.get("/admin/events/upcoming");
+                console.log("🔹 API response:", res.data);
 
                 if (res.data.success) {
-                    const mapEvent = (e) => {
-                        const dateStr = e.date || "1970-01-01";
-                        const timeStr = e.time || "00:00:00";
-                        const startDate = parseISO(`${dateStr}T${timeStr}`);
-                        return {
-                            id: e.id,
-                            title: e.title,
-                            description: e.description,
-                            start: startDate,
-                            image_url: e.image_url,
-                        };
-                    };
+                    const mapEvent = (e) => ({
+                        id: e.id,
+                        title: e.title,
+                        description: e.description,
+                        start: parseISO(`${e.date}T${e.time || "00:00:00"}`),
+                        image_url: e.image_url,
+                    });
 
-                    const todayMapped = res.data.data.today
-                        .map(mapEvent)
-                        .sort((a, b) => compareAsc(a.start, b.start));
+                    setTodayEvents(
+                        res.data.data.today
+                            .map(mapEvent)
+                            .sort((a, b) => compareAsc(a.start, b.start))
+                    );
+                    setUpcomingEvents(
+                        res.data.data.upcoming
+                            .map(mapEvent)
+                            .sort((a, b) => compareAsc(a.start, b.start))
+                    );
 
-                    const upcomingMapped = res.data.data.upcoming
-                        .map(mapEvent)
-                        .filter((e) => !isToday(e.start)) // remove today events
-                        .sort((a, b) => compareAsc(a.start, b.start));
-
-                    setTodayEvents(todayMapped);
-                    setUpcomingEvents(upcomingMapped);
+                    console.log("🔹 Today Events:", res.data.data.today);
+                    console.log("🔹 Upcoming Events:", res.data.data.upcoming);
                 }
             } catch (err) {
                 console.error("❌ Failed to fetch upcoming events:", err);
@@ -50,17 +51,10 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
         fetchEvents();
     }, []);
 
-    const renderEventItem = (e) => {
-        const dateLabel = e.start.toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-        });
-        const timeLabel = e.start.toLocaleTimeString(undefined, {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-        });
 
+    const renderEventItem = (e) => {
+        const dateLabel = e.start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+        const timeLabel = e.start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
         return (
             <li key={e.id}>
                 <button
@@ -86,7 +80,10 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
     };
 
     return (
-        <div className={`bg-white rounded-lg border border-gray-200 pt-6 px-4 flex flex-col ${className}`}>
+        <div
+            className={`bg-white rounded-lg border border-gray-200 pt-6 px-4 flex flex-col ${className}`}
+        >
+            {/* Header */}
             <div className="flex items-center justify-between gap-4 mb-4 min-h-[40px]">
                 <h3 className="text-lg font-semibold text-slate-900">Upcoming Events</h3>
             </div>
@@ -97,6 +94,7 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
                 <p className="text-sm text-gray-500">No upcoming events.</p>
             ) : (
                 <ul className="divide-y divide-gray-100 overflow-y-auto scroll-thin flex-1 pr-1">
+                    {/* Today’s Events */}
                     {todayEvents.length > 0 && (
                         <>
                             <li className="py-2 px-2 text-sm font-semibold text-blue-600">Today</li>
@@ -104,9 +102,12 @@ export default function UpcomingEvents({ onItemClick, className = "" }) {
                         </>
                     )}
 
+                    {/* Future Events */}
                     {upcomingEvents.length > 0 && (
                         <>
-                            <li className="py-2 px-2 text-sm font-semibold text-gray-500">Upcoming</li>
+                            {todayEvents.length > 0 && (
+                                <li className="py-2 px-2 text-sm font-semibold text-gray-500">Upcoming</li>
+                            )}
                             {upcomingEvents.map(renderEventItem)}
                         </>
                     )}
