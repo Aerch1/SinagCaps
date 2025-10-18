@@ -3,7 +3,6 @@ import {
   normalizeTime,
   normalizeDateForMySQL,
 } from "../../utils/validateAppointment.js";
-import { applyUpdate } from "../../services/appointments.service.js";
 import {
   formatReadableDate,
   formatReadableTime,
@@ -148,33 +147,24 @@ export async function approveRequest(req, res) {
       [requestId]
     );
     if (!request)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Request not found or already processed.",
-        });
+      return res.status(404).json({ success: false, message: "Request not found or already processed." });
 
     const [[appt]] = await conn.execute(
       `SELECT * FROM appointments WHERE id=?`,
       [request.appointment_id]
     );
     if (!appt)
-      return res
-        .status(404)
-        .json({ success: false, message: "Appointment not found" });
+      return res.status(404).json({ success: false, message: "Appointment not found" });
 
     if (request.type === "reschedule") {
       const safeDate = normalizeDateForMySQL(request.requested_date);
       const safeTime = normalizeTime(request.requested_time);
 
-      await applyUpdate({
-        id: appt.id,
-        date: safeDate,
-        time: safeTime,
-        was_rescheduled: true,
-        status: appt.status,
-      });
+      // Directly update appointment in DB
+      await conn.execute(
+        `UPDATE appointments SET date=?, time=?, was_rescheduled=1 WHERE id=?`,
+        [safeDate, safeTime, appt.id]
+      );
 
       if (appt.email)
         await sendAppointmentRescheduledEmail(appt.email, {
@@ -190,11 +180,7 @@ export async function approveRequest(req, res) {
         await createNotification({
           user_id: appt.user_id,
           title: "Appointment Rescheduled",
-          message: `${
-            appt.name
-          }'s appointment was rescheduled to ${formatReadableDate(
-            safeDate
-          )} at ${formatReadableTime(safeTime)}.`,
+          message: `${appt.name}'s appointment was rescheduled to ${formatReadableDate(safeDate)} at ${formatReadableTime(safeTime)}.`,
           type: "appointment",
           reference_id: appt.id,
           transaction_id: `APT-${String(appt.id).padStart(5, "0")}`,
@@ -202,7 +188,8 @@ export async function approveRequest(req, res) {
     }
 
     if (request.type === "cancel") {
-      await applyUpdate({ id: appt.id, status: "cancelled" });
+      // Directly update appointment in DB
+      await conn.execute(`UPDATE appointments SET status='cancelled' WHERE id=?`, [appt.id]);
 
       if (appt.email)
         await sendAppointmentCancelledEmail(appt.email, {
@@ -225,15 +212,10 @@ export async function approveRequest(req, res) {
         });
     }
 
-    await conn.execute(
-      `UPDATE appointment_requests SET status='approved' WHERE id=?`,
-      [requestId]
-    );
+    // Mark request as approved
+    await conn.execute(`UPDATE appointment_requests SET status='approved' WHERE id=?`, [requestId]);
 
-    return res.json({
-      success: true,
-      message: "Request approved successfully",
-    });
+    return res.json({ success: true, message: "Request approved successfully" });
   } catch (err) {
     console.error("approveRequest error:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -241,6 +223,7 @@ export async function approveRequest(req, res) {
     conn.release();
   }
 }
+
 
 /* =========================
    Admin: Reject Request
