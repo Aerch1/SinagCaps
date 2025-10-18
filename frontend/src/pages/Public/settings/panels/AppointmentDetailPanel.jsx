@@ -120,20 +120,16 @@ const STATUS_META = {
 /* ---------------- Build Steps ---------------- */
 function buildSteps({ status, wasRescheduled }) {
     const base = ["pending", "approved", "completed"];
-
     if (wasRescheduled) {
         const idx = base.indexOf("approved");
         base.splice(idx + 1, 0, "rescheduled");
     }
-
     const lowered = status?.toLowerCase();
     if (["cancelled", "canceled", "rejected"].includes(lowered)) {
         const stopIdx = Math.max(base.indexOf("approved"), 0);
         return [...base.slice(0, stopIdx + 1), lowered];
     }
-
     if (lowered === "archived") return base;
-
     return base;
 }
 
@@ -143,63 +139,47 @@ function StatusStepper({ status, wasRescheduled }) {
         () => buildSteps({ status, wasRescheduled }),
         [status, wasRescheduled]
     );
-
     const lowered = status?.toLowerCase();
-    const currentStatus =
-        lowered === "archived" ? "completed" : lowered;
+    const currentStatus = lowered === "archived" ? "completed" : lowered;
     const currentIdx = Math.max(steps.indexOf(currentStatus), 0);
     const isVisited = (i) => i <= currentIdx;
-
     const segmentColor = (i) => {
         const nextKey = steps[i + 1];
         if (["rescheduled", "cancelled", "rejected"].includes(nextKey))
             return "bg-rose-500";
         return i < currentIdx ? "bg-emerald-500" : "bg-gray-200";
     };
-
     return (
         <div className="px-6 py-8">
             <div className="flex items-center">
                 {steps.map((key, i) => {
                     const meta = STATUS_META[key];
                     if (!meta) return null;
-
                     const visited = isVisited(i);
                     const isCurrent = key === currentStatus;
-
                     const ring = isCurrent
                         ? meta.ring
                         : visited
                             ? "ring-emerald-500"
                             : "ring-gray-300";
-
                     const node = isCurrent
                         ? meta.node
                         : visited
                             ? "bg-emerald-50 text-emerald-700"
                             : "bg-gray-100 text-gray-300";
-
                     const Icon = meta.icon;
-
                     return (
                         <Fragment key={`${key}-${i}`}>
                             <div className="flex flex-col items-center">
-                                <div
-                                    className={`flex h-8 w-8 items-center justify-center rounded-full ring-2 ${ring} ${node}`}
-                                >
-                                    <Icon
-                                        className={`h-4 w-4 ${visited || isCurrent ? "" : "text-gray-200"}`}
-                                    />
+                                <div className={`flex h-8 w-8 items-center justify-center rounded-full ring-2 ${ring} ${node}`}>
+                                    <Icon className={`h-4 w-4 ${visited || isCurrent ? "" : "text-gray-200"}`} />
                                 </div>
                                 <div className="mt-2 text-xs font-medium text-gray-700">
                                     {meta.label}
                                 </div>
                             </div>
-
                             {i < steps.length - 1 && (
-                                <div
-                                    className={`mx-2 h-0.5 flex-1 ${segmentColor(i)}`}
-                                />
+                                <div className={`mx-2 h-0.5 flex-1 ${segmentColor(i)}`} />
                             )}
                         </Fragment>
                     );
@@ -214,24 +194,24 @@ export default function AppointmentDetailPanel() {
     const { id } = useParams();
     const [appt, setAppt] = useState(null);
     const [loading, setLoading] = useState(true);
-
-    // ✅ State for modals
     const [showRescheduleModal, setShowRescheduleModal] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
-
-    // ✅ Track pending request
     const [pendingRequest, setPendingRequest] = useState(null); // "reschedule" | "cancel" | null
 
+    // ✅ Fetch appointment and track pending request
     useEffect(() => {
+        let interval;
         async function fetchAppointment() {
             try {
                 const res = await api.get(`/appointments/${id}`);
                 if (res.data.success) {
-                    setAppt(res.data.appointment);
+                    const appointment = res.data.appointment;
+                    setAppt(appointment);
 
-                    // Reset pending request if admin denied
-                    const statusLower = res.data.appointment.status?.toLowerCase();
-                    if (!["rescheduled", "cancelled"].includes(statusLower)) {
+                    // Pending request set from API if any
+                    if (appointment.pendingRequest) {
+                        setPendingRequest(appointment.pendingRequest);
+                    } else {
                         setPendingRequest(null);
                     }
                 }
@@ -242,7 +222,14 @@ export default function AppointmentDetailPanel() {
             }
         }
         fetchAppointment();
-    }, [id]);
+
+        // Poll every 5s if waiting for admin
+        if (pendingRequest) {
+            interval = setInterval(fetchAppointment, 5000);
+        }
+
+        return () => clearInterval(interval);
+    }, [id, pendingRequest]);
 
     if (loading) {
         return (
@@ -258,10 +245,7 @@ export default function AppointmentDetailPanel() {
         return (
             <section className="bg-white">
                 <div className="max-w-4xl mx-auto py-6 px-6">
-                    <Link
-                        to="../appointments"
-                        className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-secondary"
-                    >
+                    <Link to="../appointments" className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-secondary">
                         <ChevronLeft className="h-4 w-4" /> Back to appointments
                     </Link>
                     <div className="mt-6 rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-600">
@@ -286,10 +270,7 @@ export default function AppointmentDetailPanel() {
         <section className="bg-white">
             <div className="max-w-4xl mx-auto py-2">
                 <div className="py-1">
-                    <Link
-                        to="../appointments"
-                        className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-secondary"
-                    >
+                    <Link to="../appointments" className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-secondary">
                         <ChevronLeft className="h-4 w-4" /> Back to appointments
                     </Link>
                 </div>
@@ -310,7 +291,6 @@ export default function AppointmentDetailPanel() {
                                 </div>
                             </div>
                         </div>
-                        {/* ✅ Pass callbacks for modals */}
                         <ActionsMenu
                             disabled={actionsDisabled}
                             onReschedule={() => setShowRescheduleModal(true)}
@@ -325,7 +305,7 @@ export default function AppointmentDetailPanel() {
                     <DetailRow label="Time" value={timePretty} />
                     <DetailRow label="Transaction No." value={appt.id} />
 
-                    {/* Stepper or pending request message */}
+                    {/* Stepper or pending request */}
                     {pendingRequest ? (
                         <div className="px-6 py-8 text-center text-sm text-gray-600">
                             Waiting for admin confirmation of {pendingRequest === "reschedule" ? "reschedule" : "cancellation"} request...
@@ -339,7 +319,7 @@ export default function AppointmentDetailPanel() {
                 </div>
             </div>
 
-            {/* ✅ Public Modals */}
+            {/* Public Modals */}
             <PublicRescheduleModal
                 open={showRescheduleModal}
                 onClose={() => setShowRescheduleModal(false)}

@@ -30,7 +30,7 @@ const statusLabel = (status) => {
         cancelled: "Cancelled",
         canceled: "Cancelled",
         rejected: "Rejected",
-        processing: "Processing",
+        processing: "Waiting for Admin",
     };
     return map[key] || status;
 };
@@ -47,7 +47,7 @@ const getStatusColor = (status) => {
         cancelled: "text-red-600",
         canceled: "text-red-600",
         rejected: "text-red-600",
-        processing: "text-red-600",
+        processing: "text-orange-600",
     };
     return map[key] || "text-gray-600";
 };
@@ -92,9 +92,10 @@ export default function AppointmentsPanel() {
         const { dow, day } = splitDate(dateValue);
         const time = isAppt ? to12h(item.time) : "--";
 
-        // ✅ Dynamic status
-        const sLabel = statusLabel(item.status);
-        const colorClass = getStatusColor(item.status);
+        // ✅ Show "Waiting for Admin" if there is a pending reschedule request
+        const sLabel = item.pendingRequest === "reschedule" ? "Waiting for Admin" : statusLabel(item.status);
+        const colorClass = item.pendingRequest === "reschedule" ? "text-orange-600 font-semibold" : getStatusColor(item.status);
+
 
         const isArchived = item.status?.toLowerCase() === "archived";
         const title = isAppt

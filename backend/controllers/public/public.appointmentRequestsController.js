@@ -16,15 +16,20 @@ export async function requestReschedule(req, res) {
         .json({ success: false, message: "All fields are required" });
     }
 
-    // Verify ownership
+    // Verify ownership and ensure appointment is not completed or cancelled
     const [[appt]] = await conn.execute(
-      `SELECT * FROM appointments WHERE id=? AND user_id=?`,
+      `SELECT * FROM appointments 
+       WHERE id=? AND user_id=? AND status NOT IN ('completed','cancelled')`,
       [id, userId]
     );
-    if (!appt)
+    if (!appt) {
       return res
         .status(404)
-        .json({ success: false, message: "Appointment not found" });
+        .json({
+          success: false,
+          message: "Appointment not found or cannot be modified",
+        });
+    }
 
     // Prevent duplicate pending reschedule request
     const [[existing]] = await conn.execute(
@@ -32,25 +37,38 @@ export async function requestReschedule(req, res) {
        WHERE appointment_id=? AND status='pending' AND type='reschedule'`,
       [id]
     );
-    if (existing)
+    if (existing) {
       return res.status(400).json({
         success: false,
         message: "You already have a pending reschedule request.",
       });
+    }
 
-    // Insert request
+    // Check that requested date/time is in the future
+    const requestedDateTime = new Date(`${requested_date}T${requested_time}`);
+    if (requestedDateTime <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Requested date and time must be in the future.",
+      });
+    }
+
+    // Insert request in a transaction
+    await conn.beginTransaction();
     await conn.execute(
       `INSERT INTO appointment_requests 
        (appointment_id, type, requested_date, requested_time, notes) 
        VALUES (?, 'reschedule', ?, ?, ?)`,
       [id, requested_date, requested_time, notes]
     );
+    await conn.commit();
 
     return res.json({
       success: true,
       message: "Reschedule request submitted successfully",
     });
   } catch (err) {
+    await conn.rollback();
     console.error("requestReschedule error:", err);
     res.status(500).json({ success: false, message: err.message });
   } finally {
@@ -68,20 +86,26 @@ export async function requestCancel(req, res) {
     const userId = req.user?.id;
     const { notes } = req.body;
 
-    if (!notes?.trim())
+    if (!notes?.trim()) {
       return res
         .status(400)
         .json({ success: false, message: "Reason is required" });
+    }
 
-    // Verify ownership
+    // Verify ownership and ensure appointment is not completed or cancelled
     const [[appt]] = await conn.execute(
-      `SELECT * FROM appointments WHERE id=? AND user_id=?`,
+      `SELECT * FROM appointments 
+       WHERE id=? AND user_id=? AND status NOT IN ('completed','cancelled')`,
       [id, userId]
     );
-    if (!appt)
+    if (!appt) {
       return res
         .status(404)
-        .json({ success: false, message: "Appointment not found" });
+        .json({
+          success: false,
+          message: "Appointment not found or cannot be cancelled",
+        });
+    }
 
     // Prevent duplicate pending cancel request
     const [[existing]] = await conn.execute(
@@ -89,13 +113,14 @@ export async function requestCancel(req, res) {
        WHERE appointment_id=? AND status='pending' AND type='cancel'`,
       [id]
     );
-    if (existing)
+    if (existing) {
       return res.status(400).json({
         success: false,
         message: "You already have a pending cancellation request.",
       });
+    }
 
-    // Insert request
+    // Insert cancel request
     await conn.execute(
       `INSERT INTO appointment_requests 
        (appointment_id, type, notes) 

@@ -269,12 +269,21 @@ export async function createPublicAppointment(req, res) {
       );
 
       const messages = [
-        `${name} just booked a ${service?.name || "service"} appointment for ${date} at ${time}.`,
-        `A new ${service?.name || "appointment"} was created by ${name} — scheduled on ${date} at ${time}.`,
-        `${name} has submitted a ${service?.name || "service"} request for ${date}, ${time}.`,
-        `New booking alert: ${service?.name || "Appointment"} by ${name} on ${date} at ${time}.`,
+        `${name} just booked a ${
+          service?.name || "service"
+        } appointment for ${date} at ${time}.`,
+        `A new ${
+          service?.name || "appointment"
+        } was created by ${name} — scheduled on ${date} at ${time}.`,
+        `${name} has submitted a ${
+          service?.name || "service"
+        } request for ${date}, ${time}.`,
+        `New booking alert: ${
+          service?.name || "Appointment"
+        } by ${name} on ${date} at ${time}.`,
       ];
-      const adminMessage = messages[Math.floor(Math.random() * messages.length)];
+      const adminMessage =
+        messages[Math.floor(Math.random() * messages.length)];
 
       for (const admin of admins) {
         await createNotification({
@@ -301,8 +310,7 @@ export async function createPublicAppointment(req, res) {
   } finally {
     conn.release();
   }
-};
-
+}
 
 /* ==================================================
    GET /api/public/appointments/my
@@ -358,14 +366,29 @@ export async function getPublicAppointment(req, res) {
       });
     }
 
+    // 4️⃣ Fetch any pending request
+    const [pendingReqRows] = await pool.execute(
+      `SELECT type 
+   FROM appointment_requests 
+   WHERE appointment_id = ? AND status='pending' 
+   ORDER BY created_at DESC 
+   LIMIT 1`,
+      [id]
+    );
+
+    // Attach to appointment
+    appt.pendingRequest = pendingReqRows.length ? pendingReqRows[0].type : null;
+
     // 2️⃣ Ownership check — user can only view their own appointment
-    // Admins can view everything (optional)
+    // Ownership check first
     if (appt.user_id && appt.user_id !== userId) {
       return res.status(403).json({
         success: false,
         error: "Access denied: You can only view your own appointments.",
       });
     }
+
+    // Then fetch pending request
 
     // 3️⃣ Fetch form-specific details if needed
     let details = null;
