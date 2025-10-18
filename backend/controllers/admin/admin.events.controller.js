@@ -21,7 +21,14 @@ function validateEvent(data) {
 export async function createEvent(req, res) {
   const conn = await pool.getConnection();
   try {
-    const { title, description, date, time, status = "Active", type } = req.body;
+    const {
+      title,
+      description,
+      date,
+      time,
+      status = "Active",
+      type,
+    } = req.body;
     const errors = validateEvent(req.body);
     if (Object.keys(errors).length)
       return res.status(400).json({ success: false, errors });
@@ -192,12 +199,13 @@ export async function getUpcomingEvents(req, res) {
   const conn = await pool.getConnection();
   try {
     const [rows] = await conn.query(`
-      SELECT id, title, description, date, time, status, type, image_url
-      FROM events
-      WHERE LOWER(TRIM(status))='active'
-        AND (date > CURDATE() OR (date = CURDATE() AND time >= CURTIME()))
-      ORDER BY date ASC, time ASC
-    `);
+  SELECT id, title, description, date, time, status, type, image_url
+  FROM events
+  WHERE LOWER(TRIM(status))='active'
+    AND type='event'              -- <-- only events, exclude news
+    AND (date > CURDATE() OR (date = CURDATE() AND time >= CURTIME()))
+  ORDER BY date ASC, time ASC
+`);
 
     // ✅ Auto-send reminder notifications for events happening today/tomorrow
     const today = new Date().toISOString().slice(0, 10);
@@ -214,10 +222,18 @@ export async function getUpcomingEvents(req, res) {
 
       for (const event of upcomingSoon) {
         const templates = [
-          `⏰ Reminder: "${event.title}" is happening ${event.date === today ? "today" : "tomorrow"} at ${event.time}.`,
-          `Don't miss it! "${event.title}" takes place ${event.date === today ? "today" : "tomorrow"} — check the details in Events & News.`,
-          `📅 "${event.title}" is ${event.date === today ? "today" : "tomorrow"}! Stay tuned.`,
-          `Upcoming ${event.type.toLowerCase()}: "${event.title}" starts ${event.date === today ? "today" : "tomorrow"}.`,
+          `⏰ Reminder: "${event.title}" is happening ${
+            event.date === today ? "today" : "tomorrow"
+          } at ${event.time}.`,
+          `Don't miss it! "${event.title}" takes place ${
+            event.date === today ? "today" : "tomorrow"
+          } — check the details in Events & News.`,
+          `📅 "${event.title}" is ${
+            event.date === today ? "today" : "tomorrow"
+          }! Stay tuned.`,
+          `Upcoming ${event.type.toLowerCase()}: "${event.title}" starts ${
+            event.date === today ? "today" : "tomorrow"
+          }.`,
         ];
 
         for (const u of users) {
@@ -226,7 +242,9 @@ export async function getUpcomingEvents(req, res) {
 
           await createNotification({
             user_id: u.id,
-            title: `🎟️ ${event.date === today ? "Today’s Event" : "Tomorrow’s Event"}`,
+            title: `🎟️ ${
+              event.date === today ? "Today’s Event" : "Tomorrow’s Event"
+            }`,
             message,
             type: "event",
             reference_id: event.id,
