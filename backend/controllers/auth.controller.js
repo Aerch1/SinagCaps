@@ -117,7 +117,7 @@ export const signup = handleAsyncError(async (req, res) => {
       res,
       200,
       true,
-      "Account created. Please verify your email before logging in.",
+      "Please check your email to verify your account.",
       {
         user: {
           id: r.insertId,
@@ -127,6 +127,109 @@ export const signup = handleAsyncError(async (req, res) => {
         },
       }
     );
+  });
+});
+
+// ---------- VERIFY EMAIL ----------
+export const verifyEmail = handleAsyncError(async (req, res) => {
+  const { code } = req.body;
+  const v = validateVerifyEmail({ code });
+  if (!v.ok) throw new AppError(v.message, 400);
+
+  await withConn(async (conn) => {
+    // 1️⃣ Get the user ID associated with the input code (if exists and not expired/consumed)
+    const [tokenRows] = await conn.execute(
+      `SELECT user_id, created_at, expires_at, consumed_at
+       FROM email_verification_tokens
+       WHERE token = ? AND purpose = 'signup' AND consumed_at IS NULL AND expires_at > NOW()
+       LIMIT 1`,
+      [code.trim()]
+    );
+
+    if (!tokenRows.length)
+      throw new AppError("Invalid or expired verification code", 400);
+
+    const inputToken = tokenRows[0];
+
+    // 2️⃣ Get the latest token for this user
+    const [latestRows] = await conn.execute(
+      `SELECT *
+       FROM email_verification_tokens
+       WHERE user_id = ? AND purpose = 'signup' AND consumed_at IS NULL AND expires_at > NOW()
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [inputToken.user_id]
+    );
+
+    if (!latestRows.length)
+      throw new AppError("Invalid or expired verification code", 400);
+
+    const latestToken = latestRows[0];
+
+    // 3️⃣ Check if input code matches the latest token
+    if (latestToken.token !== code.trim()) {
+      throw new AppError("Invalid verification code.", 400);
+    }
+
+    // ✅ Mark user as verified
+    const [userRows] = await conn.execute(
+      "SELECT u.id, u.email, u.name, u.role FROM users u WHERE u.id = ?",
+      [latestToken.user_id]
+    );
+    if (!userRows.length) throw new AppError("User not found", 404);
+
+    const user = userRows[0];
+
+    await conn.execute("UPDATE users SET isVerified = TRUE WHERE id = ?", [
+      user.id,
+    ]);
+
+    await conn.execute(
+      "UPDATE email_verification_tokens SET consumed_at = NOW() WHERE id = ?",
+      [latestToken.id]
+    );
+
+    try {
+      await sendWelcomeEmail(user.email, user.name);
+    } catch (e) {
+      console.error("Welcome email failed:", e.message);
+    }
+
+    const messages = [
+      "🎉 Welcome aboard, :name! Your account is now verified.",
+      "🙏 Hello :name, thank you for verifying your account.",
+      "✨ Welcome to the system, :name! Enjoy exploring our services.",
+      "🌟 Hi :name! Verification complete — you’re all set.",
+      "🎊 Welcome, :name! Your email has been verified.",
+    ];
+    const msg = messages[Math.floor(Math.random() * messages.length)].replace(
+      ":name",
+      user.name
+    );
+
+    try {
+      await createNotification({
+        user_id: user.id,
+        title: "Welcome to Our Lady of Peace and Good Voyage Parish",
+        message: msg,
+        type: "announcement",
+      });
+    } catch (err) {
+      console.error("Welcome notification failed:", err.message);
+    }
+
+    // 🆕 Include email in token payload
+    generateTokenAndSetCookie(res, user.id, user.email);
+
+    return sendResponse(res, 200, true, "Email verified successfully", {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        isVerified: true,
+      },
+    });
   });
 });
 
@@ -265,112 +368,6 @@ export const resendVerification = handleAsyncError(async (req, res) => {
     }
 
     return sendResponse(res, 200, true, "Verification code resent.");
-  });
-});
-
-// ---------- VERIFY EMAIL ----------
-export const verifyEmail = handleAsyncError(async (req, res) => {
-  const { code } = req.body;
-  const v = validateVerifyEmail({ code });
-  if (!v.ok) throw new AppError(v.message, 400);
-
-  await withConn(async (conn) => {
-    // 1️⃣ Get the user ID associated with the input code (if exists and not expired/consumed)
-    const [tokenRows] = await conn.execute(
-      `SELECT user_id, created_at, expires_at, consumed_at
-       FROM email_verification_tokens
-       WHERE token = ? AND purpose = 'signup' AND consumed_at IS NULL AND expires_at > NOW()
-       LIMIT 1`,
-      [code.trim()]
-    );
-
-    if (!tokenRows.length)
-      throw new AppError("Invalid or expired verification code", 400);
-
-    const inputToken = tokenRows[0];
-
-    // 2️⃣ Get the latest token for this user
-    const [latestRows] = await conn.execute(
-      `SELECT *
-       FROM email_verification_tokens
-       WHERE user_id = ? AND purpose = 'signup' AND consumed_at IS NULL AND expires_at > NOW()
-       ORDER BY created_at DESC
-       LIMIT 1`,
-      [inputToken.user_id]
-    );
-
-    if (!latestRows.length)
-      throw new AppError("Invalid or expired verification code", 400);
-
-    const latestToken = latestRows[0];
-
-    // 3️⃣ Check if input code matches the latest token
-    if (latestToken.token !== code.trim()) {
-      throw new AppError(
-        "Invalid verification code. Please use the latest code sent to your email.",
-        400
-      );
-    }
-
-    // ✅ Mark user as verified
-    const [userRows] = await conn.execute(
-      "SELECT u.id, u.email, u.name, u.role FROM users u WHERE u.id = ?",
-      [latestToken.user_id]
-    );
-    if (!userRows.length) throw new AppError("User not found", 404);
-
-    const user = userRows[0];
-
-    await conn.execute("UPDATE users SET isVerified = TRUE WHERE id = ?", [
-      user.id,
-    ]);
-
-    await conn.execute(
-      "UPDATE email_verification_tokens SET consumed_at = NOW() WHERE id = ?",
-      [latestToken.id]
-    );
-
-    try {
-      await sendWelcomeEmail(user.email, user.name);
-    } catch (e) {
-      console.error("Welcome email failed:", e.message);
-    }
-
-    const messages = [
-      "🎉 Welcome aboard, :name! Your account is now verified.",
-      "🙏 Hello :name, thank you for verifying your account.",
-      "✨ Welcome to the system, :name! Enjoy exploring our services.",
-      "🌟 Hi :name! Verification complete — you’re all set.",
-      "🎊 Welcome, :name! Your email has been verified.",
-    ];
-    const msg = messages[Math.floor(Math.random() * messages.length)].replace(
-      ":name",
-      user.name
-    );
-
-    try {
-      await createNotification({
-        user_id: user.id,
-        title: "Welcome to Our Lady of Peace and Good Voyage Parish",
-        message: msg,
-        type: "announcement",
-      });
-    } catch (err) {
-      console.error("Welcome notification failed:", err.message);
-    }
-
-    // 🆕 Include email in token payload
-    generateTokenAndSetCookie(res, user.id, user.email);
-
-    return sendResponse(res, 200, true, "Email verified successfully", {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        isVerified: true,
-      },
-    });
   });
 });
 

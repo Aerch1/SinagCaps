@@ -22,7 +22,7 @@ const categoryColor = (category) => {
     return map[category] || "border-gray-400 text-gray-600 bg-gray-50";
 };
 
-const HERO_IMG = "/forgot.jpg";
+const HERO_IMG = "/annoucement.jpg";
 
 /* ==================================================
    📜 Announcements Page

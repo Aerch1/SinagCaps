@@ -8,7 +8,7 @@ import api from "@/api/api";
 import toast from "react-hot-toast";
 
 // 🖼 Hero Banner + Map location constants
-const HERO_IMG = "/forgot.jpg";
+const HERO_IMG = "/contact.jpg";
 const PLACE_NAME =
   "Our Lady of Peace and Good Voyage Parish - Lodlod, Lipa City, Batangas ";
 const PLACE_LINK =
