@@ -31,37 +31,23 @@ export default function AdminUserRequestsTable() {
             const data = res.data.requests.map((r, i) => {
                 console.log(`Processing request at index ${i}:`, r);
 
-                // Check all expected fields
-                if (!r.id) console.warn(`Request ${i} missing 'id'`);
-                if (!r.appointmentId) console.warn(`Request ${i} missing 'appointmentId'`);
-                if (!r.type) console.warn(`Request ${i} missing 'type'`);
-                if (!r.request_status) console.warn(`Request ${i} missing 'request_status'`);
-                if (!r.appointment) console.warn(`Request ${i} missing 'appointment' object`);
-
                 let displayDateTime = "-";
-                if (r.type === "reschedule") {
-                    if (!r.requestedDateTime) {
-                        console.warn(`Reschedule request ${i} missing requestedDateTime`);
+                if (r.type === "reschedule" && r.requestedDateTime) {
+                    const parsed = parseISO(r.requestedDateTime);
+                    if (isValid(parsed)) {
+                        displayDateTime = format(parsed, "PP p");
                     } else {
-                        const parsed = parseISO(r.requestedDateTime);
-                        if (!isValid(parsed)) {
-                            console.error(`Invalid date for request ${i}:`, r.requestedDateTime);
-                        } else {
-                            displayDateTime = format(parsed, "PP p");
-                        }
+                        console.warn(`Invalid requestedDateTime for request ${r.id}:`, r.requestedDateTime);
                     }
                 }
 
                 return {
                     requestId: r.id,
-                    appointmentId: r.appointmentId,
-                    name: r.appointment?.clientName || "—",
-                    email: r.appointment?.clientEmail || "—",
+                    appointmentId: r.appointmentId, // used for View modal
                     requestedDateTime: displayDateTime,
                     notes: r.notes || "—",
                     request_status: r.request_status || "pending",
                     type: r.type || "—",
-                    appointmentDetails: r.appointment || {},
                 };
             });
 
@@ -69,15 +55,12 @@ export default function AdminUserRequestsTable() {
             setRequests(data);
         } catch (err) {
             console.error("Fetch requests error:", err);
-            if (err.response) {
-                console.error("Server response:", err.response.data);
-            }
+            if (err.response) console.error("Server response:", err.response.data);
             toast.error("Failed to load user requests");
         } finally {
             setLoading(false);
         }
     }, []);
-
 
     useEffect(() => {
         fetchRequests();
@@ -113,7 +96,6 @@ export default function AdminUserRequestsTable() {
             <button
                 onClick={() => setViewingId(r.appointmentId)}
                 className="px-2 py-1 border rounded text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-1"
-                disabled={!r.appointmentDetails?.date}
             >
                 <Eye className="h-3 w-3" /> View
             </button>
@@ -148,7 +130,7 @@ export default function AdminUserRequestsTable() {
                 <table className="w-full text-sm table-auto divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            {["Appointment ID", "Client Name", "Requested Date/Time", "Notes", "Type", "Status", "Actions"].map(h => (
+                            {["Appointment ID", "Requested Date/Time", "Notes", "Type", "Status", "Actions"].map(h => (
                                 <th
                                     key={h}
                                     className="px-3 py-2 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider"
@@ -162,17 +144,16 @@ export default function AdminUserRequestsTable() {
                         <AnimatePresence>
                             {loading ? (
                                 <motion.tr key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={7} className="py-8 text-center text-gray-500">Loading…</td>
+                                    <td colSpan={6} className="py-8 text-center text-gray-500">Loading…</td>
                                 </motion.tr>
                             ) : paginated.length === 0 ? (
                                 <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={7} className="py-8 text-center text-gray-500">No requests found.</td>
+                                    <td colSpan={6} className="py-8 text-center text-gray-500">No requests found.</td>
                                 </motion.tr>
                             ) : (
                                 paginated.map(r => (
                                     <motion.tr key={r.requestId} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                         <td className="px-3 py-2 font-mono text-gray-600">{r.appointmentId}</td>
-                                        <td className="px-3 py-2">{r.name}</td>
                                         <td className="px-3 py-2">{r.requestedDateTime}</td>
                                         <td className="px-3 py-2">{r.notes}</td>
                                         <td className="px-3 py-2 capitalize">{r.type}</td>
@@ -197,7 +178,11 @@ export default function AdminUserRequestsTable() {
             </div>
 
             {viewingId && (
-                <ViewAppointmentModal isOpen={!!viewingId} appointmentId={viewingId} onClose={() => setViewingId(null)} />
+                <ViewAppointmentModal
+                    isOpen={!!viewingId}
+                    appointmentId={viewingId} // now works with appointment_requests data
+                    onClose={() => setViewingId(null)}
+                />
             )}
         </div>
     );

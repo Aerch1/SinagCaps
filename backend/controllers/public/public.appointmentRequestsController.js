@@ -117,33 +117,32 @@ export async function requestCancel(req, res) {
 export async function getAllUserRequests(req, res) {
   const conn = await pool.getConnection();
   try {
-    console.log("Fetching all user requests from database...");
-
-    const [requests] = await conn.execute(
-      `SELECT 
-         ar.id AS request_id,
-         ar.appointment_id,
-         ar.type,
-         ar.requested_date,
-         ar.requested_time,
-         ar.notes,
-         ar.status AS request_status,
-         a.date AS \`original_date\`,
-         a.time AS \`original_time\`,
-         a.name AS client_name,
-         a.email AS client_email,
-         a.status AS appointment_status
-       FROM appointment_requests ar
-       LEFT JOIN appointments a ON ar.appointment_id = a.id
-       ORDER BY ar.created_at DESC`
+    console.log(
+      "Fetching all user requests from appointment_requests table..."
     );
 
-    console.log("Raw database results:", requests);
+    // Only fetch from appointment_requests, no JOIN needed
+    const [requests] = await conn.execute(
+      `SELECT 
+         id AS request_id,
+         appointment_id,
+         type,
+         requested_date,
+         requested_time,
+         notes,
+         status AS request_status,
+         created_at,
+         updated_at
+       FROM appointment_requests
+       ORDER BY created_at DESC`
+    );
+
+    console.log("Raw requests from DB:", requests);
 
     const mapped = requests.map((r) => {
       let requestedDateTime = null;
 
-      // Only parse reschedule requests with valid date & time
+      // Parse reschedule requests date/time if valid
       if (r.type === "reschedule" && r.requested_date && r.requested_time) {
         const dt = new Date(`${r.requested_date}T${r.requested_time}`);
         if (!isNaN(dt.getTime())) {
@@ -168,13 +167,8 @@ export async function getAllUserRequests(req, res) {
         requestedDateTime,
         notes: r.notes || "-",
         request_status: r.request_status || "pending",
-        appointment: {
-          date: r.original_date || null,
-          time: r.original_time || null,
-          clientName: r.client_name || "—",
-          clientEmail: r.client_email || "—",
-          status: r.appointment_status || "unknown",
-        },
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
       };
     });
 
