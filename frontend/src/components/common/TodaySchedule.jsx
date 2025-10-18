@@ -5,26 +5,33 @@ import { format } from "date-fns";
 import api from "@/api/api";
 
 
-export default function TodaySchedule({ onItemClick, className = "" }) {
+export default function TodaySchedule({ onItemClick, className = "", appointments: propAppointments }) {
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // ✅ Fetch today's appointments dynamically
     useEffect(() => {
+        let mounted = true;
         const fetchToday = async () => {
             try {
-                const res = await api.get("/admin/appointments/today");
-                if (res.data.success) {
-                    setAppointments(res.data.data || []);
+                if (propAppointments) {
+                    if (mounted) setAppointments(propAppointments || []);
+                } else {
+                    const res = await api.get("/admin/appointments/today");
+                    if (res.data.success && mounted) {
+                        setAppointments(res.data.data || []);
+                    }
                 }
             } catch (err) {
                 console.error("❌ Failed to fetch today's appointments:", err);
             } finally {
-                setLoading(false);
+                if (mounted) setLoading(false);
             }
         };
         fetchToday();
-    }, []);
+        return () => { mounted = false; };
+    }, [propAppointments]);
+
 
     return (
         <div

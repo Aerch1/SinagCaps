@@ -64,10 +64,10 @@ export default function CalendarPage() {
           {/* Right: Today Schedule + Upcoming Events */}
           <aside className="flex flex-col gap-4 sm:gap-3">
             <TodaySchedule
-              appointments={appointments}
               onItemClick={handleTodayItemClick}
               className="flex-1 min-h-[300px] md:min-h-[45vh]"
             />
+
 
             <UpcomingEvents
               events={events}
