@@ -148,22 +148,37 @@ export async function getAllUserRequests(req, res) {
        ORDER BY ar.created_at DESC`
     );
 
-    const mapped = requests.map((r) => ({
-      id: r.request_id,
-      appointmentId: r.appointment_id,
-      type: r.type,
-      requestedDateTime:
-        r.type === "reschedule"
-          ? `${r.requested_date || "-"} ${r.requested_time || ""}`
-          : `${r.original_date || "-"} ${r.original_time || ""}`, // show original date/time for cancel
-      notes: r.notes || "-",
-      request_status: r.request_status || "pending",
-      user: {
-        id: r.user_id,
-        name: r.user_name,
-        email: r.user_email,
-      },
-    }));
+    const mapped = requests.map((r) => {
+      let requestedDateTime = null;
+
+      // Reschedule: use requested date/time
+      if (r.type === "reschedule" && r.requested_date && r.requested_time) {
+        requestedDateTime = new Date(
+          `${r.requested_date}T${r.requested_time}`
+        ).toISOString();
+      }
+
+      // Cancel: use original appointment date/time
+      if (r.type === "cancel" && r.original_date && r.original_time) {
+        requestedDateTime = new Date(
+          `${r.original_date}T${r.original_time}`
+        ).toISOString();
+      }
+
+      return {
+        id: r.request_id,
+        appointmentId: r.appointment_id,
+        type: r.type,
+        requestedDateTime,
+        notes: r.notes || "-",
+        request_status: r.request_status || "pending",
+        user: {
+          id: r.user_id,
+          name: r.user_name,
+          email: r.user_email,
+        },
+      };
+    });
 
     return res.json({ success: true, requests: mapped });
   } catch (err) {

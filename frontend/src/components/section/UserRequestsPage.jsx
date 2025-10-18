@@ -19,33 +19,19 @@ export default function UserRequestsTable() {
         setLoading(true);
         try {
             const res = await api.get("/appointments/requests/user-requests");
-            console.log("Raw API response:", res.data.requests); // 🔍 Debug API response
+            console.log("Raw API response:", res.data.requests);
 
             const data = res.data.requests.map((r) => {
                 let displayDateTime = "-";
 
-                // Reschedule requested time
-                if (r.type === "reschedule" && r.requestedDateTime) {
+                if (r.requestedDateTime) {
                     const parsed = parseISO(r.requestedDateTime);
-                    if (isValid(parsed)) {
-                        displayDateTime = format(parsed, "PP p");
-                    } else {
-                        console.warn("Invalid requestedDateTime:", r.requestedDateTime);
-                    }
-                }
-
-                // Cancel request shows original appointment time
-                if (r.type === "cancel" && r.appointment?.date && r.appointment?.time) {
-                    const parsed = parseISO(`${r.appointment.date}T${r.appointment.time}`);
-                    if (isValid(parsed)) {
-                        displayDateTime = format(parsed, "PP p");
-                    } else {
-                        console.warn("Invalid appointment date/time:", r.appointment.date, r.appointment.time);
-                    }
+                    if (isValid(parsed)) displayDateTime = format(parsed, "PP p");
+                    else console.warn("Invalid requestedDateTime:", r.requestedDateTime);
                 }
 
                 return {
-                    requestId: r.id,               // <-- ensure this is request ID, not appointment ID
+                    requestId: r.id,
                     appointmentId: r.appointmentId,
                     name: r.user?.name || "—",
                     requestedDateTime: displayDateTime,
@@ -55,7 +41,7 @@ export default function UserRequestsTable() {
                 };
             });
 
-            console.log("Processed request data:", data); // 🔍 Debug processed data
+            console.log("Processed request data:", data);
             setRequests(data);
         } catch (err) {
             console.error(err);
@@ -148,15 +134,11 @@ export default function UserRequestsTable() {
                         <AnimatePresence>
                             {loading ? (
                                 <motion.tr key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={7} className="py-8 text-center text-gray-500">
-                                        Loading…
-                                    </td>
+                                    <td colSpan={7} className="py-8 text-center text-gray-500">Loading…</td>
                                 </motion.tr>
                             ) : paginated.length === 0 ? (
                                 <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={7} className="py-8 text-center text-gray-500">
-                                        No requests found.
-                                    </td>
+                                    <td colSpan={7} className="py-8 text-center text-gray-500">No requests found.</td>
                                 </motion.tr>
                             ) : (
                                 paginated.map((r) => (
