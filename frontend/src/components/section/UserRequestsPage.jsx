@@ -15,13 +15,14 @@ export default function UserRequestsTable() {
     const [page, setPage] = useState(1);
     const pageSize = 5;
 
+    // Fetch all user requests (admin only)
     const fetchRequests = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await api.get("/appointments/requests/all-requests"); // admin route
+            const res = await api.get("/appointments/requests/all-requests");
             const data = res.data.requests.map((r) => {
+                // Requested date/time display
                 let displayDateTime = "-";
-
                 if (r.type === "reschedule" && r.requestedDateTime) {
                     const parsed = parseISO(r.requestedDateTime);
                     if (isValid(parsed)) displayDateTime = format(parsed, "PP p");
@@ -33,7 +34,9 @@ export default function UserRequestsTable() {
                 return {
                     requestId: r.id,
                     appointmentId: r.appointmentId,
-                    name: r.user?.name || "—",
+                    // ✅ Correct mapping from backend
+                    name: r.appointment?.clientName || "—",
+                    email: r.appointment?.clientEmail || "—",
                     requestedDateTime: displayDateTime,
                     notes: r.notes || "—",
                     request_status: r.request_status || "pending",
@@ -44,7 +47,7 @@ export default function UserRequestsTable() {
 
             setRequests(data);
         } catch (err) {
-            console.error(err);
+            console.error("Fetch requests error:", err);
             toast.error("Failed to load user requests");
         } finally {
             setLoading(false);
@@ -58,6 +61,7 @@ export default function UserRequestsTable() {
         return () => window.removeEventListener("userRequestSubmitted", handleNewRequest);
     }, [fetchRequests]);
 
+    // Approve request
     const handleApprove = async (r) => {
         try {
             await api.patch(`/appointments/requests/${r.requestId}/approve`);
@@ -69,6 +73,7 @@ export default function UserRequestsTable() {
         }
     };
 
+    // Deny request
     const handleDeny = async (r) => {
         try {
             await api.patch(`/appointments/requests/${r.requestId}/deny`);
@@ -80,34 +85,36 @@ export default function UserRequestsTable() {
         }
     };
 
+    // Action buttons
     const renderActions = (r) => (
-        <div className="flex gap-1 justify-end">
+        <div className="flex gap-1 justify-end flex-wrap">
             <button
                 onClick={() => setViewingId(r.appointmentId)}
-                className="px-2 py-1 border rounded text-xs text-gray-700 hover:bg-gray-100"
+                className="px-2 py-1 border rounded text-xs text-gray-700 hover:bg-gray-100 flex items-center gap-1"
             >
-                <Eye className="inline h-3 w-3 mr-1" /> View
+                <Eye className="h-3 w-3" /> View
             </button>
 
             {r.request_status === "pending" && (
                 <>
                     <button
                         onClick={() => handleApprove(r)}
-                        className="px-2 py-1 border rounded text-xs text-green-600 hover:bg-green-50"
+                        className="px-2 py-1 border rounded text-xs text-green-600 hover:bg-green-50 flex items-center gap-1"
                     >
-                        <Check className="inline h-3 w-3 mr-1" /> Approve
+                        <Check className="h-3 w-3" /> Approve
                     </button>
                     <button
                         onClick={() => handleDeny(r)}
-                        className="px-2 py-1 border rounded text-xs text-red-600 hover:bg-red-50"
+                        className="px-2 py-1 border rounded text-xs text-red-600 hover:bg-red-50 flex items-center gap-1"
                     >
-                        <X className="inline h-3 w-3 mr-1" /> Deny
+                        <X className="h-3 w-3" /> Deny
                     </button>
                 </>
             )}
         </div>
     );
 
+    // Pagination
     const paginated = requests.slice((page - 1) * pageSize, page * pageSize);
     const totalPages = Math.ceil(requests.length / pageSize);
 
@@ -119,24 +126,31 @@ export default function UserRequestsTable() {
                 <table className="w-full text-sm table-auto divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-3 py-2 text-left">Appointment ID</th>
-                            <th className="px-3 py-2 text-left">Client Name</th>
-                            <th className="px-3 py-2 text-left">Requested Date/Time</th>
-                            <th className="px-3 py-2 text-left">Notes</th>
-                            <th className="px-3 py-2 text-left">Type</th>
-                            <th className="px-3 py-2 text-left">Status</th>
-                            <th className="px-3 py-2 text-right">Actions</th>
+                            {["Appointment ID", "Client Name", "Requested Date/Time", "Notes", "Type", "Status", "Actions"].map(
+                                (h) => (
+                                    <th
+                                        key={h}
+                                        className="px-3 py-2 text-left text-xs md:text-sm font-medium text-gray-500 uppercase tracking-wider"
+                                    >
+                                        {h}
+                                    </th>
+                                )
+                            )}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                         <AnimatePresence>
                             {loading ? (
                                 <motion.tr key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={7} className="py-8 text-center text-gray-500">Loading…</td>
+                                    <td colSpan={7} className="py-8 text-center text-gray-500">
+                                        Loading…
+                                    </td>
                                 </motion.tr>
                             ) : paginated.length === 0 ? (
                                 <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={7} className="py-8 text-center text-gray-500">No requests found.</td>
+                                    <td colSpan={7} className="py-8 text-center text-gray-500">
+                                        No requests found.
+                                    </td>
                                 </motion.tr>
                             ) : (
                                 paginated.map((r) => (
@@ -185,11 +199,7 @@ export default function UserRequestsTable() {
             </div>
 
             {viewingId && (
-                <ViewAppointmentModal
-                    isOpen={!!viewingId}
-                    appointmentId={viewingId}
-                    onClose={() => setViewingId(null)}
-                />
+                <ViewAppointmentModal isOpen={!!viewingId} appointmentId={viewingId} onClose={() => setViewingId(null)} />
             )}
         </div>
     );
