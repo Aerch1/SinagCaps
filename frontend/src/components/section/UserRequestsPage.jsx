@@ -6,7 +6,7 @@ import { Eye, X, Check } from "lucide-react";
 import ViewAppointmentModal from "../../components/common/modal/ViewAppointmentModal";
 import toast from "react-hot-toast";
 import api from "@/api/api";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 
 export default function UserRequestsTable() {
     const [requests, setRequests] = useState([]);
@@ -23,16 +23,17 @@ export default function UserRequestsTable() {
                 let displayDateTime = "-";
 
                 if (r.type === "reschedule" && r.requestedDateTime) {
-                    // Parse ISO and format nicely
-                    displayDateTime = format(parseISO(r.requestedDateTime), "PP p");
+                    const parsed = parseISO(r.requestedDateTime);
+                    if (isValid(parsed)) {
+                        displayDateTime = format(parsed, "PP p");
+                    }
                 }
 
                 if (r.type === "cancel" && r.appointment?.date && r.appointment?.time) {
-                    // Show original appointment date/time for cancel
-                    displayDateTime = format(
-                        parseISO(`${r.appointment.date}T${r.appointment.time}`),
-                        "PP p"
-                    );
+                    const parsed = parseISO(`${r.appointment.date}T${r.appointment.time}`);
+                    if (isValid(parsed)) {
+                        displayDateTime = format(parsed, "PP p");
+                    }
                 }
 
                 return {
@@ -62,7 +63,6 @@ export default function UserRequestsTable() {
         return () => window.removeEventListener("userRequestSubmitted", handleNewRequest);
     }, [fetchRequests]);
 
-    // ✅ Fixed API paths for approve/deny
     const handleApprove = async (r) => {
         try {
             await api.patch(`/appointments/requests/${r.id}/approve`);
