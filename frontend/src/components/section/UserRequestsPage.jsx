@@ -19,14 +19,36 @@ export default function AdminUserRequestsTable() {
         setLoading(true);
         try {
             const res = await api.get("/appointments/requests/all-requests");
+            console.log("Raw /all-requests response:", res.data);
 
-            const data = res.data.requests.map(r => {
+            if (!res.data || !Array.isArray(res.data.requests)) {
+                console.error("Response data is missing or malformed:", res.data);
+                toast.error("Invalid response from server");
+                setRequests([]);
+                return;
+            }
+
+            const data = res.data.requests.map((r, i) => {
+                console.log(`Processing request at index ${i}:`, r);
+
+                // Check all expected fields
+                if (!r.id) console.warn(`Request ${i} missing 'id'`);
+                if (!r.appointmentId) console.warn(`Request ${i} missing 'appointmentId'`);
+                if (!r.type) console.warn(`Request ${i} missing 'type'`);
+                if (!r.request_status) console.warn(`Request ${i} missing 'request_status'`);
+                if (!r.appointment) console.warn(`Request ${i} missing 'appointment' object`);
+
                 let displayDateTime = "-";
-
-                if (r.type === "reschedule" && r.requestedDateTime) {
-                    const parsed = parseISO(r.requestedDateTime);
-                    if (isValid(parsed)) {
-                        displayDateTime = format(parsed, "PP p");
+                if (r.type === "reschedule") {
+                    if (!r.requestedDateTime) {
+                        console.warn(`Reschedule request ${i} missing requestedDateTime`);
+                    } else {
+                        const parsed = parseISO(r.requestedDateTime);
+                        if (!isValid(parsed)) {
+                            console.error(`Invalid date for request ${i}:`, r.requestedDateTime);
+                        } else {
+                            displayDateTime = format(parsed, "PP p");
+                        }
                     }
                 }
 
@@ -43,14 +65,19 @@ export default function AdminUserRequestsTable() {
                 };
             });
 
+            console.log("Mapped requests ready for table:", data);
             setRequests(data);
         } catch (err) {
             console.error("Fetch requests error:", err);
+            if (err.response) {
+                console.error("Server response:", err.response.data);
+            }
             toast.error("Failed to load user requests");
         } finally {
             setLoading(false);
         }
     }, []);
+
 
     useEffect(() => {
         fetchRequests();

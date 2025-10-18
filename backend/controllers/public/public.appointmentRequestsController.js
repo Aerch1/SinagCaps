@@ -20,24 +20,20 @@ export async function requestReschedule(req, res) {
       [id, userId]
     );
     if (!appt)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Appointment not found or cannot be modified.",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found or cannot be modified.",
+      });
 
     const [[existing]] = await conn.execute(
       `SELECT * FROM appointment_requests WHERE appointment_id=? AND type='reschedule' AND status='pending'`,
       [id]
     );
     if (existing)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "You already have a pending reschedule request.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "You already have a pending reschedule request.",
+      });
 
     // Validate datetime properly
     const dt = new Date(`${requested_date}T${requested_time}`);
@@ -83,24 +79,20 @@ export async function requestCancel(req, res) {
       [id, userId]
     );
     if (!appt)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Appointment not found or cannot be cancelled.",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found or cannot be cancelled.",
+      });
 
     const [[existing]] = await conn.execute(
       `SELECT * FROM appointment_requests WHERE appointment_id=? AND type='cancel' AND status='pending'`,
       [id]
     );
     if (existing)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "You already have a pending cancellation request.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "You already have a pending cancellation request.",
+      });
 
     await conn.execute(
       `INSERT INTO appointment_requests (appointment_id, type, notes) VALUES (?, 'cancel', ?)`,
@@ -134,8 +126,8 @@ export async function getAllUserRequests(req, res) {
          ar.requested_time,
          ar.notes,
          ar.status AS request_status,
-         a.date AS current_date,
-         a.time AS current_time,
+         a.date AS original_date,
+         a.time AS original_time,
          a.name AS client_name,
          a.email AS client_email,
          a.status AS appointment_status
@@ -144,24 +136,31 @@ export async function getAllUserRequests(req, res) {
        ORDER BY ar.created_at DESC`
     );
 
-    const mapped = requests.map((r) => ({
-      id: r.request_id,
-      appointmentId: r.appointment_id,
-      type: r.type,
-      requestedDateTime:
-        r.type === "reschedule" && r.requested_date && r.requested_time
-          ? new Date(`${r.requested_date}T${r.requested_time}`).toISOString()
-          : null,
-      notes: r.notes || "-",
-      request_status: r.request_status || "pending",
-      appointment: {
-        date: r.current_date || null,
-        time: r.current_time || null,
-        clientName: r.client_name || "—",
-        clientEmail: r.client_email || "—",
-        status: r.appointment_status || "unknown",
-      },
-    }));
+    const mapped = requests.map((r) => {
+      let requestedDateTime = null;
+
+      // Only parse reschedule requests with valid date & time
+      if (r.type === "reschedule" && r.requested_date && r.requested_time) {
+        const dt = new Date(`${r.requested_date}T${r.requested_time}`);
+        if (!isNaN(dt.getTime())) requestedDateTime = dt.toISOString();
+      }
+
+      return {
+        id: r.request_id,
+        appointmentId: r.appointment_id,
+        type: r.type,
+        requestedDateTime,
+        notes: r.notes || "-",
+        request_status: r.request_status || "pending",
+        appointment: {
+          date: r.original_date || null,
+          time: r.original_time || null,
+          clientName: r.client_name || "—",
+          clientEmail: r.client_email || "—",
+          status: r.appointment_status || "unknown",
+        },
+      };
+    });
 
     return res.json({ success: true, requests: mapped });
   } catch (err) {
@@ -184,12 +183,10 @@ export async function approveRequest(req, res) {
       [requestId]
     );
     if (!request)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Request not found or already processed.",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Request not found or already processed.",
+      });
 
     await conn.beginTransaction();
 
@@ -244,12 +241,10 @@ export async function denyRequest(req, res) {
       [requestId]
     );
     if (!request)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Request not found or already processed.",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Request not found or already processed.",
+      });
 
     await conn.execute(
       `UPDATE appointment_requests SET status='rejected', notes=? WHERE id=?`,

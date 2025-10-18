@@ -32,10 +32,14 @@ YOUR PERSONALITY:
 
 YOUR EXPERTISE:
 You answer questions about Our Lady of Peace and Good Voyage Parish:
-✅ Location, contact details, office hours
-✅ Mass schedules (Sundays: 7AM, 9AM, 11AM, 4PM, 6PM | Weekdays: 6AM, 5:30PM)
+✅ Location, contact details, office hours (Closed Mondays, Open Tuesday-Sunday 8AM-5PM)
+✅ Parish Priest: Rev. Fr. Joseph P. Mendoza
+✅ Mass schedules (detailed schedule for each day of the week)
+✅ Confession schedule (Saturday after 6:30 AM Mass, Friday after 5:00 PM Mass)
+✅ Online Mass streaming (Sunday 8:30 AM via Facebook Live)
 ✅ Parish events, news, and announcements
 ✅ Services (baptism, wedding, confirmation, funeral, blessings) and their availability
+✅ Appointment booking process (online via website or in-person at office)
 ✅ Parish ministries and community programs
 ✅ Parish mission and vision
 
@@ -50,6 +54,8 @@ RESPONSE INTELLIGENCE:
 - Don't say "according to the data" or "the system shows" - speak directly
 - Vary your sentence structure and phrasing
 - Add helpful context when relevant (e.g., "For weddings, we recommend booking 3-6 months ahead")
+- When asked about the priest, mention Rev. Fr. Joseph P. Mendoza naturally
+- When discussing appointments, guide users to the website or office contact
 
 CONVERSATION AWARENESS:
 - Remember what was discussed in this conversation
@@ -99,14 +105,18 @@ function analyzeQuery(text = "", conversationHistory = []) {
   // Detect multiple topics in one query
   const topicPatterns = {
     location: /\b(where|saan|nasaan|location|address|matatagpuan|map|lugar|directions)\b/,
-    contact: /\b(contact|phone|email|call|text|tawag|numero|cellphone|telepono|reach)\b/,
+    contact: /\b(contact|phone|email|call|text|tawag|numero|cellphone|telepono|reach|website|site)\b/,
     hours: /\b(hours?|oras|open|bukas|close|sarado|office|opisina|secretariat|available)\b/,
-    mass: /\b(mass|misa|schedule|iskedyul|oras ng misa|sunday|weekday|eucharist|holy)\b/,
+    mass: /\b(mass|misa|schedule|iskedyul|oras ng misa|sunday|weekday|monday|tuesday|wednesday|thursday|friday|saturday|eucharist|holy|anticipated)\b/,
+    confession: /\b(confession|kumpisal|reconciliation|sacrament of penance)\b/,
+    priest: /\b(priest|pari|pastor|father|fr|reverend|paroko)\b/,
+    streaming: /\b(online|facebook|fb|live|stream|virtual|watch)\b/,
     events: /\b(event|programa|activity|kaganapan|happening|nangyayari|upcoming|susunod|celebration|pagdiriwang)\b/,
     announcements: /\b(announcement|anunsyo|paalala|notice|abiso|update|balita|latest|news|bagong|bago)\b/,
     advisories: /\b(advisory|abiso|alert|important|mahalaga|warning|babala|urgent|reminder)\b/,
     services: /\b(baptism|binyag|wedding|kasal|confirmation|kumpil|funeral|libing|blessing|basbas|service|serbisyo|sacrament)\b/,
     availability: /\b(available|avaible|availability|slot|libre|pwede|book|reserve|appointment|schedule|when can|may|meron)\b/,
+    booking: /\b(book|reserve|appointment|mag-book|magpa-schedule|how to book|paano mag-book)\b/,
     mission: /\b(mission|vision|misyon|bisyon|purpose|layunin|about|tungkol)\b/,
     ministries: /\b(ministry|ministries|ministrya|pangkat|group|volunteer|serve|kawanihan)\b/,
   };
@@ -131,7 +141,10 @@ function analyzeQuery(text = "", conversationHistory = []) {
     intents.add('services_info');
   }
   
-  if (topics.has('mass')) intents.add('mass_schedule');
+  if (topics.has('booking')) intents.add('booking_info');
+  if (topics.has('mass') || topics.has('confession')) intents.add('mass_schedule');
+  if (topics.has('streaming')) intents.add('streaming_info');
+  if (topics.has('priest')) intents.add('priest_info');
   if (topics.has('events')) intents.add('events');
   if (topics.has('announcements')) intents.add('announcements');
   if (topics.has('advisories')) intents.add('advisories');
@@ -301,14 +314,47 @@ function buildContextPrompt(context, userMessage) {
   
   // Core parish info (always include basics)
   prompt += `Parish: ${parish.parish_name}\n`;
+  prompt += `Parish Priest: ${parish.pastor.name} (${parish.pastor.title})\n`;
   prompt += `Location: ${parish.address}\n`;
   prompt += `Phone: ${parish.contact.phone}\n`;
   prompt += `Email: ${parish.contact.email}\n`;
+  prompt += `Website: ${parish.contact.website}\n`;
   prompt += `Office Hours: ${parish.contact.office_hours}\n\n`;
   
-  prompt += `Mass Schedule:\n`;
-  prompt += `- Sundays: ${parish.mass_schedule.sunday.join(", ")}\n`;
-  prompt += `- Weekdays: ${parish.mass_schedule.weekday.join(", ")}\n\n`;
+  // Enhanced Mass Schedule with all details
+  prompt += `MASS SCHEDULE:\n`;
+  prompt += `Monday to Thursday:\n`;
+  prompt += `  - ${parish.mass_schedule.monday_to_thursday.times.join(", ")} (${parish.mass_schedule.monday_to_thursday.type})\n\n`;
+  prompt += `Friday:\n`;
+  prompt += `  - ${parish.mass_schedule.friday.times.join(", ")}\n`;
+  prompt += `  - Notes: ${parish.mass_schedule.friday.notes}\n\n`;
+  prompt += `Saturday:\n`;
+  prompt += `  - ${parish.mass_schedule.saturday.times.join(", ")}\n`;
+  prompt += `  - Notes: ${parish.mass_schedule.saturday.notes}\n\n`;
+  prompt += `Sunday:\n`;
+  prompt += `  - ${parish.mass_schedule.sunday.times.join(", ")}\n`;
+  prompt += `  - Notes: ${parish.mass_schedule.sunday.notes}\n\n`;
+  
+  // Confession and Online Services
+  if (parish.sacraments?.confession) {
+    prompt += `Confession Schedule: ${parish.sacraments.confession.schedule}\n`;
+    if (parish.sacraments.confession.by_appointment) {
+      prompt += `  - Also available by appointment\n`;
+    }
+    prompt += `\n`;
+  }
+  
+  if (parish.online_services?.facebook_live) {
+    prompt += `Online Mass: ${parish.online_services.facebook_live}\n\n`;
+  }
+  
+  // Appointment/Booking Information
+  if (analysis.intents.includes('booking_info') || analysis.intents.includes('check_availability')) {
+    prompt += `HOW TO BOOK APPOINTMENTS:\n`;
+    prompt += `Method: ${parish.appointments.booking_method}\n`;
+    prompt += `Instructions: ${parish.appointments.instructions}\n`;
+    prompt += `Contact: ${parish.appointments.office_contact}\n\n`;
+  }
   
   // Conditionally add relevant data
   if (services && services.length > 0) {
@@ -335,9 +381,10 @@ function buildContextPrompt(context, userMessage) {
           prompt += `  • ${day.date}: ${day.remaining} slot(s) available\n`;
         });
       }
+      prompt += `\nTo book: Visit ${parish.contact.website} or call ${parish.contact.phone}\n`;
     } else {
       prompt += `- Currently fully booked for the next week\n`;
-      prompt += `- Recommendation: Contact office for waitlist or future dates\n`;
+      prompt += `- Recommendation: Contact office at ${parish.contact.phone} for waitlist or future dates\n`;
     }
     prompt += `\n`;
   }
@@ -387,6 +434,8 @@ function buildContextPrompt(context, userMessage) {
   prompt += `INSTRUCTIONS:\n`;
   prompt += `Answer the user's question using the information above. Be specific, helpful, and natural. `;
   prompt += `If data shows availability, mention specific dates and slots. `;
+  prompt += `If asked about booking, guide them to the website (${parish.contact.website}) or office contact. `;
+  prompt += `If asked about the priest, mention ${parish.pastor.name} naturally. `;
   prompt += `If no data is available for what they're asking, say so honestly and suggest contacting the office. `;
   prompt += `Keep your response conversational and concise (2-5 sentences typically).`;
   

@@ -1,14 +1,44 @@
 {
   "parish_name": "Our Lady of Peace and Good Voyage Parish",
   "address": "Barangay 7, Lipa City, Batangas, Philippines",
+  "pastor": {
+    "name": "Rev. Fr. Joseph P. Mendoza",
+    "title": "Parish Priest"
+  },
   "contact": {
-    "phone": " 0966 854 8848",
+    "phone": "0966 854 8848",
     "email": "lodlod.olpgvp@gmail.com",
-    "office_hours": "Monday to Friday, 8:00 AM – 5:00 PM"
+    "website": "https://lodlod.olpgvp.com/",
+    "office_hours": "Tuesday to Sunday, 8:00 AM – 5:00 PM (Closed Mondays)"
   },
   "mass_schedule": {
-    "sunday": ["7:00 AM", "9:00 AM", "11:00 AM", "4:00 PM", "6:00 PM"],
-    "weekday": ["6:00 AM", "5:30 PM"]
+    "monday_to_thursday": {
+      "times": ["6:30 AM"],
+      "type": "Daily Mass"
+    },
+    "friday": {
+      "times": ["6:00 AM", "5:00 PM"],
+      "notes": "6:00 AM - First Friday Mass | 5:00 PM - Confession After"
+    },
+    "saturday": {
+      "times": ["6:30 AM", "7:00 PM"],
+      "notes": "6:30 AM - Confession After | 7:00 PM - Anticipated Mass"
+    },
+    "sunday": {
+      "times": ["6:30 AM", "7:00 AM", "8:30 AM"],
+      "notes": "8:30 AM Mass with Facebook Live streaming"
+    }
+  },
+  "sacraments": {
+    "confession": {
+      "schedule": "Saturday 6:30 AM (after mass) | Friday 5:00 PM (after mass)",
+      "by_appointment": true
+    }
+  },
+  "appointments": {
+    "booking_method": "Online or In-Person",
+    "instructions": "To book an appointment, visit https://lodlod.olpgvp.com/ and locate the Services section. Fill up the necessary information in the form, or contact the parish office directly.",
+    "office_contact": "0966 854 8848"
   },
   "mission": "To guide parishioners in faith, service, and community through the teachings of Christ.",
   "vision": "A Christ-centered community inspired by peace, love, and good works.",
@@ -18,5 +48,8 @@
     "Ushers and Greeters",
     "Catechists",
     "Lectors and Commentators"
-  ]
+  ],
+  "online_services": {
+    "facebook_live": "Sunday Mass at 8:30 AM is streamed live on Facebook"
+  }
 }
