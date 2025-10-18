@@ -18,8 +18,8 @@ const splitDate = (iso) => {
     };
 };
 
-// Dynamic status label
-const statusLabel = (status) => {
+const statusLabel = (status, pendingRequest) => {
+    if (pendingRequest === "reschedule") return "Waiting for Admin";
     if (!status) return null;
     const key = status.toLowerCase();
     const map = {
@@ -34,6 +34,7 @@ const statusLabel = (status) => {
     };
     return map[key] || status;
 };
+
 
 // Dynamic status color
 const getStatusColor = (status) => {
@@ -92,9 +93,9 @@ export default function AppointmentsPanel() {
         const { dow, day } = splitDate(dateValue);
         const time = isAppt ? to12h(item.time) : "--";
 
-        // ✅ Show "Waiting for Admin" if there is a pending reschedule request
-        const sLabel = item.pendingRequest === "reschedule" ? "Waiting for Admin" : statusLabel(item.status);
+        const sLabel = statusLabel(item.status, item.pendingRequest);
         const colorClass = item.pendingRequest === "reschedule" ? "text-orange-600 font-semibold" : getStatusColor(item.status);
+
 
 
         const isArchived = item.status?.toLowerCase() === "archived";
