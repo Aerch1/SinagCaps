@@ -117,6 +117,7 @@ export default function UserRequestsTable() {
                             <th className="px-3 py-2 text-left">Client Name</th>
                             <th className="px-3 py-2 text-left">Requested Date/Time</th>
                             <th className="px-3 py-2 text-left">Notes</th>
+                            <th className="px-3 py-2 text-left">Type</th>
                             <th className="px-3 py-2 text-left">Status</th>
                             <th className="px-3 py-2 text-right">Actions</th>
                         </tr>
@@ -125,13 +126,13 @@ export default function UserRequestsTable() {
                         <AnimatePresence>
                             {loading ? (
                                 <motion.tr key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={6} className="py-8 text-center text-gray-500">
+                                    <td colSpan={7} className="py-8 text-center text-gray-500">
                                         Loading…
                                     </td>
                                 </motion.tr>
                             ) : paginated.length === 0 ? (
                                 <motion.tr key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <td colSpan={6} className="py-8 text-center text-gray-500">
+                                    <td colSpan={7} className="py-8 text-center text-gray-500">
                                         No requests found.
                                     </td>
                                 </motion.tr>
@@ -142,6 +143,7 @@ export default function UserRequestsTable() {
                                         <td className="px-3 py-2">{r.name}</td>
                                         <td className="px-3 py-2">{r.requestedDateTime}</td>
                                         <td className="px-3 py-2">{r.notes}</td>
+                                        <td className="px-3 py-2 capitalize">{r.type}</td>
                                         <td className="px-3 py-2">{r.request_status}</td>
                                         <td className="px-3 py-2 text-right">{renderActions(r)}</td>
                                     </motion.tr>
