@@ -24,10 +24,14 @@ export default function UserRequestsTable() {
             const data = res.data.requests.map((r) => {
                 let displayDateTime = "-";
 
-                if (r.requestedDateTime) {
+                if (r.type === "reschedule" && r.requestedDateTime) {
                     const parsed = parseISO(r.requestedDateTime);
                     if (isValid(parsed)) displayDateTime = format(parsed, "PP p");
-                    else console.warn("Invalid requestedDateTime:", r.requestedDateTime);
+                }
+
+                if (r.type === "cancel" && r.appointment?.date && r.appointment?.time) {
+                    const parsed = parseISO(`${r.appointment.date}T${r.appointment.time}`);
+                    if (isValid(parsed)) displayDateTime = format(parsed, "PP p");
                 }
 
                 return {
@@ -59,7 +63,6 @@ export default function UserRequestsTable() {
     }, [fetchRequests]);
 
     const handleApprove = async (r) => {
-        console.log("Approving request ID:", r.requestId);
         try {
             await api.patch(`/appointments/requests/${r.requestId}/approve`);
             toast.success("Request approved");
@@ -70,15 +73,14 @@ export default function UserRequestsTable() {
         }
     };
 
-    const handleDeny = async (r) => {
-        console.log("Denying request ID:", r.requestId);
+    const handleReject = async (r) => {
         try {
-            await api.patch(`/appointments/requests/${r.requestId}/deny`);
-            toast.success("Request denied");
+            await api.patch(`/appointments/requests/${r.requestId}/reject`);
+            toast.success("Request rejected");
             fetchRequests();
         } catch (err) {
-            console.error("Deny error:", err);
-            toast.error("Failed to deny request");
+            console.error("Reject error:", err);
+            toast.error("Failed to reject request");
         }
     };
 
@@ -100,10 +102,10 @@ export default function UserRequestsTable() {
                         <Check className="inline h-3 w-3 mr-1" /> Approve
                     </button>
                     <button
-                        onClick={() => handleDeny(r)}
+                        onClick={() => handleReject(r)}
                         className="px-2 py-1 border rounded text-xs text-red-600 hover:bg-red-50"
                     >
-                        <X className="inline h-3 w-3 mr-1" /> Deny
+                        <X className="inline h-3 w-3 mr-1" /> Reject
                     </button>
                 </>
             )}

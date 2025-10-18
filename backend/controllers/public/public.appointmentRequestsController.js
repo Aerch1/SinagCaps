@@ -1,7 +1,21 @@
 import pool from "../../config/db.js";
+import {
+  normalizeTime,
+  normalizeDateForMySQL,
+} from "../../utils/validateAppointment.js";
+import { applyUpdate } from "../../services/appointments.service.js";
+import {
+  formatReadableDate,
+  formatReadableTime,
+} from "../../utils/dateUtils.js";
+import {
+  sendAppointmentRescheduledEmail,
+  sendAppointmentCancelledEmail,
+} from "../../utils/appointmentEmails.js";
+import { createNotification } from "../../utils/createNotification.js";
 
 /* =========================
-   Request Reschedule
+   Public: Request Reschedule
 ========================= */
 export async function requestReschedule(req, res) {
   const conn = await pool.getConnection();
@@ -10,56 +24,54 @@ export async function requestReschedule(req, res) {
     const userId = req.user?.id;
     const { requested_date, requested_time, notes } = req.body;
 
-    if (!requested_date || !requested_time || !notes?.trim()) {
+    if (!requested_date || !requested_time || !notes?.trim())
       return res
         .status(400)
         .json({ success: false, message: "All fields are required" });
-    }
 
     const [[appt]] = await conn.execute(
-      `SELECT * FROM appointments 
-       WHERE id=? AND user_id=? AND status NOT IN ('completed','cancelled')`,
+      `SELECT * FROM appointments WHERE id=? AND user_id=? AND status NOT IN ('completed','cancelled')`,
       [id, userId]
     );
     if (!appt)
-      return res.status(404).json({
-        success: false,
-        message: "Appointment not found or cannot be modified",
-      });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Appointment not found or cannot be modified",
+        });
 
     const [[existing]] = await conn.execute(
-      `SELECT * FROM appointment_requests 
-       WHERE appointment_id=? AND status='pending' AND type='reschedule'`,
+      `SELECT * FROM appointment_requests WHERE appointment_id=? AND status='pending' AND type='reschedule'`,
       [id]
     );
     if (existing)
-      return res.status(400).json({
-        success: false,
-        message: "You already have a pending reschedule request.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "You already have a pending reschedule request.",
+        });
 
     const requestedDateTime = new Date(`${requested_date}T${requested_time}`);
     if (requestedDateTime <= new Date())
-      return res.status(400).json({
-        success: false,
-        message: "Requested date and time must be in the future.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Requested date and time must be in the future.",
+        });
 
-    await conn.beginTransaction();
     await conn.execute(
-      `INSERT INTO appointment_requests 
-       (appointment_id, type, requested_date, requested_time, notes) 
-       VALUES (?, 'reschedule', ?, ?, ?)`,
+      `INSERT INTO appointment_requests (appointment_id, type, requested_date, requested_time, notes) VALUES (?, 'reschedule', ?, ?, ?)`,
       [id, requested_date, requested_time, notes]
     );
-    await conn.commit();
 
     return res.json({
       success: true,
       message: "Reschedule request submitted successfully",
     });
   } catch (err) {
-    await conn.rollback();
     console.error("requestReschedule error:", err);
     res.status(500).json({ success: false, message: err.message });
   } finally {
@@ -68,7 +80,7 @@ export async function requestReschedule(req, res) {
 }
 
 /* =========================
-   Request Cancel
+   Public: Request Cancel
 ========================= */
 export async function requestCancel(req, res) {
   const conn = await pool.getConnection();
@@ -83,31 +95,31 @@ export async function requestCancel(req, res) {
         .json({ success: false, message: "Reason is required" });
 
     const [[appt]] = await conn.execute(
-      `SELECT * FROM appointments 
-       WHERE id=? AND user_id=? AND status NOT IN ('completed','cancelled')`,
+      `SELECT * FROM appointments WHERE id=? AND user_id=? AND status NOT IN ('completed','cancelled')`,
       [id, userId]
     );
     if (!appt)
-      return res.status(404).json({
-        success: false,
-        message: "Appointment not found or cannot be cancelled",
-      });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Appointment not found or cannot be cancelled",
+        });
 
     const [[existing]] = await conn.execute(
-      `SELECT * FROM appointment_requests 
-       WHERE appointment_id=? AND status='pending' AND type='cancel'`,
+      `SELECT * FROM appointment_requests WHERE appointment_id=? AND status='pending' AND type='cancel'`,
       [id]
     );
     if (existing)
-      return res.status(400).json({
-        success: false,
-        message: "You already have a pending cancellation request.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "You already have a pending cancellation request.",
+        });
 
     await conn.execute(
-      `INSERT INTO appointment_requests 
-       (appointment_id, type, notes) 
-       VALUES (?, 'cancel', ?)`,
+      `INSERT INTO appointment_requests (appointment_id, type, notes) VALUES (?, 'cancel', ?)`,
       [id, notes]
     );
 
@@ -123,74 +135,8 @@ export async function requestCancel(req, res) {
   }
 }
 
-// GET /appointments/requests/user-requests
-export async function getAllUserRequests(req, res) {
-  const conn = await pool.getConnection();
-  try {
-    const [requests] = await conn.execute(
-      `SELECT 
-         ar.id AS request_id,
-         ar.appointment_id,
-         ar.type,
-         ar.requested_date,
-         ar.requested_time,
-         ar.notes,
-         ar.status AS request_status,
-         ar.created_at,
-         a.date AS original_date,
-         a.time AS original_time,
-         u.id AS user_id,
-         u.name AS user_name,
-         u.email AS user_email
-       FROM appointment_requests ar
-       JOIN appointments a ON ar.appointment_id = a.id
-       JOIN users u ON a.user_id = u.id
-       ORDER BY ar.created_at DESC`
-    );
-
-    const mapped = requests.map((r) => {
-      let requestedDateTime = null;
-
-      // Reschedule: use requested date/time
-      if (r.type === "reschedule" && r.requested_date && r.requested_time) {
-        requestedDateTime = new Date(
-          `${r.requested_date}T${r.requested_time}`
-        ).toISOString();
-      }
-
-      // Cancel: use original appointment date/time
-      if (r.type === "cancel" && r.original_date && r.original_time) {
-        requestedDateTime = new Date(
-          `${r.original_date}T${r.original_time}`
-        ).toISOString();
-      }
-
-      return {
-        id: r.request_id,
-        appointmentId: r.appointment_id,
-        type: r.type,
-        requestedDateTime,
-        notes: r.notes || "-",
-        request_status: r.request_status || "pending",
-        user: {
-          id: r.user_id,
-          name: r.user_name,
-          email: r.user_email,
-        },
-      };
-    });
-
-    return res.json({ success: true, requests: mapped });
-  } catch (err) {
-    console.error("getAllUserRequests error:", err);
-    res.status(500).json({ success: false, message: err.message });
-  } finally {
-    conn.release();
-  }
-}
-
 /* =========================
-   Approve Request
+   Admin: Approve Request
 ========================= */
 export async function approveRequest(req, res) {
   const conn = await pool.getConnection();
@@ -202,25 +148,81 @@ export async function approveRequest(req, res) {
       [requestId]
     );
     if (!request)
-      return res.status(404).json({
-        success: false,
-        message: "Request not found or already processed.",
-      });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Request not found or already processed.",
+        });
 
-    await conn.beginTransaction();
+    const [[appt]] = await conn.execute(
+      `SELECT * FROM appointments WHERE id=?`,
+      [request.appointment_id]
+    );
+    if (!appt)
+      return res
+        .status(404)
+        .json({ success: false, message: "Appointment not found" });
 
     if (request.type === "reschedule") {
-      await conn.execute(
-        `UPDATE appointments SET date=?, time=?, was_rescheduled=1 WHERE id=?`,
-        [request.requested_date, request.requested_time, request.appointment_id]
-      );
+      const safeDate = normalizeDateForMySQL(request.requested_date);
+      const safeTime = normalizeTime(request.requested_time);
+
+      await applyUpdate({
+        id: appt.id,
+        date: safeDate,
+        time: safeTime,
+        was_rescheduled: true,
+        status: appt.status,
+      });
+
+      if (appt.email)
+        await sendAppointmentRescheduledEmail(appt.email, {
+          name: appt.name,
+          serviceName: appt.service_name || "Selected Service",
+          oldDate: formatReadableDate(appt.date),
+          oldTime: formatReadableTime(appt.time),
+          newDate: formatReadableDate(safeDate),
+          newTime: formatReadableTime(safeTime),
+        });
+
+      if (appt.user_id)
+        await createNotification({
+          user_id: appt.user_id,
+          title: "Appointment Rescheduled",
+          message: `${
+            appt.name
+          }'s appointment was rescheduled to ${formatReadableDate(
+            safeDate
+          )} at ${formatReadableTime(safeTime)}.`,
+          type: "appointment",
+          reference_id: appt.id,
+          transaction_id: `APT-${String(appt.id).padStart(5, "0")}`,
+        });
     }
 
     if (request.type === "cancel") {
-      await conn.execute(
-        `UPDATE appointments SET status='cancelled' WHERE id=?`,
-        [request.appointment_id]
-      );
+      await applyUpdate({ id: appt.id, status: "cancelled" });
+
+      if (appt.email)
+        await sendAppointmentCancelledEmail(appt.email, {
+          status: "cancelled",
+          name: appt.name,
+          serviceName: appt.service_name || "Selected Service",
+          date: formatReadableDate(appt.date),
+          time: formatReadableTime(appt.time),
+          reason: request.notes || "Cancelled by admin",
+        });
+
+      if (appt.user_id)
+        await createNotification({
+          user_id: appt.user_id,
+          title: "Appointment Cancelled",
+          message: `${appt.name}'s appointment was cancelled.`,
+          type: "appointment",
+          reference_id: appt.id,
+          transaction_id: `APT-${String(appt.id).padStart(5, "0")}`,
+        });
     }
 
     await conn.execute(
@@ -228,13 +230,11 @@ export async function approveRequest(req, res) {
       [requestId]
     );
 
-    await conn.commit();
     return res.json({
       success: true,
       message: "Request approved successfully",
     });
   } catch (err) {
-    await conn.rollback();
     console.error("approveRequest error:", err);
     res.status(500).json({ success: false, message: err.message });
   } finally {
@@ -243,9 +243,9 @@ export async function approveRequest(req, res) {
 }
 
 /* =========================
-   Deny Request
+   Admin: Reject Request
 ========================= */
-export async function denyRequest(req, res) {
+export async function rejectRequest(req, res) {
   const conn = await pool.getConnection();
   try {
     const { requestId } = req.params;
@@ -255,19 +255,36 @@ export async function denyRequest(req, res) {
       [requestId]
     );
     if (!request)
-      return res.status(404).json({
-        success: false,
-        message: "Request not found or already processed.",
-      });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Request not found or already processed.",
+        });
 
     await conn.execute(
-      `UPDATE appointment_requests SET status='denied' WHERE id=?`,
+      `UPDATE appointment_requests SET status='rejected' WHERE id=?`,
       [requestId]
     );
 
-    return res.json({ success: true, message: "Request denied" });
+    const [[appt]] = await conn.execute(
+      `SELECT * FROM appointments WHERE id=?`,
+      [request.appointment_id]
+    );
+    if (appt && appt.user_id) {
+      await createNotification({
+        user_id: appt.user_id,
+        title: "Appointment Request Rejected",
+        message: `Your ${request.type} request for ${appt.date} at ${appt.time} was rejected.`,
+        type: "appointment",
+        reference_id: appt.id,
+        transaction_id: `APT-${String(appt.id).padStart(5, "0")}`,
+      });
+    }
+
+    return res.json({ success: true, message: "Request rejected" });
   } catch (err) {
-    console.error("denyRequest error:", err);
+    console.error("rejectRequest error:", err);
     res.status(500).json({ success: false, message: err.message });
   } finally {
     conn.release();

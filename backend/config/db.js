@@ -227,6 +227,8 @@ async function ensureSchema(conn) {
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+    INDEX idx_appt_type_status (appointment_id, type, status)
+    
     )
   `);
 
