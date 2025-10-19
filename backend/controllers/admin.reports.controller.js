@@ -247,7 +247,7 @@ export async function generateSystemReport(req, res) {
       scope,
       dateRange:
         startDate && endDate ? `${startDate} to ${endDate}` : "All time",
-    };  
+    };
 
     /* ==================================================
        GENERATE FILE
@@ -274,10 +274,6 @@ export async function generateSystemReport(req, res) {
     });
   } catch (err) {
     console.error("❌ Report generation error:", err);
-    res.status(500).json({
-      error: "Failed to generate report",
-      message: err.message,
-    });
   } finally {
     conn.release();
   }
