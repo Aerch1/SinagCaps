@@ -80,14 +80,21 @@ function iconFor(notif) {
             return { Icon: Clock, tone: "text-sky-600", bg: "bg-sky-50" };
         case "advisory":
             return { Icon: RefreshCcw, tone: "text-amber-600", bg: "bg-amber-50" };
-        case "document":
+
+        // ✅ Distinct document types
+        case "document_processing":
+            return { Icon: Clock, tone: "text-blue-600", bg: "bg-blue-50" };
+        case "document_completed":
+            return { Icon: Check, tone: "text-emerald-600", bg: "bg-emerald-50" };
+        case "document_rejected":
             return { Icon: XCircle, tone: "text-rose-600", bg: "bg-rose-50" };
+
         default:
             return { Icon: Bell, tone: "text-gray-600", bg: "bg-gray-50" };
     }
 }
 
-/* ---------- Badge Colors ---------- */
+
 function getBadgeClass(type) {
     switch (type) {
         case "announcement":
@@ -96,10 +103,17 @@ function getBadgeClass(type) {
             return "bg-sky-100 text-sky-700 border border-sky-200";
         case "advisory":
             return "bg-amber-100 text-amber-700 border border-amber-200";
-        case "document":
-            return "bg-rose-100 text-rose-700 border border-rose-200";
         case "appointment":
             return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+
+        // ✅ document types
+        case "document_processing":
+            return "bg-blue-100 text-blue-700 border border-blue-200";
+        case "document_completed":
+            return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+        case "document_rejected":
+            return "bg-rose-100 text-rose-700 border border-rose-200";
+
         default:
             return "bg-gray-100 text-gray-700 border border-gray-200";
     }

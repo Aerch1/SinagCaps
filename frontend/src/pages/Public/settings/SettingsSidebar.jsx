@@ -25,7 +25,7 @@ export default function SettingsSidebar() {
       to="/settings/appointments"
       className={({ isActive }) => `${base} ${isActive ? active : inactive}`}
     >
-      My Appointments
+      My Transactions
     </NavLink>
 
     <NavLink

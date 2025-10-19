@@ -171,7 +171,7 @@ function UserMenu({ user, onLogout, compact = false }) {
                             className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-gray-700 hover:text-secondary hover:bg-gray-50"
                             onClick={() => setOpen(false)}
                         >
-                            <MessageSquare className="h-4 w-4" /> My Appointments
+                            <MessageSquare className="h-4 w-4" /> My Transactions
                         </NavLink>
 
                         {/* 🔔 Notifications with dynamic count */}

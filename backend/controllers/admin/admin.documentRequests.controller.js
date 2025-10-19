@@ -79,7 +79,7 @@ export async function createDocumentRequest(req, res) {
       ]
     );
 
-    // 📨 Send acknowledgment email to the specific user
+    // 📨 Send acknowledgment email to the user
     try {
       await sendDocumentReceivedEmail(email, {
         name: full_name,
@@ -94,6 +94,17 @@ export async function createDocumentRequest(req, res) {
         `⚠️ Failed to send received email to ${email}:`,
         mailErr.message
       );
+    }
+
+    // 🔔 Create notification (if user exists)
+    if (user_id) {
+      await createNotification({
+        user_id,
+        title: "Document Request Received",
+        message: `Hi ${full_name}, we’ve received your ${document_type} request. Your reference code is ${requestCode}.`,
+        type: "document_processing", // ✅ Matches frontend type
+        reference_id: result.insertId,
+      });
     }
 
     res.json({
@@ -136,7 +147,7 @@ export async function updateDocumentStatus(req, res) {
       id,
     ]);
 
-    // ✅ Send emails & notification to the specific user
+    // ✅ Send emails & notifications to the specific user
     if (status === "processing") {
       try {
         await sendDocumentProcessingEmail(doc.email, {
@@ -148,8 +159,8 @@ export async function updateDocumentStatus(req, res) {
           await createNotification({
             user_id: doc.user_id,
             title: "Your Document Request is Now Being Processed",
-            message: `Hi ${doc.full_name}, your ${doc.document_type} request is being processed.`,
-            type: "document",
+            message: `Hi ${doc.full_name}, your ${doc.document_type} request is currently being processed.`,
+            type: "document_processing",
             reference_id: id,
           });
         }
@@ -174,9 +185,9 @@ export async function updateDocumentStatus(req, res) {
         if (doc.user_id) {
           await createNotification({
             user_id: doc.user_id,
-            title: "Your Document Request is Ready for Pick-Up",
-            message: `Hi ${doc.full_name}, your ${doc.document_type} certificate is ready for pick-up.`,
-            type: "document",
+            title: "Your Document is Ready for Pick-Up",
+            message: `Hi ${doc.full_name}, your ${doc.document_type} is now ready for pick-up.`,
+            type: "document_completed",
             reference_id: id,
           });
         }
@@ -201,9 +212,9 @@ export async function updateDocumentStatus(req, res) {
         if (doc.user_id) {
           await createNotification({
             user_id: doc.user_id,
-            title: "Your Document Request Has Been Rejected",
+            title: "Your Document Request Was Rejected",
             message: `We’re sorry, but your ${doc.document_type} request was rejected. Reason: ${reason}`,
-            type: "document",
+            type: "document_rejected",
             reference_id: id,
           });
         }
