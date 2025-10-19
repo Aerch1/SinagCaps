@@ -111,7 +111,6 @@ export default function AdminBackupSettings() {
             toast.success("Backup exported successfully");
         } catch (err) {
             console.error("Export error:", err);
-            toast.error(err.response?.data?.message || "Failed to export backup");
         } finally {
             setIsExporting(false);
         }
@@ -148,7 +147,6 @@ export default function AdminBackupSettings() {
             setShowConfirm(false);
         } catch (err) {
             console.error("Import error:", err);
-            toast.error(err.response?.data?.message || "Failed to import backup");
         } finally {
             setIsImporting(false);
         }
