@@ -257,7 +257,7 @@ export default function Step4ReviewSubmit({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+          className="px-6 py-2 text-sm font-medium text-white bg-secondary rounded-lg hover:bg-secondary/90 disabled:opacity-50 flex items-center gap-2"
         >
           {isSubmitting ? "Submitting..." : "Submit Appointment"}
         </button>

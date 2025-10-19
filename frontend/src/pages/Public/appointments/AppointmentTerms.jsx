@@ -168,7 +168,7 @@ export default function AppointmentTerms() {
               </button>
               <button
                 onClick={agreeAndProceed}
-                className="px-4 py-2 text-sm rounded-md text-white bg-emerald-600 hover:bg-emerald-700"
+                className="px-4 py-2 text-sm rounded-md text-white bg-secondary hover:bg-secondary/90"
               >
                 I Agree & Continue
               </button>
