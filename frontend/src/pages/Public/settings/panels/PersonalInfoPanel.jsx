@@ -83,7 +83,7 @@ export default function PersonalInfoPanel() {
     <section className="bg-white">
       <div className="max-w-4xl mx-auto py-2">
         <div className="overflow-hidden border-gray-200">
-    
+
           {/* Full Name */}
           <Row label="Full name">
             <Input
@@ -112,7 +112,6 @@ export default function PersonalInfoPanel() {
               options={[
                 { value: "Male", label: "Male" },
                 { value: "Female", label: "Female" },
-                { value: "Non-binary", label: "Non-binary" },
                 { value: "Prefer not to say", label: "Prefer not to say" },
               ]}
               placeholder="Select gender"
@@ -152,11 +151,10 @@ export default function PersonalInfoPanel() {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className={`w-full md:w-64 mx-auto block rounded-xl py-3 font-semibold text-white transition ${
-                saving
+              className={`w-full md:w-64 mx-auto block rounded-xl py-3 font-semibold text-white transition ${saving
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-gray-900 hover:bg-black"
-              }`}
+                }`}
             >
               {saving ? "Saving…" : "SAVE"}
             </button>

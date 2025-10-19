@@ -5,9 +5,7 @@ import { useParams, Link } from "react-router-dom";
 import { CalendarDays, User, Tag, ArrowLeft } from "lucide-react";
 import api from "@/api/api";
 import { formatDate } from "@/utils/availabilityUtils";
-import HeroBanner from "@/components/section/HeroBanner";
 
-const HERO_IMG = "/forgot.jpg"; // optional placeholder
 
 export default function AnnouncementDetail() {
     const { id } = useParams();
@@ -49,8 +47,6 @@ export default function AnnouncementDetail() {
 
     return (
         <main className="bg-white">
-            <HeroBanner title="Announcement Details" imageSrc={HERO_IMG} />
-
             <section className="max-w-3xl mx-auto px-6 lg:px-8 py-10">
                 {/* Back link */}
                 <Link
