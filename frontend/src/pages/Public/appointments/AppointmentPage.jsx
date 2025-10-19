@@ -14,7 +14,7 @@ import Step3Form from "./steps/Step3Forms.jsx";
 import Step4ReviewSubmit from "./steps/Step4ReviewSubmit.jsx";
 import { useAuthStore } from "@/store/authStore.js";
 
-const HERO_IMG = "/forgot.jpg";
+const HERO_IMG = "/appbg.jpg";
 
 export default function AppointmentPage() {
   const { user } = useAuthStore();
