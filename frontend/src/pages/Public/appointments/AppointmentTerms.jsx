@@ -58,7 +58,7 @@ export default function AppointmentTerms() {
         <section className="border-l-4 border-red-500 pl-4 mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Reminder</h2>
           <p className="text-sm text-gray-700 leading-6">
-            Use a working email address you can access—Gmail or Yahoo is recommended to avoid
+            Use a working email address you can access—Gmail is recommended to avoid
             compatibility issues. Email delivery can vary depending on your provider, location,
             and email server policies. Keep your phone number active and check your inbox and spam
             for parish updates.
