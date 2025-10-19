@@ -71,6 +71,23 @@ function prettifyMessageText(message = "") {
 
 /* ---------- Icon and Color Map ---------- */
 function iconFor(notif) {
+    if (notif.type === "document") {
+        const status = notif.status?.toLowerCase?.() || notif.message?.toLowerCase?.() || "";
+
+        if (status.includes("processing")) {
+            return { Icon: RefreshCcw, tone: "text-amber-600", bg: "bg-amber-50" };
+        }
+        if (status.includes("completed") || status.includes("ready") || status.includes("pick-up")) {
+            return { Icon: Check, tone: "text-emerald-600", bg: "bg-emerald-50" };
+        }
+        if (status.includes("rejected") || status.includes("denied")) {
+            return { Icon: XCircle, tone: "text-rose-600", bg: "bg-rose-50" };
+        }
+
+        return { Icon: Clock, tone: "text-gray-600", bg: "bg-gray-50" }; // neutral fallback
+    }
+
+    // Non-document types
     switch (notif.type) {
         case "appointment":
             return { Icon: CalendarCheck2, tone: "text-emerald-600", bg: "bg-emerald-50" };
@@ -80,15 +97,22 @@ function iconFor(notif) {
             return { Icon: Clock, tone: "text-sky-600", bg: "bg-sky-50" };
         case "advisory":
             return { Icon: RefreshCcw, tone: "text-amber-600", bg: "bg-amber-50" };
-        case "document":
-            return { Icon: XCircle, tone: "text-rose-600", bg: "bg-rose-50" };
         default:
             return { Icon: Bell, tone: "text-gray-600", bg: "bg-gray-50" };
     }
 }
 
+
 /* ---------- Badge Colors ---------- */
-function getBadgeClass(type) {
+function getBadgeClass(type, status = "") {
+    if (type === "document") {
+        const s = status.toLowerCase();
+        if (s.includes("processing")) return "bg-amber-100 text-amber-700 border border-amber-200";
+        if (s.includes("completed") || s.includes("ready")) return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+        if (s.includes("rejected")) return "bg-rose-100 text-rose-700 border border-rose-200";
+        return "bg-gray-100 text-gray-700 border border-gray-200";
+    }
+
     switch (type) {
         case "announcement":
             return "bg-indigo-100 text-indigo-700 border border-indigo-200";
@@ -96,14 +120,13 @@ function getBadgeClass(type) {
             return "bg-sky-100 text-sky-700 border border-sky-200";
         case "advisory":
             return "bg-amber-100 text-amber-700 border border-amber-200";
-        case "document":
-            return "bg-rose-100 text-rose-700 border border-rose-200";
         case "appointment":
             return "bg-emerald-100 text-emerald-700 border border-emerald-200";
         default:
             return "bg-gray-100 text-gray-700 border border-gray-200";
     }
 }
+
 
 /* ---------- Row ---------- */
 function NotificationRow({ notif, onClick }) {
@@ -131,7 +154,7 @@ function NotificationRow({ notif, onClick }) {
                 <div
                     className={cn(
                         "inline-flex items-center gap-1 text-[12px] font-medium mt-1 px-2 py-0.5 rounded-full",
-                        getBadgeClass(notif.type)
+                        getBadgeClass(notif.type, notif.status || notif.message)
                     )}
                 >
                     <Tag className="h-3 w-3 opacity-70" />
@@ -192,7 +215,7 @@ function NotificationModal({ open, notif, onClose, onDelete, onMarkRead }) {
                             <div
                                 className={cn(
                                     "inline-flex items-center gap-1 mt-1 text-xs font-medium px-2 py-0.5 rounded-full",
-                                    getBadgeClass(notif.type)
+                                    getBadgeClass(notif.type, notif.status || notif.message)
                                 )}
                             >
                                 <Tag className="h-3 w-3 opacity-70" />

@@ -6,7 +6,7 @@ import api from "@/api/api"; // ✅ Axios instance
 import Input from "@/components/ui/Input";
 import { Mail, Phone, MapPin, User } from "lucide-react";
 
-const HERO_IMG = "/forgot.jpg";
+const HERO_IMG = "/docuBg.jpg";
 
 export default function DocumentRequestPage() {
     const [formData, setFormData] = useState({
