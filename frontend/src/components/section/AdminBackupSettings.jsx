@@ -37,23 +37,41 @@ export default function AdminBackupSettings() {
 
     /* 💾 Persist updated backups in localStorage */
     useEffect(() => {
-        const saveData = async () => {
-            const prepared = await Promise.all(
-                recent.map(async (b) => {
-                    if (b.url && !b.blobData) {
-                        const blob = await fetch(b.url).then((res) => res.blob());
-                        const arrayBuffer = await blob.arrayBuffer();
-                        const binary = String.fromCharCode(...new Uint8Array(arrayBuffer));
-                        const blobData = btoa(binary);
-                        return { ...b, blobData, mimeType: blob.type, url: undefined };
-                    }
-                    return b;
-                })
-            );
-            localStorage.setItem("recentBackups", JSON.stringify(prepared));
-        };
-        if (recent.length) saveData();
+        if (recent.length === 0) return;
+
+        const timeout = setTimeout(async () => {
+            try {
+                const prepared = await Promise.all(
+                    recent.map(async (b) => {
+                        if (b.url && !b.blobData) {
+                            const blob = await fetch(b.url).then((res) => res.blob());
+                            const arrayBuffer = await blob.arrayBuffer();
+                            const binary = String.fromCharCode(...new Uint8Array(arrayBuffer));
+                            const blobData = btoa(binary);
+                            return { ...b, blobData, mimeType: blob.type, url: undefined };
+                        }
+                        const { url, ...rest } = b;
+                        return rest;
+                    })
+                );
+
+                // optional: prevent saving overly large data
+                const dataString = JSON.stringify(prepared);
+                if (dataString.length > 4_000_000) {
+                    console.warn("Backup data too large for localStorage. Skipping save.");
+                    return;
+                }
+
+                localStorage.setItem("recentBackups", dataString);
+            } catch (err) {
+                console.error("Error saving backup data:", err);
+            }
+        }, 500); // small delay to prevent loop
+
+        return () => clearTimeout(timeout);
     }, [recent]);
+
+
 
     // 📦 Export backup
     const handleExport = async () => {
