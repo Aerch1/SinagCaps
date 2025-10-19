@@ -35,7 +35,6 @@ const ResetPasswordPage = lazy(() => import("./pages/Auth/ResetPasswordPage"));
 
 // --- Lazy-loaded Pages (Settings branch) ---
 const SettingsPage = lazy(() => import("./pages/Public/settings/SettingsPage"));
-const PersonalInfoPanel = lazy(() => import("./pages/Public/settings/panels/PersonalInfoPanel"));
 const AccountSecurityPanel = lazy(() => import("./pages/Public/settings/panels/AccountSecurityPanel"));
 const AppointmentsPanel = lazy(() => import("./pages/Public/settings/panels/AppointmentsPanel"));
 const AppointmentDetailPanel = lazy(() => import("./pages/Public/settings/panels/AppointmentDetailPanel"));
@@ -124,7 +123,6 @@ function App() {
                     element={<PublicAuthOnly><SettingsPage /></PublicAuthOnly>}
                   >
                     <Route index element={<Navigate to="profile" replace />} />
-                    <Route path="profile" element={<PersonalInfoPanel />} />
                     <Route path="security" element={<AccountSecurityPanel />} />
                     <Route path="appointments" element={<AppointmentsPanel />} />
                     <Route path="appointments/:id" element={<AppointmentDetailPanel />} />

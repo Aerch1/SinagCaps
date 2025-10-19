@@ -7,7 +7,6 @@ import { User, Mail, Phone, MapPin, Info, Plus, Trash2, House } from "lucide-rea
 import Input from "../components/ui/Input.jsx";
 import Dropdown from "../components/ui/Dropdown1.jsx";
 import DateInput from "../components/ui/DateInput.jsx";
-import { useAutoPopulateForm } from "../hooks/useAutoPopulateForm.js";
 
 const RequiredIndicator = () => <span className="text-red-500 ml-1">*</span>;
 const SectionHeader = ({ title, description }) => (
@@ -20,9 +19,6 @@ const SectionHeader = ({ title, description }) => (
 export default function BaptismForm({ formData, setFormData, registerValidator, formErrors = {} }) {
     const [showSponsorTip, setShowSponsorTip] = useState(false);
     const firstErrorRef = useRef(null);
-
-    useAutoPopulateForm(formData, setFormData);
-
 
     // ---------- Initialize sponsors ----------
     useEffect(() => {

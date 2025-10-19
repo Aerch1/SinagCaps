@@ -154,13 +154,7 @@ function UserMenu({ user, onLogout, compact = false }) {
 
                         <div className="my-3 h-px bg-gray-200" />
 
-                        <NavLink
-                            to="/settings/profile"
-                            className="flex items-center gap-3 px-4 py-2.5 text-[14px] text-gray-700 hover:text-secondary hover:bg-gray-50"
-                            onClick={() => setOpen(false)}
-                        >
-                            <User className="h-4 w-4" /> Profile
-                        </NavLink>
+                   
 
                         <NavLink
                             to="/settings/security"
@@ -540,18 +534,7 @@ export default function Header({ user, onLogout }) {
 
                             {user ? (
                                 <>
-                                    <NavLink
-                                        to="/settings/profile"
-                                        onClick={() => setMobileOpen(false)}
-                                        className={({ isActive }) =>
-                                            `block px-3 py-2.5 ${isActive
-                                                ? "text-secondary font-medium"
-                                                : "text-gray-700 hover:text-secondary"
-                                            }`
-                                        }
-                                    >
-                                        Profile
-                                    </NavLink>
+                                  
                                     <NavLink
                                         to="/settings/security"
                                         onClick={() => setMobileOpen(false)}
