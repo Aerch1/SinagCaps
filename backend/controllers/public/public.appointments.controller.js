@@ -4,6 +4,7 @@ import { createNotification } from "../../utils/createNotification.js";
 
 /* ==================================================
    CREATE Public Appointment (Default, Baptism, Kumpil)
+   → Now supports optional document image upload
 ================================================== */
 export async function createPublicAppointment(req, res) {
   const conn = await pool.getConnection();
@@ -44,12 +45,10 @@ export async function createPublicAppointment(req, res) {
       !date ||
       !time
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Missing required fields for appointment.",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields for appointment.",
+      });
     }
 
     const userId = req.user?.id || null;
@@ -140,7 +139,7 @@ export async function createPublicAppointment(req, res) {
 
     const [slotRules] = await conn.execute(
       `SELECT slots FROM rules
-       WHERE service_id=?
+       WHERE service_id=? 
          AND (date=? OR (date IS NULL AND weekday=?))
          AND (type='single' AND time=? OR type IN ('allday','recurring'))
        ORDER BY FIELD(type,'single','recurring','allday') DESC
@@ -150,20 +149,20 @@ export async function createPublicAppointment(req, res) {
     const slotLimit = slotRules?.[0]?.slots || 0;
     if (slotLimit > 0 && booked >= slotLimit) {
       await conn.rollback();
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "This schedule is already fully booked.",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "This schedule is already fully booked.",
+      });
     }
 
     // -------------------------------
-    // 5️⃣ Insert base appointment
+    // 5️⃣ Insert base appointment with optional document image
+    const document_url = req.file?.path || null;
+
     const [apptResult] = await conn.execute(
       `INSERT INTO appointments
-        (service_id, user_id, name, email, contactNumber, address, date, time, status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+        (service_id, user_id, name, email, contactNumber, address, date, time, status, notes, document_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
       [
         service_id,
         userId,
@@ -174,6 +173,7 @@ export async function createPublicAppointment(req, res) {
         date,
         time,
         notes,
+        document_url,
       ]
     );
     const appointmentId = apptResult.insertId;
@@ -232,12 +232,10 @@ export async function createPublicAppointment(req, res) {
         !baptizedOn
       ) {
         await conn.rollback();
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Missing required confirmation fields.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Missing required confirmation fields.",
+        });
       }
 
       const [confResult] = await conn.execute(
@@ -350,6 +348,7 @@ export async function createPublicAppointment(req, res) {
     conn.release();
   }
 }
+
 /* ==================================================
    GET /api/public/appointments/my
    → Get all appointments for the logged-in user

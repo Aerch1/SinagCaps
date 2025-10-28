@@ -44,7 +44,6 @@ export default function AppointmentPage() {
     return `appointment_${type}_${suffix}`;
   };
 
-  // ✅ Load and validate saved data
   useEffect(() => {
     const loadSavedData = async () => {
       const savedType = localStorage.getItem("appointment_activeType");
@@ -56,7 +55,6 @@ export default function AppointmentPage() {
       const savedData = JSON.parse(localStorage.getItem(dataKey) || "{}");
 
       try {
-        // ✅ Fetch valid service IDs to validate saved data
         const { data } = await api.get("/public/services");
         const validIds = data?.services?.map((s) => s.id) || [];
 
@@ -78,7 +76,6 @@ export default function AppointmentPage() {
     loadSavedData();
   }, []);
 
-  // ✅ Persist per-service data & step
   useEffect(() => {
     if (!formData.formType) return;
     localStorage.setItem("appointment_activeType", formData.formType);
@@ -86,14 +83,12 @@ export default function AppointmentPage() {
     localStorage.setItem(getStorageKey("data"), JSON.stringify(formData));
   }, [formData, currentStep]);
 
-  // ✅ Reset local storage for the current form type
   const resetStorage = (type) => {
     const keyPrefix = `appointment_${type || formData.formType}`;
     localStorage.removeItem(`${keyPrefix}_data`);
     localStorage.removeItem(`${keyPrefix}_step`);
   };
 
-  // ✅ Auto-clear all when successfully submitted
   useEffect(() => {
     if (showSuccess) {
       resetStorage(formData.formType);
@@ -101,16 +96,12 @@ export default function AppointmentPage() {
     }
   }, [showSuccess]);
 
-  /* =====================================================
-     🔄 Auto Reset When Switching Service Type
-  ===================================================== */
   const prevTypeRef = useRef(null);
   useEffect(() => {
     if (!formData.formType) return;
     const currentType = formData.formType;
     const prevType = prevTypeRef.current;
 
-    // When user switches from one service (baptism → confirmation), clear previous type storage
     if (prevType && prevType !== currentType) {
       resetStorage(prevType);
       setFormData({
@@ -175,7 +166,7 @@ export default function AppointmentPage() {
   };
 
   /* =====================================================
-     🚀 Submit Handler
+     🚀 Submit Handler (with document image)
   ===================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -185,47 +176,46 @@ export default function AppointmentPage() {
     const toastId = toast.loading("Submitting your appointment request...");
 
     try {
-      const payload = {
-        service_id: formData.service_id,
-        date: formData.preferredDate,
-        time: formData.preferredTime,
-        name:
-          user?.fullName ||
-          user?.name ||
-          user?.email?.split("@")[0] ||
-          "Guest",
-        email: formData.email || user?.email,
-        contactNumber: formData.phone,
-        address: formData.address,
-        notes: formData.notes || formData.additionalNotes || null,
-      };
+      const payload = new FormData();
+
+      payload.append("service_id", formData.service_id);
+      payload.append("date", formData.preferredDate);
+      payload.append("time", formData.preferredTime);
+      payload.append("name", user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest");
+      payload.append("email", formData.email || user?.email);
+      payload.append("contactNumber", formData.phone || "");
+      payload.append("address", formData.address || "");
+      payload.append("notes", formData.notes || formData.additionalNotes || "");
 
       if (formData.formType === "baptism") {
-        Object.assign(payload, {
-          childFullName: formData.childFullName,
-          childDob: formData.childDob,
-          childBirthplace: formData.childBirthplace,
-          fatherName: formData.fatherName,
-          motherMaidenName: formData.motherMaidenName,
-          parentsMarriageType: formData.parentsMarriageType,
-          sponsors: formData.sponsors || [],
-        });
+        payload.append("childFullName", formData.childFullName || "");
+        payload.append("childDob", formData.childDob || "");
+        payload.append("childBirthplace", formData.childBirthplace || "");
+        payload.append("fatherName", formData.fatherName || "");
+        payload.append("motherMaidenName", formData.motherMaidenName || "");
+        payload.append("parentsMarriageType", formData.parentsMarriageType || "");
+        payload.append("sponsors", JSON.stringify(formData.sponsors || []));
       }
 
       if (formData.formType === "confirmation") {
-        Object.assign(payload, {
-          confirmandName: formData.confirmandName,
-          age: formData.age,
-          fatherName: formData.fatherName,
-          motherMaidenName: formData.motherMaidenName,
-          parishOrigin: formData.parishOrigin,
-          baptizedAt: formData.baptizedAt,
-          baptizedOn: formData.baptizedOn,
-          sponsors: formData.sponsors || [],
-        });
+        payload.append("confirmandName", formData.confirmandName || "");
+        payload.append("age", formData.age || "");
+        payload.append("fatherName", formData.fatherName || "");
+        payload.append("motherMaidenName", formData.motherMaidenName || "");
+        payload.append("parishOrigin", formData.parishOrigin || "");
+        payload.append("baptizedAt", formData.baptizedAt || "");
+        payload.append("baptizedOn", formData.baptizedOn || "");
+        payload.append("sponsors", JSON.stringify(formData.sponsors || []));
       }
 
-      const { data } = await api.post("/appointments", payload);
+      // ✅ Append document image if uploaded
+      if (formData.documentFile) {
+        payload.append("document", formData.documentFile);
+      }
+
+      const { data } = await api.post("/appointments", payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
       setFormData((prev) => ({
         ...prev,
@@ -238,19 +228,14 @@ export default function AppointmentPage() {
     } catch (error) {
       toast.dismiss(toastId);
 
-      // If backend returns field-specific errors
       if (error?.response?.data?.errors) {
         const fieldErrors = {};
         error.response.data.errors.forEach(({ field, message }) => {
           fieldErrors[field] = message;
         });
         setFormErrors(fieldErrors);
-
-        // If backend returns a general error message
       } else if (error?.response?.data?.error) {
         toast.error(error.response.data.error);
-
-        // Fallback for network or unknown errors
       } else {
         toast.error("Submission failed. Please try again.");
       }
@@ -304,24 +289,15 @@ export default function AppointmentPage() {
     }
   };
 
-
-
-  // Track the latest form type for cleanup
   const formTypeRef = useRef(formData.formType);
+  useEffect(() => { formTypeRef.current = formData.formType; }, [formData.formType]);
 
-  useEffect(() => {
-    formTypeRef.current = formData.formType;
-  }, [formData.formType]);
-
-  // Clear storage on unmount
   useEffect(() => {
     return () => {
       if (formTypeRef.current) resetStorage(formTypeRef.current);
       localStorage.removeItem("appointment_activeType");
     };
   }, []);
-
-
 
   /* =====================================================
      🖥️ Layout

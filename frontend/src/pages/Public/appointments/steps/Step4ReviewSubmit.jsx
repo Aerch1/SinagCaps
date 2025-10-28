@@ -263,6 +263,32 @@ export default function Step4ReviewSubmit({
         </button>
       </div>
 
+      {/* ---------- Submitted Document Preview ---------- */}
+      {formData.documentFile && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <h4 className="text-sm font-semibold text-gray-900 mb-2">Submitted Document</h4>
+
+          {formData.documentFile.type.startsWith("image/") ? (
+            <img
+              src={URL.createObjectURL(formData.documentFile)}
+              alt="Submitted Document"
+              className="max-w-full h-auto rounded-md border"
+            />
+          ) : formData.documentFile.type === "application/pdf" ? (
+            <a
+              href={URL.createObjectURL(formData.documentFile)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline"
+            >
+              View submitted PDF
+            </a>
+          ) : (
+            <p className="text-gray-700 text-sm">File uploaded: {formData.documentFile.name}</p>
+          )}
+        </div>
+      )}
+
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
         <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
           <Clock className="w-4 h-4 text-blue-600" /> Reminder

@@ -477,6 +477,35 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                     ))}
                 </div>
             </section>
+            {/* Document Upload */}
+            <section className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 lg:p-8 space-y-4 shadow-sm">
+                <SectionHeader
+                    title="Supporting Document"
+                    description="Upload any relevant documents or certificates (PDF/Image)."
+                />
+
+                <div>
+                    <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setFormData({ ...formData, documentFile: e.target.files[0] })}
+                        className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4
+                       file:rounded-lg file:border-0
+                       file:text-sm file:font-semibold
+                       file:bg-blue-50 file:text-blue-700
+                       hover:file:bg-blue-100"
+                    />
+                    {formData.documentFile && (
+                        <p className="text-xs mt-1 text-gray-500">
+                            Selected file: {formData.documentFile.name}
+                        </p>
+                    )}
+                    {formErrors.documentFile && (
+                        <p className="text-red-500 text-xs mt-1.5">{formErrors.documentFile}</p>
+                    )}
+                </div>
+            </section>
+
         </div>
     );
 }
