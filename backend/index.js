@@ -143,7 +143,7 @@ app.use((err, req, res, next) => {
 // ===============================
 app.listen(PORT, async () => {
   await connectDB();
-  await resetDatabase();
+  // await resetDatabase();
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Frontend: ${process.env.CLIENT_URL}`);
   console.log(`☁️  Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);

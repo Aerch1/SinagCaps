@@ -67,6 +67,17 @@ const STATUS_META = {
 const capitalizeFirst = (str) =>
     str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : "";
 
+/* ---------------- Document Type Map ---------------- */
+const TYPE_MAP = {
+    baptism: "Certificate of Baptism",
+    confirmation: "Certificate of Confirmation",
+    marriage: "Certificate of Marriage",
+    "first-communion": "Certificate of First Communion",
+    death: "Certificate of Death/Burial",
+    membership: "Certificate of Membership",
+    other: "Other (specify in purpose)",
+};
+
 /* ---------------- Main Component ---------------- */
 export default function DocumentRequestDetailPanel() {
     const { id } = useParams();
@@ -117,10 +128,30 @@ export default function DocumentRequestDetailPanel() {
         );
     }
 
-    // ✅ Handle document types as array
-    const documentTypes = Array.isArray(doc.document_types)
-        ? doc.document_types.map(capitalizeFirst).join(", ")
-        : capitalizeFirst(doc.document_type || doc.document_types);
+    // ✅ Handle document types with correct labels
+    let documentTypes = "—";
+    try {
+        const parsed =
+            typeof doc.document_types === "string"
+                ? JSON.parse(doc.document_types)
+                : doc.document_types;
+
+        if (Array.isArray(parsed)) {
+            documentTypes = parsed
+                .map(
+                    (t) =>
+                        TYPE_MAP[t?.toLowerCase()] ||
+                        capitalizeFirst(t?.replace("-", " "))
+                )
+                .join(", ");
+        } else if (typeof parsed === "string") {
+            const key = parsed.toLowerCase();
+            documentTypes =
+                TYPE_MAP[key] || capitalizeFirst(parsed.replace("-", " "));
+        }
+    } catch {
+        documentTypes = capitalizeFirst(doc.document_type || doc.document_types);
+    }
 
     const datePretty = new Date(doc.created_at).toLocaleDateString(undefined, {
         month: "long",

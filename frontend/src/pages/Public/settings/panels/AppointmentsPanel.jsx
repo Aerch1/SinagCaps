@@ -106,19 +106,34 @@ export default function AppointmentsPanel() {
         let docTitle = "Document Request";
         if (!isAppt) {
             try {
+                const typeMap = {
+                    baptism: "Certificate of Baptism",
+                    confirmation: "Certificate of Confirmation",
+                    marriage: "Certificate of Marriage",
+                    "first-communion": "Certificate of First Communion",
+                    death: "Certificate of Death/Burial",
+                    membership: "Certificate of Membership",
+                    other: "Other (specify in purpose)",
+                };
+
                 const parsed =
                     typeof item.document_type === "string"
                         ? JSON.parse(item.document_type)
                         : item.document_type;
+
                 if (Array.isArray(parsed)) {
-                    docTitle = parsed.map(capitalizeFirst).join(", ");
+                    docTitle = parsed
+                        .map((t) => typeMap[t?.toLowerCase()] || capitalizeFirst(t))
+                        .join(", ");
                 } else if (typeof parsed === "string") {
-                    docTitle = capitalizeFirst(parsed);
+                    const key = parsed.toLowerCase();
+                    docTitle = typeMap[key] || capitalizeFirst(parsed);
                 }
             } catch {
                 docTitle = "Document Request";
             }
         }
+
 
         const title = isAppt
             ? item.serviceName || "Transaction"
