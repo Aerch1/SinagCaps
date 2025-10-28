@@ -4,9 +4,48 @@ import { useEffect, useState } from "react";
 import HeroBanner from "../../components/section/HeroBanner.jsx";
 import api from "@/api/api";
 import { CalendarDays, Clock } from "lucide-react";
-import { formatDate, to12h } from "@/utils/availabilityUtils";
 
 const HERO_IMG = "/bg2.jpg";
+
+// Inline utility functions
+function formatDate(dateString) {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+
+    return date.toLocaleDateString("en-PH", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+}
+
+function to12h(timeString) {
+    if (!timeString) return "";
+    const [hour, minute] = timeString.split(":");
+    const date = new Date();
+    date.setHours(hour, minute);
+    return date.toLocaleTimeString("en-PH", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+    });
+}
+
+// Helpers for badge
+function getMonthAbbr(dateString) {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    return date.toLocaleString("en-PH", { month: "short" });
+}
+
+function getDay(dateString) {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "";
+    return date.getDate();
+}
 
 export default function Events() {
     const [events, setEvents] = useState([]);
@@ -22,7 +61,6 @@ export default function Events() {
                 const res = await api.get("/admin/events");
                 const data = res.data?.data || [];
 
-                // filter and sort
                 const filtered = data.filter((e) => e.status !== "Inactive");
                 const sorted = [...filtered].sort(
                     (a, b) => new Date(b.date) - new Date(a.date)
@@ -45,7 +83,6 @@ export default function Events() {
     const endIndex = startIndex + perPage;
     const visibleEvents = events.slice(startIndex, endIndex);
 
-    // Generate pagination numbers like DataTable
     const pages = [];
     if (totalPages <= 7) {
         for (let i = 1; i <= totalPages; i++) pages.push(i);
@@ -108,10 +145,8 @@ export default function Events() {
                         const optimizedImg = e.image_url?.includes("/upload/")
                             ? e.image_url.replace("/upload/", "/upload/f_auto,q_auto,w_600/")
                             : e.image_url;
-                        const badgeMonth = new Date(e.date).toLocaleString("en-US", {
-                            month: "short",
-                        });
-                        const badgeDay = new Date(e.date).getDate();
+                        const badgeMonth = getMonthAbbr(e.date);
+                        const badgeDay = getDay(e.date);
 
                         return (
                             <li key={e.id}>

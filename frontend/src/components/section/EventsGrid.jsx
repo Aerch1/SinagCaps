@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import HeroBanner from "../../components/section/HeroBanner.jsx";
-import api from "@/api/api";
-import { CalendarDays, Clock } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { CalendarDays, Clock, Edit2, Trash2, X, Plus } from "lucide-react";
+import ConfirmDialog from "../ui/ConfirmDialog";
 
-const HERO_IMG = "/bg2.jpg";
+/* ---------- Status Badge ---------- */
 
-// Local utility functions
+
 export function formatDate(dateString) {
   if (!dateString) return "";
   const date = new Date(dateString);
@@ -31,220 +30,375 @@ export function to12h(timeString) {
     minute: "2-digit",
     hour12: true,
   });
+
 }
 
-export default function Events() {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  // Pagination
-  const [page, setPage] = useState(1);
-  const perPage = 5;
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const res = await api.get("/admin/events");
-        const data = res.data?.data || [];
-
-        // filter and sort
-        const filtered = data.filter((e) => e.status !== "Inactive");
-        const sorted = [...filtered].sort(
-          (a, b) => new Date(b.date) - new Date(a.date)
-        );
-
-        setEvents(sorted);
-      } catch (err) {
-        console.error("Failed to fetch events:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEvents();
-  }, []);
-
-  // Pagination logic
-  const total = events.length;
-  const totalPages = Math.ceil(total / perPage);
-  const startIndex = (page - 1) * perPage;
-  const endIndex = startIndex + perPage;
-  const visibleEvents = events.slice(startIndex, endIndex);
-
-  // Generate pagination numbers
-  const pages = [];
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i);
-  } else if (page <= 4) {
-    pages.push(1, 2, 3, 4, 5, "…", totalPages);
-  } else if (page >= totalPages - 3) {
-    pages.push(
-      1,
-      "…",
-      totalPages - 4,
-      totalPages - 3,
-      totalPages - 2,
-      totalPages - 1,
-      totalPages
-    );
-  } else {
-    pages.push(1, "…", page - 1, page, page + 1, "…", totalPages);
-  }
-
-  if (loading)
-    return (
-      <main className="bg-white">
-        <HeroBanner title="Events" imageSrc={HERO_IMG} />
-        <section className="py-16 text-center text-gray-500">
-          Loading events...
-        </section>
-      </main>
-    );
-
-  if (!events.length)
-    return (
-      <main className="bg-white">
-        <HeroBanner title="Events" imageSrc={HERO_IMG} />
-        <section className="py-16 text-center text-gray-500">
-          No parish news or events available yet.
-        </section>
-      </main>
-    );
+const StatusChip = ({ status }) => {
+  const color =
+    status === "Active"
+      ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20"
+      : "bg-slate-50 text-slate-600 ring-1 ring-slate-500/20";
 
   return (
-    <main className="bg-white">
-      <HeroBanner title="Events & News" imageSrc={HERO_IMG} />
+    <span
+      className={`inline-flex justify-center items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color}
+        w-[80px] sm:w-[90px] md:w-[100px] text-center truncate`}
+      title={status}
+    >
+      {status}
+    </span>
+  );
+};
 
-      <section className="mx-auto max-w-4xl px-6 lg:px-8 py-10">
-        <div className="text-center">
-          <p className="text-amber-500 italic">Parish Events & News</p>
-          <h2 className="mt-2 text-2xl sm:text-3xl font-semibold text-gray-900">
-            Stay connected with parish updates and upcoming activities.
-          </h2>
-          <p className="mt-2 text-gray-600 max-w-2xl mx-auto">
-            Browse through our latest events and announcements. Click an item to
-            read more details.
-          </p>
+/* ---------- Category Chip ---------- */
+const CategoryChip = ({ category }) => {
+  if (!category) return null;
+  return (
+    <span
+      className={`
+        inline-flex justify-center items-center rounded-md px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-300
+        w-[80px] sm:w-[90px] md:w-[100px] text-center truncate
+      `}
+      title={category}
+    >
+      {category}
+    </span>
+  );
+};
+
+/* ---------- Type Indicator ---------- */
+const TypeChip = ({ type }) => {
+  if (!type) return null;
+  const isEvent = type.toLowerCase() === "event";
+  const color = isEvent
+    ? "bg-blue-50 text-blue-700 ring-1 ring-blue-600/20"
+    : "bg-amber-50 text-amber-700 ring-1 ring-amber-600/20";
+  const label = isEvent ? "Event" : "News";
+
+  return (
+    <span
+      className={`inline-flex justify-center items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color}
+        w-[80px] sm:w-[90px] md:w-[100px] text-center truncate`}
+      title={label}
+    >
+      {label}
+    </span>
+  );
+};
+
+/* ---------- Helper: normalize date for edit ---------- */
+const normalizeDate = (value) => {
+  if (!value) return "";
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
+};
+
+/* ---------- Card Component ---------- */
+function EventCard({ item, onEdit, onDelete, onPreview }) {
+  const optimizedImg = item.image_url?.includes("/upload/")
+    ? item.image_url.replace("/upload/", "/upload/f_auto,q_auto,w_800/")
+    : item.image_url;
+
+  const handleEdit = () => {
+    const fixed = { ...item, date: normalizeDate(item.date) };
+    onEdit?.(fixed);
+  };
+
+  return (
+    <div
+      onClick={() => onPreview(item)}
+      className="flex flex-col h-full cursor-pointer rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-300 group overflow-hidden"
+    >
+      {/* Image */}
+      {optimizedImg ? (
+        <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-50">
+          <img
+            src={optimizedImg}
+            alt={item.title}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
-      </section>
+      ) : (
+        <div className="h-2" />
+      )}
 
-      <section className="mx-auto max-w-4xl px-6 lg:px-8 pb-16 pt-10">
-        <ul className="space-y-4">
-          {visibleEvents.map((e) => {
-            const optimizedImg = e.image_url?.includes("/upload/")
-              ? e.image_url.replace("/upload/", "/upload/f_auto,q_auto,w_600/")
-              : e.image_url;
-            const badgeMonth = new Date(e.date).toLocaleString("en-US", {
-              month: "short",
-            });
-            const badgeDay = new Date(e.date).getDate();
+      {/* Content */}
+      <div className="flex flex-col justify-between flex-1 p-6">
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-lg font-semibold text-slate-900 leading-tight line-clamp-2 flex-1 group-hover:text-slate-700 transition-colors">
+              {item.title}
+            </h3>
+            <div className="flex flex-col items-end gap-1">
+              <TypeChip type={item.type} />
+              <StatusChip status={item.status} />
+            </div>
+          </div>
 
-            return (
-              <li key={e.id}>
-                <a
-                  href={`/updates/${e.id}`}
-                  className="group block bg-white ring-1 ring-gray-200 shadow-sm hover:shadow-md hover:ring-gray-300 transition rounded-lg overflow-hidden"
-                >
-                  <div className="flex gap-6 p-4">
-                    {/* Thumbnail */}
-                    <div className="relative h-24 w-40 shrink-0 overflow-hidden bg-gray-100 rounded-md">
-                      {optimizedImg && (
-                        <img
-                          src={optimizedImg}
-                          alt={e.title}
-                          className="h-full w-full object-cover"
-                        />
-                      )}
+          {/* ✅ Category chip */}
+          {item.category && (
+            <div className="mt-1">
+              <CategoryChip category={item.category} />
+            </div>
+          )}
 
-                      {/* Date badge */}
-                      <div className="absolute left-2 top-2 rounded-md bg-white/95 px-2 py-1 text-center shadow-sm ring-1 ring-gray-200">
-                        <div className="text-[10px] font-medium text-gray-500 leading-none">
-                          {badgeMonth}
-                        </div>
-                        <div className="text-base font-semibold text-gray-900 leading-tight -mt-0.5">
-                          {badgeDay}
-                        </div>
-                      </div>
-                    </div>
+          {item.description && (
+            <p className="text-sm text-slate-600 leading-relaxed line-clamp-3">
+              {item.description}
+            </p>
+          )}
+        </div>
 
-                    {/* Details */}
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 transition-colors group-hover:text-red-700">
-                        {e.title}
-                      </h3>
+        {/* Footer */}
+        <div className="mt-5 pt-4 border-t border-slate-100 space-y-3">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-slate-400" />
+              <span className="font-medium">{formatDate(item.date)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-slate-400" />
+              <span className="font-medium">{to12h(item.time)}</span>
+            </div>
+          </div>
 
-                      <div className="mt-1 text-xs sm:text-sm text-gray-500 flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5 text-gray-400" />
-                          <span>{to12h(e.time)}</span>
-                        </div>
-                        <span className="mx-1">•</span>
-                        <div className="flex items-center gap-1.5">
-                          <CalendarDays className="h-3.5 w-3.5 text-gray-400" />
-                          <span>{formatDate(e.date)}</span>
-                        </div>
-                      </div>
+          {item.created_at && (
+            <p className="text-xs text-slate-400">
+              Created: {formatDate(item.created_at)}
+            </p>
+          )}
 
-                      <span
-                        className={`mt-2 inline-block text-xs font-medium px-2 py-0.5 rounded-full ${e.type === "event"
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-blue-50 text-blue-700"
-                          }`}
-                      >
-                        {e.type === "event" ? "Event" : "News"}
-                      </span>
-
-                      <p className="mt-2 line-clamp-2 text-sm text-gray-600">
-                        {e.description}
-                      </p>
-                    </div>
-                  </div>
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-8 border-t pt-6 flex justify-center items-center gap-2">
+          <div
+            className="flex items-center gap-3 pt-2"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="h-9 w-9 rounded-md border bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+              onClick={handleEdit}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors"
             >
-              ‹
+              <Edit2 className="h-3.5 w-3.5" />
+              <span>Edit</span>
             </button>
-
-            {pages.map((n, i) =>
-              n === "…" ? (
-                <span
-                  key={`dots-${i}`}
-                  className="h-9 w-9 flex items-center justify-center"
-                >
-                  …
-                </span>
-              ) : (
-                <button
-                  key={`page-${n}`}
-                  onClick={() => setPage(n)}
-                  className={`h-9 w-9 rounded-md border text-sm ${n === page ? "bg-secondary text-white" : "bg-white hover:bg-gray-50"
-                    }`}
-                >
-                  {n}
-                </button>
-              )
-            )}
-
             <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="h-9 w-9 rounded-md border bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+              onClick={() => onDelete?.(item)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
             >
-              ›
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete</span>
             </button>
           </div>
-        )}
-      </section>
-    </main>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Preview Modal ---------- */
+function EventPreviewModal({ item, onClose }) {
+  if (!item) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[99] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 p-2 text-slate-400 hover:text-slate-700 bg-white rounded-full shadow-md hover:shadow-lg transition-all"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="max-h-[90vh] overflow-y-auto">
+          {item.image_url && (
+            <div className="relative h-80 w-full bg-slate-100 flex items-center justify-center">
+              <img
+                src={item.image_url}
+                alt={item.title}
+                className="max-h-full w-auto object-contain"
+              />
+            </div>
+          )}
+
+          <div className="p-8 space-y-6">
+            <div className="flex justify-between items-start gap-4">
+              <div>
+                <h2 className="text-3xl font-bold text-slate-900 leading-tight">
+                  {item.title}
+                </h2>
+                <div className="mt-2 space-y-2">
+                  <TypeChip type={item.type} />
+                  {item.category && (
+                    <div>
+                      <CategoryChip category={item.category} />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <StatusChip status={item.status} />
+            </div>
+
+            <div className="flex items-center gap-6 pb-4 border-b border-slate-200">
+              <div className="flex items-center gap-2.5 text-slate-700">
+                <CalendarDays className="h-4 w-4 text-slate-500" />
+                <span className="font-medium">{formatDate(item.date)}</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-slate-700">
+                <Clock className="h-4 w-4 text-slate-500" />
+                <span className="font-medium">{to12h(item.time)}</span>
+              </div>
+            </div>
+
+            {item.created_at && (
+              <p className="text-xs text-slate-500">
+                Created on {formatDate(item.created_at)}
+              </p>
+            )}
+
+            {item.description && (
+              <p className="text-slate-700 leading-relaxed whitespace-pre-line text-base">
+                {item.description}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Main Grid ---------- */
+export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) {
+  const [previewItem, setPreviewItem] = useState(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 6;
+
+  const [confirmDelete, setConfirmDelete] = useState({
+    open: false,
+    item: null,
+    submitting: false,
+  })
+  const totalPages = Math.ceil(events.length / pageSize);
+  const visibleEvents = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return events.slice(start, start + pageSize);
+  }, [events, page, pageSize]);
+
+  return (
+    <div className="p-6 space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Event & News Management
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage church events and news displayed on the public homepage.
+          </p>
+        </div>
+
+        <button
+          onClick={() => onCreate?.()}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/90 px-4 py-2.5 text-sm font-medium text-white shadow-sm  transition-all w-full sm:w-auto"
+        >
+          <Plus className="h-4 w-4" />
+          New Event / News
+        </button>
+      </div>
+
+      {/* Grid */}
+      {visibleEvents.length > 0 ? (
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {visibleEvents.map((item) => (
+            <EventCard
+              key={item.id}
+              item={item}
+              onEdit={onEdit}
+              onDelete={(item) =>
+                setConfirmDelete({ open: true, item, submitting: false })
+              } onPreview={(i) => setPreviewItem(i)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-16 text-center">
+          <div className="mx-auto w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
+            <Plus className="h-7 w-7 text-slate-400" />
+          </div>
+          <h3 className="text-base font-semibold text-slate-900 mb-1">
+            No events found
+          </h3>
+          <p className="text-sm text-slate-600">
+            You can add a new event or news item above.
+          </p>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 pt-4 border-t border-gray-100">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="h-9 w-9 rounded-md border bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            ‹
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i + 1)}
+              className={`h-9 w-9 rounded-md border text-sm ${page === i + 1
+                ? "bg-blue-600 text-white"
+                : "bg-white hover:bg-gray-50"
+                }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="h-9 w-9 rounded-md border bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            ›
+          </button>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      <EventPreviewModal
+        item={previewItem}
+        onClose={() => setPreviewItem(null)}
+      />
+
+
+      <ConfirmDialog
+        open={confirmDelete.open}
+        title="Delete Event / News"
+        message={`Are you sure you want to delete "${confirmDelete.item?.title}"? This action cannot be undone.`}
+        submitting={confirmDelete.submitting}
+        onCancel={() => setConfirmDelete({ open: false, item: null, submitting: false })}
+        onConfirm={async () => {
+          if (!confirmDelete.item) return;
+          try {
+            setConfirmDelete((prev) => ({ ...prev, submitting: true }));
+            await onDelete?.(confirmDelete.item); // call your original onDelete
+            setConfirmDelete({ open: false, item: null, submitting: false });
+          } catch (err) {
+            console.error(err);
+            setConfirmDelete({ open: false, item: null, submitting: false });
+          }
+        }}
+      />
+
+    </div>
   );
 }
