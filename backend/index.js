@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import path from "path";
 
 // Database
-import { connectDB, resetDatabase } from "./config/db.js";
+import { connectDB } from "./config/db.js";
 
 // Routes
 import authRoutes from "./routes/auth.route.js";
