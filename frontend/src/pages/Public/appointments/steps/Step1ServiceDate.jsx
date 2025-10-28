@@ -10,11 +10,12 @@ export default function Step1Service({ formData, setFormData, services = [] }) {
     setFormData((prev) => ({
       ...prev,
       service_id: picked.id,
-      formType: picked.form_type,
+      formType: picked.form_type || "default", // fallback to default
       serviceName: picked.name,
-      preferredDate: "",
-      preferredTime: "",
-      extraData: {},
+      // Only reset date/time if service changed
+      preferredDate: prev.service_id !== picked.id ? "" : prev.preferredDate,
+      preferredTime: prev.service_id !== picked.id ? "" : prev.preferredTime,
+      extraData: {}, // optional: clear extraData on service change
     }));
   };
 

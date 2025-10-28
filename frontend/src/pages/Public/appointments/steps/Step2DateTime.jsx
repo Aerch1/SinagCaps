@@ -39,7 +39,8 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
         setMonth(n.getMonth());
         setAvailableTimes([]);
     };
-    /* Service Change - Only update service, don't reset step */
+
+    /* Service Change - Only update service, don't reset step unnecessarily */
     const onServiceChange = (label) => {
         const picked = services.find((s) => s.name === label);
         if (!picked) return;
@@ -47,17 +48,17 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
         setFormData((prev) => ({
             ...prev,
             service_id: picked.id,
-            formType: picked.form_type || "default",  // ensures a valid formType
+            formType: picked.form_type || "default",
             serviceName: picked.name,
-            preferredDate: "",
-            preferredTime: "",
+            // Only reset date/time if service actually changed
+            preferredDate: prev.service_id !== picked.id ? "" : prev.preferredDate,
+            preferredTime: prev.service_id !== picked.id ? "" : prev.preferredTime,
             extraData: {},
         }));
 
         setMonthAvailability({});
         setAvailableTimes([]);
     };
-
 
     /* Load month availability */
     useEffect(() => {
@@ -141,6 +142,7 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
                 />
             </div>
 
+            {/* Calendar & Times */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                 {/* Calendar */}
                 <div className="md:col-span-7 border border-gray-200 rounded-md p-4">
@@ -163,9 +165,7 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
                             const remaining = dayData.remaining ?? 0;
                             const isSelected = selectedISO === iso;
 
-                            let textClass = "";
-                            let bgClass = "";
-
+                            let textClass = "", bgClass = "";
                             if (!inMonth) textClass = "text-gray-300";
                             else if (status === "available" && remaining > 0) { textClass = "text-green-800 font-semibold"; bgClass = "bg-green-100"; }
                             else if (status === "full") { textClass = "text-red-700 font-semibold"; bgClass = "bg-red-100"; }
@@ -174,15 +174,10 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
 
                             return (
                                 <button
-                                    type="button"
                                     key={iso + idx}
+                                    type="button"
                                     onClick={() => handleDayClick(date)}
-                                    className={[
-                                        "h-9 w-full rounded-md text-xs grid place-items-center transition border border-transparent hover:bg-gray-100/30",
-                                        textClass,
-                                        bgClass,
-                                        isSelected ? "ring-2 ring-blue-400 font-bold" : "",
-                                    ].join(" ")}
+                                    className={["h-9 w-full rounded-md text-xs grid place-items-center transition border border-transparent hover:bg-gray-100/30", textClass, bgClass, isSelected ? "ring-2 ring-blue-400 font-bold" : ""].join(" ")}
                                 >
                                     {date.getDate()}
                                 </button>
@@ -209,10 +204,7 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
                                         key={slot.time}
                                         type="button"
                                         disabled={isFull}
-                                        onClick={() =>
-                                            !isFull &&
-                                            setFormData((prev) => ({ ...prev, preferredTime: slot.time }))
-                                        }
+                                        onClick={() => !isFull && setFormData(prev => ({ ...prev, preferredTime: slot.time }))}
                                         className={[
                                             "w-full px-3 py-2 rounded border text-sm flex items-center justify-between transition",
                                             isFull
@@ -223,9 +215,7 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
                                         ].join(" ")}
                                     >
                                         <span>{format12h(slot.time)}</span>
-                                        <span className="text-xs font-medium">
-                                            {isFull ? "Fully Booked" : `${slot.remaining} slots left`}
-                                        </span>
+                                        <span className="text-xs font-medium">{isFull ? "Fully Booked" : `${slot.remaining} slot(s) left`}</span>
                                     </button>
                                 );
                             })}
@@ -236,18 +226,10 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
 
             {/* Legend */}
             <div className="flex flex-wrap gap-6 text-xs text-gray-600 pt-2">
-                <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded bg-green-200 border border-green-500" /> Available
-                </div>
-                <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded bg-red-200 border border-red-500" /> Fully Booked
-                </div>
-                <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded bg-gray-300 border border-gray-500" /> Blocked/Closed
-                </div>
-                <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded bg-gray-100 border border-gray-300" /> No Schedule
-                </div>
+                <div className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-200 border border-green-500" /> Available</div>
+                <div className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-200 border border-red-500" /> Fully Booked</div>
+                <div className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-300 border border-gray-500" /> Blocked/Closed</div>
+                <div className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-300" /> No Schedule</div>
             </div>
         </div>
     );
