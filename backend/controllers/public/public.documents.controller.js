@@ -38,18 +38,16 @@ export async function createPublicDocumentRequest(req, res) {
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(cleanEmail)) {
-    return res.status(400).json({
-      success: false,
-      error: "Please enter a valid email address.",
-    });
+    return res
+      .status(400)
+      .json({ success: false, error: "Please enter a valid email address." });
   }
 
   const numCopies = copies ? Number(copies) : 1;
   if (isNaN(numCopies) || numCopies < 1 || numCopies > 10) {
-    return res.status(400).json({
-      success: false,
-      error: "Copies must be between 1 and 10.",
-    });
+    return res
+      .status(400)
+      .json({ success: false, error: "Copies must be between 1 and 10." });
   }
 
   const requestCode = `REQ-${Date.now()}`;
@@ -57,11 +55,10 @@ export async function createPublicDocumentRequest(req, res) {
   try {
     // Auto-link user if logged in OR email exists
     if (!userId) {
-      const [[existingUser]] = await pool.query(
-        "SELECT id FROM users WHERE email = ?",
-        [cleanEmail]
-      );
-      if (existingUser) userId = existingUser.id;
+      const [rows] = await pool.query("SELECT id FROM users WHERE email = ?", [
+        cleanEmail,
+      ]);
+      userId = rows?.[0]?.id || null;
     }
 
     // Prevent duplicate active requests for any selected document type
@@ -150,47 +147,32 @@ export async function createPublicDocumentRequest(req, res) {
 ===================================================== */
 export async function getMyDocumentRequests(req, res) {
   const userId = req.userId;
-  let userEmail = req.userEmail?.toLowerCase() || null;
-
-  if (!userId) {
+  if (!userId)
     return res.status(401).json({ success: false, error: "Unauthorized" });
-  }
 
   try {
-    // fallback: fetch email from DB if missing
+    // Fallback: fetch email from DB if missing
+    let userEmail = req.userEmail?.toLowerCase() || null;
     if (!userEmail) {
-      const [[user]] = await pool.query(
-        "SELECT email FROM users WHERE id = ?",
-        [userId]
-      );
-      userEmail = user?.email?.toLowerCase() || null;
+      const [rows] = await pool.query("SELECT email FROM users WHERE id = ?", [
+        userId,
+      ]);
+      userEmail = rows?.[0]?.email?.toLowerCase() || null;
     }
 
     if (userEmail) {
       // Link past guest requests
       await pool.query(
-        `
-        UPDATE document_requests
-        SET user_id = ?
-        WHERE email = ? AND user_id IS NULL
-        `,
+        `UPDATE document_requests SET user_id = ? WHERE email = ? AND user_id IS NULL`,
         [userId, userEmail]
       );
     }
 
     // Fetch all requests now linked to this user
     const [rows] = await pool.query(
-      `
-      SELECT 
-        id,
-        request_code,
-        document_types,
-        status,
-        created_at
-      FROM document_requests
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      `,
+      `SELECT id, request_code, document_types, status, created_at
+       FROM document_requests
+       WHERE user_id = ? ORDER BY created_at DESC`,
       [userId]
     );
 
@@ -215,34 +197,23 @@ export async function getMyDocumentRequests(req, res) {
 export async function getMyDocumentRequestDetails(req, res) {
   const userId = req.userId;
   const { id } = req.params;
-
-  if (!userId) {
+  if (!userId)
     return res.status(401).json({ success: false, error: "Unauthorized" });
-  }
 
   try {
-    const [[row]] = await pool.query(
+    const [rows] = await pool.query(
       `
-      SELECT 
-        id,
-        request_code,
-        document_types,
-        purpose,
-        copies,
-        additional_info,
-        status,
-        created_at
+      SELECT id, request_code, document_types, purpose, copies, additional_info, status, created_at
       FROM document_requests
-      WHERE id = ? AND user_id = ?
-      `,
+      WHERE id = ? AND user_id = ?`,
       [id, userId]
     );
 
+    const row = rows?.[0];
     if (!row) {
-      return res.status(404).json({
-        success: false,
-        error: "Document request not found.",
-      });
+      return res
+        .status(404)
+        .json({ success: false, error: "Document request not found." });
     }
 
     row.document_types = JSON.parse(row.document_types || "[]");
