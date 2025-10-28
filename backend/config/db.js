@@ -91,8 +91,6 @@ export const connectDB = async () => {
 async function ensureSchema(conn) {
   console.log("🛠️ Ensuring database schema...");
 
-
-
   // ---- Users
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS users (
@@ -189,10 +187,9 @@ async function ensureSchema(conn) {
     )
   `);
 
-
   // ---- Appointments
   await conn.execute(`
-    CREATE TABLE appointments (
+    CREATE TABLE IF NOT EXISTS appointments (
       id INT AUTO_INCREMENT PRIMARY KEY,
       user_id INT NULL,
       service_id INT NOT NULL,
@@ -410,7 +407,6 @@ async function ensureSchema(conn) {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
-
 
   await conn.execute(`
   CREATE TABLE IF NOT EXISTS document_requests (
