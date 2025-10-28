@@ -50,10 +50,6 @@ export default function CustomDateModal({
     const [confirmAction, setConfirmAction] = useState(null);
     const [activeRule, setActiveRule] = useState(null);
 
-    // service conflict state
-    const [showServiceConflictConfirm, setShowServiceConflictConfirm] = useState(false);
-    const [serviceConflictWarnings, setServiceConflictWarnings] = useState([]);
-
     /* ---------- Load existing rules ---------- */
     useEffect(() => {
         if (!open || !selectedDate) return;
@@ -77,7 +73,6 @@ export default function CustomDateModal({
             setEvery(editingRule.interval_mins || 30);
             setStartDate(formatDate(editingRule.date) || selectedDate);
             setEndDate(formatDate(editingRule.date) || selectedDate);
-            setActiveRule(editingRule);
         } else {
             setMode("single");
             setTime("");
@@ -87,7 +82,6 @@ export default function CustomDateModal({
             setEvery(30);
             setStartDate(selectedDate || "");
             setEndDate(selectedDate || "");
-            setActiveRule(null);
         }
     }, [open, selectedDate, editingRule, rules]);
 
@@ -118,10 +112,14 @@ export default function CustomDateModal({
                 : rangeStart;
 
         // ✅ Lightweight validation
-        if (mode === "single" && !time) return toast.error("Time is required");
+        if (mode === "single" && !time) {
+            return toast.error("Time is required");
+        }
         if (mode === "recurring") {
             if (!start || !end) return toast.error("Start and end time are required");
-            if (toMinutes(end) <= toMinutes(start)) return toast.error("End time must be after start time");
+            if (toMinutes(end) <= toMinutes(start)) {
+                return toast.error("End time must be after start time");
+            }
             if (!every || every <= 0) return toast.error("Interval must be > 0");
         }
 
@@ -133,7 +131,7 @@ export default function CustomDateModal({
                 (!r.date && r.weekday === weekday)
         );
 
-        // 🚫 Blocked or AllDay validations
+        // 🚫 If any blocked allday exists (weekly OR custom), forbid adding slots
         const isBlocked = conflicts.some(
             (r) => r.type === "allday" && r.status === "blocked"
         );
@@ -143,6 +141,7 @@ export default function CustomDateModal({
             );
         }
 
+        // 🚫 Prevent adding slots if already AllDay Available
         const hasAllDay = conflicts.some(
             (r) => r.type === "allday" && r.status === "available"
         );
@@ -163,30 +162,20 @@ export default function CustomDateModal({
             return;
         }
 
-        // --- Prepare payload ---
-        const rulePayload = {
-            date: formatDate(rangeStart),
-            type: mode === "blocked" ? "allday" : mode,
-            time: mode === "single" ? time : null,
-            start: mode === "recurring" || mode === "allday" ? start : null,
-            end: mode === "recurring" || mode === "allday" ? end : null,
-            interval_mins: mode === "recurring" ? every : null,
-            slots: slots === "" ? null : parseInt(slots, 10),
-            status: mode === "blocked" ? "blocked" : "available",
-            override: mode === "allday" || mode === "blocked" ? true : undefined,
-        };
-
         // --- UPDATE MODE ---
         if (activeRule?.id) {
-            const response = await updateRule(activeRule.id, { ...activeRule, ...rulePayload });
-
-            // ✅ Check service conflicts
-            if (response?.warnings?.length > 0) {
-                setServiceConflictWarnings(response.warnings);
-                setShowServiceConflictConfirm(true);
-                return;
-            }
-
+            await updateRule(activeRule.id, {
+                ...activeRule,
+                date: formatDate(rangeStart),
+                type: mode === "blocked" ? "allday" : mode,
+                time: mode === "single" ? time : null,
+                start: mode === "recurring" || mode === "allday" ? start : null,
+                end: mode === "recurring" || mode === "allday" ? end : null,
+                interval_mins: mode === "recurring" ? every : null,
+                slots: slots === "" ? null : parseInt(slots, 10),
+                status: mode === "blocked" ? "blocked" : "available",
+                override: mode === "allday" || mode === "blocked" ? true : undefined,
+            });
             await fetchRules(serviceId);
             setActiveRule(null);
             onClose();
@@ -194,18 +183,11 @@ export default function CustomDateModal({
         }
 
         // --- ADD MODE ---
-        const response = await addRule(serviceId, rulePayload);
-
-        // ✅ Check service conflicts
-        if (response?.warnings?.length > 0) {
-            setServiceConflictWarnings(response.warnings);
-            setShowServiceConflictConfirm(true);
-            return;
-        }
-
+        await performSave(rangeStart, loopEnd, false);
         await fetchRules(serviceId);
         onClose();
     };
+
 
     const performSave = async (loopStart, loopEnd, override) => {
         for (let d = new Date(loopStart); d <= loopEnd; d.setDate(d.getDate() + 1)) {
@@ -283,15 +265,24 @@ export default function CustomDateModal({
                                                 ? "All Day • Blocked"
                                                 : `All Day • ${to12h(rule.start)} – ${to12h(rule.end)}`)}
                                         {rule.type === "single" &&
-                                            `${to12h(rule.time)} • ${rule.slots == null ? "Available" : `${rule.slots} slots`}`}
+                                            `${to12h(rule.time)} • ${rule.slots == null ? "Available" : `${rule.slots} slots`
+                                            }`}
                                         {rule.type === "recurring" &&
-                                            `${to12h(rule.start)} – ${to12h(rule.end)} every ${rule.interval_mins}m • ${rule.slots == null ? "Available" : `${rule.slots} slots`}`}
+                                            `${to12h(rule.start)} – ${to12h(rule.end)} every ${rule.interval_mins
+                                            }m • ${rule.slots == null ? "Available" : `${rule.slots} slots`
+                                            }`}
                                     </span>
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => {
-                                                setConfirmAction(null);
+                                                // ✅ mark which rule is being edited
+                                                setConfirmAction(null); // reset confirm
                                                 setShowConfirm(false);
+                                                // store current rule for update
+                                                // either via editingRule prop OR local state
+                                                // safest: track a local "activeRule"
+                                                // so replace `editingRule` check in handleSave with activeRule
+                                                // for your current code: use a local setter
                                                 setMode(rule.status === "blocked" ? "blocked" : rule.type);
                                                 setTime(rule.time || "");
                                                 setSlots(rule.slots == null ? "" : String(rule.slots));
@@ -302,6 +293,10 @@ export default function CustomDateModal({
                                                     setStartDate(formatDate(rule.date));
                                                     setEndDate(formatDate(rule.date));
                                                 }
+                                                // ✅ important: tell Save which rule to update
+                                                // so handleSave goes into update branch
+                                                // add this:
+                                                // local activeRule state
                                                 setActiveRule(rule);
                                             }}
                                             className="text-blue-600 hover:text-blue-800"
@@ -320,6 +315,7 @@ export default function CustomDateModal({
                         </div>
                     </div>
                 )}
+
 
                 {/* Mode selector */}
                 <div className="flex gap-2 mb-6">
@@ -470,26 +466,6 @@ export default function CustomDateModal({
                     confirmAction?.();
                 }}
                 onCancel={() => setShowConfirm(false)}
-            />
-
-            {/* Confirm service conflict dialog */}
-            <ConfirmDialog
-                open={showServiceConflictConfirm}
-                title="Conflicting Service Schedules"
-                message={`Other services have the same schedule on this date:\n\n${serviceConflictWarnings.join(
-                    "\n"
-                )}\n\nDo you want to proceed anyway?`}
-                onConfirm={async () => {
-                    setShowServiceConflictConfirm(false);
-                    if (activeRule?.id) {
-                        await updateRule(activeRule.id, { ...activeRule });
-                    } else {
-                        await addRule(serviceId, { ...rulePayload });
-                    }
-                    await fetchRules(serviceId);
-                    onClose();
-                }}
-                onCancel={() => setShowServiceConflictConfirm(false)}
             />
         </>
     );
