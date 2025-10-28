@@ -398,6 +398,40 @@ async function ensureSchema(conn) {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
+  // ---- Document requests
+  await conn.execute(`
+  CREATE TABLE IF NOT EXISTS document_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    request_code VARCHAR(50) NOT NULL UNIQUE,
+    user_id INT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone VARCHAR(30),
+    address TEXT,
+    document_type JSON NOT NULL, -- ✅ Changed from ENUM to JSON
+    purpose TEXT NOT NULL,
+    copies INT DEFAULT 1 CHECK (copies >= 1 AND copies <= 10),
+    additional_info TEXT NULL,
+    status ENUM('pending','processing','completed','rejected') DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_doc_user (user_id),
+    INDEX idx_doc_status (status)
+  )
+`);
+
+  // ✅ Ensure `document_type` is JSON (auto-fix old versions)
+  const [columns] = await conn.query(
+    `SHOW COLUMNS FROM document_requests LIKE 'document_type'`
+  );
+  if (columns.length && columns[0].Type !== "json") {
+    console.log("⚙️ Altering 'document_type' column to JSON...");
+    await conn.query(
+      `ALTER TABLE document_requests MODIFY COLUMN document_type JSON NOT NULL`
+    );
+    console.log("✅ 'document_type' column updated to JSON type.");
+  }
 
   console.log("✅ Schema ensured successfully.");
 }
