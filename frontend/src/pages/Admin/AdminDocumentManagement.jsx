@@ -84,9 +84,12 @@ export default function AdminDocumentManagement() {
             const matchesSearch =
                 r.full_name?.toLowerCase().includes(q) ||
                 r.email?.toLowerCase().includes(q) ||
-                r.document_type?.toLowerCase().includes(q) ||
+                (Array.isArray(r.document_type)
+                    ? r.document_type.some((t) => t.toLowerCase().includes(q))
+                    : r.document_type?.toLowerCase().includes(q)) ||
                 r.request_code?.toLowerCase().includes(q) ||
                 r.id?.toString().includes(q);
+
             return matchesStatus && matchesSearch;
         });
     }, [requests, filterStatus, searchTerm]);
@@ -234,8 +237,11 @@ export default function AdminDocumentManagement() {
                                             </div>
                                         </td>
                                         <td className="px-3 lg:px-6 py-2 text-gray-700">
-                                            {documentTypeLabels[r.document_type]}
+                                            {Array.isArray(r.document_type)
+                                                ? r.document_type.map((type) => documentTypeLabels[type] || type).join(", ")
+                                                : documentTypeLabels[r.document_type] || r.document_type}
                                         </td>
+
                                         <td className="px-3 lg:px-6 py-2 text-gray-700">
                                             {new Date(r.created_at).toLocaleDateString("en-PH")}
                                         </td>
@@ -323,7 +329,9 @@ export default function AdminDocumentManagement() {
                             data={[
                                 [
                                     "Document Type",
-                                    documentTypeLabels[selectedRequest.document_type],
+                                    Array.isArray(selectedRequest.document_type)
+                                        ? selectedRequest.document_type.map((t) => documentTypeLabels[t] || t).join(", ")
+                                        : documentTypeLabels[selectedRequest.document_type] || selectedRequest.document_type,
                                 ],
                                 ["Number of Copies", selectedRequest.copies],
                                 ["Purpose", selectedRequest.purpose],

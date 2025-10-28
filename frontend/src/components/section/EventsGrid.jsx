@@ -2,10 +2,39 @@
 
 import React, { useState, useMemo } from "react";
 import { CalendarDays, Clock, Edit2, Trash2, X, Plus } from "lucide-react";
-import { formatDate, to12h } from "@/utils/availabilityUtils";
 import ConfirmDialog from "../ui/ConfirmDialog";
 
 /* ---------- Status Badge ---------- */
+
+
+export function formatDate(dateString) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+
+  if (isNaN(date.getTime())) return dateString;
+
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+export function to12h(timeString) {
+  if (!timeString) return "";
+  const [hour, minute] = timeString.split(":");
+  const date = new Date();
+  date.setHours(hour, minute);
+  return date.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+}
+
+
+
 const StatusChip = ({ status }) => {
   const color =
     status === "Active"

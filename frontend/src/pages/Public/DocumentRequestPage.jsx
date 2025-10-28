@@ -14,7 +14,7 @@ export default function DocumentRequestPage() {
         email: "",
         phone: "",
         address: "",
-        documentType: "",
+        documentTypes: [],
         purpose: "",
         copies: "1",
         additionalInfo: "",
@@ -39,11 +39,13 @@ export default function DocumentRequestPage() {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
             errors.push("Please enter a valid email address.");
         if (!formData.phone.trim()) errors.push("Contact number is required.");
-        if (!formData.documentType.trim())
-            errors.push("Please select a document type.");
+
         if (!formData.purpose.trim()) errors.push("Purpose is required.");
         if (!formData.copies || formData.copies < 1 || formData.copies > 10)
             errors.push("Copies must be between 1 and 10.");
+
+        if (formData.documentTypes.length === 0)
+            errors.push("Please select at least one document type.");
 
         return errors;
     };
@@ -66,7 +68,7 @@ export default function DocumentRequestPage() {
                 email: formData.email,
                 phone: formData.phone,
                 address: formData.address,
-                document_type: formData.documentType,
+                document_types: formData.documentTypes, // ← array
                 purpose: formData.purpose,
                 copies: parseInt(formData.copies, 10),
                 additional_info: formData.additionalInfo || null,
@@ -81,11 +83,12 @@ export default function DocumentRequestPage() {
                 email: "",
                 phone: "",
                 address: "",
-                documentType: "",
+                documentTypes: [], // ✅ correct
                 purpose: "",
                 copies: "1",
                 additionalInfo: "",
             });
+
             window.scrollTo({ top: 0, behavior: "smooth" });
             setTimeout(() => setShowSuccess(false), 5000);
         } catch (error) {
@@ -98,6 +101,22 @@ export default function DocumentRequestPage() {
             setIsSubmitting(false);
         }
     };
+
+
+    const handleCheckboxChange = (e) => {
+        const { value, checked } = e.target;
+        setFormData((prev) => {
+            if (checked) {
+                return { ...prev, documentTypes: [...prev.documentTypes, value] };
+            } else {
+                return {
+                    ...prev,
+                    documentTypes: prev.documentTypes.filter((doc) => doc !== value),
+                };
+            }
+        });
+    };
+
 
     return (
         <main className="bg-gray-50 min-h-screen">
@@ -211,26 +230,39 @@ export default function DocumentRequestPage() {
 
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Type of Document <span className="text-red-500">*</span>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Type of Documents <span className="text-red-500">*</span>
                                     </label>
-                                    <select
-                                        name="documentType"
-                                        value={formData.documentType}
-                                        onChange={handleChange}
-                                        required
-                                        className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500/60 focus:outline-none"
-                                    >
-                                        <option value="">Select a document type</option>
-                                        <option value="baptism">Certificate of Baptism</option>
-                                        <option value="confirmation">Certificate of Confirmation</option>
-                                        <option value="marriage">Certificate of Marriage</option>
-                                        <option value="first-communion">Certificate of First Communion</option>
-                                        <option value="death">Certificate of Death/Burial</option>
-                                        <option value="membership">Certificate of Membership</option>
-                                        <option value="other">Other (specify in purpose)</option>
-                                    </select>
+
+
+                                    <div className="grid sm:grid-cols-2 gap-2">
+                                        {[
+                                            { value: "baptism", label: "Certificate of Baptism" },
+                                            { value: "confirmation", label: "Certificate of Confirmation" },
+                                            { value: "marriage", label: "Certificate of Marriage" },
+                                            { value: "first-communion", label: "Certificate of First Communion" },
+                                            { value: "death", label: "Certificate of Death/Burial" },
+                                            { value: "membership", label: "Certificate of Membership" },
+                                            { value: "other", label: "Other (specify in purpose)" },
+                                        ].map((doc) => (
+                                            <label
+                                                key={doc.value}
+                                                className="flex items-center space-x-2 text-sm text-gray-700"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    name="documentTypes"
+                                                    value={doc.value}
+                                                    checked={formData.documentTypes.includes(doc.value)}
+                                                    onChange={handleCheckboxChange}
+                                                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                />
+                                                <span>{doc.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
+
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
