@@ -63,20 +63,9 @@ const STATUS_META = {
     },
 };
 
-/* ---------------- Helper ---------------- */
+/* ---------------- Capitalize Helper ---------------- */
 const capitalizeFirst = (str) =>
     str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : "";
-
-/* ---------------- Document Type Map ---------------- */
-const TYPE_MAP = {
-    baptism: "Certificate of Baptism",
-    confirmation: "Certificate of Confirmation",
-    marriage: "Certificate of Marriage",
-    "first-communion": "Certificate of First Communion",
-    death: "Certificate of Death/Burial",
-    membership: "Certificate of Membership",
-    other: "Other (specify in purpose)",
-};
 
 /* ---------------- Main Component ---------------- */
 export default function DocumentRequestDetailPanel() {
@@ -128,37 +117,14 @@ export default function DocumentRequestDetailPanel() {
         );
     }
 
-    // ✅ Handle document types with correct labels
-    let documentTypes = "—";
-    try {
-        const parsed =
-            typeof doc.document_types === "string"
-                ? JSON.parse(doc.document_types)
-                : doc.document_types;
-
-        if (Array.isArray(parsed)) {
-            documentTypes = parsed
-                .map(
-                    (t) =>
-                        TYPE_MAP[t?.toLowerCase()] ||
-                        capitalizeFirst(t?.replace("-", " "))
-                )
-                .join(", ");
-        } else if (typeof parsed === "string") {
-            const key = parsed.toLowerCase();
-            documentTypes =
-                TYPE_MAP[key] || capitalizeFirst(parsed.replace("-", " "));
-        }
-    } catch {
-        documentTypes = capitalizeFirst(doc.document_type || doc.document_types);
-    }
-
+    // Format date
     const datePretty = new Date(doc.created_at).toLocaleDateString(undefined, {
         month: "long",
         day: "numeric",
         year: "numeric",
     });
 
+    // Status meta
     const statusKey = doc.status?.toLowerCase();
     const statusMeta = STATUS_META[statusKey];
 
@@ -167,7 +133,7 @@ export default function DocumentRequestDetailPanel() {
             <div className="max-w-4xl mx-auto py-2">
                 <div className="flex justify-center py-6">
                     <Link
-                        to="../document-requests"
+                        to="../appointments"
                         className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-secondary"
                     >
                         <ChevronLeft className="h-4 w-4" /> Back to document requests
@@ -193,7 +159,10 @@ export default function DocumentRequestDetailPanel() {
                     </div>
 
                     {/* Details */}
-                    <DetailRow label="Document Type(s)" value={documentTypes} />
+                    <DetailRow
+                        label="Document Type"
+                        value={capitalizeFirst(doc.document_type)}
+                    />
                     <DetailRow label="Purpose" value={doc.purpose} />
                     <DetailRow label="Copies" value={doc.copies} />
                     <DetailRow label="Additional Info" value={doc.additional_info} />

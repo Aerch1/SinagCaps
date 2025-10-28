@@ -398,7 +398,7 @@ async function ensureSchema(conn) {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
-  // ---- Document requests
+  // ---- Document requests (with JSON support for multiple documents)
   await conn.execute(`
   CREATE TABLE IF NOT EXISTS document_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -408,9 +408,7 @@ async function ensureSchema(conn) {
     email VARCHAR(100) NOT NULL,
     phone VARCHAR(30),
     address TEXT,
-    document_type JSON NOT NULL, 
-    purpose TEXT NOT NULL,
-    copies INT DEFAULT 1 CHECK (copies >= 1 AND copies <= 10),
+    documents JSON NOT NULL,
     additional_info TEXT NULL,
     status ENUM('pending','processing','completed','rejected') DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -420,6 +418,7 @@ async function ensureSchema(conn) {
     INDEX idx_doc_status (status)
   )
 `);
+
   console.log("✅ Schema ensured successfully.");
 }
 
