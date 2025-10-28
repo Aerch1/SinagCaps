@@ -55,6 +55,8 @@ export async function createPublicDocumentRequest(req, res) {
   const requestCode = `REQ-${Date.now()}`;
 
   try {
+    console.log("[createPublicDocumentRequest] Incoming payload:", req.body);
+
     // ✅ Auto-link if logged in OR email exists in DB
     if (!userId) {
       const [[existingUser]] = await pool.query(
@@ -71,13 +73,13 @@ export async function createPublicDocumentRequest(req, res) {
 
       const [existing] = await pool.query(
         `
-        SELECT id FROM document_requests
-        WHERE JSON_CONTAINS(document_type, JSON_QUOTE(?))
-        AND (user_id = ? OR email = ?)
-AND status IN ('pending', 'processing', 'completed')
-        LIMIT 1
-        `,
-        [docType, userId, cleanEmail]
+  SELECT id FROM document_requests
+  WHERE JSON_CONTAINS(document_type, JSON_QUOTE(?))
+  AND (email = ? OR (user_id IS NOT NULL AND user_id = ?))
+  AND status IN ('pending','processing')
+  LIMIT 1
+  `,
+        [docType, cleanEmail, userId]
       );
 
       if (existing.length > 0) {
@@ -138,7 +140,11 @@ AND status IN ('pending', 'processing', 'completed')
       request_code: requestCode,
     });
   } catch (err) {
-    console.error("❌ [createPublicDocumentRequest] Error:", err);
+    console.error(
+      "❌ [createPublicDocumentRequest] Error:",
+      err.message,
+      err.stack
+    );
     return res.status(500).json({
       success: false,
       error: "Failed to submit document request. Please try again later.",
