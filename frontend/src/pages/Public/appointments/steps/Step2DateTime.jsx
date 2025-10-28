@@ -37,23 +37,21 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
         const n = new Date(year, month + delta, 1);
         setYear(n.getFullYear());
         setMonth(n.getMonth());
-        setFormData((prev) => ({ ...prev, preferredDate: "", preferredTime: "" }));
         setAvailableTimes([]);
     };
 
-    /* Service Change */
+    /* Service Change - Only update service, don't reset step */
     const onServiceChange = (label) => {
         const picked = services.find((s) => s.name === label);
-        if (!picked) return;
+        if (!picked || picked.id === serviceId) return;
 
         setFormData((prev) => ({
             ...prev,
             service_id: picked.id,
             formType: picked.form_type,
             serviceName: picked.name,
-            preferredDate: "",
+            preferredDate: "", // reset only date/time
             preferredTime: "",
-            extraData: {},
         }));
 
         setMonthAvailability({});
@@ -74,12 +72,6 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
         };
         loadMonth();
     }, [serviceId, year, month]);
-
-    /* Reset on service change */
-    useEffect(() => {
-        setFormData((p) => ({ ...p, preferredDate: "", preferredTime: "" }));
-        setAvailableTimes([]);
-    }, [serviceId]);
 
     /* Load daily slots */
     useEffect(() => {
@@ -158,14 +150,10 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
                         <button type="button" onClick={() => changeMonth(1)} className="text-sm text-gray-600 hover:text-gray-800">&rarr;</button>
                     </div>
 
-                    {/* Weekdays */}
                     <div className="grid grid-cols-7 gap-1 mb-1 text-[11px] text-gray-500">
-                        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((w) => (
-                            <div key={w} className="text-center">{w}</div>
-                        ))}
+                        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((w) => <div key={w} className="text-center">{w}</div>)}
                     </div>
 
-                    {/* Days */}
                     <div className="grid grid-cols-7 gap-1">
                         {calendarCells.map(({ date, inMonth }, idx) => {
                             const iso = toISO(date);
@@ -178,19 +166,10 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
                             let bgClass = "";
 
                             if (!inMonth) textClass = "text-gray-300";
-                            else if (status === "available" && remaining > 0) {
-                                textClass = "text-green-800 font-semibold";
-                                bgClass = "bg-green-100";
-                            } else if (status === "full") {
-                                textClass = "text-red-700 font-semibold";
-                                bgClass = "bg-red-100";
-                            } else if (status === "blocked") {
-                                textClass = "text-gray-700 font-medium";
-                                bgClass = "bg-gray-300";
-                            } else {
-                                textClass = "text-gray-400";
-                                bgClass = "bg-gray-50";
-                            }
+                            else if (status === "available" && remaining > 0) { textClass = "text-green-800 font-semibold"; bgClass = "bg-green-100"; }
+                            else if (status === "full") { textClass = "text-red-700 font-semibold"; bgClass = "bg-red-100"; }
+                            else if (status === "blocked") { textClass = "text-gray-700 font-medium"; bgClass = "bg-gray-300"; }
+                            else { textClass = "text-gray-400"; bgClass = "bg-gray-50"; }
 
                             return (
                                 <button
@@ -231,10 +210,7 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
                                         disabled={isFull}
                                         onClick={() =>
                                             !isFull &&
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                preferredTime: slot.time,
-                                            }))
+                                            setFormData((prev) => ({ ...prev, preferredTime: slot.time }))
                                         }
                                         className={[
                                             "w-full px-3 py-2 rounded border text-sm flex items-center justify-between transition",
