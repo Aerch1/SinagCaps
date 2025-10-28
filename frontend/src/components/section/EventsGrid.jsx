@@ -6,7 +6,6 @@ import ConfirmDialog from "../ui/ConfirmDialog";
 
 /* ---------- Status Badge ---------- */
 
-
 export function formatDate(dateString) {
   if (!dateString) return "";
   const date = new Date(dateString);
@@ -30,10 +29,7 @@ export function to12h(timeString) {
     minute: "2-digit",
     hour12: true,
   });
-
 }
-
-
 
 const StatusChip = ({ status }) => {
   const color =
@@ -102,7 +98,11 @@ function EventCard({ item, onEdit, onDelete, onPreview }) {
     : item.image_url;
 
   const handleEdit = () => {
-    const fixed = { ...item, date: normalizeDate(item.date) };
+    const fixed = {
+      ...item,
+      date: normalizeDate(item.date),
+      end_time: item.end_time || "", // include end_time for edit form
+    };
     onEdit?.(fixed);
   };
 
@@ -161,7 +161,10 @@ function EventCard({ item, onEdit, onDelete, onPreview }) {
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-slate-400" />
-              <span className="font-medium">{to12h(item.time)}</span>
+              <span className="font-medium">
+                {to12h(item.time)}
+                {item.end_time ? ` - ${to12h(item.end_time)}` : ""}
+              </span>
             </div>
           </div>
 
@@ -252,7 +255,10 @@ function EventPreviewModal({ item, onClose }) {
               </div>
               <div className="flex items-center gap-2.5 text-slate-700">
                 <Clock className="h-4 w-4 text-slate-500" />
-                <span className="font-medium">{to12h(item.time)}</span>
+                <span className="font-medium">
+                  {to12h(item.time)}
+                  {item.end_time ? ` - ${to12h(item.end_time)}` : ""}
+                </span>
               </div>
             </div>
 

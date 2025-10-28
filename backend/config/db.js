@@ -350,19 +350,22 @@ async function ensureSchema(conn) {
     )
   `);
 
+  await conn.execute(`DROP TABLE IF EXISTS events`);
   // ---- Events
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS events (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      title VARCHAR(255) NOT NULL,
-      description TEXT,
-      date DATE NOT NULL,
-      time TIME NOT NULL,
-      status ENUM('Active','Inactive') DEFAULT 'Active',
-      type ENUM('event','news') NOT NULL DEFAULT 'event',
-      image_url VARCHAR(500) NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    CREATE TABLE  events (
+     id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  date DATE NOT NULL,             -- start date
+  time TIME NOT NULL,             -- start time
+  end_time TIME NULL,             -- optional end time
+  all_day TINYINT(1) DEFAULT 0,  -- 0 = false, 1 = true
+  status ENUM('Active','Inactive') DEFAULT 'Active',
+  type ENUM('event','news') NOT NULL DEFAULT 'event',
+  image_url VARCHAR(500) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
 

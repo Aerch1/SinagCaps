@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 import api from "@/api/api";
-import Modal from "@/components/ui/Modal"; // ✅ your animated modal
+import Modal from "@/components/ui/Modal";
 
 export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
     const emptyForm = {
@@ -12,6 +12,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         description: "",
         date: "",
         time: "",
+        end_time: "", // ✅ new field for backend validation
         type: "event",
         status: "Active",
         image: null,
@@ -22,7 +23,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
     const [preview, setPreview] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    /* ✅ Reset form when opened or edit changes */
+    // Reset form when opened or edit changes
     useEffect(() => {
         if (editItem) {
             setForm({
@@ -30,6 +31,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                 description: editItem.description || "",
                 date: editItem.date || "",
                 time: editItem.time || "",
+                end_time: editItem.end_time || "", // include end_time
                 type: editItem.type || "event",
                 status: editItem.status || "Active",
                 image: null,
@@ -39,9 +41,10 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
             setForm(emptyForm);
             setPreview(null);
         }
+        setErrors({});
     }, [editItem, isOpen]);
 
-    /* ✅ Dropzone setup */
+    // Dropzone
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         accept: {
             "image/png": [],
@@ -68,7 +71,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         onClose?.();
     };
 
-    /* ✅ Submit handler */
+    // Submit handler
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -144,9 +147,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Upload Image</label>
                     <div
                         {...getRootProps()}
-                        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition ${isDragActive
-                                ? "border-blue-500 bg-blue-50"
-                                : "border-gray-300 hover:border-gray-400"
+                        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition ${isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
                             }`}
                     >
                         <input {...getInputProps()} />
@@ -169,7 +170,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                                 </button>
                             </div>
                         ) : (
-                            <>
+                            <div>
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     className="mx-auto h-10 w-10 text-gray-400 mb-2"
@@ -188,13 +189,13 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                                     Drag & drop image here, or click to browse
                                 </p>
                                 <p className="text-xs text-gray-400">PNG, JPG, WEBP, or SVG</p>
-                            </>
+                            </div>
                         )}
                     </div>
                 </div>
 
                 {/* Date & Time */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Date</label>
                         <input
@@ -217,6 +218,17 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                         />
                         {errors.time && <p className="text-xs text-red-600 mt-1">{errors.time}</p>}
                     </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">End Time</label>
+                        <input
+                            type="time"
+                            name="end_time"
+                            value={form.end_time}
+                            onChange={handleChange}
+                            className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm"
+                        />
+                        {errors.end_time && <p className="text-xs text-red-600 mt-1">{errors.end_time}</p>}
+                    </div>
                 </div>
 
                 {/* Type & Status */}
@@ -232,6 +244,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                             <option value="event">Event</option>
                             <option value="news">News</option>
                         </select>
+                        {errors.type && <p className="text-xs text-red-600 mt-1">{errors.type}</p>}
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Status</label>
@@ -252,9 +265,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className={`w-full rounded-md text-white py-2 text-sm font-medium transition ${isSubmitting
-                                ? "bg-gray-400 cursor-not-allowed"
-                                : "bg-gray-900 hover:bg-gray-800"
+                        className={`w-full rounded-md text-white py-2 text-sm font-medium transition ${isSubmitting ? "bg-gray-400 cursor-not-allowed" : "bg-gray-900 hover:bg-gray-800"
                             }`}
                     >
                         {isSubmitting ? "Saving..." : editItem ? "Update" : "Create"}

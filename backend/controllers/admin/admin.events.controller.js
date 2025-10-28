@@ -6,12 +6,28 @@ import { createNotification } from "../../utils/createNotification.js";
 /* ==================================================
    VALIDATION HELPER
 ================================================== */
+/* ==================================================
+   VALIDATION HELPER
+================================================== */
 function validateEvent(data) {
   const errors = {};
   if (!data.title?.trim()) errors.title = "Title is required";
   if (!data.date) errors.date = "Date is required";
   if (!data.time) errors.time = "Time is required";
   if (!data.type) errors.type = "Type (event/news) is required";
+
+  // ✅ Validate end_time
+  if (data.end_time) {
+    const [h1, m1] = data.time?.split(":") || [];
+    const [h2, m2] = data.end_time.split(":");
+    const startMinutes = parseInt(h1) * 60 + parseInt(m1);
+    const endMinutes = parseInt(h2) * 60 + parseInt(m2);
+
+    if (endMinutes <= startMinutes) {
+      errors.end_time = "End time must be after start time";
+    }
+  }
+
   return errors;
 }
 
@@ -26,9 +42,11 @@ export async function createEvent(req, res) {
       description,
       date,
       time,
+      end_time = null,
       status = "Active",
       type,
     } = req.body;
+
     const errors = validateEvent(req.body);
     if (Object.keys(errors).length)
       return res.status(400).json({ success: false, errors });
@@ -39,10 +57,10 @@ export async function createEvent(req, res) {
 
     const [result] = await conn.query(
       `
-        INSERT INTO events (title, description, date, time, status, type, image_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO events (title, description, date, time, end_time, status, type, image_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      [title, description, date, time, status, type, image_url]
+      [title, description, date, time, end_time, status, type, image_url]
     );
 
     const eventId = result.insertId;
@@ -75,7 +93,6 @@ export async function createEvent(req, res) {
     }
 
     await conn.commit();
-
     res.json({ success: true, id: eventId, image_url });
   } catch (err) {
     await conn.rollback();
@@ -106,7 +123,16 @@ export async function updateEvent(req, res) {
   const conn = await pool.getConnection();
   try {
     const { id } = req.params;
-    const { title, description, date, time, status, type } = req.body;
+    const {
+      title,
+      description,
+      date,
+      time,
+      end_time = null,
+      status,
+      type,
+    } = req.body;
+
     const errors = validateEvent(req.body);
     if (Object.keys(errors).length)
       return res.status(400).json({ success: false, errors });
@@ -118,10 +144,10 @@ export async function updateEvent(req, res) {
     await conn.query(
       `
         UPDATE events
-        SET title=?, description=?, date=?, time=?, status=?, type=?, image_url=COALESCE(?, image_url)
+        SET title=?, description=?, date=?, time=?, end_time=?, status=?, type=?, image_url=COALESCE(?, image_url)
         WHERE id=?
       `,
-      [title, description, date, time, status, type, image_url, id]
+      [title, description, date, time, end_time, status, type, image_url, id]
     );
 
     // ✅ If event re-activated or rescheduled soon — notify users again
@@ -194,18 +220,19 @@ export async function deleteEvent(req, res) {
    GET /api/admin/events/upcoming
    → Returns all active events happening today or later
    + Sends reminders automatically
+   + Excludes events older than 3 days
 ================================================== */
 export async function getUpcomingEvents(req, res) {
   const conn = await pool.getConnection();
   try {
     const [rows] = await conn.query(`
-  SELECT id, title, description, date, time, status, type, image_url
-  FROM events
-  WHERE LOWER(TRIM(status))='active'
-    AND type='event'              -- <-- only events, exclude news
-    AND (date > CURDATE() OR (date = CURDATE() AND time >= CURTIME()))
-  ORDER BY date ASC, time ASC
-`);
+      SELECT id, title, description, date, time, end_time, status, type, image_url
+      FROM events
+      WHERE LOWER(TRIM(status))='active'
+        AND type='event'
+        AND DATE_ADD(date, INTERVAL 3 DAY) >= CURDATE()
+      ORDER BY date ASC, time ASC
+    `);
 
     // ✅ Auto-send reminder notifications for events happening today/tomorrow
     const today = new Date().toISOString().slice(0, 10);
