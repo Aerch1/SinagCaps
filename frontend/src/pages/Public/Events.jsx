@@ -61,10 +61,9 @@ export default function Events() {
                 const res = await api.get("/admin/events");
                 const data = res.data?.data || [];
 
+                // Ensure upcoming-first
                 const filtered = data.filter((e) => e.status !== "Inactive");
-                const sorted = [...filtered].sort(
-                    (a, b) => new Date(b.date) - new Date(a.date)
-                );
+                const sorted = [...filtered].sort((a, b) => new Date(a.date) - new Date(b.date));
 
                 setEvents(sorted);
             } catch (err) {
@@ -75,6 +74,7 @@ export default function Events() {
         };
         fetchEvents();
     }, []);
+
 
     // Pagination logic
     const total = events.length;
@@ -196,8 +196,8 @@ export default function Events() {
 
                                             <span
                                                 className={`mt-2 inline-block text-xs font-medium px-2 py-0.5 rounded-full ${e.type === "event"
-                                                        ? "bg-emerald-50 text-emerald-700"
-                                                        : "bg-blue-50 text-blue-700"
+                                                    ? "bg-emerald-50 text-emerald-700"
+                                                    : "bg-blue-50 text-blue-700"
                                                     }`}
                                             >
                                                 {e.type === "event" ? "Event" : "News"}
@@ -238,8 +238,8 @@ export default function Events() {
                                     key={`page-${n}`}
                                     onClick={() => setPage(n)}
                                     className={`h-9 w-9 rounded-md border text-sm ${n === page
-                                            ? "bg-secondary text-white"
-                                            : "bg-white hover:bg-gray-50"
+                                        ? "bg-secondary text-white"
+                                        : "bg-white hover:bg-gray-50"
                                         }`}
                                 >
                                     {n}

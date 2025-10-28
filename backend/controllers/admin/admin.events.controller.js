@@ -3,7 +3,6 @@ import pool from "../../config/db.js";
 import { v2 as cloudinary } from "cloudinary";
 import { createNotification } from "../../utils/createNotification.js";
 
-
 function validateEvent(data) {
   const errors = {};
 
@@ -117,7 +116,13 @@ export async function createEvent(req, res) {
 ================================================== */
 export async function getAllEvents(req, res) {
   try {
-    const [rows] = await pool.query("SELECT * FROM events ORDER BY date DESC");
+    const [rows] = await pool.query(`
+  SELECT *
+  FROM events
+  WHERE DATE_ADD(date, INTERVAL 3 DAY) >= CURDATE()
+  ORDER BY date ASC, time ASC
+`);
+
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error("❌ GET EVENTS ERROR:", err);
@@ -235,13 +240,13 @@ export async function getUpcomingEvents(req, res) {
   const conn = await pool.getConnection();
   try {
     const [rows] = await conn.query(`
-      SELECT id, title, description, date, time, end_time, status, type, image_url
-      FROM events
-      WHERE LOWER(TRIM(status))='active'
-        AND type='event'
-        AND DATE_ADD(date, INTERVAL 3 DAY) >= CURDATE()
-      ORDER BY date ASC, time ASC
-    `);
+  SELECT id, title, description, date, time, status, type, image_url
+  FROM events
+  WHERE LOWER(TRIM(status))='active'
+    AND type='event'              -- <-- only events, exclude news
+    AND (date > CURDATE() OR (date = CURDATE() AND time >= CURTIME()))
+  ORDER BY date ASC, time ASC
+`);
 
     // ✅ Auto-send reminder notifications for events happening today/tomorrow
     const today = new Date().toISOString().slice(0, 10);

@@ -7,15 +7,11 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import api from "@/api/api";
 import { CalendarDays, Clock } from "lucide-react";
-import { formatDate, to12h } from "@/utils/availabilityUtils";
 
 // 🪄 Animation variants
 const container = {
     hidden: { opacity: 0 },
-    show: {
-        opacity: 1,
-        transition: { staggerChildren: 0.2, ease: "easeOut" },
-    },
+    show: { opacity: 1, transition: { staggerChildren: 0.2, ease: "easeOut" } },
 };
 
 const item = {
@@ -23,23 +19,54 @@ const item = {
     show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
 };
 
+
+
+// Inline utility functions
+function formatDate(dateString) {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+
+    return date.toLocaleDateString("en-PH", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+}
+
+function to12h(timeString) {
+    if (!timeString) return "";
+    const [hour, minute] = timeString.split(":");
+    const date = new Date();
+    date.setHours(hour, minute);
+    return date.toLocaleTimeString("en-PH", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+    });
+}
+
+
+
 export default function ChurchUpdates() {
     const [updates, setUpdates] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // ✅ Fetch active news & events only
+    // ✅ Fetch active events/news and match backend logic
     useEffect(() => {
         const fetchUpdates = async () => {
             try {
                 const res = await api.get("/admin/events");
                 const data = res.data?.data || [];
 
-                // 🟢 Only keep active events/news
+                // Only active events/news
                 const activeOnly = data.filter((e) => e.status === "Active");
 
-                // Sort newest first
+                // Sort by date/time ascending (upcoming-first)
                 const sorted = [...activeOnly].sort(
-                    (a, b) => new Date(b.date) - new Date(a.date)
+                    (a, b) =>
+                        new Date(a.date).getTime() - new Date(b.date).getTime() ||
+                        a.time.localeCompare(b.time)
                 );
 
                 setUpdates(sorted);
@@ -49,6 +76,7 @@ export default function ChurchUpdates() {
                 setLoading(false);
             }
         };
+
         fetchUpdates();
     }, []);
 
@@ -103,7 +131,7 @@ export default function ChurchUpdates() {
                         return (
                             <motion.div key={u.id} variants={item}>
                                 <Card className="overflow-hidden rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:scale-[1.02] transition-transform duration-300 flex flex-col h-full min-h-[460px]">
-                                    {/* ✅ Image */}
+                                    {/* Image */}
                                     {optimizedImg && (
                                         <div className="w-full h-60 bg-gray-100 flex items-center justify-center overflow-hidden">
                                             <img
@@ -116,7 +144,7 @@ export default function ChurchUpdates() {
                                         </div>
                                     )}
 
-                                    {/* ✅ Content */}
+                                    {/* Content */}
                                     <CardContent className="flex flex-col flex-1 p-5">
                                         <div className="flex-1 flex flex-col">
                                             <h3 className="text-lg font-semibold">{u.title}</h3>
@@ -130,7 +158,7 @@ export default function ChurchUpdates() {
                                                     <span>{to12h(u.time)}</span>
                                                 </div>
 
-                                                {/* 👇 Type indicator */}
+                                                {/* Type indicator */}
                                                 <span
                                                     className={`mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-full w-fit ${u.type === "event"
                                                             ? "bg-emerald-50 text-emerald-700"
@@ -141,13 +169,13 @@ export default function ChurchUpdates() {
                                                 </span>
                                             </div>
 
-                                            {/* ✅ Description preview */}
+                                            {/* Description preview */}
                                             <p className="text-sm text-gray-700 mt-3 line-clamp-3 flex-1">
                                                 {u.description}
                                             </p>
                                         </div>
 
-                                        {/* ✅ Read more button (sticks to bottom) */}
+                                        {/* Read more button */}
                                         <Button
                                             asChild
                                             variant="outline"
