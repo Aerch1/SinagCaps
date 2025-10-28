@@ -132,13 +132,35 @@ async function checkConflicts(payload, excludeId = null) {
 }
 
 /* ==================================================
+   Cross-Service Warning Helper
+   (for frontend confirmation only)
+================================================== */
+async function checkOtherServicesConflict(payload) {
+  const { service_id, date } = payload;
+  if (!date) return [];
+
+  const [rows] = await pool.execute(
+    `SELECT s.id AS service_id, s.name AS service_name
+     FROM rules r
+     JOIN services s ON s.id = r.service_id
+     WHERE r.date=? AND r.service_id <> ? AND r.type IN ('allday','blocked')`,
+    [date, service_id]
+  );
+
+  if (!rows.length) return [];
+  return rows.map(
+    (r) =>
+      `Another service (${r.service_name}) already has a schedule on ${date}`
+  );
+}
+
+/* ==================================================
    ADD RULE
 ================================================== */
 export const addRule = async (req, res) => {
   const { serviceId } = req.params;
   const payload = { ...req.body, service_id: serviceId };
 
-  // ✅ Ensure single rules always have at least 1 slot
   if (payload.type === "single" && (!payload.slots || payload.slots <= 0)) {
     payload.slots = 1;
   }
@@ -148,20 +170,24 @@ export const addRule = async (req, res) => {
     return res.status(400).json({ success: false, errors });
 
   try {
+    // Internal conflicts
     const conflictErrors = await checkConflicts(payload);
     if (conflictErrors.length > 0) {
       return res.status(400).json({ success: false, errors: conflictErrors });
     }
+
+    // Cross-service same date warning (frontend can confirm)
+    const crossServiceWarnings = await checkOtherServicesConflict(payload);
 
     if (
       (payload.type === "allday" || payload.type === "blocked") &&
       payload.override
     ) {
       if (payload.date) {
-        await pool.execute(
-          `DELETE FROM rules WHERE service_id=? AND date=?`,
-          [serviceId, payload.date]
-        );
+        await pool.execute(`DELETE FROM rules WHERE service_id=? AND date=?`, [
+          serviceId,
+          payload.date,
+        ]);
       } else if (payload.weekday != null) {
         await pool.execute(
           `DELETE FROM rules WHERE service_id=? AND weekday=? AND date IS NULL`,
@@ -195,6 +221,8 @@ export const addRule = async (req, res) => {
     res.json({
       success: true,
       rule: { id: result.insertId, service_id: serviceId, ...payload },
+      warnings:
+        crossServiceWarnings.length > 0 ? crossServiceWarnings : undefined,
     });
   } catch (err) {
     console.error("❌ addRule", err);
@@ -220,7 +248,6 @@ export const updateRule = async (req, res) => {
 
     const payload = { ...req.body, id, service_id };
 
-    // ✅ Ensure single rules always have at least 1 slot
     if (payload.type === "single" && (!payload.slots || payload.slots <= 0)) {
       payload.slots = 1;
     }
@@ -233,6 +260,9 @@ export const updateRule = async (req, res) => {
     if (conflictErrors.length > 0) {
       return res.status(400).json({ success: false, errors: conflictErrors });
     }
+
+    // Cross-service same date warning (frontend can confirm)
+    const crossServiceWarnings = await checkOtherServicesConflict(payload);
 
     if (
       (payload.type === "allday" || payload.type === "blocked") &&
@@ -273,15 +303,17 @@ export const updateRule = async (req, res) => {
       ]
     );
 
-    res.json({ success: true, rule: { id, ...payload } });
+    res.json({
+      success: true,
+      rule: { id, ...payload },
+      warnings:
+        crossServiceWarnings.length > 0 ? crossServiceWarnings : undefined,
+    });
   } catch (err) {
     console.error("❌ updateRule", err);
     res.status(500).json({ success: false, error: "Failed to update rule" });
   }
 };
-
-
-
 
 /* ==================================================
    DELETE RULE
@@ -302,18 +334,16 @@ export const deleteRule = async (req, res) => {
 ================================================== */
 export const toggleBlockWeekday = async (req, res) => {
   const { serviceId, weekday } = req.params;
-  const { blocked } = req.body; // true = block, false = unblock
+  const { blocked } = req.body;
 
   try {
     if (blocked) {
-      // Only delete weekly rules (date IS NULL) for that weekday
       await pool.execute(
         `DELETE FROM rules 
          WHERE service_id=? AND weekday=? AND date IS NULL`,
         [serviceId, weekday]
       );
 
-      // Insert the "blocked" weekly rule
       const [result] = await pool.execute(
         `INSERT INTO rules 
            (service_id, weekday, date, type, status, time, slots)
@@ -335,7 +365,6 @@ export const toggleBlockWeekday = async (req, res) => {
         },
       });
     } else {
-      // Remove only the blocked weekly rule (leave custom rules intact)
       await pool.execute(
         `DELETE FROM rules 
          WHERE service_id=? AND weekday=? 
