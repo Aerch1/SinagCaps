@@ -91,17 +91,7 @@ export const connectDB = async () => {
 async function ensureSchema(conn) {
   console.log("🛠️ Ensuring database schema...");
 
-  // Disable foreign key checks
-  await conn.execute(`SET FOREIGN_KEY_CHECKS = 0`);
 
-  // Drop dependent tables first
-  await conn.execute(`DROP TABLE IF EXISTS appointment_requirements`);
-  await conn.execute(`DROP TABLE IF EXISTS appointment_documents`);
-  await conn.execute(`DROP TABLE IF EXISTS appointments`);
-  await conn.execute(`DROP TABLE IF EXISTS appointment_requests`);
-
-  // Re-enable foreign key checks
-  await conn.execute(`SET FOREIGN_KEY_CHECKS = 1`);
 
   // ---- Users
   await conn.execute(`

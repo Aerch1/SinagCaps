@@ -105,13 +105,6 @@ export default function Step2DateTime({ formData, setFormData }) {
         setFormData((prev) => ({ ...prev, preferredDate: iso, preferredTime: "" }));
     };
 
-    // Check if the current month has any available day
-    const hasAvailableDays = useMemo(() => {
-        return Object.values(monthAvailability).some(
-            (day) => day.status === "available" && day.remaining > 0
-        );
-    }, [monthAvailability]);
-
     // Build 6-week calendar grid
     const calendarCells = useMemo(() => {
         const cells = [];
@@ -160,67 +153,62 @@ export default function Step2DateTime({ formData, setFormData }) {
                         </button>
                     </div>
 
-                    {!hasAvailableDays ? (
-                        <p className="text-sm text-gray-500 mt-4">
-                            No schedule available this month.
-                        </p>
-                    ) : (
-                        <>
-                            {/* Weekdays */}
-                            <div className="grid grid-cols-7 gap-1 mb-1 text-[11px] text-gray-500">
-                                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((w) => (
-                                    <div key={w} className="text-center">{w}</div>
-                                ))}
-                            </div>
 
-                            {/* Days */}
-                            <div className="grid grid-cols-7 gap-1">
-                                {calendarCells.map(({ date, inMonth }, idx) => {
-                                    const iso = toISO(date);
-                                    const dayData = getDayData(date);
-                                    const status = dayData.status || "none";
-                                    const remaining = dayData.remaining ?? 0;
-                                    const isSelected = selectedISO === iso;
+                    <>
+                        {/* Weekdays */}
+                        <div className="grid grid-cols-7 gap-1 mb-1 text-[11px] text-gray-500">
+                            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((w) => (
+                                <div key={w} className="text-center">{w}</div>
+                            ))}
+                        </div>
 
-                                    let textClass = "";
-                                    let bgClass = "";
+                        {/* Days */}
+                        <div className="grid grid-cols-7 gap-1">
+                            {calendarCells.map(({ date, inMonth }, idx) => {
+                                const iso = toISO(date);
+                                const dayData = getDayData(date);
+                                const status = dayData.status || "none";
+                                const remaining = dayData.remaining ?? 0;
+                                const isSelected = selectedISO === iso;
 
-                                    if (!inMonth) {
-                                        textClass = "text-gray-300";
-                                    } else if (status === "available" && remaining > 0) {
-                                        textClass = "text-green-800 font-semibold";
-                                        bgClass = "bg-green-100";
-                                    } else if (status === "full") {
-                                        textClass = "text-red-700 font-semibold";
-                                        bgClass = "bg-red-100";
-                                    } else if (status === "blocked") {
-                                        textClass = "text-gray-700 font-medium";
-                                        bgClass = "bg-gray-300";
-                                    } else {
-                                        textClass = "text-gray-400";
-                                        bgClass = "bg-gray-50";
-                                    }
+                                let textClass = "";
+                                let bgClass = "";
 
-                                    return (
-                                        <button
-                                            type="button"
-                                            key={iso + idx}
-                                            onClick={() => handleDayClick(date)}
-                                            className={[
-                                                "h-9 w-full rounded-md text-xs grid place-items-center transition",
-                                                "border border-transparent hover:bg-gray-100/30",
-                                                textClass,
-                                                bgClass,
-                                                isSelected ? "ring-2 ring-blue-400 font-bold" : "",
-                                            ].join(" ")}
-                                        >
-                                            {date.getDate()}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </>
-                    )}
+                                if (!inMonth) {
+                                    textClass = "text-gray-300";
+                                } else if (status === "available" && remaining > 0) {
+                                    textClass = "text-green-800 font-semibold";
+                                    bgClass = "bg-green-100";
+                                } else if (status === "full") {
+                                    textClass = "text-red-700 font-semibold";
+                                    bgClass = "bg-red-100";
+                                } else if (status === "blocked") {
+                                    textClass = "text-gray-700 font-medium";
+                                    bgClass = "bg-gray-300";
+                                } else {
+                                    textClass = "text-gray-400";
+                                    bgClass = "bg-gray-50";
+                                }
+
+                                return (
+                                    <button
+                                        type="button"
+                                        key={iso + idx}
+                                        onClick={() => handleDayClick(date)}
+                                        className={[
+                                            "h-9 w-full rounded-md text-xs grid place-items-center transition",
+                                            "border border-transparent hover:bg-gray-100/30",
+                                            textClass,
+                                            bgClass,
+                                            isSelected ? "ring-2 ring-blue-400 font-bold" : "",
+                                        ].join(" ")}
+                                    >
+                                        {date.getDate()}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </>
                 </div>
 
                 {/* Times */}
