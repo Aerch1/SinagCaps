@@ -17,17 +17,22 @@ export function formatDate(dateString) {
 }
 
 export function to12h(timeString) {
-  if (!timeString || timeString.trim() === "") return "";
+  // treat null, empty, or "00:00:00" as no time
+  if (!timeString || timeString.trim() === "" || timeString === "00:00:00") return "";
+
   const [hour, minute] = timeString.split(":");
   if (hour === undefined || minute === undefined) return "";
+
   const date = new Date();
   date.setHours(hour, minute, 0, 0);
+
   return date.toLocaleTimeString("en-PH", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
   });
 }
+
 
 const normalizeDate = (value) => {
   if (!value) return "";
@@ -346,9 +351,8 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
             <button
               key={i}
               onClick={() => setPage(i + 1)}
-              className={`h-9 w-9 rounded-md border text-sm ${
-                page === i + 1 ? "bg-blue-600 text-white" : "bg-white hover:bg-gray-50"
-              }`}
+              className={`h-9 w-9 rounded-md border text-sm ${page === i + 1 ? "bg-blue-600 text-white" : "bg-white hover:bg-gray-50"
+                }`}
             >
               {i + 1}
             </button>
