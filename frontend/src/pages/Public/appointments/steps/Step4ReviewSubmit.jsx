@@ -241,35 +241,6 @@ export default function Step4ReviewSubmit({
         })}
       </div>
 
-      {/* ---------- Uploaded Document Preview ---------- */}
-      {formData.documentFile && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mt-4">
-          <h4 className="text-sm font-medium text-gray-800 mb-2 flex items-center gap-2">
-            <FileText className="w-4 h-4 text-gray-500" />
-            Uploaded Document
-          </h4>
-          <div className="flex flex-col sm:flex-row items-start gap-4">
-            {formData.documentFile.type.startsWith("image/") ? (
-              <img
-                src={URL.createObjectURL(formData.documentFile)}
-                alt="Uploaded Document"
-                className="w-48 h-auto border rounded-md object-contain"
-              />
-            ) : (
-              <p className="text-gray-700 text-sm">{formData.documentFile.name}</p>
-            )}
-            <a
-              href={URL.createObjectURL(formData.documentFile)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 text-sm hover:underline"
-            >
-              View Full
-            </a>
-          </div>
-        </div>
-      )}
-
       <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
         <p className="mb-2">
           By submitting an appointment, you agree to the parish rules and regulations.
