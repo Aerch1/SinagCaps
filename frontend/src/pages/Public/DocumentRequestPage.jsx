@@ -2,21 +2,11 @@
 import { useState } from "react";
 import HeroBanner from "@/components/section/HeroBanner";
 import toast from "react-hot-toast";
-import api from "@/api/api";
+import api from "@/api/api"; // ✅ Axios instance
 import Input from "@/components/ui/Input";
 import { Mail, Phone, MapPin, User } from "lucide-react";
 
 const HERO_IMG = "/docuBg.jpg";
-
-const DOCUMENT_OPTIONS = [
-    { value: "baptism", label: "Certificate of Baptism" },
-    { value: "confirmation", label: "Certificate of Confirmation" },
-    { value: "marriage", label: "Certificate of Marriage" },
-    { value: "first-communion", label: "Certificate of First Communion" },
-    { value: "death", label: "Certificate of Death/Burial" },
-    { value: "membership", label: "Certificate of Membership" },
-    { value: "other", label: "Other (specify in purpose)" },
-];
 
 export default function DocumentRequestPage() {
     const [formData, setFormData] = useState({
@@ -24,7 +14,7 @@ export default function DocumentRequestPage() {
         email: "",
         phone: "",
         address: "",
-        documentTypes: [], // array of selected types
+        documentType: "",
         purpose: "",
         copies: "1",
         additionalInfo: "",
@@ -33,23 +23,9 @@ export default function DocumentRequestPage() {
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    /* ======================================================
-       HANDLE CHANGE
-    ====================================================== */
     const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-
-        if (name === "documentTypes") {
-            setFormData((prev) => {
-                if (checked) {
-                    return { ...prev, documentTypes: [...prev.documentTypes, value] };
-                } else {
-                    return { ...prev, documentTypes: prev.documentTypes.filter((v) => v !== value) };
-                }
-            });
-        } else {
-            setFormData((prev) => ({ ...prev, [name]: value }));
-        }
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
     /* ======================================================
@@ -63,7 +39,8 @@ export default function DocumentRequestPage() {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
             errors.push("Please enter a valid email address.");
         if (!formData.phone.trim()) errors.push("Contact number is required.");
-        if (!formData.documentTypes.length) errors.push("Please select at least one document type.");
+        if (!formData.documentType.trim())
+            errors.push("Please select a document type.");
         if (!formData.purpose.trim()) errors.push("Purpose is required.");
         if (!formData.copies || formData.copies < 1 || formData.copies > 10)
             errors.push("Copies must be between 1 and 10.");
@@ -89,7 +66,7 @@ export default function DocumentRequestPage() {
                 email: formData.email,
                 phone: formData.phone,
                 address: formData.address,
-                document_types: formData.documentTypes, // send as array
+                document_type: formData.documentType,
                 purpose: formData.purpose,
                 copies: parseInt(formData.copies, 10),
                 additional_info: formData.additionalInfo || null,
@@ -104,7 +81,7 @@ export default function DocumentRequestPage() {
                 email: "",
                 phone: "",
                 address: "",
-                documentTypes: [],
+                documentType: "",
                 purpose: "",
                 copies: "1",
                 additionalInfo: "",
@@ -128,22 +105,28 @@ export default function DocumentRequestPage() {
 
             <section className="max-w-3xl mx-auto px-4 py-12">
                 <div className="bg-white rounded-lg shadow-lg p-8">
+                    {/* ✅ Success Message */}
                     {showSuccess && (
                         <div className="mb-6 bg-green-50 border border-green-400 text-green-700 rounded-md p-4 text-center text-sm font-medium space-y-2">
                             <p>
                                 ✅ Thank you! Your document request has been submitted successfully.
+                                We will contact you within 3–5 business days.
                             </p>
                             <p className="text-[13px] text-green-800/90">
                                 📌 <strong>Important:</strong> To <strong>view or track</strong> your request,
                                 please <strong>log in using the email you entered</strong> in this form.
+                                You will also receive updates through your email notifications.
                             </p>
                         </div>
                     )}
 
+
+                    {/* ⚠️ Info Box */}
                     <div className="bg-amber-50 border-l-4 border-amber-700 text-amber-800 p-4 mb-8 text-sm">
                         Please allow 3–5 business days for processing. For urgent requests,
                         contact the parish office directly at{" "}
                         <span className="font-semibold">(+63) 966 854 8848</span>.
+
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-10">
@@ -152,6 +135,7 @@ export default function DocumentRequestPage() {
                             <h2 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-6">
                                 Personal Information
                             </h2>
+
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -199,6 +183,7 @@ export default function DocumentRequestPage() {
                                             placeholder="09XXXXXXXXX"
                                             required
                                         />
+
                                     </div>
                                 </div>
 
@@ -229,21 +214,22 @@ export default function DocumentRequestPage() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Type of Document <span className="text-red-500">*</span>
                                     </label>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                        {DOCUMENT_OPTIONS.map((doc) => (
-                                            <label key={doc.value} className="flex items-center space-x-2">
-                                                <input
-                                                    type="checkbox"
-                                                    name="documentTypes"
-                                                    value={doc.value}
-                                                    checked={formData.documentTypes.includes(doc.value)}
-                                                    onChange={handleChange}
-                                                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                                                />
-                                                <span className="text-sm">{doc.label}</span>
-                                            </label>
-                                        ))}
-                                    </div>
+                                    <select
+                                        name="documentType"
+                                        value={formData.documentType}
+                                        onChange={handleChange}
+                                        required
+                                        className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500/60 focus:outline-none"
+                                    >
+                                        <option value="">Select a document type</option>
+                                        <option value="baptism">Certificate of Baptism</option>
+                                        <option value="confirmation">Certificate of Confirmation</option>
+                                        <option value="marriage">Certificate of Marriage</option>
+                                        <option value="first-communion">Certificate of First Communion</option>
+                                        <option value="death">Certificate of Death/Burial</option>
+                                        <option value="membership">Certificate of Membership</option>
+                                        <option value="other">Other (specify in purpose)</option>
+                                    </select>
                                 </div>
 
                                 <div>

@@ -128,17 +128,12 @@ export default function DocumentRequestDetailPanel() {
     const statusKey = doc.status?.toLowerCase();
     const statusMeta = STATUS_META[statusKey];
 
-    // Handle multiple document types
-    const docTypesDisplay = Array.isArray(doc.document_types) && doc.document_types.length
-        ? doc.document_types.map(capitalizeFirst).join(", ")
-        : "—";
-
     return (
         <section className="bg-white">
             <div className="max-w-4xl mx-auto py-2">
                 <div className="flex justify-center py-6">
                     <Link
-                        to="../document-requests"
+                        to="../appointments"
                         className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-secondary"
                     >
                         <ChevronLeft className="h-4 w-4" /> Back to document requests
@@ -165,8 +160,8 @@ export default function DocumentRequestDetailPanel() {
 
                     {/* Details */}
                     <DetailRow
-                        label="Document Type(s)"
-                        value={docTypesDisplay}
+                        label="Document Type"
+                        value={capitalizeFirst(doc.document_type)}
                     />
                     <DetailRow label="Purpose" value={doc.purpose} />
                     <DetailRow label="Copies" value={doc.copies} />
