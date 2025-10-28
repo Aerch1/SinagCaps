@@ -39,51 +39,51 @@ export const connectDB = async () => {
   }
 };
 
-// /* ===========================
-//    RESET DATABASE (except users)
-// =========================== */
-// export const resetDatabase = async () => {
-//   const conn = await pool.getConnection();
-//   try {
-//     console.log("⚠️ Resetting database tables (except users)...");
-//     await conn.query("SET FOREIGN_KEY_CHECKS = 0");
+/* ===========================
+   RESET DATABASE (except users)
+=========================== */
+export const resetDatabase = async () => {
+  const conn = await pool.getConnection();
+  try {
+    console.log("⚠️ Resetting database tables (except users)...");
+    await conn.query("SET FOREIGN_KEY_CHECKS = 0");
 
-//     const tables = [
-//       "appointment_requirements",
-//       "baptism_sponsors",
-//       "baptism_details",
-//       "confirmation_sponsors",
-//       "confirmation_details",
-//       "notifications",
-//       "announcements",
-//       "advisories",
-//       "events",
-//       "document_requests",
-//       "rules",
-//       "church_hours",
-//       "appointments",
-//       "requirements",
-//       "services",
-//       "change_email_requests",
-//       "password_resets",
-//       "email_verification_tokens"
-//       // 👆 no "users" here
-//     ];
+    const tables = [
+      // "appointment_requirements",
+      // "baptism_sponsors",
+      // "baptism_details",
+      // "confirmation_sponsors",
+      // "confirmation_details",
+      // "notifications",
+      // "announcements",
+      // "advisories",
+      // "events",
+      "document_requests"
+      // "rules",
+      // "church_hours",
+      // "appointments",
+      // "requirements",
+      // "services",
+      // "change_email_requests",
+      // "password_resets",
+      // "email_verification_tokens"
+      // 👆 no "users" here
+    ];
 
-//     for (const table of tables) {
-//       console.log(`🧽 Truncating ${table}...`);
-//       await conn.query(`TRUNCATE TABLE ${table}`);
-//     }
+    for (const table of tables) {
+      console.log(`🧽 Truncating ${table}...`);
+      await conn.query(`TRUNCATE TABLE ${table}`);
+    }
 
-//     await conn.query("SET FOREIGN_KEY_CHECKS = 1");
-//     console.log("✅ Reset complete. Users preserved.");
-//   } catch (err) {
-//     console.error("❌ Failed to reset database:", err.message);
-//     throw err;
-//   } finally {
-//     conn.release();
-//   }
-// };
+    await conn.query("SET FOREIGN_KEY_CHECKS = 1");
+    console.log("✅ Reset complete. Users preserved.");
+  } catch (err) {
+    console.error("❌ Failed to reset database:", err.message);
+    throw err;
+  } finally {
+    conn.release();
+  }
+};
 
 /* ===========================
    SCHEMA CREATION

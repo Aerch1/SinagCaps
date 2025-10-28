@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import path from "path";
 
 // Database
-import { connectDB } from "./config/db.js";
+import { connectDB, resetDatabase } from "./config/db.js";
 
 // Routes
 import authRoutes from "./routes/auth.route.js";
@@ -143,6 +143,7 @@ app.use((err, req, res, next) => {
 // ===============================
 app.listen(PORT, async () => {
   await connectDB();
+  await resetDatabase();
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Frontend: ${process.env.CLIENT_URL}`);
   console.log(`☁️  Cloudinary Folder: ${process.env.CLOUDINARY_FOLDER}`);
