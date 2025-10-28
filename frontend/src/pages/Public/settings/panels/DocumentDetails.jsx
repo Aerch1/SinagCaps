@@ -63,7 +63,7 @@ const STATUS_META = {
     },
 };
 
-/* ---------------- Capitalize Helper ---------------- */
+/* ---------------- Helper ---------------- */
 const capitalizeFirst = (str) =>
     str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : "";
 
@@ -117,14 +117,17 @@ export default function DocumentRequestDetailPanel() {
         );
     }
 
-    // Format date
+    // ✅ Handle document types as array
+    const documentTypes = Array.isArray(doc.document_types)
+        ? doc.document_types.map(capitalizeFirst).join(", ")
+        : capitalizeFirst(doc.document_type || doc.document_types);
+
     const datePretty = new Date(doc.created_at).toLocaleDateString(undefined, {
         month: "long",
         day: "numeric",
         year: "numeric",
     });
 
-    // Status meta
     const statusKey = doc.status?.toLowerCase();
     const statusMeta = STATUS_META[statusKey];
 
@@ -133,7 +136,7 @@ export default function DocumentRequestDetailPanel() {
             <div className="max-w-4xl mx-auto py-2">
                 <div className="flex justify-center py-6">
                     <Link
-                        to="../appointments"
+                        to="../document-requests"
                         className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-secondary"
                     >
                         <ChevronLeft className="h-4 w-4" /> Back to document requests
@@ -159,10 +162,7 @@ export default function DocumentRequestDetailPanel() {
                     </div>
 
                     {/* Details */}
-                    <DetailRow
-                        label="Document Type"
-                        value={capitalizeFirst(doc.document_type)}
-                    />
+                    <DetailRow label="Document Type(s)" value={documentTypes} />
                     <DetailRow label="Purpose" value={doc.purpose} />
                     <DetailRow label="Copies" value={doc.copies} />
                     <DetailRow label="Additional Info" value={doc.additional_info} />

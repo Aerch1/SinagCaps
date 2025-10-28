@@ -107,7 +107,7 @@ export async function createPublicDocumentRequest(req, res) {
         cleanEmail,
         phone?.trim() || null,
         address?.trim() || null,
-        documentTypeJSON, // ✅ JSON array string
+        documentTypeJSON, 
         purpose.trim(),
         numCopies,
         additional_info?.trim() || null,

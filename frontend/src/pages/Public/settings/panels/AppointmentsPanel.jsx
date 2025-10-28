@@ -86,6 +86,7 @@ export default function AppointmentsPanel() {
         fetchData("/public/documents/my", setDocumentRequests, setLoadingDocuments, "created_at");
     }, []);
 
+    // ---- inside renderTransactionCard()
     const renderTransactionCard = (item, isAppt) => {
         const dateValue = isAppt ? item.date : item.created_at;
         if (!dateValue) return null;
@@ -94,14 +95,34 @@ export default function AppointmentsPanel() {
         const time = isAppt ? to12h(item.time) : "--";
 
         const sLabel = statusLabel(item.status, item.pendingRequest);
-        const colorClass = item.pendingRequest === "reschedule" ? "text-orange-600 font-semibold" : getStatusColor(item.status);
-
-
+        const colorClass =
+            item.pendingRequest === "reschedule"
+                ? "text-orange-600 font-semibold"
+                : getStatusColor(item.status);
 
         const isArchived = item.status?.toLowerCase() === "archived";
+
+        // ✅ Handle document type display (parse JSON safely)
+        let docTitle = "Document Request";
+        if (!isAppt) {
+            try {
+                const parsed =
+                    typeof item.document_type === "string"
+                        ? JSON.parse(item.document_type)
+                        : item.document_type;
+                if (Array.isArray(parsed)) {
+                    docTitle = parsed.map(capitalizeFirst).join(", ");
+                } else if (typeof parsed === "string") {
+                    docTitle = capitalizeFirst(parsed);
+                }
+            } catch {
+                docTitle = "Document Request";
+            }
+        }
+
         const title = isAppt
             ? item.serviceName || "Transaction"
-            : capitalizeFirst(item.document_type);
+            : docTitle; // ✅ use parsed list
         const code = isAppt ? item.id : item.request_code;
         const navigateTo = isAppt
             ? `../appointments/${item.id}`
@@ -120,8 +141,12 @@ export default function AppointmentsPanel() {
                     {/* Desktop View */}
                     <div className="hidden sm:grid grid-cols-[80px_1fr_1fr_1fr_auto] items-center gap-4 px-4 sm:px-6 py-4">
                         <div className="text-center border-r border-gray-200">
-                            <div className="text-xs uppercase tracking-wide text-gray-500">{dow}</div>
-                            <div className="text-2xl font-semibold text-gray-900 leading-none">{day}</div>
+                            <div className="text-xs uppercase tracking-wide text-gray-500">
+                                {dow}
+                            </div>
+                            <div className="text-2xl font-semibold text-gray-900 leading-none">
+                                {day}
+                            </div>
                         </div>
 
                         <div className="min-w-0">
@@ -149,7 +174,8 @@ export default function AppointmentsPanel() {
                         </div>
 
                         <div
-                            className={`min-w-0 text-sm font-semibold ${isArchived ? "invisible" : colorClass}`}
+                            className={`min-w-0 text-sm font-semibold ${isArchived ? "invisible" : colorClass
+                                }`}
                         >
                             {sLabel}
                         </div>
@@ -165,8 +191,12 @@ export default function AppointmentsPanel() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-5">
                                 <div className="text-center border-r pr-2 border-gray-200">
-                                    <div className="text-[11px] uppercase tracking-wide text-gray-500">{dow}</div>
-                                    <div className="text-xl font-semibold text-gray-900 leading-none">{day}</div>
+                                    <div className="text-[11px] uppercase tracking-wide text-gray-500">
+                                        {dow}
+                                    </div>
+                                    <div className="text-xl font-semibold text-gray-900 leading-none">
+                                        {day}
+                                    </div>
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-1 text-gray-700">
@@ -182,7 +212,9 @@ export default function AppointmentsPanel() {
                                             </>
                                         )}
                                     </div>
-                                    <div className="text-base font-medium text-gray-900">{title}</div>
+                                    <div className="text-base font-medium text-gray-900">
+                                        {title}
+                                    </div>
                                 </div>
                             </div>
                             <ChevronRight className="h-5 w-5 text-gray-300" />
@@ -193,13 +225,16 @@ export default function AppointmentsPanel() {
                                 {isAppt ? "Txn:" : "Code:"}
                             </span>{" "}
                             <span className="font-medium text-gray-800">{code}</span>
-                            {!isArchived && <p className={`font-semibold mt-1 ${colorClass}`}>{sLabel}</p>}
+                            {!isArchived && (
+                                <p className={`font-semibold mt-1 ${colorClass}`}>{sLabel}</p>
+                            )}
                         </div>
                     </div>
                 </button>
             </div>
         );
     };
+
 
     const renderSection = (title, loading, data, emptyMsg, linkTo, buttonText, isAppt) => (
         <div>
