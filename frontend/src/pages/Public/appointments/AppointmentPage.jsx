@@ -185,47 +185,51 @@ export default function AppointmentPage() {
     const toastId = toast.loading("Submitting your appointment request...");
 
     try {
-      const payload = {
-        service_id: formData.service_id,
-        date: formData.preferredDate,
-        time: formData.preferredTime,
-        name:
-          user?.fullName ||
-          user?.name ||
-          user?.email?.split("@")[0] ||
-          "Guest",
-        email: formData.email || user?.email,
-        contactNumber: formData.phone,
-        address: formData.address,
-        notes: formData.notes || formData.additionalNotes || null,
-      };
+      const formPayload = new FormData();
 
+      // Basic appointment data
+      formPayload.append("service_id", formData.service_id);
+      formPayload.append("date", formData.preferredDate);
+      formPayload.append("time", formData.preferredTime);
+      formPayload.append(
+        "name",
+        user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest"
+      );
+      formPayload.append("email", formData.email || user?.email);
+      formPayload.append("contactNumber", formData.phone);
+      formPayload.append("address", formData.address);
+      formPayload.append("notes", formData.notes || formData.additionalNotes || "");
+
+      // Service-specific fields
       if (formData.formType === "baptism") {
-        Object.assign(payload, {
-          childFullName: formData.childFullName,
-          childDob: formData.childDob,
-          childBirthplace: formData.childBirthplace,
-          fatherName: formData.fatherName,
-          motherMaidenName: formData.motherMaidenName,
-          parentsMarriageType: formData.parentsMarriageType,
-          sponsors: formData.sponsors || [],
-        });
+        formPayload.append("childFullName", formData.childFullName);
+        formPayload.append("childDob", formData.childDob);
+        formPayload.append("childBirthplace", formData.childBirthplace);
+        formPayload.append("fatherName", formData.fatherName);
+        formPayload.append("motherMaidenName", formData.motherMaidenName);
+        formPayload.append("parentsMarriageType", formData.parentsMarriageType);
+        formPayload.append("sponsors", JSON.stringify(formData.sponsors || []));
       }
 
       if (formData.formType === "confirmation") {
-        Object.assign(payload, {
-          confirmandName: formData.confirmandName,
-          age: formData.age,
-          fatherName: formData.fatherName,
-          motherMaidenName: formData.motherMaidenName,
-          parishOrigin: formData.parishOrigin,
-          baptizedAt: formData.baptizedAt,
-          baptizedOn: formData.baptizedOn,
-          sponsors: formData.sponsors || [],
-        });
+        formPayload.append("confirmandName", formData.confirmandName);
+        formPayload.append("age", formData.age);
+        formPayload.append("fatherName", formData.fatherName);
+        formPayload.append("motherMaidenName", formData.motherMaidenName);
+        formPayload.append("parishOrigin", formData.parishOrigin);
+        formPayload.append("baptizedAt", formData.baptizedAt);
+        formPayload.append("baptizedOn", formData.baptizedOn);
+        formPayload.append("sponsors", JSON.stringify(formData.sponsors || []));
       }
 
-      const { data } = await api.post("/appointments", payload);
+      // Add uploaded file if exists
+      if (formData.documentFile) {
+        formPayload.append("documentFile", formData.documentFile);
+      }
+
+      const { data } = await api.post("/appointments", formPayload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
       setFormData((prev) => ({
         ...prev,
@@ -238,19 +242,14 @@ export default function AppointmentPage() {
     } catch (error) {
       toast.dismiss(toastId);
 
-      // If backend returns field-specific errors
       if (error?.response?.data?.errors) {
         const fieldErrors = {};
         error.response.data.errors.forEach(({ field, message }) => {
           fieldErrors[field] = message;
         });
         setFormErrors(fieldErrors);
-
-        // If backend returns a general error message
       } else if (error?.response?.data?.error) {
         toast.error(error.response.data.error);
-
-        // Fallback for network or unknown errors
       } else {
         toast.error("Submission failed. Please try again.");
       }
@@ -258,6 +257,7 @@ export default function AppointmentPage() {
       setIsSubmitting(false);
     }
   };
+
 
   /* =====================================================
      🧱 Step Content Renderer

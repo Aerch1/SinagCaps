@@ -189,31 +189,32 @@ async function ensureSchema(conn) {
 
   // ---- Appointments
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS appointments (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NULL,
-      service_id INT NOT NULL,
-      name VARCHAR(255) NOT NULL,
-      email VARCHAR(255) NULL,
-      contactNumber VARCHAR(32),
-      address VARCHAR(500) NULL,
-      date DATE NOT NULL,
-      time TIME NOT NULL,
-      party_size INT NOT NULL DEFAULT 1,
-      status ENUM('pending','approved','completed','cancelled','rejected','archived') DEFAULT 'pending',
-      notes TEXT,
-      was_rescheduled BOOLEAN DEFAULT FALSE,          -- ✅ NEW COLUMN
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      approved_at TIMESTAMP NULL DEFAULT NULL,
-      completed_at TIMESTAMP NULL DEFAULT NULL,
-      cancelled_at TIMESTAMP NULL DEFAULT NULL,
-      requirements_completed_at DATETIME NULL,
-      CONSTRAINT fk_appt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-      CONSTRAINT fk_appt_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
-      INDEX idx_service (service_id, date, time, status)
-    )
-  `);
+  CREATE TABLE IF NOT EXISTS appointments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    service_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NULL,
+    contactNumber VARCHAR(32),
+    address VARCHAR(500) NULL,
+    date DATE NOT NULL,
+    time TIME NOT NULL,
+    party_size INT NOT NULL DEFAULT 1,
+    status ENUM('pending','approved','completed','cancelled','rejected','archived') DEFAULT 'pending',
+    notes TEXT,
+    document_image_url VARCHAR(255) NULL,        -- ✅ NEW COLUMN for document image URL
+    was_rescheduled BOOLEAN DEFAULT FALSE,       -- ✅ NEW COLUMN
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    approved_at TIMESTAMP NULL DEFAULT NULL,
+    completed_at TIMESTAMP NULL DEFAULT NULL,
+    cancelled_at TIMESTAMP NULL DEFAULT NULL,
+    requirements_completed_at DATETIME NULL,
+    CONSTRAINT fk_appt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_appt_service FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+    INDEX idx_service (service_id, date, time, status)
+  )
+`);
 
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS appointment_requests  (
