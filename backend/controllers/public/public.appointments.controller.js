@@ -157,11 +157,11 @@ export async function createPublicAppointment(req, res) {
 
     // -------------------------------
     // 5️⃣ Insert base appointment with optional document image
-    const document_url = req.file?.path || null;
+    const document_image_url = req.file?.path || null;
 
     const [apptResult] = await conn.execute(
       `INSERT INTO appointments
-        (service_id, user_id, name, email, contactNumber, address, date, time, status, notes, document_url)
+        (service_id, user_id, name, email, contactNumber, address, date, time, status, notes, document_image_url)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
       [
         service_id,
@@ -173,7 +173,7 @@ export async function createPublicAppointment(req, res) {
         date,
         time,
         notes,
-        document_url,
+        document_image_url,
       ]
     );
     const appointmentId = apptResult.insertId;
