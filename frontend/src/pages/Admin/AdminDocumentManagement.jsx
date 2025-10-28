@@ -29,7 +29,16 @@ export default function AdminDocumentManagement() {
         try {
             setLoading(true);
             const res = await api.get("/admin/document-requests");
-            setRequests(res.data?.data || []);
+            const data = res.data?.data || [];
+            // Ensure document_type is always an array
+            setRequests(
+                data.map((r) => ({
+                    ...r,
+                    document_type: Array.isArray(r.document_type)
+                        ? r.document_type
+                        : JSON.parse(r.document_type || "[]"),
+                }))
+            );
         } catch (err) {
             console.error(err);
             toast.error("Failed to load document requests");
@@ -81,10 +90,11 @@ export default function AdminDocumentManagement() {
         const q = searchTerm.toLowerCase().trim();
         return requests.filter((r) => {
             const matchesStatus = filterStatus === "all" || r.status === filterStatus;
+            const docTypesString = r.document_type.join(" ").toLowerCase();
             const matchesSearch =
                 r.full_name?.toLowerCase().includes(q) ||
                 r.email?.toLowerCase().includes(q) ||
-                r.document_type?.toLowerCase().includes(q) ||
+                docTypesString.includes(q) ||
                 r.request_code?.toLowerCase().includes(q) ||
                 r.id?.toString().includes(q);
             return matchesStatus && matchesSearch;
@@ -234,16 +244,22 @@ export default function AdminDocumentManagement() {
                                             </div>
                                         </td>
                                         <td className="px-3 lg:px-6 py-2 text-gray-700">
-                                            {documentTypeLabels[r.document_type]}
+                                            {r.document_type
+                                                .map((dt) => documentTypeLabels[dt])
+                                                .join(", ")}
                                         </td>
+
                                         <td className="px-3 lg:px-6 py-2 text-gray-700">
-                                            {new Date(r.created_at).toLocaleDateString("en-PH")}
+                                            {new Date(r.created_at).toLocaleDateString(
+                                                "en-PH"
+                                            )}
                                         </td>
                                         <td className="px-3 lg:px-6 py-2 text-center">
                                             <span
                                                 className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[r.status]}`}
                                             >
-                                                {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                                                {r.status.charAt(0).toUpperCase() +
+                                                    r.status.slice(1)}
                                             </span>
 
                                             {r.status === "completed" && (
@@ -263,7 +279,9 @@ export default function AdminDocumentManagement() {
                                                 </button>
                                                 {r.status === "pending" && (
                                                     <button
-                                                        onClick={() => updateStatus(r.id, "rejected")}
+                                                        onClick={() =>
+                                                            updateStatus(r.id, "rejected")
+                                                        }
                                                         className="inline-flex items-center gap-1 px-2.5 py-1 border border-red-300 rounded-md text-red-600 hover:bg-red-50 text-xs"
                                                     >
                                                         <Trash2 className="h-3.5 w-3.5" />
@@ -289,7 +307,6 @@ export default function AdminDocumentManagement() {
                         ? `Request Details – ${selectedRequest.request_code || selectedRequest.id}`
                         : ""
                 }
-
             >
                 {selectedRequest && (
                     <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-1 custom-scrollbar">
@@ -323,7 +340,9 @@ export default function AdminDocumentManagement() {
                             data={[
                                 [
                                     "Document Type",
-                                    documentTypeLabels[selectedRequest.document_type],
+                                    selectedRequest.document_type
+                                        .map((dt) => documentTypeLabels[dt])
+                                        .join(", "),
                                 ],
                                 ["Number of Copies", selectedRequest.copies],
                                 ["Purpose", selectedRequest.purpose],
@@ -345,7 +364,9 @@ export default function AdminDocumentManagement() {
                                         Mark as Processing
                                     </button>
                                     <button
-                                        onClick={() => updateStatus(selectedRequest.id, "rejected")}
+                                        onClick={() =>
+                                            updateStatus(selectedRequest.id, "rejected")
+                                        }
                                         className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium"
                                     >
                                         Reject Request
@@ -354,7 +375,9 @@ export default function AdminDocumentManagement() {
                             )}
                             {selectedRequest.status === "processing" && (
                                 <button
-                                    onClick={() => updateStatus(selectedRequest.id, "completed")}
+                                    onClick={() =>
+                                        updateStatus(selectedRequest.id, "completed")
+                                    }
                                     className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium flex items-center gap-2"
                                 >
                                     <CheckCircle className="w-4 h-4" />

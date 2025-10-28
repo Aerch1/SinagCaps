@@ -127,7 +127,9 @@ export async function createPublicDocumentRequest(req, res) {
     // 📧 Send confirmation email (non-blocking)
     sendDocumentReceivedEmail(cleanEmail, {
       name: full_name,
-      documentTypes: document_types,
+      documentTypes: document_types
+        .map((dt) => dt.charAt(0).toUpperCase() + dt.slice(1))
+        .join(", "), // convert to string
       purpose,
       copies: numCopies,
       requestCode,
@@ -138,7 +140,9 @@ export async function createPublicDocumentRequest(req, res) {
     // 🔔 Notify admins (non-blocking)
     notifyAdminsOfNewDocumentRequest(
       full_name,
-      document_types,
+      document_types
+        .map((dt) => dt.charAt(0).toUpperCase() + dt.slice(1))
+        .join(", "), // convert to string
       insertedId
     ).catch((e) => console.warn(`⚠️ Admin notification failed: ${e.message}`));
 

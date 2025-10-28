@@ -22,7 +22,15 @@ export async function getAllDocumentRequests(req, res) {
        ORDER BY dr.created_at DESC`
     );
 
-    res.json({ success: true, data: rows });
+    // Parse document_type as array for all rows
+    const parsedRows = rows.map((r) => ({
+      ...r,
+      document_type: Array.isArray(r.document_type)
+        ? r.document_type
+        : JSON.parse(r.document_type || "[]"),
+    }));
+
+    res.json({ success: true, data: parsedRows });
   } catch (err) {
     console.error("❌ getAllDocumentRequests error:", err);
     res.status(500).json({
@@ -57,6 +65,10 @@ export async function createDocumentRequest(req, res) {
   }
 
   const requestCode = `REQ-${Date.now()}`;
+  // Ensure document_type is stored as JSON array
+  const docTypes = Array.isArray(document_type)
+    ? document_type
+    : [document_type];
 
   try {
     const [result] = await pool.query(
@@ -72,7 +84,7 @@ export async function createDocumentRequest(req, res) {
         email.trim().toLowerCase(),
         phone?.trim() || null,
         address?.trim() || null,
-        document_type,
+        JSON.stringify(docTypes),
         purpose?.trim(),
         copies && !isNaN(copies) ? Number(copies) : 1,
         additional_info?.trim() || null,
@@ -83,7 +95,7 @@ export async function createDocumentRequest(req, res) {
     try {
       await sendDocumentReceivedEmail(email, {
         name: full_name,
-        documentType: document_type,
+        documentType: docTypes.join(", "),
         purpose,
         copies,
         requestCode,
@@ -131,24 +143,31 @@ export async function updateDocumentStatus(req, res) {
         .json({ success: false, error: "Document request not found" });
     }
 
+    // Parse document_type as array
+    const docTypes = Array.isArray(doc.document_type)
+      ? doc.document_type
+      : JSON.parse(doc.document_type || "[]");
+
     await pool.query(`UPDATE document_requests SET status = ? WHERE id = ?`, [
       status,
       id,
     ]);
+
+    const docLabel = docTypes.join(", "); // For emails/notifications
 
     // ✅ Send emails & notification to the specific user
     if (status === "processing") {
       try {
         await sendDocumentProcessingEmail(doc.email, {
           name: doc.full_name,
-          documentType: doc.document_type,
+          documentType: docLabel,
         });
 
         if (doc.user_id) {
           await createNotification({
             user_id: doc.user_id,
             title: "Your Document Request is Now Being Processed",
-            message: `Hi ${doc.full_name}, your ${doc.document_type} request is being processed.`,
+            message: `Hi ${doc.full_name}, your ${docLabel} request is being processed.`,
             type: "document",
             reference_id: id,
           });
@@ -167,7 +186,7 @@ export async function updateDocumentStatus(req, res) {
       try {
         await sendDocumentReadyEmail(doc.email, {
           name: doc.full_name,
-          documentType: doc.document_type,
+          documentType: docLabel,
           requestCode: doc.request_code,
         });
 
@@ -175,7 +194,7 @@ export async function updateDocumentStatus(req, res) {
           await createNotification({
             user_id: doc.user_id,
             title: "Your Document Request is Ready for Pick-Up",
-            message: `Hi ${doc.full_name}, your ${doc.document_type} certificate is ready for pick-up.`,
+            message: `Hi ${doc.full_name}, your ${docLabel} certificate is ready for pick-up.`,
             type: "document",
             reference_id: id,
           });
@@ -194,7 +213,7 @@ export async function updateDocumentStatus(req, res) {
       try {
         await sendDocumentRejectedEmail(doc.email, {
           name: doc.full_name,
-          documentType: doc.document_type,
+          documentType: docLabel,
           reason,
         });
 
@@ -202,7 +221,7 @@ export async function updateDocumentStatus(req, res) {
           await createNotification({
             user_id: doc.user_id,
             title: "Your Document Request Has Been Rejected",
-            message: `We’re sorry, but your ${doc.document_type} request was rejected. Reason: ${reason}`,
+            message: `We’re sorry, but your ${docLabel} request was rejected. Reason: ${reason}`,
             type: "document",
             reference_id: id,
           });

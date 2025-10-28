@@ -399,10 +399,10 @@ async function ensureSchema(conn) {
     )
   `);
 
-  await conn.execute(`DROP TABLE IF EXISTS document_requests`);
+  // await conn.execute(`DROP TABLE IF EXISTS document_requests`);
 
   await conn.execute(`
-  CREATE TABLE document_requests (
+  CREATE TABLE IF NOT EXISTS document_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
   request_code VARCHAR(50) NOT NULL UNIQUE,
   user_id INT NULL,
