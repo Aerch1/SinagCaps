@@ -11,7 +11,7 @@ export async function createPublicDocumentRequest(req, res) {
     email,
     phone,
     address,
-    document_types, // <-- now accepts array of document types
+    document_types, // <-- array of document types
     purpose,
     copies,
     additional_info,
@@ -102,7 +102,7 @@ export async function createPublicDocumentRequest(req, res) {
         cleanEmail,
         phone?.trim() || null,
         address?.trim() || null,
-        JSON.stringify(document_types), // <-- store as JSON
+        JSON.stringify(document_types), // store as JSON
         purpose.trim(),
         numCopies,
         additional_info?.trim() || null,
@@ -111,10 +111,34 @@ export async function createPublicDocumentRequest(req, res) {
 
     const insertedId = result.insertId;
 
+    // 🔹 Map internal keys to human-readable names
+    const humanReadableDocs = document_types
+      .map((type) => {
+        switch (type) {
+          case "baptism":
+            return "Certificate of Baptism";
+          case "confirmation":
+            return "Certificate of Confirmation";
+          case "marriage":
+            return "Certificate of Marriage";
+          case "first-communion":
+            return "Certificate of First Communion";
+          case "death":
+            return "Certificate of Death/Burial";
+          case "membership":
+            return "Certificate of Membership";
+          case "other":
+            return "Other";
+          default:
+            return type;
+        }
+      })
+      .join(", ");
+
     // 📧 Send confirmation email (non-blocking)
     sendDocumentReceivedEmail(cleanEmail, {
       name: full_name,
-      documentTypes: document_types,
+      documentTypes: humanReadableDocs,
       purpose,
       copies: numCopies,
       requestCode,
@@ -125,7 +149,7 @@ export async function createPublicDocumentRequest(req, res) {
     // 🔔 Notify admins (non-blocking)
     notifyAdminsOfNewDocumentRequest(
       full_name,
-      document_types,
+      humanReadableDocs,
       insertedId
     ).catch((e) => console.warn(`⚠️ Admin notification failed: ${e.message}`));
 
@@ -146,7 +170,6 @@ export async function createPublicDocumentRequest(req, res) {
 
 /* =====================================================
    📥 Get My Document Requests
-   — Auto-link guest requests to account on login
 ===================================================== */
 export async function getMyDocumentRequests(req, res) {
   const userId = req.userId;
@@ -157,7 +180,6 @@ export async function getMyDocumentRequests(req, res) {
   }
 
   try {
-    // 🛡️ Fallback: if token has no email, fetch from DB
     if (!userEmail) {
       const [[user]] = await pool.query(
         "SELECT email FROM users WHERE id = ?",
@@ -167,7 +189,6 @@ export async function getMyDocumentRequests(req, res) {
     }
 
     if (userEmail) {
-      // 🧠 Link past guest requests if they used this email before
       await pool.query(
         `
         UPDATE document_requests
@@ -178,7 +199,6 @@ export async function getMyDocumentRequests(req, res) {
       );
     }
 
-    // 🧾 Fetch all requests made under this account
     const [rows] = await pool.query(
       `
       SELECT 
@@ -194,7 +214,6 @@ export async function getMyDocumentRequests(req, res) {
       [userId]
     );
 
-    // Parse JSON before sending
     const requests = rows.map((r) => ({
       ...r,
       document_types: JSON.parse(r.document_types),
@@ -246,7 +265,6 @@ export async function getMyDocumentRequestDetails(req, res) {
       });
     }
 
-    // Parse JSON before sending
     row.document_types = JSON.parse(row.document_types);
 
     return res.json({ success: true, request: row });

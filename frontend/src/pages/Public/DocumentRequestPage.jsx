@@ -2,11 +2,22 @@
 import { useState } from "react";
 import HeroBanner from "@/components/section/HeroBanner";
 import toast from "react-hot-toast";
-import api from "@/api/api"; // ✅ Axios instance
+import api from "@/api/api";
 import Input from "@/components/ui/Input";
 import { Mail, Phone, MapPin, User } from "lucide-react";
 
 const HERO_IMG = "/docuBg.jpg";
+
+// Document options
+const DOCUMENT_OPTIONS = [
+    { value: "baptism", label: "Certificate of Baptism" },
+    { value: "confirmation", label: "Certificate of Confirmation" },
+    { value: "marriage", label: "Certificate of Marriage" },
+    { value: "first-communion", label: "Certificate of First Communion" },
+    { value: "death", label: "Certificate of Death/Burial" },
+    { value: "membership", label: "Certificate of Membership" },
+    { value: "other", label: "Other (specify in purpose)" },
+];
 
 export default function DocumentRequestPage() {
     const [formData, setFormData] = useState({
@@ -14,7 +25,7 @@ export default function DocumentRequestPage() {
         email: "",
         phone: "",
         address: "",
-        documentTypes: [], // ✅ array for multiple selection
+        documentTypes: [],
         purpose: "",
         copies: "1",
         additionalInfo: "",
@@ -23,25 +34,23 @@ export default function DocumentRequestPage() {
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleChange = (e) => {
-        const { name, value, options } = e.target;
-        if (name === "documentTypes") {
-            // Convert selected options to array
-            const selected = Array.from(options)
-                .filter((option) => option.selected)
-                .map((option) => option.value);
-            setFormData((prev) => ({ ...prev, documentTypes: selected }));
-        } else {
-            setFormData((prev) => ({ ...prev, [name]: value }));
-        }
+    const handleCheckboxChange = (e) => {
+        const { value, checked } = e.target;
+        setFormData((prev) => {
+            const updated = checked
+                ? [...prev.documentTypes, value]
+                : prev.documentTypes.filter((v) => v !== value);
+            return { ...prev, documentTypes: updated };
+        });
     };
 
-    /* ======================================================
-       SIMPLE VALIDATION
-    ====================================================== */
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+
     const validateForm = () => {
         const errors = [];
-
         if (!formData.fullName.trim()) errors.push("Full name is required.");
         if (!formData.email.trim()) errors.push("Email is required.");
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
@@ -52,13 +61,9 @@ export default function DocumentRequestPage() {
         if (!formData.purpose.trim()) errors.push("Purpose is required.");
         if (!formData.copies || formData.copies < 1 || formData.copies > 10)
             errors.push("Copies must be between 1 and 10.");
-
         return errors;
     };
 
-    /* ======================================================
-       SUBMIT FORM → Backend
-    ====================================================== */
     const handleSubmit = async (e) => {
         e.preventDefault();
         const errors = validateForm();
@@ -74,7 +79,7 @@ export default function DocumentRequestPage() {
                 email: formData.email,
                 phone: formData.phone,
                 address: formData.address,
-                document_types: formData.documentTypes, // ✅ send array
+                document_types: formData.documentTypes,
                 purpose: formData.purpose,
                 copies: parseInt(formData.copies, 10),
                 additional_info: formData.additionalInfo || null,
@@ -113,7 +118,6 @@ export default function DocumentRequestPage() {
 
             <section className="max-w-3xl mx-auto px-4 py-12">
                 <div className="bg-white rounded-lg shadow-lg p-8">
-                    {/* ✅ Success Message */}
                     {showSuccess && (
                         <div className="mb-6 bg-green-50 border border-green-400 text-green-700 rounded-md p-4 text-center text-sm font-medium space-y-2">
                             <p>
@@ -128,7 +132,6 @@ export default function DocumentRequestPage() {
                         </div>
                     )}
 
-                    {/* ⚠️ Info Box */}
                     <div className="bg-amber-50 border-l-4 border-amber-700 text-amber-800 p-4 mb-8 text-sm">
                         Please allow 3–5 business days for processing. For urgent requests,
                         contact the parish office directly at{" "}
@@ -136,12 +139,11 @@ export default function DocumentRequestPage() {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-10">
-                        {/* PERSONAL INFO */}
+                        {/* Personal Info */}
                         <div>
                             <h2 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-6">
                                 Personal Information
                             </h2>
-
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -173,7 +175,6 @@ export default function DocumentRequestPage() {
                                             required
                                         />
                                     </div>
-
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Contact Number <span className="text-red-500">*</span>
@@ -208,7 +209,7 @@ export default function DocumentRequestPage() {
                             </div>
                         </div>
 
-                        {/* DOCUMENT REQUEST */}
+                        {/* Document Request */}
                         <div>
                             <h2 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-6">
                                 Document Request
@@ -219,23 +220,20 @@ export default function DocumentRequestPage() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Type of Document <span className="text-red-500">*</span>
                                     </label>
-                                    <select
-                                        name="documentTypes"
-                                        value={formData.documentTypes}
-                                        onChange={handleChange}
-                                        required
-                                        multiple
-                                        className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500/60 focus:outline-none h-[150px]"
-                                    >
-                                        <option value="baptism">Certificate of Baptism</option>
-                                        <option value="confirmation">Certificate of Confirmation</option>
-                                        <option value="marriage">Certificate of Marriage</option>
-                                        <option value="first-communion">Certificate of First Communion</option>
-                                        <option value="death">Certificate of Death/Burial</option>
-                                        <option value="membership">Certificate of Membership</option>
-                                        <option value="other">Other (specify in purpose)</option>
-                                    </select>
-                                    <p className="text-xs text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple types.</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        {DOCUMENT_OPTIONS.map((doc) => (
+                                            <label key={doc.value} className="inline-flex items-center space-x-2">
+                                                <input
+                                                    type="checkbox"
+                                                    value={doc.value}
+                                                    checked={formData.documentTypes.includes(doc.value)}
+                                                    onChange={handleCheckboxChange}
+                                                    className="form-checkbox h-4 w-4 text-blue-600"
+                                                />
+                                                <span className="text-gray-700 text-sm">{doc.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 <div>
@@ -281,7 +279,6 @@ export default function DocumentRequestPage() {
                             </div>
                         </div>
 
-                        {/* SUBMIT BUTTON */}
                         <button
                             type="submit"
                             disabled={isSubmitting}
