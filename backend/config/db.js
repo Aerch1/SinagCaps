@@ -350,10 +350,9 @@ async function ensureSchema(conn) {
     )
   `);
 
-  await conn.execute(`DROP TABLE IF EXISTS events`);
   // ---- Events
   await conn.execute(`
-    CREATE TABLE  events (
+     CREATE TABLE IF NOT EXISTS  events (
      id INT AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   description TEXT,

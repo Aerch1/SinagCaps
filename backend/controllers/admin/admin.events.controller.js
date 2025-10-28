@@ -112,14 +112,14 @@ export async function createEvent(req, res) {
 }
 
 /* ==================================================
-   READ ALL
+   READ ALL (PH timezone)
 ================================================== */
 export async function getAllEvents(req, res) {
   try {
     const [rows] = await pool.query(`
       SELECT *
       FROM events
-      WHERE DATE_ADD(DATE(date), INTERVAL 3 DAY) >= CURDATE()
+      WHERE DATE_ADD(DATE(CONVERT_TZ(date, '+00:00', '+08:00')), INTERVAL 3 DAY) >= CURDATE()
       ORDER BY date ASC, time ASC
     `);
 
