@@ -178,13 +178,22 @@ export async function createPublicAppointment(req, res) {
     // -------------------------------
     // 5️⃣a Insert uploaded documents (if any)
     if (Array.isArray(req.files) && req.files.length > 0) {
+      console.log("📎 Uploading documents:", req.files.length);
+
       for (const file of req.files) {
+        // Cloudinary provides: file.path (URL), file.filename (public_id)
+        const documentUrl = file.path; // This is the Cloudinary URL
+
+        console.log("✅ Document URL:", documentUrl);
+
         await conn.execute(
           `INSERT INTO appointment_documents (appointment_id, url)
-           VALUES (?, ?)`,
-          [appointmentId, file.path]
+       VALUES (?, ?)`,
+          [appointmentId, documentUrl]
         );
       }
+
+      console.log("✅ All documents uploaded successfully");
     }
 
     // -------------------------------

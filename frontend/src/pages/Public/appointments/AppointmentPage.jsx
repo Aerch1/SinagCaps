@@ -167,14 +167,20 @@ export default function AppointmentPage() {
   };
 
   /* =====================================================
-     🖇 Document Upload Handlers (multiple)
+     🖇 Document Upload Handlers (multiple, max 10)
   ===================================================== */
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
-    setFormData((prev) => ({
-      ...prev,
-      documentFiles: [...prev.documentFiles, ...files],
-    }));
+    const maxFiles = 10;
+
+    setFormData((prev) => {
+      const totalFiles = [...prev.documentFiles, ...files];
+      if (totalFiles.length > maxFiles) {
+        toast.error("You can upload a maximum of 10 documents.");
+        return { ...prev, documentFiles: totalFiles.slice(0, maxFiles) };
+      }
+      return { ...prev, documentFiles: totalFiles };
+    });
   };
 
   const handleRemoveFile = (index) => {
@@ -210,6 +216,7 @@ export default function AppointmentPage() {
       payload.append("address", formData.address || "");
       payload.append("notes", formData.notes || formData.additionalNotes || "");
 
+      // Baptism fields
       if (formData.formType === "baptism") {
         payload.append("childFullName", formData.childFullName || "");
         payload.append("childDob", formData.childDob || "");
@@ -220,6 +227,7 @@ export default function AppointmentPage() {
         payload.append("sponsors", JSON.stringify(formData.sponsors || []));
       }
 
+      // Confirmation fields
       if (formData.formType === "confirmation") {
         payload.append("confirmandName", formData.confirmandName || "");
         payload.append("age", formData.age || "");
@@ -231,12 +239,8 @@ export default function AppointmentPage() {
         payload.append("sponsors", JSON.stringify(formData.sponsors || []));
       }
 
-      // Append all uploaded documents
-      if (formData.documentFiles?.length) {
-        formData.documentFiles.forEach((file) =>
-          payload.append("documents[]", file)
-        );
-      }
+      // Append uploaded documents
+      formData.documentFiles?.forEach((file) => payload.append("documents[]", file));
 
       const { data } = await api.post("/appointments", payload, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -303,18 +307,6 @@ export default function AppointmentPage() {
         return null;
     }
   };
-
-  const formTypeRef = useRef(formData.formType);
-  useEffect(() => {
-    formTypeRef.current = formData.formType;
-  }, [formData.formType]);
-
-  useEffect(() => {
-    return () => {
-      if (formTypeRef.current) resetStorage(formTypeRef.current);
-      localStorage.removeItem("appointment_activeType");
-    };
-  }, []);
 
   /* =====================================================
      🖥️ Layout

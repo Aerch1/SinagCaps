@@ -29,23 +29,32 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: process.env.CLOUDINARY_FOLDER || "uploads",
-    allowed_formats: ["jpg", "jpeg", "png", "webp", "svg"],
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "svg", "pdf"],
     transformation: [{ width: 1200, height: 800, crop: "limit" }],
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit per file
+  },
+});
 
-// 🔒 Require login for all user-specific operations
-// Update to handle multiple files as `documents[]`
+/* ==================================================
+   ROUTES
+================================================== */
+
+// 🔒 Create appointment with multiple document uploads
+// Note: Frontend sends files as 'documents[]', multer receives as 'documents'
 router.post(
   "/",
   verifyToken,
-  upload.array("documents", 10), // Up to 10 files
+  upload.array("documents[]", 10), // Match frontend field name exactly
   createPublicAppointment
 );
 
 router.get("/my", verifyToken, getMyAppointments);
-router.get("/:id", verifyToken, getPublicAppointment); // ✅ now protected
+router.get("/:id", verifyToken, getPublicAppointment);
 
 export default router;
