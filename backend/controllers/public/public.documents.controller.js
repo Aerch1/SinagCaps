@@ -23,7 +23,7 @@ export async function createPublicDocumentRequest(req, res) {
     email,
     phone,
     address,
-    document_types, // now an array
+    document_types, // array of document types
     purpose,
     copies,
     additional_info,
@@ -127,9 +127,7 @@ export async function createPublicDocumentRequest(req, res) {
     // 📧 Send confirmation email (non-blocking)
     sendDocumentReceivedEmail(cleanEmail, {
       name: full_name,
-      documentTypes: document_types
-        .map((dt) => dt.charAt(0).toUpperCase() + dt.slice(1))
-        .join(", "), // convert to string
+      documentTypes: document_types, // pass raw array for dynamic mapping
       purpose,
       copies: numCopies,
       requestCode,
@@ -140,9 +138,7 @@ export async function createPublicDocumentRequest(req, res) {
     // 🔔 Notify admins (non-blocking)
     notifyAdminsOfNewDocumentRequest(
       full_name,
-      document_types
-        .map((dt) => dt.charAt(0).toUpperCase() + dt.slice(1))
-        .join(", "), // convert to string
+      document_types, // pass array directly
       insertedId
     ).catch((e) => console.warn(`⚠️ Admin notification failed: ${e.message}`));
 

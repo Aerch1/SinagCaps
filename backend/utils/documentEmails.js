@@ -13,16 +13,36 @@ const FROM = {
 
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@example.com";
 
+// -------------------------------
+// Human-readable document labels
+const documentTypeLabels = {
+  baptism: "Certificate of Baptism",
+  confirmation: "Certificate of Confirmation",
+  marriage: "Certificate of Marriage",
+  "first-communion": "Certificate of First Communion",
+  death: "Certificate of Death/Burial",
+  membership: "Certificate of Membership",
+  other: "Other",
+};
+
 /* ==========================================================
    📩 Document Request Received
 ========================================================== */
 export const sendDocumentReceivedEmail = async (toEmail, data) => {
   try {
+    // data.documentTypes can be array or string
+    const documentTypesReadable = Array.isArray(data.documentTypes)
+      ? data.documentTypes.map((dt) => documentTypeLabels[dt] || dt).join(", ")
+      : data.documentTypes;
+
     const html = DOCUMENT_RECEIVED_TEMPLATE.replaceAll(
       "{name}",
       data.name || "Valued Guest"
     )
-      .replaceAll("{documentType}", data.documentType || "Requested Document")
+      .replaceAll(
+        "{documentType}",
+        documentTypesReadable || "Requested Document"
+      )
       .replaceAll("{purpose}", data.purpose || "—")
       .replaceAll("{copies}", data.copies || 1)
       .replaceAll("{requestCode}", data.requestCode || "—");
@@ -47,10 +67,14 @@ export const sendDocumentReceivedEmail = async (toEmail, data) => {
 ========================================================== */
 export const sendDocumentProcessingEmail = async (toEmail, data) => {
   try {
+    const documentTypesReadable = Array.isArray(data.documentTypes)
+      ? data.documentTypes.map((dt) => documentTypeLabels[dt] || dt).join(", ")
+      : data.documentTypes;
+
     const html = DOCUMENT_PROCESSING_TEMPLATE.replaceAll(
       "{name}",
       data.name || "Valued Guest"
-    ).replaceAll("{documentType}", data.documentType || "Document");
+    ).replaceAll("{documentType}", documentTypesReadable || "Document");
 
     const info = await transporter.sendMail({
       from: FROM,
@@ -72,11 +96,15 @@ export const sendDocumentProcessingEmail = async (toEmail, data) => {
 ========================================================== */
 export const sendDocumentReadyEmail = async (toEmail, data) => {
   try {
+    const documentTypesReadable = Array.isArray(data.documentTypes)
+      ? data.documentTypes.map((dt) => documentTypeLabels[dt] || dt).join(", ")
+      : data.documentTypes;
+
     const html = DOCUMENT_READY_TEMPLATE.replaceAll(
       "{name}",
       data.name || "Valued Guest"
     )
-      .replaceAll("{documentType}", data.documentType || "Document")
+      .replaceAll("{documentType}", documentTypesReadable || "Document")
       .replaceAll("{requestCode}", data.requestCode || "—");
 
     const info = await transporter.sendMail({
@@ -99,11 +127,15 @@ export const sendDocumentReadyEmail = async (toEmail, data) => {
 ========================================================== */
 export const sendDocumentRejectedEmail = async (toEmail, data) => {
   try {
+    const documentTypesReadable = Array.isArray(data.documentTypes)
+      ? data.documentTypes.map((dt) => documentTypeLabels[dt] || dt).join(", ")
+      : data.documentTypes;
+
     const html = DOCUMENT_REJECTED_TEMPLATE.replaceAll(
       "{name}",
       data.name || "Valued Guest"
     )
-      .replaceAll("{documentType}", data.documentType || "Document")
+      .replaceAll("{documentType}", documentTypesReadable || "Document")
       .replaceAll("{reason}", data.reason || "No reason provided");
 
     const info = await transporter.sendMail({
