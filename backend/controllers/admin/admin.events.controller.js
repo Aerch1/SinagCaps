@@ -117,11 +117,11 @@ export async function createEvent(req, res) {
 export async function getAllEvents(req, res) {
   try {
     const [rows] = await pool.query(`
-  SELECT *
-  FROM events
-  WHERE DATE_ADD(date, INTERVAL 3 DAY) >= CURDATE()
-  ORDER BY date ASC, time ASC
-`);
+      SELECT *
+      FROM events
+      WHERE DATE_ADD(DATE(date), INTERVAL 3 DAY) >= CURDATE()
+      ORDER BY date ASC, time ASC
+    `);
 
     res.json({ success: true, data: rows });
   } catch (err) {
