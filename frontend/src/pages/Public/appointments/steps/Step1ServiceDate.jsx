@@ -1,33 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Dropdown from "../../../../components/ui/Dropdown1.jsx";
-import api from "../../../../api/api.js";
-import toast from "react-hot-toast";
 
-export default function Step1Service({ formData, setFormData }) {
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadServices = async () => {
-      try {
-        const res = await api.get("/public/services");
-        if (res.data?.success) {
-          setServices(res.data.services || []);
-        } else {
-          setServices([]);
-        }
-      } catch (err) {
-        console.error("❌ Failed to load services:", err);
-        toast.error("Failed to load services. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadServices();
-  }, []);
-
+export default function Step1Service({ formData, setFormData, services = [] }) {
   const onServiceChange = (label) => {
     const picked = services.find((s) => s.name === label);
     if (!picked) return;
@@ -48,7 +23,6 @@ export default function Step1Service({ formData, setFormData }) {
       <h3 className="text-lg font-medium">Select Service</h3>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-        {/* LEFT ONLY */}
         <div className="md:col-span-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -59,14 +33,13 @@ export default function Step1Service({ formData, setFormData }) {
               value={formData.serviceName || ""}
               onChange={onServiceChange}
               options={services.map((s) => s.name)}
-              placeholder={loading ? "Loading..." : "Select a service"}
+              placeholder={services.length === 0 ? "Loading..." : "Select a service"}
               className="w-full"
             />
           </div>
         </div>
       </div>
 
-      {/* NOTICE */}
       <div className="pt-2">
         <h5 className="text-sm font-semibold text-red-600 tracking-wide">NOTICE</h5>
         <ol className="mt-2 list-decimal pl-5 text-sm leading-6 text-gray-800 space-y-1">

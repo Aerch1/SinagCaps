@@ -25,6 +25,7 @@ export default function AppointmentPage() {
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [services, setServices] = useState([]); // <-- LIFTED STATE
   const validatorsRef = useRef({});
 
   const registerValidator = (step, fn) => (validatorsRef.current[step] = fn);
@@ -36,6 +37,20 @@ export default function AppointmentPage() {
     { number: 4, title: "Review & Submit", description: "Confirm and send your request" },
   ];
 
+  /* ---------- Load Services ---------- */
+  useEffect(() => {
+    const loadServices = async () => {
+      try {
+        const res = await api.get("/public/services");
+        setServices(res.data?.services || []);
+      } catch (err) {
+        console.error("❌ Failed to load services:", err);
+        toast.error("Failed to load services. Please try again.");
+      }
+    };
+    loadServices();
+  }, []);
+
   /* =====================================================
      🧠 LocalStorage Isolation per Service (Safe Version)
   ===================================================== */
@@ -44,7 +59,6 @@ export default function AppointmentPage() {
     return `appointment_${type}_${suffix}`;
   };
 
-  // ✅ Load and validate saved data
   useEffect(() => {
     const loadSavedData = async () => {
       const savedType = localStorage.getItem("appointment_activeType");
@@ -56,12 +70,8 @@ export default function AppointmentPage() {
       const savedData = JSON.parse(localStorage.getItem(dataKey) || "{}");
 
       try {
-        // ✅ Fetch valid service IDs to validate saved data
-        const { data } = await api.get("/public/services");
-        const validIds = data?.services?.map((s) => s.id) || [];
-
+        const validIds = services.map((s) => s.id); // <-- use lifted services
         if (!savedData.service_id || !validIds.includes(savedData.service_id)) {
-          console.warn("⚠️ Outdated or invalid saved appointment data cleared.");
           localStorage.removeItem(dataKey);
           localStorage.removeItem(stepKey);
           localStorage.removeItem("appointment_activeType");
@@ -76,9 +86,9 @@ export default function AppointmentPage() {
     };
 
     loadSavedData();
-  }, []);
+  }, [services]);
 
-  // ✅ Persist per-service data & step
+  // Persist per-service data & step
   useEffect(() => {
     if (!formData.formType) return;
     localStorage.setItem("appointment_activeType", formData.formType);
@@ -86,14 +96,12 @@ export default function AppointmentPage() {
     localStorage.setItem(getStorageKey("data"), JSON.stringify(formData));
   }, [formData, currentStep]);
 
-  // ✅ Reset local storage for the current form type
   const resetStorage = (type) => {
     const keyPrefix = `appointment_${type || formData.formType}`;
     localStorage.removeItem(`${keyPrefix}_data`);
     localStorage.removeItem(`${keyPrefix}_step`);
   };
 
-  // ✅ Auto-clear all when successfully submitted
   useEffect(() => {
     if (showSuccess) {
       resetStorage(formData.formType);
@@ -110,7 +118,6 @@ export default function AppointmentPage() {
     const currentType = formData.formType;
     const prevType = prevTypeRef.current;
 
-    // When user switches from one service (baptism → confirmation), clear previous type storage
     if (prevType && prevType !== currentType) {
       resetStorage(prevType);
       setFormData({
@@ -129,16 +136,11 @@ export default function AppointmentPage() {
   ===================================================== */
   const runStepValidation = () => {
     let errs = {};
-
-    if (currentStep === 1) {
-      if (!formData.service_id) errs.service_id = "Please select a service";
-    }
-
+    if (currentStep === 1 && !formData.service_id) errs.service_id = "Please select a service";
     if (currentStep === 2) {
       if (!formData.preferredDate) errs.preferredDate = "Please select a date";
       if (!formData.preferredTime) errs.preferredTime = "Please select a time";
     }
-
     if (currentStep === 3) {
       const validator = validatorsRef.current[3];
       if (validator) {
@@ -146,14 +148,10 @@ export default function AppointmentPage() {
         if (result !== true) errs = { ...errs, ...result };
       }
     }
-
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  /* =====================================================
-     ⚙️ Step Navigation
-  ===================================================== */
   const next = () => {
     if (!runStepValidation()) return;
     setCurrentStep((s) => Math.min(s + 1, steps.length));
@@ -174,9 +172,6 @@ export default function AppointmentPage() {
     setShowSuccess(false);
   };
 
-  /* =====================================================
-     🚀 Submit Handler
-  ===================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (currentStep !== 4) return;
@@ -190,10 +185,7 @@ export default function AppointmentPage() {
         date: formData.preferredDate,
         time: formData.preferredTime,
         name:
-          user?.fullName ||
-          user?.name ||
-          user?.email?.split("@")[0] ||
-          "Guest",
+          user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest",
         email: formData.email || user?.email,
         contactNumber: formData.phone,
         address: formData.address,
@@ -226,31 +218,23 @@ export default function AppointmentPage() {
       }
 
       const { data } = await api.post("/appointments", payload);
-
       setFormData((prev) => ({
         ...prev,
         appointmentId: data.appointmentId,
         serviceName: data.serviceName || prev.serviceName,
       }));
-
       toast.success("Appointment submitted successfully!", { id: toastId });
       setShowSuccess(true);
     } catch (error) {
       toast.dismiss(toastId);
-
-      // If backend returns field-specific errors
       if (error?.response?.data?.errors) {
         const fieldErrors = {};
         error.response.data.errors.forEach(({ field, message }) => {
           fieldErrors[field] = message;
         });
         setFormErrors(fieldErrors);
-
-        // If backend returns a general error message
       } else if (error?.response?.data?.error) {
         toast.error(error.response.data.error);
-
-        // Fallback for network or unknown errors
       } else {
         toast.error("Submission failed. Please try again.");
       }
@@ -270,6 +254,7 @@ export default function AppointmentPage() {
             formData={formData}
             setFormData={setFormData}
             formErrors={formErrors}
+            services={services} // <-- pass services
           />
         );
       case 2:
@@ -278,6 +263,7 @@ export default function AppointmentPage() {
             formData={formData}
             setFormData={setFormData}
             formErrors={formErrors}
+            services={services} // <-- pass services
           />
         );
       case 3:
@@ -304,16 +290,11 @@ export default function AppointmentPage() {
     }
   };
 
-
-
-  // Track the latest form type for cleanup
   const formTypeRef = useRef(formData.formType);
-
   useEffect(() => {
     formTypeRef.current = formData.formType;
   }, [formData.formType]);
 
-  // Clear storage on unmount
   useEffect(() => {
     return () => {
       if (formTypeRef.current) resetStorage(formTypeRef.current);
@@ -321,11 +302,6 @@ export default function AppointmentPage() {
     };
   }, []);
 
-
-
-  /* =====================================================
-     🖥️ Layout
-  ===================================================== */
   return (
     <main className="bg-gray-50 min-h-screen">
       <HeroBanner title="Book an Appointment" imageSrc={HERO_IMG} />

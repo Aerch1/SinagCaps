@@ -41,7 +41,7 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
         setAvailableTimes([]);
     };
 
-    /* -------- Service Change Handler -------- */
+    /* Service Change */
     const onServiceChange = (label) => {
         const picked = services.find((s) => s.name === label);
         if (!picked) return;
@@ -60,7 +60,7 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
         setAvailableTimes([]);
     };
 
-    /* -------- Load month availability -------- */
+    /* Load month availability */
     useEffect(() => {
         if (!serviceId) return;
         const loadMonth = async () => {
@@ -75,13 +75,13 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
         loadMonth();
     }, [serviceId, year, month]);
 
-    /* -------- Reset when service changes -------- */
+    /* Reset on service change */
     useEffect(() => {
         setFormData((p) => ({ ...p, preferredDate: "", preferredTime: "" }));
         setAvailableTimes([]);
     }, [serviceId]);
 
-    /* -------- Load daily slots -------- */
+    /* Load daily slots */
     useEffect(() => {
         if (!formData.preferredDate || !serviceId) return setAvailableTimes([]);
         const loadTimes = async () => {
@@ -136,7 +136,7 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
 
     return (
         <div className="space-y-6">
-            {/* -------- Service Selector Dropdown -------- */}
+            {/* Service Selector */}
             <div className="md:col-span-12">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Selected Service</label>
                 <Dropdown
