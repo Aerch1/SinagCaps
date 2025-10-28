@@ -21,7 +21,7 @@ export default function AppointmentPage() {
 
   /* ---------- State ---------- */
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState({ documentFiles: [] });
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -37,7 +37,7 @@ export default function AppointmentPage() {
   ];
 
   /* =====================================================
-     🧠 LocalStorage Isolation per Service (Safe Version)
+     🧠 LocalStorage Isolation per Service
   ===================================================== */
   const getStorageKey = (suffix) => {
     const type = formData.formType || "default";
@@ -108,6 +108,7 @@ export default function AppointmentPage() {
         formType: currentType,
         service_id: formData.service_id,
         serviceName: formData.serviceName,
+        documentFiles: [],
       });
       setCurrentStep(1);
     }
@@ -121,8 +122,8 @@ export default function AppointmentPage() {
   const runStepValidation = () => {
     let errs = {};
 
-    if (currentStep === 1) {
-      if (!formData.service_id) errs.service_id = "Please select a service";
+    if (currentStep === 1 && !formData.service_id) {
+      errs.service_id = "Please select a service";
     }
 
     if (currentStep === 2) {
@@ -159,14 +160,33 @@ export default function AppointmentPage() {
 
   const resetForm = () => {
     resetStorage(formData.formType);
-    setFormData({});
+    setFormData({ documentFiles: [] });
     setFormErrors({});
     setCurrentStep(1);
     setShowSuccess(false);
   };
 
   /* =====================================================
-     🚀 Submit Handler (with document image)
+     🖇 Document Upload Handlers (multiple)
+  ===================================================== */
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setFormData((prev) => ({
+      ...prev,
+      documentFiles: [...prev.documentFiles, ...files],
+    }));
+  };
+
+  const handleRemoveFile = (index) => {
+    setFormData((prev) => {
+      const updated = [...prev.documentFiles];
+      updated.splice(index, 1);
+      return { ...prev, documentFiles: updated };
+    });
+  };
+
+  /* =====================================================
+     🚀 Submit Handler (supports multiple documents)
   ===================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -181,7 +201,10 @@ export default function AppointmentPage() {
       payload.append("service_id", formData.service_id);
       payload.append("date", formData.preferredDate);
       payload.append("time", formData.preferredTime);
-      payload.append("name", user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest");
+      payload.append(
+        "name",
+        user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest"
+      );
       payload.append("email", formData.email || user?.email);
       payload.append("contactNumber", formData.phone || "");
       payload.append("address", formData.address || "");
@@ -208,9 +231,11 @@ export default function AppointmentPage() {
         payload.append("sponsors", JSON.stringify(formData.sponsors || []));
       }
 
-      // ✅ Append document image if uploaded
-      if (formData.documentFile) {
-        payload.append("document", formData.documentFile);
+      // Append all uploaded documents
+      if (formData.documentFiles?.length) {
+        formData.documentFiles.forEach((file) =>
+          payload.append("documents[]", file)
+        );
       }
 
       const { data } = await api.post("/appointments", payload, {
@@ -250,21 +275,9 @@ export default function AppointmentPage() {
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return (
-          <Step1Service
-            formData={formData}
-            setFormData={setFormData}
-            formErrors={formErrors}
-          />
-        );
+        return <Step1Service formData={formData} setFormData={setFormData} formErrors={formErrors} />;
       case 2:
-        return (
-          <Step2DateTime
-            formData={formData}
-            setFormData={setFormData}
-            formErrors={formErrors}
-          />
-        );
+        return <Step2DateTime formData={formData} setFormData={setFormData} formErrors={formErrors} />;
       case 3:
         return (
           <Step3Form
@@ -272,6 +285,8 @@ export default function AppointmentPage() {
             setFormData={setFormData}
             registerValidator={registerValidator}
             formErrors={formErrors}
+            handleFileChange={handleFileChange}
+            handleRemoveFile={handleRemoveFile}
           />
         );
       case 4:
@@ -290,7 +305,9 @@ export default function AppointmentPage() {
   };
 
   const formTypeRef = useRef(formData.formType);
-  useEffect(() => { formTypeRef.current = formData.formType; }, [formData.formType]);
+  useEffect(() => {
+    formTypeRef.current = formData.formType;
+  }, [formData.formType]);
 
   useEffect(() => {
     return () => {

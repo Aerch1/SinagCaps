@@ -37,13 +37,14 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage });
 
 // 🔒 Require login for all user-specific operations
-// Add `upload.single("document")` to handle the image
+// Update to handle multiple files as `documents[]`
 router.post(
   "/",
   verifyToken,
-  upload.single("document"),
+  upload.array("documents", 10), // Up to 10 files
   createPublicAppointment
 );
+
 router.get("/my", verifyToken, getMyAppointments);
 router.get("/:id", verifyToken, getPublicAppointment); // ✅ now protected
 

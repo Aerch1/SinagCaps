@@ -488,23 +488,51 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                     <input
                         type="file"
                         accept="image/*,application/pdf"
-                        onChange={(e) => setFormData({ ...formData, documentFile: e.target.files[0] })}
+                        multiple
+                        onChange={(e) =>
+                            setFormData({ ...formData, documentFiles: Array.from(e.target.files) })
+                        }
                         className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4
-                       file:rounded-lg file:border-0
-                       file:text-sm file:font-semibold
-                       file:bg-blue-50 file:text-blue-700
-                       hover:file:bg-blue-100"
+                   file:rounded-lg file:border-0
+                   file:text-sm file:font-semibold
+                   file:bg-blue-50 file:text-blue-700
+                   hover:file:bg-blue-100"
                     />
-                    {formData.documentFile && (
-                        <p className="text-xs mt-1 text-gray-500">
-                            Selected file: {formData.documentFile.name}
-                        </p>
+
+                    {formData.documentFiles?.length > 0 && (
+                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {formData.documentFiles.map((file, idx) => (
+                                <div key={idx} className="flex flex-col items-center">
+                                    {file.type.startsWith("image/") ? (
+                                        <img
+                                            src={URL.createObjectURL(file)}
+                                            alt={`Document ${idx + 1}`}
+                                            className="max-w-full h-32 object-contain rounded-md border"
+                                        />
+                                    ) : file.type === "application/pdf" ? (
+                                        <a
+                                            href={URL.createObjectURL(file)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 underline text-sm"
+                                        >
+                                            View PDF {idx + 1}
+                                        </a>
+                                    ) : (
+                                        <p className="text-gray-700 text-sm">{file.name}</p>
+                                    )}
+                                    <p className="text-xs text-gray-500 mt-1">{file.name}</p>
+                                </div>
+                            ))}
+                        </div>
                     )}
-                    {formErrors.documentFile && (
-                        <p className="text-red-500 text-xs mt-1.5">{formErrors.documentFile}</p>
+
+                    {formErrors.documentFiles && (
+                        <p className="text-red-500 text-xs mt-1.5">{formErrors.documentFiles}</p>
                     )}
                 </div>
             </section>
+
 
         </div>
     );

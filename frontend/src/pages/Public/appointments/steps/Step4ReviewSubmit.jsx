@@ -263,29 +263,37 @@ export default function Step4ReviewSubmit({
         </button>
       </div>
 
-      {/* ---------- Submitted Document Preview ---------- */}
-      {formData.documentFile && (
+      {/* ---------- Submitted Documents ---------- */}
+      {formData.documentFiles?.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-gray-900 mb-2">Submitted Document</h4>
-
-          {formData.documentFile.type.startsWith("image/") ? (
-            <img
-              src={URL.createObjectURL(formData.documentFile)}
-              alt="Submitted Document"
-              className="max-w-full h-auto rounded-md border"
-            />
-          ) : formData.documentFile.type === "application/pdf" ? (
-            <a
-              href={URL.createObjectURL(formData.documentFile)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 underline"
-            >
-              View submitted PDF
-            </a>
-          ) : (
-            <p className="text-gray-700 text-sm">File uploaded: {formData.documentFile.name}</p>
-          )}
+          <h4 className="text-sm font-semibold text-gray-900 mb-2">Submitted Documents</h4>
+          <ul className="list-disc pl-5 space-y-1 text-gray-700">
+            {formData.documentFiles.map((file, idx) => (
+              <li key={idx}>
+                {file.type.startsWith("image/") ? (
+                  <a
+                    href={URL.createObjectURL(file)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline"
+                  >
+                    View Image {idx + 1}
+                  </a>
+                ) : file.type === "application/pdf" ? (
+                  <a
+                    href={URL.createObjectURL(file)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline"
+                  >
+                    View PDF {idx + 1}
+                  </a>
+                ) : (
+                  <span>{file.name}</span>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

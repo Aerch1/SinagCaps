@@ -4,7 +4,7 @@ import { createNotification } from "../../utils/createNotification.js";
 
 /* ==================================================
    CREATE Public Appointment (Default, Baptism, Kumpil)
-   → Now supports optional document image upload
+   → Now supports multiple document uploads
 ================================================== */
 export async function createPublicAppointment(req, res) {
   const conn = await pool.getConnection();
@@ -156,13 +156,11 @@ export async function createPublicAppointment(req, res) {
     }
 
     // -------------------------------
-    // 5️⃣ Insert base appointment with optional document image
-    const document_image_url = req.file?.path || null;
-
+    // 5️⃣ Insert base appointment
     const [apptResult] = await conn.execute(
       `INSERT INTO appointments
-        (service_id, user_id, name, email, contactNumber, address, date, time, status, notes, document_image_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+        (service_id, user_id, name, email, contactNumber, address, date, time, status, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
         service_id,
         userId,
@@ -173,10 +171,21 @@ export async function createPublicAppointment(req, res) {
         date,
         time,
         notes,
-        document_image_url,
       ]
     );
     const appointmentId = apptResult.insertId;
+
+    // -------------------------------
+    // 5️⃣a Insert uploaded documents (if any)
+    if (Array.isArray(req.files) && req.files.length > 0) {
+      for (const file of req.files) {
+        await conn.execute(
+          `INSERT INTO appointment_documents (appointment_id, url)
+           VALUES (?, ?)`,
+          [appointmentId, file.path]
+        );
+      }
+    }
 
     // -------------------------------
     // 6️⃣ Handle special forms
