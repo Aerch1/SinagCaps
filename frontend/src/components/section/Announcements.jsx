@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import HeroBanner from "@/components/section/HeroBanner.jsx";
 import api from "@/api/api";
 import { CalendarDays, Tag } from "lucide-react";
-import { formatDate } from "@/utils/availabilityUtils";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -21,6 +20,20 @@ const categoryColor = (category) => {
     };
     return map[category] || "border-gray-400 text-gray-600 bg-gray-50";
 };
+
+/* ==================================================
+   🕒 Local Utility Function
+================================================== */
+export function formatDate(dateString) {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString("en-PH", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+}
 
 const HERO_IMG = "/annoucement.jpg";
 

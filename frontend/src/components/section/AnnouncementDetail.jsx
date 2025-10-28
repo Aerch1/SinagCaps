@@ -4,8 +4,20 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { CalendarDays, User, Tag, ArrowLeft } from "lucide-react";
 import api from "@/api/api";
-import { formatDate } from "@/utils/availabilityUtils";
 
+/* ==================================================
+   🕒 Local Utility Function
+================================================== */
+export function formatDate(dateString) {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString("en-PH", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+}
 
 export default function AnnouncementDetail() {
     const { id } = useParams();

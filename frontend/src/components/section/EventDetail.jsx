@@ -2,10 +2,35 @@
 
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { CalendarDays, Clock, Share2, CalendarPlus } from "lucide-react";
+import { CalendarDays, Clock } from "lucide-react";
 import api from "@/api/api";
-import { formatDate, to12h } from "@/utils/availabilityUtils";
 import HeroBanner from "@/components/section/HeroBanner";
+
+// Local utility functions
+export function formatDate(dateString) {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+
+    if (isNaN(date.getTime())) return dateString;
+
+    return date.toLocaleDateString("en-PH", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    });
+}
+
+export function to12h(timeString) {
+    if (!timeString) return "";
+    const [hour, minute] = timeString.split(":");
+    const date = new Date();
+    date.setHours(hour || 0, minute || 0);
+    return date.toLocaleTimeString("en-PH", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+    });
+}
 
 export default function EventDetail() {
     const { id } = useParams();
@@ -51,7 +76,6 @@ export default function EventDetail() {
 
     return (
         <main className="bg-white">
-
             <section className="max-w-3xl mx-auto px-6 lg:px-8 py-10">
                 {/* Back link */}
                 <Link
@@ -77,8 +101,8 @@ export default function EventDetail() {
                     <div className="flex items-center gap-2">
                         <span
                             className={`px-3 py-1 text-xs font-semibold rounded-full ${event.type === "event"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-blue-50 text-blue-700"
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : "bg-blue-50 text-blue-700"
                                 }`}
                         >
                             {event.type === "event" ? "Event" : "News"}
@@ -109,8 +133,6 @@ export default function EventDetail() {
                         </p>
                     </div>
                 )}
-
-                
             </section>
         </main>
     );
