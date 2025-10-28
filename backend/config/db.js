@@ -421,15 +421,30 @@ async function ensureSchema(conn) {
   )
 `);
 
-  // ✅ Ensure `document_type` is JSON (auto-fix old versions)
+  // ✅ Ensure `document_type` is JSON (auto-fix old versions safely)
   const [columns] = await conn.query(
     `SHOW COLUMNS FROM document_requests LIKE 'document_type'`
   );
+
   if (columns.length && columns[0].Type !== "json") {
     console.log("⚙️ Altering 'document_type' column to JSON...");
+
+    // 🧹 Drop any index that might still exist on the old ENUM column
+    const [indexes] = await conn.query(
+      `SHOW INDEX FROM document_requests WHERE Column_name='document_type'`
+    );
+    if (indexes.length > 0) {
+      console.log("🧹 Dropping old index on 'document_type'...");
+      await conn.query(
+        `ALTER TABLE document_requests DROP INDEX ${indexes[0].Key_name}`
+      );
+    }
+
+    // 🔄 Now safely modify the column type
     await conn.query(
       `ALTER TABLE document_requests MODIFY COLUMN document_type JSON NOT NULL`
     );
+
     console.log("✅ 'document_type' column updated to JSON type.");
   }
 
