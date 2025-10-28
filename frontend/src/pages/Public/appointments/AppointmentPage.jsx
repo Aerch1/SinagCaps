@@ -21,7 +21,7 @@ export default function AppointmentPage() {
 
   /* ---------- State ---------- */
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({ documentFiles: [] });
+  const [formData, setFormData] = useState({});
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -37,13 +37,14 @@ export default function AppointmentPage() {
   ];
 
   /* =====================================================
-     🧠 LocalStorage Isolation per Service
+     🧠 LocalStorage Isolation per Service (Safe Version)
   ===================================================== */
   const getStorageKey = (suffix) => {
     const type = formData.formType || "default";
     return `appointment_${type}_${suffix}`;
   };
 
+  // ✅ Load and validate saved data
   useEffect(() => {
     const loadSavedData = async () => {
       const savedType = localStorage.getItem("appointment_activeType");
@@ -55,6 +56,7 @@ export default function AppointmentPage() {
       const savedData = JSON.parse(localStorage.getItem(dataKey) || "{}");
 
       try {
+        // ✅ Fetch valid service IDs to validate saved data
         const { data } = await api.get("/public/services");
         const validIds = data?.services?.map((s) => s.id) || [];
 
@@ -76,6 +78,7 @@ export default function AppointmentPage() {
     loadSavedData();
   }, []);
 
+  // ✅ Persist per-service data & step
   useEffect(() => {
     if (!formData.formType) return;
     localStorage.setItem("appointment_activeType", formData.formType);
@@ -83,12 +86,14 @@ export default function AppointmentPage() {
     localStorage.setItem(getStorageKey("data"), JSON.stringify(formData));
   }, [formData, currentStep]);
 
+  // ✅ Reset local storage for the current form type
   const resetStorage = (type) => {
     const keyPrefix = `appointment_${type || formData.formType}`;
     localStorage.removeItem(`${keyPrefix}_data`);
     localStorage.removeItem(`${keyPrefix}_step`);
   };
 
+  // ✅ Auto-clear all when successfully submitted
   useEffect(() => {
     if (showSuccess) {
       resetStorage(formData.formType);
@@ -96,19 +101,22 @@ export default function AppointmentPage() {
     }
   }, [showSuccess]);
 
+  /* =====================================================
+     🔄 Auto Reset When Switching Service Type
+  ===================================================== */
   const prevTypeRef = useRef(null);
   useEffect(() => {
     if (!formData.formType) return;
     const currentType = formData.formType;
     const prevType = prevTypeRef.current;
 
+    // When user switches from one service (baptism → confirmation), clear previous type storage
     if (prevType && prevType !== currentType) {
       resetStorage(prevType);
       setFormData({
         formType: currentType,
         service_id: formData.service_id,
         serviceName: formData.serviceName,
-        documentFiles: [],
       });
       setCurrentStep(1);
     }
@@ -122,8 +130,8 @@ export default function AppointmentPage() {
   const runStepValidation = () => {
     let errs = {};
 
-    if (currentStep === 1 && !formData.service_id) {
-      errs.service_id = "Please select a service";
+    if (currentStep === 1) {
+      if (!formData.service_id) errs.service_id = "Please select a service";
     }
 
     if (currentStep === 2) {
@@ -160,39 +168,14 @@ export default function AppointmentPage() {
 
   const resetForm = () => {
     resetStorage(formData.formType);
-    setFormData({ documentFiles: [] });
+    setFormData({});
     setFormErrors({});
     setCurrentStep(1);
     setShowSuccess(false);
   };
 
   /* =====================================================
-     🖇 Document Upload Handlers (multiple, max 10)
-  ===================================================== */
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    const maxFiles = 10;
-
-    setFormData((prev) => {
-      const totalFiles = [...prev.documentFiles, ...files];
-      if (totalFiles.length > maxFiles) {
-        toast.error("You can upload a maximum of 10 documents.");
-        return { ...prev, documentFiles: totalFiles.slice(0, maxFiles) };
-      }
-      return { ...prev, documentFiles: totalFiles };
-    });
-  };
-
-  const handleRemoveFile = (index) => {
-    setFormData((prev) => {
-      const updated = [...prev.documentFiles];
-      updated.splice(index, 1);
-      return { ...prev, documentFiles: updated };
-    });
-  };
-
-  /* =====================================================
-     🚀 Submit Handler (supports multiple documents)
+     🚀 Submit Handler
   ===================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -202,49 +185,47 @@ export default function AppointmentPage() {
     const toastId = toast.loading("Submitting your appointment request...");
 
     try {
-      const payload = new FormData();
+      const payload = {
+        service_id: formData.service_id,
+        date: formData.preferredDate,
+        time: formData.preferredTime,
+        name:
+          user?.fullName ||
+          user?.name ||
+          user?.email?.split("@")[0] ||
+          "Guest",
+        email: formData.email || user?.email,
+        contactNumber: formData.phone,
+        address: formData.address,
+        notes: formData.notes || formData.additionalNotes || null,
+      };
 
-      payload.append("service_id", formData.service_id);
-      payload.append("date", formData.preferredDate);
-      payload.append("time", formData.preferredTime);
-      payload.append(
-        "name",
-        user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest"
-      );
-      payload.append("email", formData.email || user?.email);
-      payload.append("contactNumber", formData.phone || "");
-      payload.append("address", formData.address || "");
-      payload.append("notes", formData.notes || formData.additionalNotes || "");
-
-      // Baptism fields
       if (formData.formType === "baptism") {
-        payload.append("childFullName", formData.childFullName || "");
-        payload.append("childDob", formData.childDob || "");
-        payload.append("childBirthplace", formData.childBirthplace || "");
-        payload.append("fatherName", formData.fatherName || "");
-        payload.append("motherMaidenName", formData.motherMaidenName || "");
-        payload.append("parentsMarriageType", formData.parentsMarriageType || "");
-        payload.append("sponsors", JSON.stringify(formData.sponsors || []));
+        Object.assign(payload, {
+          childFullName: formData.childFullName,
+          childDob: formData.childDob,
+          childBirthplace: formData.childBirthplace,
+          fatherName: formData.fatherName,
+          motherMaidenName: formData.motherMaidenName,
+          parentsMarriageType: formData.parentsMarriageType,
+          sponsors: formData.sponsors || [],
+        });
       }
 
-      // Confirmation fields
       if (formData.formType === "confirmation") {
-        payload.append("confirmandName", formData.confirmandName || "");
-        payload.append("age", formData.age || "");
-        payload.append("fatherName", formData.fatherName || "");
-        payload.append("motherMaidenName", formData.motherMaidenName || "");
-        payload.append("parishOrigin", formData.parishOrigin || "");
-        payload.append("baptizedAt", formData.baptizedAt || "");
-        payload.append("baptizedOn", formData.baptizedOn || "");
-        payload.append("sponsors", JSON.stringify(formData.sponsors || []));
+        Object.assign(payload, {
+          confirmandName: formData.confirmandName,
+          age: formData.age,
+          fatherName: formData.fatherName,
+          motherMaidenName: formData.motherMaidenName,
+          parishOrigin: formData.parishOrigin,
+          baptizedAt: formData.baptizedAt,
+          baptizedOn: formData.baptizedOn,
+          sponsors: formData.sponsors || [],
+        });
       }
 
-      // Append uploaded documents
-      formData.documentFiles?.forEach((file) => payload.append("documents[]", file));
-
-      const { data } = await api.post("/appointments", payload, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const { data } = await api.post("/appointments", payload);
 
       setFormData((prev) => ({
         ...prev,
@@ -257,14 +238,19 @@ export default function AppointmentPage() {
     } catch (error) {
       toast.dismiss(toastId);
 
+      // If backend returns field-specific errors
       if (error?.response?.data?.errors) {
         const fieldErrors = {};
         error.response.data.errors.forEach(({ field, message }) => {
           fieldErrors[field] = message;
         });
         setFormErrors(fieldErrors);
+
+        // If backend returns a general error message
       } else if (error?.response?.data?.error) {
         toast.error(error.response.data.error);
+
+        // Fallback for network or unknown errors
       } else {
         toast.error("Submission failed. Please try again.");
       }
@@ -279,9 +265,21 @@ export default function AppointmentPage() {
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return <Step1Service formData={formData} setFormData={setFormData} formErrors={formErrors} />;
+        return (
+          <Step1Service
+            formData={formData}
+            setFormData={setFormData}
+            formErrors={formErrors}
+          />
+        );
       case 2:
-        return <Step2DateTime formData={formData} setFormData={setFormData} formErrors={formErrors} />;
+        return (
+          <Step2DateTime
+            formData={formData}
+            setFormData={setFormData}
+            formErrors={formErrors}
+          />
+        );
       case 3:
         return (
           <Step3Form
@@ -289,8 +287,6 @@ export default function AppointmentPage() {
             setFormData={setFormData}
             registerValidator={registerValidator}
             formErrors={formErrors}
-            handleFileChange={handleFileChange}
-            handleRemoveFile={handleRemoveFile}
           />
         );
       case 4:
@@ -307,6 +303,25 @@ export default function AppointmentPage() {
         return null;
     }
   };
+
+
+
+  // Track the latest form type for cleanup
+  const formTypeRef = useRef(formData.formType);
+
+  useEffect(() => {
+    formTypeRef.current = formData.formType;
+  }, [formData.formType]);
+
+  // Clear storage on unmount
+  useEffect(() => {
+    return () => {
+      if (formTypeRef.current) resetStorage(formTypeRef.current);
+      localStorage.removeItem("appointment_activeType");
+    };
+  }, []);
+
+
 
   /* =====================================================
      🖥️ Layout
