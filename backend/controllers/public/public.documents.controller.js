@@ -111,34 +111,10 @@ export async function createPublicDocumentRequest(req, res) {
 
     const insertedId = result.insertId;
 
-    // 🔹 Map internal keys to human-readable names
-    const humanReadableDocs = document_types
-      .map((type) => {
-        switch (type) {
-          case "baptism":
-            return "Certificate of Baptism";
-          case "confirmation":
-            return "Certificate of Confirmation";
-          case "marriage":
-            return "Certificate of Marriage";
-          case "first-communion":
-            return "Certificate of First Communion";
-          case "death":
-            return "Certificate of Death/Burial";
-          case "membership":
-            return "Certificate of Membership";
-          case "other":
-            return "Other";
-          default:
-            return type;
-        }
-      })
-      .join(", ");
-
     // 📧 Send confirmation email (non-blocking)
     sendDocumentReceivedEmail(cleanEmail, {
       name: full_name,
-      documentTypes: humanReadableDocs,
+      documentTypes: document_types, // <-- send array directly
       purpose,
       copies: numCopies,
       requestCode,
@@ -149,7 +125,7 @@ export async function createPublicDocumentRequest(req, res) {
     // 🔔 Notify admins (non-blocking)
     notifyAdminsOfNewDocumentRequest(
       full_name,
-      humanReadableDocs,
+      document_types, // <-- send array directly
       insertedId
     ).catch((e) => console.warn(`⚠️ Admin notification failed: ${e.message}`));
 
