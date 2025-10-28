@@ -112,6 +112,7 @@ export default function AppointmentPage() {
   /* =====================================================
      🔄 Auto Reset When Switching Service Type
   ===================================================== */
+  const prevTypeRef = useRef(null);
   useEffect(() => {
     const prevService = prevTypeRef.current;
     const currentService = formData.service_id;
@@ -133,6 +134,7 @@ export default function AppointmentPage() {
 
     prevTypeRef.current = currentService;
   }, [formData.service_id, formData.formType]);
+
 
   /* =====================================================
      🧩 Validation Handling
