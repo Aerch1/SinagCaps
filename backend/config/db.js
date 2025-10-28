@@ -398,26 +398,29 @@ async function ensureSchema(conn) {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
-  // ---- Document requests (with JSON support for multiple documents)
-  //   await conn.execute(`
-  //   CREATE TABLE IF NOT EXISTS document_requests (
-  //     id INT AUTO_INCREMENT PRIMARY KEY,
-  //     request_code VARCHAR(50) NOT NULL UNIQUE,
-  //     user_id INT NULL,
-  //     full_name VARCHAR(100) NOT NULL,
-  //     email VARCHAR(100) NOT NULL,
-  //     phone VARCHAR(30),
-  //     address TEXT,
-  //     documents JSON NOT NULL,
-  //     additional_info TEXT NULL,
-  //     status ENUM('pending','processing','completed','rejected') DEFAULT 'pending',
-  //     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  //     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  //     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-  //     INDEX idx_doc_user (user_id),
-  //     INDEX idx_doc_status (status)
-  //   )
-  // `);
+  // DROP the old table
+  await conn.execute(`DROP TABLE IF EXISTS document_requests;`);
+
+  // CREATE the new table
+  await conn.execute(`
+  CREATE TABLE document_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    request_code VARCHAR(50) NOT NULL UNIQUE,
+    user_id INT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone VARCHAR(30),
+    address TEXT,
+    documents JSON NOT NULL,
+    additional_info TEXT NULL,
+    status ENUM('pending','processing','completed','rejected') DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_doc_user (user_id),
+    INDEX idx_doc_status (status)
+  )
+`);
 
   console.log("✅ Schema ensured successfully.");
 }
