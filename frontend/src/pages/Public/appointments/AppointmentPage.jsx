@@ -112,24 +112,27 @@ export default function AppointmentPage() {
   /* =====================================================
      🔄 Auto Reset When Switching Service Type
   ===================================================== */
-  const prevTypeRef = useRef(null);
   useEffect(() => {
-    if (!formData.formType) return;
-    const currentType = formData.formType;
-    const prevType = prevTypeRef.current;
+    const prevService = prevTypeRef.current;
+    const currentService = formData.service_id;
 
-    if (prevType && prevType !== currentType) {
-      resetStorage(prevType);
-      setFormData({
-        formType: currentType,
-        service_id: formData.service_id,
+    // Only reset if the service changed AND the new service has a formType
+    if (prevService && prevService !== currentService && formData.formType) {
+      resetStorage(prevService);
+      setFormData(prev => ({
+        ...prev,
+        preferredDate: "",
+        preferredTime: "",
+        extraData: {},
+        service_id: currentService,
         serviceName: formData.serviceName,
-      });
-      setCurrentStep(1);
+        formType: formData.formType || "default"
+      }));
+      setCurrentStep(2); // Keep in Step 2
     }
 
-    prevTypeRef.current = currentType;
-  }, [formData.formType]);
+    prevTypeRef.current = currentService;
+  }, [formData.service_id, formData.formType]);
 
   /* =====================================================
      🧩 Validation Handling
