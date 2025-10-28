@@ -11,7 +11,7 @@ export async function createPublicDocumentRequest(req, res) {
     email,
     phone,
     address,
-    document_types, // <-- array of document types
+    document_types, // array of document types
     purpose,
     copies,
     additional_info,
@@ -20,7 +20,7 @@ export async function createPublicDocumentRequest(req, res) {
   const cleanEmail = email?.trim().toLowerCase();
   let userId = req.userId || null;
 
-  // 🧾 Basic Validation
+  // Basic validation
   if (!full_name || !cleanEmail || !document_types?.length || !purpose) {
     return res.status(400).json({
       success: false,
@@ -55,7 +55,7 @@ export async function createPublicDocumentRequest(req, res) {
   const requestCode = `REQ-${Date.now()}`;
 
   try {
-    // ✅ Auto-link user if logged in OR email exists
+    // Auto-link user if logged in OR email exists
     if (!userId) {
       const [[existingUser]] = await pool.query(
         "SELECT id FROM users WHERE email = ?",
@@ -64,7 +64,7 @@ export async function createPublicDocumentRequest(req, res) {
       if (existingUser) userId = existingUser.id;
     }
 
-    // 🚨 Prevent duplicate active requests for any selected document type
+    // Prevent duplicate active requests for any selected document type
     const filteredTypes = document_types.filter((type) => type !== "other");
     if (filteredTypes.length) {
       const placeholders = filteredTypes.map(() => "?").join(", ");
@@ -88,7 +88,7 @@ export async function createPublicDocumentRequest(req, res) {
       }
     }
 
-    // 🗃️ Insert new document request
+    // Insert new document request
     const [result] = await pool.query(
       `
       INSERT INTO document_requests
@@ -102,7 +102,7 @@ export async function createPublicDocumentRequest(req, res) {
         cleanEmail,
         phone?.trim() || null,
         address?.trim() || null,
-        JSON.stringify(document_types), // store as JSON
+        JSON.stringify(document_types),
         purpose.trim(),
         numCopies,
         additional_info?.trim() || null,
@@ -111,10 +111,10 @@ export async function createPublicDocumentRequest(req, res) {
 
     const insertedId = result.insertId;
 
-    // 📧 Send confirmation email (non-blocking)
+    // Send confirmation email (non-blocking)
     sendDocumentReceivedEmail(cleanEmail, {
       name: full_name,
-      documentTypes: document_types, // <-- send array directly
+      documentTypes: document_types,
       purpose,
       copies: numCopies,
       requestCode,
@@ -122,10 +122,10 @@ export async function createPublicDocumentRequest(req, res) {
       console.warn(`⚠️ Email failed to ${cleanEmail}: ${e.message}`)
     );
 
-    // 🔔 Notify admins (non-blocking)
+    // Notify admins (non-blocking)
     notifyAdminsOfNewDocumentRequest(
       full_name,
-      document_types, // <-- send array directly
+      document_types,
       insertedId
     ).catch((e) => console.warn(`⚠️ Admin notification failed: ${e.message}`));
 
@@ -146,6 +146,7 @@ export async function createPublicDocumentRequest(req, res) {
 
 /* =====================================================
    📥 Get My Document Requests
+   — Auto-link guest requests to account on login
 ===================================================== */
 export async function getMyDocumentRequests(req, res) {
   const userId = req.userId;
@@ -156,15 +157,17 @@ export async function getMyDocumentRequests(req, res) {
   }
 
   try {
+    // fallback: fetch email from DB if missing
     if (!userEmail) {
       const [[user]] = await pool.query(
         "SELECT email FROM users WHERE id = ?",
         [userId]
       );
-      userEmail = user?.email || null;
+      userEmail = user?.email?.toLowerCase() || null;
     }
 
     if (userEmail) {
+      // Link past guest requests
       await pool.query(
         `
         UPDATE document_requests
@@ -175,6 +178,7 @@ export async function getMyDocumentRequests(req, res) {
       );
     }
 
+    // Fetch all requests now linked to this user
     const [rows] = await pool.query(
       `
       SELECT 
@@ -192,7 +196,7 @@ export async function getMyDocumentRequests(req, res) {
 
     const requests = rows.map((r) => ({
       ...r,
-      document_types: JSON.parse(r.document_types),
+      document_types: JSON.parse(r.document_types || "[]"),
     }));
 
     return res.json({ success: true, requests });
@@ -241,7 +245,7 @@ export async function getMyDocumentRequestDetails(req, res) {
       });
     }
 
-    row.document_types = JSON.parse(row.document_types);
+    row.document_types = JSON.parse(row.document_types || "[]");
 
     return res.json({ success: true, request: row });
   } catch (err) {
