@@ -186,12 +186,12 @@ async function ensureSchema(conn) {
       FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE
     )
   `);
-await conn.execute(`DROP TABLE IF EXITS appointments`)
-await conn.execute(`DROP TABLE IF EXITS appointment_documents`)
+  await conn.execute(`DROP TABLE IF EXISTS appointments`);
+  await conn.execute(`DROP TABLE IF EXISTS appointment_documents`);
 
   // ---- Appointments
   await conn.execute(`
-    CREATE TABLE IF NOT EXISTS appointments (
+    CREATE TABLE appointments (
       id INT AUTO_INCREMENT PRIMARY KEY,
       user_id INT NULL,
       service_id INT NOT NULL,
