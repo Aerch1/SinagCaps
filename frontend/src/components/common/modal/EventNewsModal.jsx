@@ -23,6 +23,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
     const [preview, setPreview] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Populate form when editing
     useEffect(() => {
         if (editItem) {
             setForm({
@@ -43,6 +44,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         setErrors({});
     }, [editItem, isOpen]);
 
+    // Dropzone
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         accept: {
             "image/png": [],
@@ -57,11 +59,13 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         },
     });
 
+    // Input change handler
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setForm((f) => ({ ...f, [name]: value }));
+        setForm((prev) => ({ ...prev, [name]: value }));
     };
 
+    // Close modal
     const handleClose = () => {
         setForm(emptyForm);
         setErrors({});
@@ -69,6 +73,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         onClose?.();
     };
 
+    // Submit handler
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -97,11 +102,10 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         } catch (err) {
             if (err.response?.status === 400 && err.response.data?.errors) {
                 // Backend validation errors
-                const messages = Object.values(err.response.data.errors);
+                const messages = Object.values(err.response.data.errors).flat();
                 toast.error(messages.join(" | "), { id: loadingToast });
                 setErrors(err.response.data.errors);
             } else {
-                // Unexpected server error
                 toast.error(err.response?.data?.error || "Something went wrong", { id: loadingToast });
             }
         } finally {
@@ -146,7 +150,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                     </p>
                 </div>
 
-                {/* Dropzone */}
+                {/* Image Dropzone */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Upload Image</label>
                     <div
@@ -189,9 +193,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                                         d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6h.1a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                                     />
                                 </svg>
-                                <p className="text-sm text-gray-600">
-                                    Drag & drop image here, or click to browse
-                                </p>
+                                <p className="text-sm text-gray-600">Drag & drop image here, or click to browse</p>
                                 <p className="text-xs text-gray-400">PNG, JPG, WEBP, or SVG</p>
                             </div>
                         )}

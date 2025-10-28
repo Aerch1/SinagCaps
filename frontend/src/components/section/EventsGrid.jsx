@@ -4,14 +4,11 @@ import React, { useState, useMemo } from "react";
 import { CalendarDays, Clock, Edit2, Trash2, X, Plus } from "lucide-react";
 import ConfirmDialog from "../ui/ConfirmDialog";
 
-/* ---------- Status Badge ---------- */
-
+/* ---------- Helpers ---------- */
 export function formatDate(dateString) {
   if (!dateString) return "";
   const date = new Date(dateString);
-
   if (isNaN(date.getTime())) return dateString;
-
   return date.toLocaleDateString("en-PH", {
     year: "numeric",
     month: "long",
@@ -20,10 +17,11 @@ export function formatDate(dateString) {
 }
 
 export function to12h(timeString) {
-  if (!timeString) return "";
+  if (!timeString || timeString.trim() === "") return "";
   const [hour, minute] = timeString.split(":");
+  if (hour === undefined || minute === undefined) return "";
   const date = new Date();
-  date.setHours(hour, minute);
+  date.setHours(hour, minute, 0, 0);
   return date.toLocaleTimeString("en-PH", {
     hour: "numeric",
     minute: "2-digit",
@@ -31,6 +29,13 @@ export function to12h(timeString) {
   });
 }
 
+const normalizeDate = (value) => {
+  if (!value) return "";
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
+};
+
+/* ---------- Chips ---------- */
 const StatusChip = ({ status }) => {
   const color =
     status === "Active"
@@ -39,8 +44,7 @@ const StatusChip = ({ status }) => {
 
   return (
     <span
-      className={`inline-flex justify-center items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color}
-        w-[80px] sm:w-[90px] md:w-[100px] text-center truncate`}
+      className={`inline-flex justify-center items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color} w-[80px] sm:w-[90px] md:w-[100px] text-center truncate`}
       title={status}
     >
       {status}
@@ -48,15 +52,11 @@ const StatusChip = ({ status }) => {
   );
 };
 
-/* ---------- Category Chip ---------- */
 const CategoryChip = ({ category }) => {
   if (!category) return null;
   return (
     <span
-      className={`
-        inline-flex justify-center items-center rounded-md px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-300
-        w-[80px] sm:w-[90px] md:w-[100px] text-center truncate
-      `}
+      className="inline-flex justify-center items-center rounded-md px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-300 w-[80px] sm:w-[90px] md:w-[100px] text-center truncate"
       title={category}
     >
       {category}
@@ -64,7 +64,6 @@ const CategoryChip = ({ category }) => {
   );
 };
 
-/* ---------- Type Indicator ---------- */
 const TypeChip = ({ type }) => {
   if (!type) return null;
   const isEvent = type.toLowerCase() === "event";
@@ -75,8 +74,7 @@ const TypeChip = ({ type }) => {
 
   return (
     <span
-      className={`inline-flex justify-center items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color}
-        w-[80px] sm:w-[90px] md:w-[100px] text-center truncate`}
+      className={`inline-flex justify-center items-center rounded-md px-2.5 py-0.5 text-xs font-semibold ${color} w-[80px] sm:w-[90px] md:w-[100px] text-center truncate`}
       title={label}
     >
       {label}
@@ -84,14 +82,7 @@ const TypeChip = ({ type }) => {
   );
 };
 
-/* ---------- Helper: normalize date for edit ---------- */
-const normalizeDate = (value) => {
-  if (!value) return "";
-  const d = new Date(value);
-  return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
-};
-
-/* ---------- Card Component ---------- */
+/* ---------- Event Card ---------- */
 function EventCard({ item, onEdit, onDelete, onPreview }) {
   const optimizedImg = item.image_url?.includes("/upload/")
     ? item.image_url.replace("/upload/", "/upload/f_auto,q_auto,w_800/")
@@ -101,7 +92,7 @@ function EventCard({ item, onEdit, onDelete, onPreview }) {
     const fixed = {
       ...item,
       date: normalizeDate(item.date),
-      end_time: item.end_time || "", // include end_time for edit form
+      end_time: item.end_time || "",
     };
     onEdit?.(fixed);
   };
@@ -111,7 +102,6 @@ function EventCard({ item, onEdit, onDelete, onPreview }) {
       onClick={() => onPreview(item)}
       className="flex flex-col h-full cursor-pointer rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-300 group overflow-hidden"
     >
-      {/* Image */}
       {optimizedImg ? (
         <div className="relative h-48 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-50">
           <img
@@ -125,7 +115,6 @@ function EventCard({ item, onEdit, onDelete, onPreview }) {
         <div className="h-2" />
       )}
 
-      {/* Content */}
       <div className="flex flex-col justify-between flex-1 p-6">
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-3">
@@ -138,7 +127,6 @@ function EventCard({ item, onEdit, onDelete, onPreview }) {
             </div>
           </div>
 
-          {/* ✅ Category chip */}
           {item.category && (
             <div className="mt-1">
               <CategoryChip category={item.category} />
@@ -152,7 +140,6 @@ function EventCard({ item, onEdit, onDelete, onPreview }) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="mt-5 pt-4 border-t border-slate-100 space-y-3">
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
             <div className="flex items-center gap-2">
@@ -238,11 +225,7 @@ function EventPreviewModal({ item, onClose }) {
                 </h2>
                 <div className="mt-2 space-y-2">
                   <TypeChip type={item.type} />
-                  {item.category && (
-                    <div>
-                      <CategoryChip category={item.category} />
-                    </div>
-                  )}
+                  {item.category && <CategoryChip category={item.category} />}
                 </div>
               </div>
               <StatusChip status={item.status} />
@@ -290,7 +273,8 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
     open: false,
     item: null,
     submitting: false,
-  })
+  });
+
   const totalPages = Math.ceil(events.length / pageSize);
   const visibleEvents = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -312,7 +296,7 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
 
         <button
           onClick={() => onCreate?.()}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/90 px-4 py-2.5 text-sm font-medium text-white shadow-sm  transition-all w-full sm:w-auto"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/90 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           New Event / News
@@ -329,7 +313,8 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
               onEdit={onEdit}
               onDelete={(item) =>
                 setConfirmDelete({ open: true, item, submitting: false })
-              } onPreview={(i) => setPreviewItem(i)}
+              }
+              onPreview={(i) => setPreviewItem(i)}
             />
           ))}
         </div>
@@ -361,10 +346,9 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
             <button
               key={i}
               onClick={() => setPage(i + 1)}
-              className={`h-9 w-9 rounded-md border text-sm ${page === i + 1
-                ? "bg-blue-600 text-white"
-                : "bg-white hover:bg-gray-50"
-                }`}
+              className={`h-9 w-9 rounded-md border text-sm ${
+                page === i + 1 ? "bg-blue-600 text-white" : "bg-white hover:bg-gray-50"
+              }`}
             >
               {i + 1}
             </button>
@@ -380,23 +364,22 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
       )}
 
       {/* Preview Modal */}
-      <EventPreviewModal
-        item={previewItem}
-        onClose={() => setPreviewItem(null)}
-      />
+      <EventPreviewModal item={previewItem} onClose={() => setPreviewItem(null)} />
 
-
+      {/* Confirm Delete */}
       <ConfirmDialog
         open={confirmDelete.open}
         title="Delete Event / News"
         message={`Are you sure you want to delete "${confirmDelete.item?.title}"? This action cannot be undone.`}
         submitting={confirmDelete.submitting}
-        onCancel={() => setConfirmDelete({ open: false, item: null, submitting: false })}
+        onCancel={() =>
+          setConfirmDelete({ open: false, item: null, submitting: false })
+        }
         onConfirm={async () => {
           if (!confirmDelete.item) return;
           try {
             setConfirmDelete((prev) => ({ ...prev, submitting: true }));
-            await onDelete?.(confirmDelete.item); // call your original onDelete
+            await onDelete?.(confirmDelete.item);
             setConfirmDelete({ open: false, item: null, submitting: false });
           } catch (err) {
             console.error(err);
@@ -404,7 +387,6 @@ export default function EventsGrid({ events = [], onEdit, onDelete, onCreate }) 
           }
         }}
       />
-
     </div>
   );
 }
