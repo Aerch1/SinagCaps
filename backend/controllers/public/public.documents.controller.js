@@ -11,7 +11,7 @@ export async function createPublicDocumentRequest(req, res) {
     email,
     phone,
     address,
-    document_types, // now an array of document types
+    document_types,
     purpose,
     copies,
     additional_info,
@@ -54,7 +54,7 @@ export async function createPublicDocumentRequest(req, res) {
   const requestCode = `REQ-${Date.now()}`;
 
   try {
-    // ✅ Auto-link if logged in OR email exists in DB
+    // Auto-link if logged in OR email exists in DB
     if (!userId) {
       const [[existingUser]] = await pool.query(
         "SELECT id FROM users WHERE email = ?",
@@ -63,7 +63,7 @@ export async function createPublicDocumentRequest(req, res) {
       if (existingUser) userId = existingUser.id;
     }
 
-    // 🚨 Prevent duplicate active requests for same document types
+    // Prevent duplicate active requests for same document types
     for (const docType of document_types) {
       if (docType !== "other") {
         const [existing] = await pool.query(
@@ -86,7 +86,7 @@ export async function createPublicDocumentRequest(req, res) {
       }
     }
 
-    // 🗃️ Insert new document request
+    // Insert new document request
     const [result] = await pool.query(
       `
       INSERT INTO document_requests
@@ -100,7 +100,7 @@ export async function createPublicDocumentRequest(req, res) {
         cleanEmail,
         phone?.trim() || null,
         address?.trim() || null,
-        JSON.stringify(document_types), // store as JSON
+        JSON.stringify(document_types),
         purpose.trim(),
         numCopies,
         additional_info?.trim() || null,
@@ -109,7 +109,7 @@ export async function createPublicDocumentRequest(req, res) {
 
     const insertedId = result.insertId;
 
-    // 📧 Send confirmation email for all document types
+    // Send confirmation email
     sendDocumentReceivedEmail(cleanEmail, {
       name: full_name,
       documentTypes: document_types.join(", "),
@@ -120,7 +120,7 @@ export async function createPublicDocumentRequest(req, res) {
       console.warn(`⚠️ Email failed to ${cleanEmail}: ${e.message}`)
     );
 
-    // 🔔 Notify admins
+    // Notify admins
     notifyAdminsOfNewDocumentRequest(
       full_name,
       document_types.join(", "),
@@ -149,8 +149,9 @@ export async function getMyDocumentRequests(req, res) {
   const userId = req.userId;
   let userEmail = req.userEmail?.toLowerCase() || null;
 
-  if (!userId)
+  if (!userId) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
 
   try {
     if (!userEmail) {
@@ -183,10 +184,9 @@ export async function getMyDocumentRequests(req, res) {
       [userId]
     );
 
-    // parse JSON before returning
     const formatted = rows.map((r) => ({
       ...r,
-      document_types: JSON.parse(r.document_types),
+      document_types: r.document_types ? JSON.parse(r.document_types) : [],
     }));
 
     return res.json({ success: true, requests: formatted });
@@ -206,8 +206,9 @@ export async function getMyDocumentRequestDetails(req, res) {
   const userId = req.userId;
   const { id } = req.params;
 
-  if (!userId)
+  if (!userId) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
 
   try {
     const [[row]] = await pool.query(
@@ -232,7 +233,9 @@ export async function getMyDocumentRequestDetails(req, res) {
       });
     }
 
-    row.document_types = JSON.parse(row.document_types);
+    row.document_types = row.document_types
+      ? JSON.parse(row.document_types)
+      : [];
 
     return res.json({ success: true, request: row });
   } catch (err) {

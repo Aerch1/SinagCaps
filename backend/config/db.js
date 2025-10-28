@@ -401,7 +401,7 @@ async function ensureSchema(conn) {
 
   // ---- Document requests
 
-  await conn.execute(`DROP TABLE IF EXISTS document_requests;`);
+  // await conn.execute(`DROP TABLE IF EXISTS document_requests;`);
 
   await conn.execute(`
   CREATE TABLE document_requests (
