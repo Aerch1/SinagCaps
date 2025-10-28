@@ -6,12 +6,12 @@ import { notifyAdminsOfNewDocumentRequest } from "../../utils/notifyAdmins.js";
    📤 Create Document Request (Public or Logged-in)
 ===================================================== */
 export async function createPublicDocumentRequest(req, res) {
-  const {
+  let {
     full_name,
     email,
     phone,
     address,
-    document_type,
+    document_types, // now an array
     purpose,
     copies,
     additional_info,
@@ -21,10 +21,18 @@ export async function createPublicDocumentRequest(req, res) {
   let userId = req.userId || null;
 
   // 🧾 Basic Validation
-  if (!full_name || !cleanEmail || !document_type || !purpose) {
+  if (
+    !full_name ||
+    !cleanEmail ||
+    !document_types ||
+    !Array.isArray(document_types) ||
+    document_types.length === 0 ||
+    !purpose
+  ) {
     return res.status(400).json({
       success: false,
-      error: "Full name, email, document type, and purpose are required.",
+      error:
+        "Full name, email, at least one document type, and purpose are required.",
     });
   }
 
@@ -56,29 +64,30 @@ export async function createPublicDocumentRequest(req, res) {
       if (existingUser) userId = existingUser.id;
     }
 
-    // 🚨 Prevent duplicate active requests for same document type
-    // 📝 Skip duplication check if document_type === 'other'
-    if (document_type !== "other") {
-      const [existing] = await pool.query(
-        `
-        SELECT id FROM document_requests
-        WHERE document_type = ?
-        AND (user_id = ? OR email = ?)
-        AND status IN ('pending', 'processing', 'approved')
-        LIMIT 1
-        `,
-        [document_type, userId, cleanEmail]
-      );
+    // 🚨 Prevent duplicate active requests for the same document types
+    const activeStatuses = ["pending", "processing", "approved"];
+    const [existingRequests] = await pool.query(
+      `
+      SELECT document_type FROM document_requests
+      WHERE (user_id = ? OR email = ?) AND status IN (?)
+      `,
+      [userId, cleanEmail, activeStatuses]
+    );
 
-      if (existing.length > 0) {
-        return res.status(400).json({
-          success: false,
-          error: `You already have an active request for ${document_type}.`,
-        });
-      }
+    const activeDocs = existingRequests.map((r) => r.document_type);
+    const duplicateDocs = document_types.filter(
+      (dt) => activeDocs.includes(dt) && dt !== "other"
+    );
+    if (duplicateDocs.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `You already have active requests for: ${duplicateDocs.join(
+          ", "
+        )}.`,
+      });
     }
 
-    // 🗃️ Insert new document request
+    // 🗃️ Insert new document request with JSON array
     const [result] = await pool.query(
       `
       INSERT INTO document_requests
@@ -92,7 +101,7 @@ export async function createPublicDocumentRequest(req, res) {
         cleanEmail,
         phone?.trim() || null,
         address?.trim() || null,
-        document_type,
+        JSON.stringify(document_types), // store as JSON
         purpose.trim(),
         numCopies,
         additional_info?.trim() || null,
@@ -104,7 +113,7 @@ export async function createPublicDocumentRequest(req, res) {
     // 📧 Send confirmation email (non-blocking)
     sendDocumentReceivedEmail(cleanEmail, {
       name: full_name,
-      documentType: document_type,
+      documentTypes: document_types,
       purpose,
       copies: numCopies,
       requestCode,
@@ -115,7 +124,7 @@ export async function createPublicDocumentRequest(req, res) {
     // 🔔 Notify admins (non-blocking)
     notifyAdminsOfNewDocumentRequest(
       full_name,
-      document_type,
+      document_types,
       insertedId
     ).catch((e) => console.warn(`⚠️ Admin notification failed: ${e.message}`));
 
@@ -184,7 +193,13 @@ export async function getMyDocumentRequests(req, res) {
       [userId]
     );
 
-    return res.json({ success: true, requests: rows });
+    // Parse JSON document types
+    const requests = rows.map((r) => ({
+      ...r,
+      document_types: JSON.parse(r.document_type),
+    }));
+
+    return res.json({ success: true, requests });
   } catch (err) {
     console.error("❌ [getMyDocumentRequests] Error:", err);
     return res.status(500).json({
@@ -229,6 +244,9 @@ export async function getMyDocumentRequestDetails(req, res) {
         error: "Document request not found.",
       });
     }
+
+    // Parse JSON document types
+    row.document_types = JSON.parse(row.document_type);
 
     return res.json({ success: true, request: row });
   } catch (err) {

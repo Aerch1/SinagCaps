@@ -2,11 +2,21 @@
 import { useState } from "react";
 import HeroBanner from "@/components/section/HeroBanner";
 import toast from "react-hot-toast";
-import api from "@/api/api"; // ✅ Axios instance
+import api from "@/api/api"; // Axios instance
 import Input from "@/components/ui/Input";
 import { Mail, Phone, MapPin, User } from "lucide-react";
 
 const HERO_IMG = "/docuBg.jpg";
+
+const DOCUMENT_TYPES = [
+    { value: "baptism", label: "Certificate of Baptism" },
+    { value: "confirmation", label: "Certificate of Confirmation" },
+    { value: "marriage", label: "Certificate of Marriage" },
+    { value: "first-communion", label: "Certificate of First Communion" },
+    { value: "death", label: "Certificate of Death/Burial" },
+    { value: "membership", label: "Certificate of Membership" },
+    { value: "other", label: "Other (specify in purpose)" },
+];
 
 export default function DocumentRequestPage() {
     const [formData, setFormData] = useState({
@@ -14,7 +24,7 @@ export default function DocumentRequestPage() {
         email: "",
         phone: "",
         address: "",
-        documentType: "",
+        documentTypes: [], // now an array
         purpose: "",
         copies: "1",
         additionalInfo: "",
@@ -24,8 +34,19 @@ export default function DocumentRequestPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        const { name, value, checked } = e.target;
+
+        // Handle checkbox array for document types
+        if (name === "documentTypes") {
+            setFormData((prev) => {
+                const updated = checked
+                    ? [...prev.documentTypes, value]
+                    : prev.documentTypes.filter((type) => type !== value);
+                return { ...prev, documentTypes: updated };
+            });
+        } else {
+            setFormData((prev) => ({ ...prev, [name]: value }));
+        }
     };
 
     /* ======================================================
@@ -33,18 +54,16 @@ export default function DocumentRequestPage() {
     ====================================================== */
     const validateForm = () => {
         const errors = [];
-
         if (!formData.fullName.trim()) errors.push("Full name is required.");
         if (!formData.email.trim()) errors.push("Email is required.");
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
             errors.push("Please enter a valid email address.");
         if (!formData.phone.trim()) errors.push("Contact number is required.");
-        if (!formData.documentType.trim())
-            errors.push("Please select a document type.");
+        if (!formData.documentTypes.length)
+            errors.push("Please select at least one document type.");
         if (!formData.purpose.trim()) errors.push("Purpose is required.");
         if (!formData.copies || formData.copies < 1 || formData.copies > 10)
             errors.push("Copies must be between 1 and 10.");
-
         return errors;
     };
 
@@ -66,7 +85,7 @@ export default function DocumentRequestPage() {
                 email: formData.email,
                 phone: formData.phone,
                 address: formData.address,
-                document_type: formData.documentType,
+                document_types: formData.documentTypes, // array
                 purpose: formData.purpose,
                 copies: parseInt(formData.copies, 10),
                 additional_info: formData.additionalInfo || null,
@@ -81,7 +100,7 @@ export default function DocumentRequestPage() {
                 email: "",
                 phone: "",
                 address: "",
-                documentType: "",
+                documentTypes: [],
                 purpose: "",
                 copies: "1",
                 additionalInfo: "",
@@ -120,13 +139,11 @@ export default function DocumentRequestPage() {
                         </div>
                     )}
 
-
                     {/* ⚠️ Info Box */}
                     <div className="bg-amber-50 border-l-4 border-amber-700 text-amber-800 p-4 mb-8 text-sm">
                         Please allow 3–5 business days for processing. For urgent requests,
                         contact the parish office directly at{" "}
                         <span className="font-semibold">(+63) 966 854 8848</span>.
-
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-10">
@@ -183,7 +200,6 @@ export default function DocumentRequestPage() {
                                             placeholder="09XXXXXXXXX"
                                             required
                                         />
-
                                     </div>
                                 </div>
 
@@ -214,22 +230,24 @@ export default function DocumentRequestPage() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Type of Document <span className="text-red-500">*</span>
                                     </label>
-                                    <select
-                                        name="documentType"
-                                        value={formData.documentType}
-                                        onChange={handleChange}
-                                        required
-                                        className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500/60 focus:outline-none"
-                                    >
-                                        <option value="">Select a document type</option>
-                                        <option value="baptism">Certificate of Baptism</option>
-                                        <option value="confirmation">Certificate of Confirmation</option>
-                                        <option value="marriage">Certificate of Marriage</option>
-                                        <option value="first-communion">Certificate of First Communion</option>
-                                        <option value="death">Certificate of Death/Burial</option>
-                                        <option value="membership">Certificate of Membership</option>
-                                        <option value="other">Other (specify in purpose)</option>
-                                    </select>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                        {DOCUMENT_TYPES.map((doc) => (
+                                            <label
+                                                key={doc.value}
+                                                className="flex items-center gap-2 text-sm text-gray-700"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    name="documentTypes"
+                                                    value={doc.value}
+                                                    checked={formData.documentTypes.includes(doc.value)}
+                                                    onChange={handleChange}
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                {doc.label}
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 <div>
