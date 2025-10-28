@@ -39,9 +39,9 @@ export const connectDB = async () => {
   }
 };
 
-/* ===========================
-   RESET DATABASE (except users)
-=========================== */
+// /* ===========================
+//    RESET DATABASE (except users)
+// =========================== */
 // export const resetDatabase = async () => {
 //   const conn = await pool.getConnection();
 //   try {
@@ -49,24 +49,24 @@ export const connectDB = async () => {
 //     await conn.query("SET FOREIGN_KEY_CHECKS = 0");
 
 //     const tables = [
-//       // "appointment_requirements",
-//       // "baptism_sponsors",
-//       // "baptism_details",
-//       // "confirmation_sponsors",
-//       // "confirmation_details",
-//       // "notifications",
-//       // "announcements",
-//       // "advisories",
-//       // "events",
+//       "appointment_requirements",
+//       "baptism_sponsors",
+//       "baptism_details",
+//       "confirmation_sponsors",
+//       "confirmation_details",
+//       "notifications",
+//       "announcements",
+//       "advisories",
+//       "events",
 //       "document_requests",
-//       // "rules",
-//       // "church_hours",
-//       // "appointments",
-//       // "requirements",
-//       // "services",
-//       // "change_email_requests",
-//       // "password_resets",
-//       // "email_verification_tokens"
+//       "rules",
+//       "church_hours",
+//       "appointments",
+//       "requirements",
+//       "services",
+//       "change_email_requests",
+//       "password_resets",
+//       "email_verification_tokens"
 //       // 👆 no "users" here
 //     ];
 
@@ -398,10 +398,11 @@ async function ensureSchema(conn) {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
-  // DROP the old table
+
+  // ---- Document requests
+
   await conn.execute(`DROP TABLE IF EXISTS document_requests;`);
 
-  // CREATE the new table
   await conn.execute(`
   CREATE TABLE document_requests (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -411,7 +412,9 @@ async function ensureSchema(conn) {
     email VARCHAR(100) NOT NULL,
     phone VARCHAR(30),
     address TEXT,
-    documents JSON NOT NULL,
+    document_types JSON NOT NULL,
+    purpose TEXT NOT NULL,
+    copies INT DEFAULT 1 CHECK (copies >= 1 AND copies <= 10),
     additional_info TEXT NULL,
     status ENUM('pending','processing','completed','rejected') DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

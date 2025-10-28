@@ -14,51 +14,26 @@ export default function DocumentRequestPage() {
         email: "",
         phone: "",
         address: "",
-        documents: [], // array of selected documents
+        documentTypes: [], // ✅ array for multiple selection
+        purpose: "",
+        copies: "1",
         additionalInfo: "",
     });
 
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const documentOptions = [
-        { value: "baptism", label: "Certificate of Baptism" },
-        { value: "confirmation", label: "Certificate of Confirmation" },
-        { value: "marriage", label: "Certificate of Marriage" },
-        { value: "first-communion", label: "Certificate of First Communion" },
-        { value: "death", label: "Certificate of Death/Burial" },
-        { value: "membership", label: "Certificate of Membership" },
-        { value: "other", label: "Other (specify in purpose)" },
-    ];
-
-    /* ======================================================
-       HANDLE INPUT CHANGE
-    ====================================================== */
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
-    };
-
-    const handleDocumentChange = (e, field, index) => {
-        const { value } = e.target;
-        setFormData((prev) => {
-            const documents = [...prev.documents];
-            documents[index][field] = value;
-            return { ...prev, documents };
-        });
-    };
-
-    const handleCheckboxChange = (e) => {
-        const { value, checked } = e.target;
-        setFormData((prev) => {
-            let updated = [...prev.documents];
-            if (checked) {
-                updated.push({ document_type: value, purpose: "", copies: 1 });
-            } else {
-                updated = updated.filter(doc => doc.document_type !== value);
-            }
-            return { ...prev, documents: updated };
-        });
+        const { name, value, options } = e.target;
+        if (name === "documentTypes") {
+            // Convert selected options to array
+            const selected = Array.from(options)
+                .filter((option) => option.selected)
+                .map((option) => option.value);
+            setFormData((prev) => ({ ...prev, documentTypes: selected }));
+        } else {
+            setFormData((prev) => ({ ...prev, [name]: value }));
+        }
     };
 
     /* ======================================================
@@ -66,19 +41,18 @@ export default function DocumentRequestPage() {
     ====================================================== */
     const validateForm = () => {
         const errors = [];
+
         if (!formData.fullName.trim()) errors.push("Full name is required.");
         if (!formData.email.trim()) errors.push("Email is required.");
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
             errors.push("Please enter a valid email address.");
         if (!formData.phone.trim()) errors.push("Contact number is required.");
-        if (formData.documents.length === 0)
+        if (!formData.documentTypes.length)
             errors.push("Please select at least one document type.");
-        formData.documents.forEach((doc, i) => {
-            if (!doc.purpose.trim())
-                errors.push(`Purpose is required for ${doc.document_type}.`);
-            if (!doc.copies || doc.copies < 1 || doc.copies > 10)
-                errors.push(`Copies for ${doc.document_type} must be between 1 and 10.`);
-        });
+        if (!formData.purpose.trim()) errors.push("Purpose is required.");
+        if (!formData.copies || formData.copies < 1 || formData.copies > 10)
+            errors.push("Copies must be between 1 and 10.");
+
         return errors;
     };
 
@@ -100,7 +74,9 @@ export default function DocumentRequestPage() {
                 email: formData.email,
                 phone: formData.phone,
                 address: formData.address,
-                documents: formData.documents,
+                document_types: formData.documentTypes, // ✅ send array
+                purpose: formData.purpose,
+                copies: parseInt(formData.copies, 10),
                 additional_info: formData.additionalInfo || null,
             };
 
@@ -113,7 +89,9 @@ export default function DocumentRequestPage() {
                 email: "",
                 phone: "",
                 address: "",
-                documents: [],
+                documentTypes: [],
+                purpose: "",
+                copies: "1",
                 additionalInfo: "",
             });
             window.scrollTo({ top: 0, behavior: "smooth" });
@@ -239,47 +217,53 @@ export default function DocumentRequestPage() {
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Type of Documents <span className="text-red-500">*</span>
+                                        Type of Document <span className="text-red-500">*</span>
                                     </label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {documentOptions.map((doc) => {
-                                            const index = formData.documents.findIndex(d => d.document_type === doc.value);
-                                            return (
-                                                <div key={doc.value} className="flex flex-col border p-2 rounded-md">
-                                                    <label className="inline-flex items-center space-x-2">
-                                                        <input
-                                                            type="checkbox"
-                                                            value={doc.value}
-                                                            checked={index !== -1}
-                                                            onChange={handleCheckboxChange}
-                                                            className="form-checkbox h-4 w-4 text-blue-600"
-                                                        />
-                                                        <span className="text-sm">{doc.label}</span>
-                                                    </label>
+                                    <select
+                                        name="documentTypes"
+                                        value={formData.documentTypes}
+                                        onChange={handleChange}
+                                        required
+                                        multiple
+                                        className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500/60 focus:outline-none h-[150px]"
+                                    >
+                                        <option value="baptism">Certificate of Baptism</option>
+                                        <option value="confirmation">Certificate of Confirmation</option>
+                                        <option value="marriage">Certificate of Marriage</option>
+                                        <option value="first-communion">Certificate of First Communion</option>
+                                        <option value="death">Certificate of Death/Burial</option>
+                                        <option value="membership">Certificate of Membership</option>
+                                        <option value="other">Other (specify in purpose)</option>
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple types.</p>
+                                </div>
 
-                                                    {index !== -1 && (
-                                                        <div className="mt-2 space-y-2">
-                                                            <Input
-                                                                type="number"
-                                                                min="1"
-                                                                name="copies"
-                                                                value={formData.documents[index].copies}
-                                                                onChange={(e) => handleDocumentChange(e, "copies", index)}
-                                                                placeholder="Number of copies"
-                                                            />
-                                                            <textarea
-                                                                name="purpose"
-                                                                value={formData.documents[index].purpose}
-                                                                onChange={(e) => handleDocumentChange(e, "purpose", index)}
-                                                                placeholder="Purpose of request"
-                                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500/60 focus:outline-none min-h-[60px]"
-                                                            ></textarea>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Purpose of Request <span className="text-red-500">*</span>
+                                    </label>
+                                    <textarea
+                                        name="purpose"
+                                        value={formData.purpose}
+                                        onChange={handleChange}
+                                        required
+                                        placeholder="e.g., For employment, wedding requirements, school enrollment, etc."
+                                        className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500/60 focus:outline-none min-h-[100px]"
+                                    ></textarea>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Number of Copies <span className="text-red-500">*</span>
+                                    </label>
+                                    <Input
+                                        type="number"
+                                        name="copies"
+                                        min="1"
+                                        value={formData.copies}
+                                        onChange={handleChange}
+                                        required
+                                    />
                                 </div>
 
                                 <div>

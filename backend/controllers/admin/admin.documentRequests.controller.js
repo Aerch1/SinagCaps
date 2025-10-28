@@ -22,19 +22,7 @@ export async function getAllDocumentRequests(req, res) {
        ORDER BY dr.created_at DESC`
     );
 
-    // ✅ Parse JSON array for document_type (for consistent frontend handling)
-    const parsedRows = rows.map((r) => ({
-      ...r,
-      document_type: (() => {
-        try {
-          return JSON.parse(r.document_type);
-        } catch {
-          return r.document_type; // fallback if old single-type data
-        }
-      })(),
-    }));
-
-    res.json({ success: true, data: parsedRows });
+    res.json({ success: true, data: rows });
   } catch (err) {
     console.error("❌ getAllDocumentRequests error:", err);
     res.status(500).json({
@@ -71,11 +59,6 @@ export async function createDocumentRequest(req, res) {
   const requestCode = `REQ-${Date.now()}`;
 
   try {
-    // ✅ Ensure we store multiple document types as JSON
-    const formattedType = Array.isArray(document_type)
-      ? JSON.stringify(document_type)
-      : JSON.stringify([document_type]);
-
     const [result] = await pool.query(
       `
       INSERT INTO document_requests
@@ -89,20 +72,18 @@ export async function createDocumentRequest(req, res) {
         email.trim().toLowerCase(),
         phone?.trim() || null,
         address?.trim() || null,
-        formattedType,
+        document_type,
         purpose?.trim(),
         copies && !isNaN(copies) ? Number(copies) : 1,
         additional_info?.trim() || null,
       ]
     );
 
-    // 📨 Send acknowledgment email
+    // 📨 Send acknowledgment email to the specific user
     try {
       await sendDocumentReceivedEmail(email, {
         name: full_name,
-        documentType: Array.isArray(document_type)
-          ? document_type.join(", ")
-          : document_type,
+        documentType: document_type,
         purpose,
         copies,
         requestCode,
@@ -150,36 +131,24 @@ export async function updateDocumentStatus(req, res) {
         .json({ success: false, error: "Document request not found" });
     }
 
-    // ✅ Parse JSON document_type safely
-    let parsedType;
-    try {
-      parsedType = JSON.parse(doc.document_type);
-    } catch {
-      parsedType = doc.document_type;
-    }
-
-    const docTypeLabel = Array.isArray(parsedType)
-      ? parsedType.join(", ")
-      : parsedType;
-
     await pool.query(`UPDATE document_requests SET status = ? WHERE id = ?`, [
       status,
       id,
     ]);
 
-    // ✅ Send emails & notifications per status
+    // ✅ Send emails & notification to the specific user
     if (status === "processing") {
       try {
         await sendDocumentProcessingEmail(doc.email, {
           name: doc.full_name,
-          documentType: docTypeLabel,
+          documentType: doc.document_type,
         });
 
         if (doc.user_id) {
           await createNotification({
             user_id: doc.user_id,
             title: "Your Document Request is Now Being Processed",
-            message: `Hi ${doc.full_name}, your ${docTypeLabel} request is being processed.`,
+            message: `Hi ${doc.full_name}, your ${doc.document_type} request is being processed.`,
             type: "document",
             reference_id: id,
           });
@@ -198,7 +167,7 @@ export async function updateDocumentStatus(req, res) {
       try {
         await sendDocumentReadyEmail(doc.email, {
           name: doc.full_name,
-          documentType: docTypeLabel,
+          documentType: doc.document_type,
           requestCode: doc.request_code,
         });
 
@@ -206,7 +175,7 @@ export async function updateDocumentStatus(req, res) {
           await createNotification({
             user_id: doc.user_id,
             title: "Your Document Request is Ready for Pick-Up",
-            message: `Hi ${doc.full_name}, your ${docTypeLabel} certificate is ready for pick-up.`,
+            message: `Hi ${doc.full_name}, your ${doc.document_type} certificate is ready for pick-up.`,
             type: "document",
             reference_id: id,
           });
@@ -225,7 +194,7 @@ export async function updateDocumentStatus(req, res) {
       try {
         await sendDocumentRejectedEmail(doc.email, {
           name: doc.full_name,
-          documentType: docTypeLabel,
+          documentType: doc.document_type,
           reason,
         });
 
@@ -233,7 +202,7 @@ export async function updateDocumentStatus(req, res) {
           await createNotification({
             user_id: doc.user_id,
             title: "Your Document Request Has Been Rejected",
-            message: `We’re sorry, but your ${docTypeLabel} request was rejected. Reason: ${reason}`,
+            message: `We’re sorry, but your ${doc.document_type} request was rejected. Reason: ${reason}`,
             type: "document",
             reference_id: id,
           });
