@@ -35,6 +35,8 @@ const statusLabel = (status, pendingRequest) => {
     return map[key] || status;
 };
 
+
+// Dynamic status color
 const getStatusColor = (status) => {
     if (!status) return "text-gray-600";
     const key = status.toLowerCase();
@@ -92,19 +94,14 @@ export default function AppointmentsPanel() {
         const time = isAppt ? to12h(item.time) : "--";
 
         const sLabel = statusLabel(item.status, item.pendingRequest);
-        const colorClass = item.pendingRequest === "reschedule"
-            ? "text-orange-600 font-semibold"
-            : getStatusColor(item.status);
+        const colorClass = item.pendingRequest === "reschedule" ? "text-orange-600 font-semibold" : getStatusColor(item.status);
+
+
 
         const isArchived = item.status?.toLowerCase() === "archived";
-
-        // 🔹 Updated title for document requests
         const title = isAppt
             ? item.serviceName || "Transaction"
-            : item.document_types?.length
-                ? item.document_types.map(capitalizeFirst).join(", ")
-                : "Document";
-
+            : capitalizeFirst(item.document_type);
         const code = isAppt ? item.id : item.request_code;
         const navigateTo = isAppt
             ? `../appointments/${item.id}`

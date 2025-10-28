@@ -14,36 +14,6 @@ const FROM = {
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@example.com";
 
 /* ==========================================================
-   Helper: Convert documentTypes array to readable string
-========================================================== */
-const formatDocumentTypes = (types) => {
-  if (!Array.isArray(types)) return types || "Requested Document";
-
-  return types
-    .map((type) => {
-      switch (type) {
-        case "baptism":
-          return "Baptism";
-        case "confirmation":
-          return "Confirmation";
-        case "marriage":
-          return "Marriage";
-        case "first-communion":
-          return "First Communion";
-        case "death":
-          return "Death/Burial";
-        case "membership":
-          return "Membership";
-        case "other":
-          return "Other";
-        default:
-          return type;
-      }
-    })
-    .join(", ");
-};
-
-/* ==========================================================
    📩 Document Request Received
 ========================================================== */
 export const sendDocumentReceivedEmail = async (toEmail, data) => {
@@ -52,7 +22,7 @@ export const sendDocumentReceivedEmail = async (toEmail, data) => {
       "{name}",
       data.name || "Valued Guest"
     )
-      .replaceAll("{documentType}", formatDocumentTypes(data.documentTypes))
+      .replaceAll("{documentType}", data.documentType || "Requested Document")
       .replaceAll("{purpose}", data.purpose || "—")
       .replaceAll("{copies}", data.copies || 1)
       .replaceAll("{requestCode}", data.requestCode || "—");
@@ -80,7 +50,7 @@ export const sendDocumentProcessingEmail = async (toEmail, data) => {
     const html = DOCUMENT_PROCESSING_TEMPLATE.replaceAll(
       "{name}",
       data.name || "Valued Guest"
-    ).replaceAll("{documentType}", formatDocumentTypes(data.documentTypes));
+    ).replaceAll("{documentType}", data.documentType || "Document");
 
     const info = await transporter.sendMail({
       from: FROM,
@@ -106,7 +76,7 @@ export const sendDocumentReadyEmail = async (toEmail, data) => {
       "{name}",
       data.name || "Valued Guest"
     )
-      .replaceAll("{documentType}", formatDocumentTypes(data.documentTypes))
+      .replaceAll("{documentType}", data.documentType || "Document")
       .replaceAll("{requestCode}", data.requestCode || "—");
 
     const info = await transporter.sendMail({
@@ -133,7 +103,7 @@ export const sendDocumentRejectedEmail = async (toEmail, data) => {
       "{name}",
       data.name || "Valued Guest"
     )
-      .replaceAll("{documentType}", formatDocumentTypes(data.documentTypes))
+      .replaceAll("{documentType}", data.documentType || "Document")
       .replaceAll("{reason}", data.reason || "No reason provided");
 
     const info = await transporter.sendMail({

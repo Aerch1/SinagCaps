@@ -8,7 +8,6 @@ import { Mail, Phone, MapPin, User } from "lucide-react";
 
 const HERO_IMG = "/docuBg.jpg";
 
-// Document options
 const DOCUMENT_OPTIONS = [
     { value: "baptism", label: "Certificate of Baptism" },
     { value: "confirmation", label: "Certificate of Confirmation" },
@@ -25,7 +24,7 @@ export default function DocumentRequestPage() {
         email: "",
         phone: "",
         address: "",
-        documentTypes: [],
+        documentTypes: [], // array of selected types
         purpose: "",
         copies: "1",
         additionalInfo: "",
@@ -34,36 +33,47 @@ export default function DocumentRequestPage() {
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleCheckboxChange = (e) => {
-        const { value, checked } = e.target;
-        setFormData((prev) => {
-            const updated = checked
-                ? [...prev.documentTypes, value]
-                : prev.documentTypes.filter((v) => v !== value);
-            return { ...prev, documentTypes: updated };
-        });
-    };
-
+    /* ======================================================
+       HANDLE CHANGE
+    ====================================================== */
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        const { name, value, type, checked } = e.target;
+
+        if (name === "documentTypes") {
+            setFormData((prev) => {
+                if (checked) {
+                    return { ...prev, documentTypes: [...prev.documentTypes, value] };
+                } else {
+                    return { ...prev, documentTypes: prev.documentTypes.filter((v) => v !== value) };
+                }
+            });
+        } else {
+            setFormData((prev) => ({ ...prev, [name]: value }));
+        }
     };
 
+    /* ======================================================
+       SIMPLE VALIDATION
+    ====================================================== */
     const validateForm = () => {
         const errors = [];
+
         if (!formData.fullName.trim()) errors.push("Full name is required.");
         if (!formData.email.trim()) errors.push("Email is required.");
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
             errors.push("Please enter a valid email address.");
         if (!formData.phone.trim()) errors.push("Contact number is required.");
-        if (!formData.documentTypes.length)
-            errors.push("Please select at least one document type.");
+        if (!formData.documentTypes.length) errors.push("Please select at least one document type.");
         if (!formData.purpose.trim()) errors.push("Purpose is required.");
         if (!formData.copies || formData.copies < 1 || formData.copies > 10)
             errors.push("Copies must be between 1 and 10.");
+
         return errors;
     };
 
+    /* ======================================================
+       SUBMIT FORM → Backend
+    ====================================================== */
     const handleSubmit = async (e) => {
         e.preventDefault();
         const errors = validateForm();
@@ -79,7 +89,7 @@ export default function DocumentRequestPage() {
                 email: formData.email,
                 phone: formData.phone,
                 address: formData.address,
-                document_types: formData.documentTypes,
+                document_types: formData.documentTypes, // send as array
                 purpose: formData.purpose,
                 copies: parseInt(formData.copies, 10),
                 additional_info: formData.additionalInfo || null,
@@ -122,12 +132,10 @@ export default function DocumentRequestPage() {
                         <div className="mb-6 bg-green-50 border border-green-400 text-green-700 rounded-md p-4 text-center text-sm font-medium space-y-2">
                             <p>
                                 ✅ Thank you! Your document request has been submitted successfully.
-                                We will contact you within 3–5 business days.
                             </p>
                             <p className="text-[13px] text-green-800/90">
                                 📌 <strong>Important:</strong> To <strong>view or track</strong> your request,
                                 please <strong>log in using the email you entered</strong> in this form.
-                                You will also receive updates through your email notifications.
                             </p>
                         </div>
                     )}
@@ -139,7 +147,7 @@ export default function DocumentRequestPage() {
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-10">
-                        {/* Personal Info */}
+                        {/* PERSONAL INFO */}
                         <div>
                             <h2 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-6">
                                 Personal Information
@@ -175,6 +183,7 @@ export default function DocumentRequestPage() {
                                             required
                                         />
                                     </div>
+
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Contact Number <span className="text-red-500">*</span>
@@ -209,7 +218,7 @@ export default function DocumentRequestPage() {
                             </div>
                         </div>
 
-                        {/* Document Request */}
+                        {/* DOCUMENT REQUEST */}
                         <div>
                             <h2 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-6">
                                 Document Request
@@ -222,15 +231,16 @@ export default function DocumentRequestPage() {
                                     </label>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         {DOCUMENT_OPTIONS.map((doc) => (
-                                            <label key={doc.value} className="inline-flex items-center space-x-2">
+                                            <label key={doc.value} className="flex items-center space-x-2">
                                                 <input
                                                     type="checkbox"
+                                                    name="documentTypes"
                                                     value={doc.value}
                                                     checked={formData.documentTypes.includes(doc.value)}
-                                                    onChange={handleCheckboxChange}
-                                                    className="form-checkbox h-4 w-4 text-blue-600"
+                                                    onChange={handleChange}
+                                                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                                                 />
-                                                <span className="text-gray-700 text-sm">{doc.label}</span>
+                                                <span className="text-sm">{doc.label}</span>
                                             </label>
                                         ))}
                                     </div>
@@ -279,6 +289,7 @@ export default function DocumentRequestPage() {
                             </div>
                         </div>
 
+                        {/* SUBMIT BUTTON */}
                         <button
                             type="submit"
                             disabled={isSubmitting}
