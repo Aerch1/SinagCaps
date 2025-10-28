@@ -3,6 +3,18 @@ import { sendDocumentReceivedEmail } from "../../utils/documentEmails.js";
 import { notifyAdminsOfNewDocumentRequest } from "../../utils/notifyAdmins.js";
 
 /* =====================================================
+   🔒 Helper: Safe JSON parse
+===================================================== */
+const safeParseJSON = (value) => {
+  if (!value) return [];
+  try {
+    return typeof value === "object" ? value : JSON.parse(value);
+  } catch {
+    return [];
+  }
+};
+
+/* =====================================================
    📤 Create Document Request (Public or Logged-in)
 ===================================================== */
 export async function createPublicDocumentRequest(req, res) {
@@ -74,7 +86,9 @@ export async function createPublicDocumentRequest(req, res) {
       [userId, cleanEmail, activeStatuses]
     );
 
-    const activeDocs = existingRequests.map((r) => r.document_type);
+    const activeDocs = existingRequests.flatMap((r) =>
+      safeParseJSON(r.document_type)
+    );
     const duplicateDocs = document_types.filter(
       (dt) => activeDocs.includes(dt) && dt !== "other"
     );
@@ -193,10 +207,10 @@ export async function getMyDocumentRequests(req, res) {
       [userId]
     );
 
-    // Parse JSON document types
+    // Parse JSON document types safely
     const requests = rows.map((r) => ({
       ...r,
-      document_types: JSON.parse(r.document_type),
+      document_types: safeParseJSON(r.document_type),
     }));
 
     return res.json({ success: true, requests });
@@ -245,8 +259,8 @@ export async function getMyDocumentRequestDetails(req, res) {
       });
     }
 
-    // Parse JSON document types
-    row.document_types = JSON.parse(row.document_type);
+    // Parse JSON document types safely
+    row.document_types = safeParseJSON(row.document_type);
 
     return res.json({ success: true, request: row });
   } catch (err) {
