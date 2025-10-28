@@ -39,16 +39,15 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
         setMonth(n.getMonth());
         setAvailableTimes([]);
     };
-
     /* Service Change - Only update service, don't reset step */
     const onServiceChange = (label) => {
-        const picked = services.find((s) => s.name === label || s.form_type === label);
+        const picked = services.find((s) => s.name === label);
         if (!picked) return;
 
         setFormData((prev) => ({
             ...prev,
             service_id: picked.id,
-            formType: picked.form_type,  // points to the correct form component
+            formType: picked.form_type || "default",  // ensures a valid formType
             serviceName: picked.name,
             preferredDate: "",
             preferredTime: "",
