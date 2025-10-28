@@ -3,16 +3,25 @@ import pool from "../../config/db.js";
 import { v2 as cloudinary } from "cloudinary";
 import { createNotification } from "../../utils/createNotification.js";
 
-/* ==================================================
-   VALIDATION HELPER
-================================================== */
-/* ==================================================
-   VALIDATION HELPER
-================================================== */
+
 function validateEvent(data) {
   const errors = {};
+
   if (!data.title?.trim()) errors.title = "Title is required";
-  if (!data.date) errors.date = "Date is required";
+  if (!data.date) {
+    errors.date = "Date is required";
+  } else {
+    const today = new Date();
+    const eventDate = new Date(data.date);
+    // Reset time portion to 00:00 for comparison
+    today.setHours(0, 0, 0, 0);
+    eventDate.setHours(0, 0, 0, 0);
+
+    if (eventDate < today) {
+      errors.date = "Date cannot be in the past";
+    }
+  }
+
   if (!data.time) errors.time = "Time is required";
   if (!data.type) errors.type = "Type (event/news) is required";
 

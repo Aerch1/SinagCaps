@@ -12,7 +12,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         description: "",
         date: "",
         time: "",
-        end_time: "", // ✅ new field for backend validation
+        end_time: "",
         type: "event",
         status: "Active",
         image: null,
@@ -23,7 +23,6 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
     const [preview, setPreview] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Reset form when opened or edit changes
     useEffect(() => {
         if (editItem) {
             setForm({
@@ -31,7 +30,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                 description: editItem.description || "",
                 date: editItem.date || "",
                 time: editItem.time || "",
-                end_time: editItem.end_time || "", // include end_time
+                end_time: editItem.end_time || "",
                 type: editItem.type || "event",
                 status: editItem.status || "Active",
                 image: null,
@@ -44,7 +43,6 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         setErrors({});
     }, [editItem, isOpen]);
 
-    // Dropzone
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         accept: {
             "image/png": [],
@@ -71,7 +69,6 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         onClose?.();
     };
 
-    // Submit handler
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -98,8 +95,15 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
             onSaved?.();
             handleClose();
         } catch (err) {
-            toast.error("Something went wrong", { id: loadingToast });
-            if (err.response?.data?.errors) setErrors(err.response.data.errors);
+            if (err.response?.status === 400 && err.response.data?.errors) {
+                // Backend validation errors
+                const messages = Object.values(err.response.data.errors);
+                toast.error(messages.join(" | "), { id: loadingToast });
+                setErrors(err.response.data.errors);
+            } else {
+                // Unexpected server error
+                toast.error(err.response?.data?.error || "Something went wrong", { id: loadingToast });
+            }
         } finally {
             setIsSubmitting(false);
         }
