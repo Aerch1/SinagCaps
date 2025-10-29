@@ -215,14 +215,14 @@ async function ensureSchema(conn) {
     )
   `);
 
-  // await conn.execute(`
-  //   CREATE TABLE IF NOT EXISTS appointment_documents (
-  //    id INT AUTO_INCREMENT PRIMARY KEY,
-  // appointment_id INT NOT NULL,
-  // url VARCHAR(255) NOT NULL,
-  // FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
-  //   )
-  // `);
+  await conn.execute(`
+    CREATE TABLE IF NOT EXISTS appointment_documents (
+     id INT AUTO_INCREMENT PRIMARY KEY,
+  appointment_id INT NOT NULL,
+  url VARCHAR(255) NOT NULL,
+  FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+    )
+  `);
 
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS appointment_requests  (

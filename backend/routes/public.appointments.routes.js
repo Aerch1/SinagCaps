@@ -1,15 +1,29 @@
 import express from "express";
+import multer from "multer";
+import { verifyToken } from "../middleware/verifyToken.js";
 import {
   createPublicAppointment,
   getPublicAppointment,
   getMyAppointments,
 } from "../controllers/public/public.appointments.controller.js";
-import { verifyToken } from "../middleware/verifyToken.js";
+
+// ------------------------------------
+// Multer config (memory storage)
+// ------------------------------------
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 const router = express.Router();
 
 // 🔒 Require login for all user-specific operations
-router.post("/", verifyToken, createPublicAppointment);
+// ✅ accepts multiple images under "documents"
+router.post(
+  "/",
+  verifyToken,
+  upload.array("documents", 10), // <-- allow up to 10 images
+  createPublicAppointment
+);
+
 router.get("/my", verifyToken, getMyAppointments);
 router.get("/:id", verifyToken, getPublicAppointment); // ✅ now protected
 

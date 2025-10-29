@@ -44,12 +44,10 @@ export async function createPublicAppointment(req, res) {
       !date ||
       !time
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Missing required fields for appointment.",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields for appointment.",
+      });
     }
 
     const userId = req.user?.id || null;
@@ -89,7 +87,7 @@ export async function createPublicAppointment(req, res) {
     }
 
     // -------------------------------
-    // 3️⃣ Special forms check (prevent duplicate child/confirmand)
+    // 3️⃣ Special forms check (duplicate child/confirmand)
     const [[service]] = await conn.execute(
       "SELECT form_type, name FROM services WHERE id=?",
       [service_id]
@@ -140,7 +138,7 @@ export async function createPublicAppointment(req, res) {
 
     const [slotRules] = await conn.execute(
       `SELECT slots FROM rules
-       WHERE service_id=?
+       WHERE service_id=? 
          AND (date=? OR (date IS NULL AND weekday=?))
          AND (type='single' AND time=? OR type IN ('allday','recurring'))
        ORDER BY FIELD(type,'single','recurring','allday') DESC
@@ -150,12 +148,10 @@ export async function createPublicAppointment(req, res) {
     const slotLimit = slotRules?.[0]?.slots || 0;
     if (slotLimit > 0 && booked >= slotLimit) {
       await conn.rollback();
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "This schedule is already fully booked.",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "This schedule is already fully booked.",
+      });
     }
 
     // -------------------------------
@@ -232,12 +228,10 @@ export async function createPublicAppointment(req, res) {
         !baptizedOn
       ) {
         await conn.rollback();
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Missing required confirmation fields.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Missing required confirmation fields.",
+        });
       }
 
       const [confResult] = await conn.execute(
@@ -267,6 +261,20 @@ export async function createPublicAppointment(req, res) {
           );
         }
       }
+    }
+
+    // -------------------------------
+    // 🖼️ 6.1 Handle uploaded images/documents (NEW)
+    if (req.files && req.files.length > 0) {
+      const insertDocs = req.files.map((file) => [
+        appointmentId,
+        file.path, // Cloudinary URL
+      ]);
+
+      await conn.query(
+        `INSERT INTO appointment_documents (appointment_id, url) VALUES ?`,
+        [insertDocs]
+      );
     }
 
     await conn.commit();
@@ -350,6 +358,7 @@ export async function createPublicAppointment(req, res) {
     conn.release();
   }
 }
+
 /* ==================================================
    GET /api/public/appointments/my
    → Get all appointments for the logged-in user

@@ -8,6 +8,7 @@ import {
   User,
   Mail,
   Clock,
+  Image as ImageIcon,
 } from "lucide-react";
 
 /* ---------- Labels ---------- */
@@ -30,8 +31,6 @@ const LABELS = {
   lastName: "Last Name",
   notes: "Notes",
   additionalNotes: "Additional Notes",
-
-  // Confirmation
   confirmandName: "Full Name of Confirmand",
   age: "Age",
   fatherNameConfirmand: "Father's Name",
@@ -42,7 +41,7 @@ const LABELS = {
 };
 
 /* ---------- Skip keys ---------- */
-const HIDDEN_KEYS = new Set(["extraData", "formErrors", "formType"]);
+const HIDDEN_KEYS = new Set(["extraData", "formErrors", "formType", "uploadedFiles"]);
 
 /* ---------- Section Icons ---------- */
 const SECTION_ICONS = {
@@ -215,6 +214,7 @@ export default function Step4ReviewSubmit({
         </div>
       </div>
 
+      {/* ---------- Sections ---------- */}
       <div className="space-y-3">
         {Object.entries(grouped).map(([section, fields]) => {
           if (fields.length === 0) return null;
@@ -241,6 +241,38 @@ export default function Step4ReviewSubmit({
         })}
       </div>
 
+      {/* ---------- Image Preview ---------- */}
+      {Array.isArray(formData.uploadedFiles) && formData.uploadedFiles.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <ImageIcon className="w-4 h-4 text-gray-500" />
+            <h4 className="text-sm font-medium text-gray-800">Uploaded Files</h4>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {formData.uploadedFiles.map((file, idx) => {
+              const previewUrl = file instanceof File ? URL.createObjectURL(file) : file.url;
+              return (
+                <div
+                  key={idx}
+                  className="relative border rounded-lg overflow-hidden bg-gray-50 shadow-sm"
+                >
+                  <img
+                    src={previewUrl}
+                    alt={`upload-${idx}`}
+                    className="object-cover w-full h-28"
+                  />
+                  <div className="p-1 text-xs text-center text-gray-700 truncate">
+                    {file.name || `File ${idx + 1}`}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Disclaimer ---------- */}
       <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
         <p className="mb-2">
           By submitting an appointment, you agree to the parish rules and regulations.
@@ -253,6 +285,7 @@ export default function Step4ReviewSubmit({
         </Link>
       </div>
 
+      {/* ---------- Submit Button ---------- */}
       <div className="flex justify-end">
         <button
           type="submit"
@@ -263,17 +296,23 @@ export default function Step4ReviewSubmit({
         </button>
       </div>
 
+      {/* ---------- Reminder Section ---------- */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
         <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
           <Clock className="w-4 h-4 text-blue-600" /> Reminder
         </h4>
         <ul className="list-disc pl-5 space-y-1 text-gray-700">
           <li>Keep your phone and email available for our message.</li>
-          <li>If the appointment you created is approved, go immediately to the parish office to comply with the requirements.</li>
+          <li>
+            If the appointment you created is approved, go immediately to the parish
+            office to comply with the requirements.
+          </li>
           <li>Prepare all necessary documents before visiting.</li>
           <li>Arrive 15–30 minutes before your scheduled time.</li>
         </ul>
       </div>
+
+      {/* ---------- Contact Info ---------- */}
       <div className="border-t border-blue-200 pt-4">
         <p className="text-sm font-medium text-gray-900 mb-2">
           Need immediate assistance?
