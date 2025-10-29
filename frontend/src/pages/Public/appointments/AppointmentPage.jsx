@@ -195,15 +195,17 @@ export default function AppointmentPage() {
       if (formData.additionalNotes) payload.append("additionalNotes", formData.additionalNotes);
 
       // ✅ UNIVERSAL IMAGE HANDLING (all services)
-      if (formData.images) {
-        if (Array.isArray(formData.images)) {
-          formData.images.forEach((file) => {
-            if (file instanceof File) payload.append("documents", file);
-          });
-        } else if (formData.images instanceof File) {
-          payload.append("documents", formData.images);
-        }
+      const allFiles = formData.uploadedFiles || formData.images;
+
+      if (allFiles) {
+        const filesArray = Array.isArray(allFiles) ? allFiles : [allFiles];
+        filesArray.forEach((file) => {
+          if (file instanceof File) {
+            payload.append("documents", file);
+          }
+        });
       }
+
 
 
       // ✅ SERVICE-SPECIFIC FIELDS
