@@ -70,7 +70,7 @@ export default function AppointmentPage() {
       const savedData = JSON.parse(localStorage.getItem(dataKey) || "{}");
 
       try {
-        const validIds = services.map((s) => s.id);
+        const validIds = services.map((s) => s.id); // <-- use lifted services
         if (!savedData.service_id || !validIds.includes(savedData.service_id)) {
           localStorage.removeItem(dataKey);
           localStorage.removeItem(stepKey);
@@ -88,6 +88,7 @@ export default function AppointmentPage() {
     loadSavedData();
   }, [services]);
 
+  // Persist per-service data & step
   useEffect(() => {
     if (!formData.formType) return;
     localStorage.setItem("appointment_activeType", formData.formType);
@@ -108,10 +109,15 @@ export default function AppointmentPage() {
     }
   }, [showSuccess]);
 
+  /* =====================================================
+     🔄 Auto Reset When Switching Service Type
+  ===================================================== */
   const prevTypeRef = useRef(null);
   useEffect(() => {
     const prevService = prevTypeRef.current;
     const currentService = formData.service_id;
+
+    // Only reset if the service changed AND the new service has a formType
     if (prevService && prevService !== currentService && formData.formType) {
       resetStorage(prevService);
       setFormData(prev => ({
@@ -123,10 +129,12 @@ export default function AppointmentPage() {
         serviceName: formData.serviceName,
         formType: formData.formType || "default"
       }));
-      setCurrentStep(2);
+      setCurrentStep(2); // Keep in Step 2
     }
+
     prevTypeRef.current = currentService;
   }, [formData.service_id, formData.formType]);
+
 
   /* =====================================================
      🧩 Validation Handling
@@ -169,9 +177,6 @@ export default function AppointmentPage() {
     setShowSuccess(false);
   };
 
-  /* =====================================================
-     📸 Handle Image Upload + Submit (Universal)
-  ===================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (currentStep !== 4) return;
@@ -180,69 +185,49 @@ export default function AppointmentPage() {
     const toastId = toast.loading("Submitting your appointment request...");
 
     try {
-      const payload = new FormData(); // ✅ supports files
-      payload.append("service_id", formData.service_id);
-      payload.append("date", formData.preferredDate);
-      payload.append("time", formData.preferredTime);
-      payload.append(
-        "name",
-        user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest"
-      );
-      payload.append("email", formData.email || user?.email);
-      payload.append("contactNumber", formData.phone || "");
-      payload.append("address", formData.address || "");
-      if (formData.notes) payload.append("notes", formData.notes);
-      if (formData.additionalNotes) payload.append("additionalNotes", formData.additionalNotes);
+      const payload = {
+        service_id: formData.service_id,
+        date: formData.preferredDate,
+        time: formData.preferredTime,
+        name:
+          user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest",
+        email: formData.email || user?.email,
+        contactNumber: formData.phone,
+        address: formData.address,
+        notes: formData.notes || formData.additionalNotes || null,
+      };
 
-      // ✅ UNIVERSAL IMAGE HANDLING (handles both File and { file: File } objects)
-      const allFiles = formData.uploadedFiles || formData.images;
-
-      if (allFiles) {
-        const filesArray = Array.isArray(allFiles) ? allFiles : [allFiles];
-        filesArray.forEach((file) => {
-          if (file instanceof File) {
-            payload.append("documents", file);
-          } else if (file?.file instanceof File) {
-            payload.append("documents", file.file);
-          }
+      if (formData.formType === "baptism") {
+        Object.assign(payload, {
+          childFullName: formData.childFullName,
+          childDob: formData.childDob,
+          childBirthplace: formData.childBirthplace,
+          fatherName: formData.fatherName,
+          motherMaidenName: formData.motherMaidenName,
+          parentsMarriageType: formData.parentsMarriageType,
+          sponsors: formData.sponsors || [],
         });
       }
 
-
-
-
-      // ✅ SERVICE-SPECIFIC FIELDS
-      if (formData.formType === "baptism") {
-        payload.append("childFullName", formData.childFullName || "");
-        payload.append("childDob", formData.childDob || "");
-        payload.append("childBirthplace", formData.childBirthplace || "");
-        payload.append("fatherName", formData.fatherName || "");
-        payload.append("motherMaidenName", formData.motherMaidenName || "");
-        payload.append("parentsMarriageType", formData.parentsMarriageType || "");
-        payload.append("sponsors", JSON.stringify(formData.sponsors || []));
-      }
-
       if (formData.formType === "confirmation") {
-        payload.append("confirmandName", formData.confirmandName || "");
-        payload.append("age", formData.age || "");
-        payload.append("fatherName", formData.fatherName || "");
-        payload.append("motherMaidenName", formData.motherMaidenName || "");
-        payload.append("parishOrigin", formData.parishOrigin || "");
-        payload.append("baptizedAt", formData.baptizedAt || "");
-        payload.append("baptizedOn", formData.baptizedOn || "");
-        payload.append("sponsors", JSON.stringify(formData.sponsors || []));
+        Object.assign(payload, {
+          confirmandName: formData.confirmandName,
+          age: formData.age,
+          fatherName: formData.fatherName,
+          motherMaidenName: formData.motherMaidenName,
+          parishOrigin: formData.parishOrigin,
+          baptizedAt: formData.baptizedAt,
+          baptizedOn: formData.baptizedOn,
+          sponsors: formData.sponsors || [],
+        });
       }
 
-      const { data } = await api.post("/appointments", payload, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
+      const { data } = await api.post("/appointments", payload);
       setFormData((prev) => ({
         ...prev,
         appointmentId: data.appointmentId,
         serviceName: data.serviceName || prev.serviceName,
       }));
-
       toast.success("Appointment submitted successfully!", { id: toastId });
       setShowSuccess(true);
     } catch (error) {
@@ -264,18 +249,47 @@ export default function AppointmentPage() {
   };
 
   /* =====================================================
-     🧱 Step Renderer
+     🧱 Step Content Renderer
   ===================================================== */
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return <Step1Service formData={formData} setFormData={setFormData} formErrors={formErrors} services={services} />;
+        return (
+          <Step1Service
+            formData={formData}
+            setFormData={setFormData}
+            formErrors={formErrors}
+            services={services} // <-- pass services
+          />
+        );
       case 2:
-        return <Step2DateTime formData={formData} setFormData={setFormData} formErrors={formErrors} services={services} />;
+        return (
+          <Step2DateTime
+            formData={formData}
+            setFormData={setFormData}
+            formErrors={formErrors}
+            services={services} // <-- pass services
+          />
+        );
       case 3:
-        return <Step3Form formData={formData} setFormData={setFormData} registerValidator={registerValidator} formErrors={formErrors} />;
+        return (
+          <Step3Form
+            formData={formData}
+            setFormData={setFormData}
+            registerValidator={registerValidator}
+            formErrors={formErrors}
+          />
+        );
       case 4:
-        return <Step4ReviewSubmit formData={formData} isSubmitting={isSubmitting} showSuccess={showSuccess} onSuccess={setShowSuccess} resetForm={resetForm} />;
+        return (
+          <Step4ReviewSubmit
+            formData={formData}
+            isSubmitting={isSubmitting}
+            showSuccess={showSuccess}
+            onSuccess={setShowSuccess}
+            resetForm={resetForm}
+          />
+        );
       default:
         return null;
     }
@@ -328,7 +342,10 @@ export default function AppointmentPage() {
         </div>
 
         <div className="mt-6 text-center">
-          <Link to="/services/generalinfo" className="text-sm text-blue-600 hover:text-blue-800 underline">
+          <Link
+            to="/services/generalinfo"
+            className="text-sm text-blue-600 hover:text-blue-800 underline"
+          >
             ← Back to General Information
           </Link>
         </div>

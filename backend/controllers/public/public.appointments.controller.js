@@ -1,32 +1,13 @@
 import pool from "../../config/db.js";
 import { sendAppointmentCreatedEmail } from "../../utils/appointmentEmails.js";
 import { createNotification } from "../../utils/createNotification.js";
-import { v2 as cloudinary } from "cloudinary"; // ✅ add this
 
 /* ==================================================
    CREATE Public Appointment (Default, Baptism, Kumpil)
 ================================================== */
 export async function createPublicAppointment(req, res) {
   const conn = await pool.getConnection();
-
   try {
-    console.log("🟢 Incoming appointment request");
-    console.log("➡️ Headers:", req.headers["content-type"]);
-    console.log("➡️ Body keys:", Object.keys(req.body || {}));
-    console.log(
-      "➡️ Files count:",
-      req.files?.length || 0,
-      "→",
-      req.files?.map((f) => f.originalname)
-    );
-
-    if (req.files && req.files.length > 0) {
-      req.files.forEach((f, i) => {
-        console.log(
-          `📁 File[${i}] — name: ${f.originalname}, mimetype: ${f.mimetype}, size: ${f.size} bytes`
-        );
-      });
-    }
     const {
       service_id,
       name,
@@ -63,19 +44,12 @@ export async function createPublicAppointment(req, res) {
       !date ||
       !time
     ) {
-      console.warn("⚠️ Missing required appointment fields:", {
-        service_id,
-        name,
-        email,
-        contactNumber,
-        address,
-        date,
-        time,
-      });
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields for appointment.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Missing required fields for appointment.",
+        });
     }
 
     const userId = req.user?.id || null;
@@ -115,7 +89,7 @@ export async function createPublicAppointment(req, res) {
     }
 
     // -------------------------------
-    // 3️⃣ Special forms check (duplicate child/confirmand)
+    // 3️⃣ Special forms check (prevent duplicate child/confirmand)
     const [[service]] = await conn.execute(
       "SELECT form_type, name FROM services WHERE id=?",
       [service_id]
@@ -166,7 +140,7 @@ export async function createPublicAppointment(req, res) {
 
     const [slotRules] = await conn.execute(
       `SELECT slots FROM rules
-       WHERE service_id=? 
+       WHERE service_id=?
          AND (date=? OR (date IS NULL AND weekday=?))
          AND (type='single' AND time=? OR type IN ('allday','recurring'))
        ORDER BY FIELD(type,'single','recurring','allday') DESC
@@ -176,10 +150,12 @@ export async function createPublicAppointment(req, res) {
     const slotLimit = slotRules?.[0]?.slots || 0;
     if (slotLimit > 0 && booked >= slotLimit) {
       await conn.rollback();
-      return res.status(400).json({
-        success: false,
-        error: "This schedule is already fully booked.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "This schedule is already fully booked.",
+        });
     }
 
     // -------------------------------
@@ -201,7 +177,6 @@ export async function createPublicAppointment(req, res) {
       ]
     );
     const appointmentId = apptResult.insertId;
-    console.log("✅ Appointment inserted:", appointmentId);
 
     // -------------------------------
     // 6️⃣ Handle special forms
@@ -257,10 +232,12 @@ export async function createPublicAppointment(req, res) {
         !baptizedOn
       ) {
         await conn.rollback();
-        return res.status(400).json({
-          success: false,
-          error: "Missing required confirmation fields.",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            error: "Missing required confirmation fields.",
+          });
       }
 
       const [confResult] = await conn.execute(
@@ -292,60 +269,7 @@ export async function createPublicAppointment(req, res) {
       }
     }
 
-    // -------------------------------
-    // 🖼️ 6.1 Handle uploaded images/documents (UPDATED)
-    if (req.files && req.files.length > 0) {
-      console.log("🖼️ Uploading documents to Cloudinary...");
-
-      const uploadedDocs = [];
-
-      for (const [i, file] of req.files.entries()) {
-        console.log(`📤 Uploading file[${i}] → ${file.originalname}`);
-
-        try {
-          const uploaded = await new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              {
-                folder: "appointments",
-                resource_type: "image",
-              },
-              (err, result) => {
-                if (err) reject(err);
-                else resolve(result);
-              }
-            );
-            stream.end(file.buffer);
-          });
-
-          console.log(`✅ Cloudinary uploaded[${i}] URL:`, uploaded.secure_url);
-
-          uploadedDocs.push([appointmentId, uploaded.secure_url]);
-        } catch (uploadErr) {
-          console.error(
-            `❌ Cloudinary upload failed for [${file.originalname}]:`,
-            uploadErr.message
-          );
-        }
-      }
-
-      if (uploadedDocs.length > 0) {
-        console.log(
-          `💾 Inserting ${uploadedDocs.length} document URLs into DB...`
-        );
-        await conn.query(
-          `INSERT INTO appointment_documents (appointment_id, url) VALUES ?`,
-          [uploadedDocs]
-        );
-      } else {
-        console.warn("⚠️ No documents successfully uploaded to Cloudinary.");
-      }
-    } else {
-      console.log("ℹ️ No files received for upload.");
-    }
-
     await conn.commit();
-
-    console.log("✅ Appointment committed successfully:", appointmentId);
 
     // -------------------------------
     // 7️⃣ Send email
@@ -426,7 +350,6 @@ export async function createPublicAppointment(req, res) {
     conn.release();
   }
 }
-
 /* ==================================================
    GET /api/public/appointments/my
    → Get all appointments for the logged-in user

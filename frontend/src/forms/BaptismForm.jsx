@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseISO, format } from "date-fns";
-import { User, Mail, Phone, MapPin, Info, Plus, Trash2, House, Upload } from "lucide-react";
+import { User, Mail, Phone, MapPin, Info, Plus, Trash2, House } from "lucide-react";
 
 import Input from "../components/ui/Input.jsx";
 import Dropdown from "../components/ui/Dropdown1.jsx";
@@ -16,32 +16,9 @@ const SectionHeader = ({ title, description }) => (
     </div>
 );
 
-export default function BaptismForm({ formData, setFormData, registerValidator, formErrors = {}, uploadedFiles,       // now passed from Step3Forms
-    setUploadedFiles }) {
+export default function BaptismForm({ formData, setFormData, registerValidator, formErrors = {} }) {
     const [showSponsorTip, setShowSponsorTip] = useState(false);
     const firstErrorRef = useRef(null);
-
-    // 🧾 New: for uploaded documents
-    const fileInputRef = useRef(null);
-
-    const handleFileUpload = (files) => {
-        const validFiles = files.filter(
-            (f) =>
-                ["image/jpeg", "image/png", "application/pdf"].includes(f.type) &&
-                f.size <= 5 * 1024 * 1024
-        );
-
-        setUploadedFiles((prev) => {
-            const unique = validFiles.filter(
-                (f) => !prev.some((p) => p.name === f.name && p.size === f.size)
-            );
-            return [...prev, ...unique];
-        });
-    };
-
-    const removeFile = (index) => {
-        setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
-    };
 
     // ---------- Initialize sponsors ----------
     useEffect(() => {
@@ -54,7 +31,7 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                 ],
             }));
         }
-    }, [formData.sponsors, setFormData]);
+    }, []);
 
     // ---------- Update helpers ----------
     const updateField = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
@@ -140,11 +117,10 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                 });
             }
 
+            // Scroll to first error
             if (Object.keys(errs).length > 0 && firstErrorRef.current) {
                 firstErrorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-                firstErrorRef.current.querySelector("input, select, textarea")?.focus?.();
             }
-
 
             return Object.keys(errs).length === 0 ? true : errs;
         };
@@ -499,65 +475,6 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                             </div>
                         </div>
                     ))}
-                </div>
-            </section>
-
-
-            {/* 📎 Document Upload Section */}
-            <section className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 lg:p-8 shadow-sm">
-                <SectionHeader
-                    title="Supporting Documents"
-                    description="Upload baptism-related certificates or supporting documents (optional)"
-                />
-
-                <div className="mt-4">
-                    <div
-                        className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition"
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => {
-                            e.preventDefault();
-                            const files = Array.from(e.dataTransfer.files);
-                            handleFileUpload(files);
-                        }}
-                        onClick={() => fileInputRef.current.click()}
-                    >
-                        <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                        <p className="text-gray-600 mb-1 font-medium">
-                            Drag & drop files here or click to browse
-                        </p>
-                        <p className="text-sm text-gray-400">
-                            Accepted: JPG, PNG, PDF (max 5MB each)
-                        </p>
-                    </div>
-
-                    <input
-                        type="file"
-                        multiple
-                        accept=".jpg,.jpeg,.png,.pdf"
-                        ref={fileInputRef}
-                        className="hidden"
-                        onChange={(e) => handleFileUpload(Array.from(e.target.files))}
-                    />
-
-                    {uploadedFiles.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                            {uploadedFiles.map((file, idx) => (
-                                <div
-                                    key={idx}
-                                    className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 text-sm text-gray-700"
-                                >
-                                    <span className="truncate max-w-[70%]">{file.name}</span>
-                                    <button
-                                        type="button"
-                                        className="text-red-500 hover:text-red-700 text-xs"
-                                        onClick={() => removeFile(idx)}
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
             </section>
         </div>

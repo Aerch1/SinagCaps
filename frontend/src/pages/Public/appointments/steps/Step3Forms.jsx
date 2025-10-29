@@ -8,8 +8,6 @@ export default function Step3Forms({
     setFormData,
     registerValidator,
     formErrors = {},
-    uploadedFiles,          // new
-    setUploadedFiles,       // new
 }) {
     // Dynamically select the form component (BaptismForm, DefaultForm, etc.)
     const FormComponent = useMemo(
@@ -35,8 +33,6 @@ export default function Step3Forms({
                         setFormData={setFormData}
                         registerValidator={registerValidator}
                         formErrors={formErrors}
-                        uploadedFiles={uploadedFiles}          // pass down
-                        setUploadedFiles={setUploadedFiles}    // pass down
                     />
                 </div>
             </div>
