@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { parseISO, format } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -59,6 +59,23 @@ export default function Step4ReviewSubmit({
   resetForm,
 }) {
   const navigate = useNavigate();
+  const [previewUrls, setPreviewUrls] = useState([]);
+
+  /* ---------- Generate and cleanup preview URLs ---------- */
+  useEffect(() => {
+    if (!formData.uploadedFiles) return;
+
+    const urls = formData.uploadedFiles.map((file) =>
+      file instanceof File ? URL.createObjectURL(file) : file.url
+    );
+    setPreviewUrls(urls);
+
+    return () => {
+      urls.forEach((url) => {
+        if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+      });
+    };
+  }, [formData.uploadedFiles]);
 
   const formatKey = (key) => LABELS[key] || key;
 
@@ -128,7 +145,6 @@ export default function Step4ReviewSubmit({
       }
     }
 
-    // merge schedule line
     if (sections.Schedule.length === 2) {
       const date = sections.Schedule.find((f) => f.label === "Date")?.value;
       const time = sections.Schedule.find((f) => f.label === "Time")?.value;
@@ -242,7 +258,7 @@ export default function Step4ReviewSubmit({
       </div>
 
       {/* ---------- Image Preview ---------- */}
-      {Array.isArray(formData.uploadedFiles) && formData.uploadedFiles.length > 0 && (
+      {previewUrls.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-3">
             <ImageIcon className="w-4 h-4 text-gray-500" />
@@ -251,17 +267,24 @@ export default function Step4ReviewSubmit({
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {formData.uploadedFiles.map((file, idx) => {
-              const previewUrl = file instanceof File ? URL.createObjectURL(file) : file.url;
+              const previewUrl = previewUrls[idx];
+              const isImage = file.type?.startsWith("image/");
               return (
                 <div
                   key={idx}
                   className="relative border rounded-lg overflow-hidden bg-gray-50 shadow-sm"
                 >
-                  <img
-                    src={previewUrl}
-                    alt={`upload-${idx}`}
-                    className="object-cover w-full h-28"
-                  />
+                  {isImage ? (
+                    <img
+                      src={previewUrl}
+                      alt={`upload-${idx}`}
+                      className="object-cover w-full h-28"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-28 text-gray-500">
+                      📄
+                    </div>
+                  )}
                   <div className="p-1 text-xs text-center text-gray-700 truncate">
                     {file.name || `File ${idx + 1}`}
                   </div>

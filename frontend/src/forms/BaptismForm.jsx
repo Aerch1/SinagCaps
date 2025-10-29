@@ -16,12 +16,12 @@ const SectionHeader = ({ title, description }) => (
     </div>
 );
 
-export default function BaptismForm({ formData, setFormData, registerValidator, formErrors = {} }) {
+export default function BaptismForm({ formData, setFormData, registerValidator, formErrors = {}, uploadedFiles,       // now passed from Step3Forms
+    setUploadedFiles }) {
     const [showSponsorTip, setShowSponsorTip] = useState(false);
     const firstErrorRef = useRef(null);
 
     // 🧾 New: for uploaded documents
-    const [uploadedFiles, setUploadedFiles] = useState([]);
     const fileInputRef = useRef(null);
 
     const handleFileUpload = (files) => {
@@ -30,23 +30,17 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                 ["image/jpeg", "image/png", "application/pdf"].includes(f.type) &&
                 f.size <= 5 * 1024 * 1024
         );
+
         setUploadedFiles((prev) => {
             const unique = validFiles.filter(
                 (f) => !prev.some((p) => p.name === f.name && p.size === f.size)
             );
-            const updated = [...prev, ...unique];
-            setFormData((prev) => ({ ...prev, uploadedFiles: updated }));
-            return updated;
+            return [...prev, ...unique];
         });
     };
 
-
     const removeFile = (index) => {
         setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
-        setFormData((prev) => ({
-            ...prev,
-            uploadedFiles: (prev.uploadedFiles || []).filter((_, i) => i !== index),
-        }));
     };
 
     // ---------- Initialize sponsors ----------
