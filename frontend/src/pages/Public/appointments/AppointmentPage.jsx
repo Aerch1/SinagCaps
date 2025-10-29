@@ -194,7 +194,7 @@ export default function AppointmentPage() {
       if (formData.notes) payload.append("notes", formData.notes);
       if (formData.additionalNotes) payload.append("additionalNotes", formData.additionalNotes);
 
-      // ✅ UNIVERSAL IMAGE HANDLING (all services)
+      // ✅ UNIVERSAL IMAGE HANDLING (handles both File and { file: File } objects)
       const allFiles = formData.uploadedFiles || formData.images;
 
       if (allFiles) {
@@ -202,9 +202,12 @@ export default function AppointmentPage() {
         filesArray.forEach((file) => {
           if (file instanceof File) {
             payload.append("documents", file);
+          } else if (file?.file instanceof File) {
+            payload.append("documents", file.file);
           }
         });
       }
+
 
 
 
