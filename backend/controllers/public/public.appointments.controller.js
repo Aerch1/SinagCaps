@@ -1,6 +1,7 @@
 import pool from "../../config/db.js";
 import { sendAppointmentCreatedEmail } from "../../utils/appointmentEmails.js";
 import { createNotification } from "../../utils/createNotification.js";
+import { v2 as cloudinary } from "cloudinary"; // ✅ add this
 
 /* ==================================================
    CREATE Public Appointment (Default, Baptism, Kumpil)
@@ -264,17 +265,37 @@ export async function createPublicAppointment(req, res) {
     }
 
     // -------------------------------
-    // 🖼️ 6.1 Handle uploaded images/documents (NEW)
+    // 🖼️ 6.1 Handle uploaded images/documents (UPDATED)
     if (req.files && req.files.length > 0) {
-      const insertDocs = req.files.map((file) => [
-        appointmentId,
-        file.path, // Cloudinary URL
-      ]);
+      const uploadedDocs = [];
 
-      await conn.query(
-        `INSERT INTO appointment_documents (appointment_id, url) VALUES ?`,
-        [insertDocs]
-      );
+      for (const file of req.files) {
+        try {
+          const uploaded = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              {
+                folder: "appointments",
+                resource_type: "image",
+              },
+              (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+              }
+            );
+            stream.end(file.buffer);
+          });
+          uploadedDocs.push([appointmentId, uploaded.secure_url]);
+        } catch (uploadErr) {
+          console.error("❌ Cloudinary upload failed:", uploadErr.message);
+        }
+      }
+
+      if (uploadedDocs.length > 0) {
+        await conn.query(
+          `INSERT INTO appointment_documents (appointment_id, url) VALUES ?`,
+          [uploadedDocs]
+        );
+      }
     }
 
     await conn.commit();
