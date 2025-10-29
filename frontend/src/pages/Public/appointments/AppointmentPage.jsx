@@ -170,7 +170,7 @@ export default function AppointmentPage() {
   };
 
   /* =====================================================
-     📸 Handle Image Upload + Submit
+     📸 Handle Image Upload + Submit (Universal)
   ===================================================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -180,7 +180,7 @@ export default function AppointmentPage() {
     const toastId = toast.loading("Submitting your appointment request...");
 
     try {
-      const payload = new FormData(); // ✅ handle file upload
+      const payload = new FormData(); // ✅ supports files
       payload.append("service_id", formData.service_id);
       payload.append("date", formData.preferredDate);
       payload.append("time", formData.preferredTime);
@@ -194,14 +194,18 @@ export default function AppointmentPage() {
       if (formData.notes) payload.append("notes", formData.notes);
       if (formData.additionalNotes) payload.append("additionalNotes", formData.additionalNotes);
 
-      // ✅ append files if any
-      if (formData.images && Array.isArray(formData.images)) {
-        formData.images.forEach((file, idx) => {
-          if (file instanceof File) payload.append(`images`, file);
-        });
+      // ✅ UNIVERSAL IMAGE HANDLING (all services)
+      if (formData.images) {
+        if (Array.isArray(formData.images)) {
+          formData.images.forEach((file) => {
+            if (file instanceof File) payload.append("images", file);
+          });
+        } else if (formData.images instanceof File) {
+          payload.append("images", formData.images);
+        }
       }
 
-      // ✅ service-specific fields
+      // ✅ SERVICE-SPECIFIC FIELDS
       if (formData.formType === "baptism") {
         payload.append("childFullName", formData.childFullName || "");
         payload.append("childDob", formData.childDob || "");
@@ -232,6 +236,7 @@ export default function AppointmentPage() {
         appointmentId: data.appointmentId,
         serviceName: data.serviceName || prev.serviceName,
       }));
+
       toast.success("Appointment submitted successfully!", { id: toastId });
       setShowSuccess(true);
     } catch (error) {
