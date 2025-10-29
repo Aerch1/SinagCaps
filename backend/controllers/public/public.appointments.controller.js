@@ -8,7 +8,20 @@ import { v2 as cloudinary } from "cloudinary"; // ✅ add this
 ================================================== */
 export async function createPublicAppointment(req, res) {
   const conn = await pool.getConnection();
+
   try {
+    console.log("🟢 Incoming appointment request");
+    console.log("➡️ Headers:", req.headers["content-type"]);
+    console.log("➡️ Body keys:", Object.keys(req.body || {}));
+    console.log("➡️ Files count:", req.files?.length || 0);
+
+    if (req.files && req.files.length > 0) {
+      req.files.forEach((f, i) => {
+        console.log(
+          `📁 File[${i}] — name: ${f.originalname}, mimetype: ${f.mimetype}, size: ${f.size} bytes`
+        );
+      });
+    }
     const {
       service_id,
       name,
@@ -45,6 +58,15 @@ export async function createPublicAppointment(req, res) {
       !date ||
       !time
     ) {
+      console.warn("⚠️ Missing required appointment fields:", {
+        service_id,
+        name,
+        email,
+        contactNumber,
+        address,
+        date,
+        time,
+      });
       return res.status(400).json({
         success: false,
         error: "Missing required fields for appointment.",
@@ -174,6 +196,7 @@ export async function createPublicAppointment(req, res) {
       ]
     );
     const appointmentId = apptResult.insertId;
+    console.log("✅ Appointment inserted:", appointmentId);
 
     // -------------------------------
     // 6️⃣ Handle special forms
@@ -267,9 +290,13 @@ export async function createPublicAppointment(req, res) {
     // -------------------------------
     // 🖼️ 6.1 Handle uploaded images/documents (UPDATED)
     if (req.files && req.files.length > 0) {
+      console.log("🖼️ Uploading documents to Cloudinary...");
+
       const uploadedDocs = [];
 
       for (const file of req.files) {
+        console.log(`📤 Uploading file[${i}] → ${file.originalname}`);
+
         try {
           const uploaded = await new Promise((resolve, reject) => {
             const stream = cloudinary.uploader.upload_stream(
@@ -284,21 +311,35 @@ export async function createPublicAppointment(req, res) {
             );
             stream.end(file.buffer);
           });
+          console.log(`✅ Cloudinary uploaded[${i}] URL:`, uploaded.secure_url);
+
           uploadedDocs.push([appointmentId, uploaded.secure_url]);
         } catch (uploadErr) {
-          console.error("❌ Cloudinary upload failed:", uploadErr.message);
+          console.error(
+            `❌ Cloudinary upload failed for [${file.originalname}]:`,
+            uploadErr.message
+          );
         }
       }
 
       if (uploadedDocs.length > 0) {
+        console.log(
+          `💾 Inserting ${uploadedDocs.length} document URLs into DB...`
+        );
         await conn.query(
           `INSERT INTO appointment_documents (appointment_id, url) VALUES ?`,
           [uploadedDocs]
         );
+      } else {
+        console.warn("⚠️ No documents successfully uploaded to Cloudinary.");
       }
+    } else {
+      console.log("ℹ️ No files received for upload.");
     }
 
     await conn.commit();
+
+    console.log("✅ Appointment committed successfully:", appointmentId);
 
     // -------------------------------
     // 7️⃣ Send email
