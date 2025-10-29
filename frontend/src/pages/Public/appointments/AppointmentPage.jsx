@@ -198,12 +198,13 @@ export default function AppointmentPage() {
       if (formData.images) {
         if (Array.isArray(formData.images)) {
           formData.images.forEach((file) => {
-            if (file instanceof File) payload.append("images", file);
+            if (file instanceof File) payload.append("documents", file);
           });
         } else if (formData.images instanceof File) {
-          payload.append("images", formData.images);
+          payload.append("documents", formData.images);
         }
       }
+
 
       // ✅ SERVICE-SPECIFIC FIELDS
       if (formData.formType === "baptism") {
