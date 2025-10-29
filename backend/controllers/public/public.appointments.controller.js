@@ -13,7 +13,12 @@ export async function createPublicAppointment(req, res) {
     console.log("🟢 Incoming appointment request");
     console.log("➡️ Headers:", req.headers["content-type"]);
     console.log("➡️ Body keys:", Object.keys(req.body || {}));
-    console.log("➡️ Files count:", req.files?.length || 0);
+    console.log(
+      "➡️ Files count:",
+      req.files?.length || 0,
+      "→",
+      req.files?.map((f) => f.originalname)
+    );
 
     if (req.files && req.files.length > 0) {
       req.files.forEach((f, i) => {
@@ -294,7 +299,7 @@ export async function createPublicAppointment(req, res) {
 
       const uploadedDocs = [];
 
-      for (const file of req.files) {
+      for (const [i, file] of req.files.entries()) {
         console.log(`📤 Uploading file[${i}] → ${file.originalname}`);
 
         try {
@@ -311,6 +316,7 @@ export async function createPublicAppointment(req, res) {
             );
             stream.end(file.buffer);
           });
+
           console.log(`✅ Cloudinary uploaded[${i}] URL:`, uploaded.secure_url);
 
           uploadedDocs.push([appointmentId, uploaded.secure_url]);
