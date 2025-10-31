@@ -38,11 +38,9 @@ export default function DocumentsSection({ documents }) {
     const getDownloadUrl = (url) => {
         if (!url) return "";
 
-        // For Cloudinary URLs, add fl_attachment flag to force download
-        if (url.includes('cloudinary.com')) {
+        if (url.includes("cloudinary.com")) {
             const parts = url.split("/upload/");
             if (parts.length === 2) {
-                // Add fl_attachment to force download
                 return `${parts[0]}/upload/fl_attachment/${parts[1]}`;
             }
         }
@@ -50,15 +48,13 @@ export default function DocumentsSection({ documents }) {
         return url;
     };
 
-    const handleDownload = (doc, idx) => {
+    const handleDownload = (doc) => {
         const downloadUrl = getDownloadUrl(doc.url);
         const fileName = getFileName(doc.url);
-
-        // Create temporary link and trigger download
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = downloadUrl;
         link.download = fileName;
-        link.target = '_blank';
+        link.target = "_blank";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -66,7 +62,7 @@ export default function DocumentsSection({ documents }) {
 
     return (
         <>
-            <section className="bg-white rounded-xl border p-5">
+            <section className="bg-white rounded-xl border p-5 relative">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase mb-4 flex items-center gap-2">
                     <div className="w-1 h-4 bg-orange-500 rounded-full" />
                     Uploaded Documents
@@ -75,7 +71,7 @@ export default function DocumentsSection({ documents }) {
                 {(!documents || documents.length === 0) ? (
                     <p className="text-sm text-gray-500 italic">No documents uploaded.</p>
                 ) : (
-                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
+                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent relative">
                         {documents.map((doc, idx) => (
                             <div
                                 key={idx}
@@ -105,9 +101,8 @@ export default function DocumentsSection({ documents }) {
                                         <Eye className="w-3.5 h-3.5" />
                                         View
                                     </button>
-
                                     <button
-                                        onClick={() => handleDownload(doc, idx)}
+                                        onClick={() => handleDownload(doc)}
                                         className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center gap-1"
                                     >
                                         <Download className="w-3.5 h-3.5" />
@@ -115,19 +110,17 @@ export default function DocumentsSection({ documents }) {
                                     </button>
                                 </div>
 
-                                {/* Hover Preview Tooltip */}
+                                {/* Hover Image Preview */}
                                 {hoveredImage === doc.url && (
-                                    <div className="absolute left-full top-0 ml-4 z-50 pointer-events-none">
+                                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 z-[9999] pointer-events-none animate-fadeIn">
                                         <div className="bg-white rounded-lg shadow-2xl border-2 border-gray-200 p-2">
                                             <img
                                                 src={doc.url}
                                                 alt="Preview"
-                                                className="w-64 h-64 object-cover rounded"
-                                                onError={(e) => {
-                                                    e.target.style.display = 'none';
-                                                }}
+                                                className="w-64 h-64 object-contain rounded"
+                                                onError={(e) => { e.target.style.display = "none"; }}
                                             />
-                                            <div className="absolute -left-2 top-4 w-4 h-4 bg-white border-l-2 border-t-2 border-gray-200 transform rotate-45" />
+                                            <div className="absolute -left-2 top-1/2 w-4 h-4 bg-white border-l-2 border-t-2 border-gray-200 transform -translate-y-1/2 rotate-45" />
                                         </div>
                                     </div>
                                 )}
@@ -146,6 +139,17 @@ export default function DocumentsSection({ documents }) {
                     initialIndex={selectedIndex}
                 />
             )}
+
+            {/* Fade Animation */}
+            <style jsx>{`
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(4px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fadeIn {
+                    animation: fadeIn 0.15s ease-out forwards;
+                }
+            `}</style>
         </>
     );
 }
