@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import HeroBanner from "../../../components/section/HeroBanner.jsx";
 
-const HERO_IMG = "/bg2.jpg";
+const HERO_IMG = "/bg1.jpg";
 
 export default function AppointmentTerms() {
   const navigate = useNavigate();
