@@ -16,7 +16,7 @@ export default function AppointmentTerms() {
   const [showAgreeModal, setShowAgreeModal] = useState(false);
 
   const proceedCore = useCallback(() => {
-    if (isAuthenticated) {
+    if (!isAuthenticated) {
       navigate("/services/appointments/book");
     } else {
       toast.error("Please login your account first.");
