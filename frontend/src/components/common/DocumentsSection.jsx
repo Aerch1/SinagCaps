@@ -37,7 +37,7 @@ export default function DocumentsSection({ documents }) {
         if (url.includes('cloudinary.com')) {
             const parts = url.split("/upload/");
             if (parts.length === 2) {
-                // Add fl_attachment to force download
+              
                 return `${parts[0]}/upload/fl_attachment/${parts[1]}`;
             }
         }
