@@ -48,7 +48,6 @@ export async function createPublicAppointment(req, res) {
       baptizedOn,
     } = req.body;
 
-    // ✅ NEW: Handle uploaded files (multer middleware required)
     // Expect: req.files = [{ path: 'temp/path/to/file1' }, { path: 'temp/path/to/file2' }]
     const uploadedFiles = req.files || [];
 

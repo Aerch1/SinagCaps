@@ -191,21 +191,37 @@ export default function AppointmentPage() {
     const toastId = toast.loading("Submitting your appointment request...");
 
     try {
-      // ✅ NEW: Use FormData instead of JSON
       const formDataToSend = new FormData();
+
+      // ✅ IMPROVED: Smart name selection based on login status and form type
+      let displayName;
+
+      if (user?.fullName || user?.name) {
+        // User is logged in - use their account name
+        displayName = user.fullName || user.name;
+      } else {
+        // User is guest - use name from form based on service type
+        switch (formData.formType) {
+          case "baptism":
+            displayName = formData.childFullName || "Guest";
+            break;
+          case "confirmation":
+            displayName = formData.confirmandName || "Guest";
+            break;
+          default:
+            // For default/other services
+            displayName = formData.firstName && formData.lastName
+              ? `${formData.firstName} ${formData.lastName}`.trim()
+              : "Guest";
+            break;
+        }
+      }
 
       // Add basic fields
       formDataToSend.append("service_id", formData.service_id);
       formDataToSend.append("date", formData.preferredDate);
       formDataToSend.append("time", formData.preferredTime);
-      formDataToSend.append(
-        "name",
-        formData.name || user?.fullName || user?.name || "Guest"
-      );
-      // formDataToSend.append(
-      //   "name",
-      //   user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest"
-      // );
+      formDataToSend.append("name", displayName); // ✅ Use smart name
       formDataToSend.append("email", formData.email || user?.email);
       formDataToSend.append("contactNumber", formData.phone);
       formDataToSend.append("address", formData.address);
@@ -234,7 +250,13 @@ export default function AppointmentPage() {
         formDataToSend.append("sponsors", JSON.stringify(formData.sponsors || []));
       }
 
-      // ✅ NEW: Append files
+      // ✅ Add default service fields (firstName, lastName) if applicable
+      if (formData.formType === "default" || !formData.formType) {
+        if (formData.firstName) formDataToSend.append("firstName", formData.firstName);
+        if (formData.lastName) formDataToSend.append("lastName", formData.lastName);
+      }
+
+      // ✅ Append files
       uploadedFiles.forEach((file) => {
         formDataToSend.append("files", file);
       });
