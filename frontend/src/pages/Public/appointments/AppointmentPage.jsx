@@ -178,7 +178,7 @@ export default function AppointmentPage() {
     resetStorage(formData.formType);
     setFormData({});
     setFormErrors({});
-    setUploadedFiles([]); // ✅ Clear files
+    setUploadedFiles([]); 
     setCurrentStep(1);
     setShowSuccess(false);
   };
@@ -221,7 +221,7 @@ export default function AppointmentPage() {
       formDataToSend.append("service_id", formData.service_id);
       formDataToSend.append("date", formData.preferredDate);
       formDataToSend.append("time", formData.preferredTime);
-      formDataToSend.append("name", displayName); // ✅ Use smart name
+      formDataToSend.append("name", displayName); 
       formDataToSend.append("email", formData.email || user?.email);
       formDataToSend.append("contactNumber", formData.phone);
       formDataToSend.append("address", formData.address);

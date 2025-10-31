@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import HeroBanner from "@/components/section/HeroBanner";
 import toast from "react-hot-toast";
 import api from "@/api/api"; // Axios instance
@@ -33,6 +33,9 @@ export default function DocumentRequestPage() {
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const [user, setUser] = useState(null);
+    const [loadingUser, setLoadingUser] = useState(true);
+
     const handleChange = (e) => {
         const { name, value, checked } = e.target;
 
@@ -48,6 +51,30 @@ export default function DocumentRequestPage() {
             setFormData((prev) => ({ ...prev, [name]: value }));
         }
     };
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const { data } = await api.get("/auth/check-auth"); // ✅ fixed endpoint
+                if (data?.user) {
+                    setUser(data.user);
+                    // ✅ Auto-fill if user is logged in
+                    setFormData((prev) => ({
+                        ...prev,
+                        fullName: data.user.name || "",
+                        email: data.user.email || "",
+                        phone: data.user.phone || "",
+                        address: data.user.location || "",
+                    }));
+                }
+            } catch {
+                // not logged in — just skip
+            } finally {
+                setLoadingUser(false);
+            }
+        };
+        fetchUser();
+    }, []);
 
     /* ======================================================
        SIMPLE VALIDATION
