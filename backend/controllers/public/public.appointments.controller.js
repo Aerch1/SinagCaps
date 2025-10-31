@@ -1,6 +1,19 @@
 import pool from "../../config/db.js";
 import { sendAppointmentCreatedEmail } from "../../utils/appointmentEmails.js";
+import fs from "fs/promises";
 import { createNotification } from "../../utils/createNotification.js";
+import { v2 as cloudinary } from "cloudinary"; // ✅ add this import
+import dotenv from "dotenv";
+dotenv.config();
+
+/* ==================================================
+   CLOUDINARY CONFIG
+================================================== */
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 /* ==================================================
    CREATE Public Appointment (Default, Baptism, Kumpil)
@@ -35,6 +48,10 @@ export async function createPublicAppointment(req, res) {
       baptizedOn,
     } = req.body;
 
+    // ✅ NEW: Handle uploaded files (multer middleware required)
+    // Expect: req.files = [{ path: 'temp/path/to/file1' }, { path: 'temp/path/to/file2' }]
+    const uploadedFiles = req.files || [];
+
     if (
       !service_id ||
       !name ||
@@ -44,12 +61,10 @@ export async function createPublicAppointment(req, res) {
       !date ||
       !time
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Missing required fields for appointment.",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields for appointment.",
+      });
     }
 
     const userId = req.user?.id || null;
@@ -150,12 +165,10 @@ export async function createPublicAppointment(req, res) {
     const slotLimit = slotRules?.[0]?.slots || 0;
     if (slotLimit > 0 && booked >= slotLimit) {
       await conn.rollback();
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "This schedule is already fully booked.",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "This schedule is already fully booked.",
+      });
     }
 
     // -------------------------------
@@ -232,12 +245,10 @@ export async function createPublicAppointment(req, res) {
         !baptizedOn
       ) {
         await conn.rollback();
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Missing required confirmation fields.",
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Missing required confirmation fields.",
+        });
       }
 
       const [confResult] = await conn.execute(
@@ -265,6 +276,30 @@ export async function createPublicAppointment(req, res) {
              VALUES (?, ?, ?, ?)`,
             [confirmationId, s.role, s.name, s.address || ""]
           );
+        }
+      }
+    }
+
+    // After the uploadedFiles loop, add:
+    if (uploadedFiles.length > 0) {
+      for (const file of uploadedFiles) {
+        try {
+          const result = await cloudinary.uploader.upload(file.path, {
+            folder: `appointments/${appointmentId}/documents`,
+          });
+
+          await conn.execute(
+            `INSERT INTO appointment_documents (appointment_id, url)
+         VALUES (?, ?)`,
+            [appointmentId, result.secure_url]
+          );
+
+          // ✅ ADD THIS: Clean up temporary file
+          await fs
+            .unlink(file.path)
+            .catch((err) => console.error("File cleanup failed:", err));
+        } catch (uploadErr) {
+          console.error("Cloudinary upload failed:", uploadErr);
         }
       }
     }

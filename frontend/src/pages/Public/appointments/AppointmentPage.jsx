@@ -25,7 +25,11 @@ export default function AppointmentPage() {
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [services, setServices] = useState([]); // <-- LIFTED STATE
+  const [services, setServices] = useState([]);
+
+  // ✅ NEW: File upload state
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+
   const validatorsRef = useRef({});
 
   const registerValidator = (step, fn) => (validatorsRef.current[step] = fn);
@@ -70,7 +74,7 @@ export default function AppointmentPage() {
       const savedData = JSON.parse(localStorage.getItem(dataKey) || "{}");
 
       try {
-        const validIds = services.map((s) => s.id); // <-- use lifted services
+        const validIds = services.map((s) => s.id);
         if (!savedData.service_id || !validIds.includes(savedData.service_id)) {
           localStorage.removeItem(dataKey);
           localStorage.removeItem(stepKey);
@@ -106,6 +110,7 @@ export default function AppointmentPage() {
     if (showSuccess) {
       resetStorage(formData.formType);
       localStorage.removeItem("appointment_activeType");
+      setUploadedFiles([]); // ✅ Clear files on success
     }
   }, [showSuccess]);
 
@@ -117,9 +122,9 @@ export default function AppointmentPage() {
     const prevService = prevTypeRef.current;
     const currentService = formData.service_id;
 
-    // Only reset if the service changed AND the new service has a formType
     if (prevService && prevService !== currentService && formData.formType) {
       resetStorage(prevService);
+      setUploadedFiles([]); // ✅ Clear files when switching service
       setFormData(prev => ({
         ...prev,
         preferredDate: "",
@@ -129,7 +134,7 @@ export default function AppointmentPage() {
         serviceName: formData.serviceName,
         formType: formData.formType || "default"
       }));
-      setCurrentStep(2); // Keep in Step 2
+      setCurrentStep(2);
     }
 
     prevTypeRef.current = currentService;
@@ -173,6 +178,7 @@ export default function AppointmentPage() {
     resetStorage(formData.formType);
     setFormData({});
     setFormErrors({});
+    setUploadedFiles([]); // ✅ Clear files
     setCurrentStep(1);
     setShowSuccess(false);
   };
@@ -185,44 +191,56 @@ export default function AppointmentPage() {
     const toastId = toast.loading("Submitting your appointment request...");
 
     try {
-      const payload = {
-        service_id: formData.service_id,
-        date: formData.preferredDate,
-        time: formData.preferredTime,
-        name:
-          user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest",
-        email: formData.email || user?.email,
-        contactNumber: formData.phone,
-        address: formData.address,
-        notes: formData.notes || formData.additionalNotes || null,
-      };
+      // ✅ NEW: Use FormData instead of JSON
+      const formDataToSend = new FormData();
 
+      // Add basic fields
+      formDataToSend.append("service_id", formData.service_id);
+      formDataToSend.append("date", formData.preferredDate);
+      formDataToSend.append("time", formData.preferredTime);
+      formDataToSend.append(
+        "name",
+        user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest"
+      );
+      formDataToSend.append("email", formData.email || user?.email);
+      formDataToSend.append("contactNumber", formData.phone);
+      formDataToSend.append("address", formData.address);
+      formDataToSend.append("notes", formData.notes || formData.additionalNotes || "");
+
+      // ✅ Add baptism fields if applicable
       if (formData.formType === "baptism") {
-        Object.assign(payload, {
-          childFullName: formData.childFullName,
-          childDob: formData.childDob,
-          childBirthplace: formData.childBirthplace,
-          fatherName: formData.fatherName,
-          motherMaidenName: formData.motherMaidenName,
-          parentsMarriageType: formData.parentsMarriageType,
-          sponsors: formData.sponsors || [],
-        });
+        formDataToSend.append("childFullName", formData.childFullName);
+        formDataToSend.append("childDob", formData.childDob);
+        formDataToSend.append("childBirthplace", formData.childBirthplace);
+        formDataToSend.append("fatherName", formData.fatherName);
+        formDataToSend.append("motherMaidenName", formData.motherMaidenName);
+        formDataToSend.append("parentsMarriageType", formData.parentsMarriageType);
+        formDataToSend.append("sponsors", JSON.stringify(formData.sponsors || []));
       }
 
+      // ✅ Add confirmation fields if applicable
       if (formData.formType === "confirmation") {
-        Object.assign(payload, {
-          confirmandName: formData.confirmandName,
-          age: formData.age,
-          fatherName: formData.fatherName,
-          motherMaidenName: formData.motherMaidenName,
-          parishOrigin: formData.parishOrigin,
-          baptizedAt: formData.baptizedAt,
-          baptizedOn: formData.baptizedOn,
-          sponsors: formData.sponsors || [],
-        });
+        formDataToSend.append("confirmandName", formData.confirmandName);
+        formDataToSend.append("age", formData.age);
+        formDataToSend.append("fatherName", formData.fatherName);
+        formDataToSend.append("motherMaidenName", formData.motherMaidenName);
+        formDataToSend.append("parishOrigin", formData.parishOrigin);
+        formDataToSend.append("baptizedAt", formData.baptizedAt);
+        formDataToSend.append("baptizedOn", formData.baptizedOn);
+        formDataToSend.append("sponsors", JSON.stringify(formData.sponsors || []));
       }
 
-      const { data } = await api.post("/appointments", payload);
+      // ✅ NEW: Append files
+      uploadedFiles.forEach((file) => {
+        formDataToSend.append("files", file);
+      });
+
+      const { data } = await api.post("/appointments", formDataToSend, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
       setFormData((prev) => ({
         ...prev,
         appointmentId: data.appointmentId,
@@ -259,7 +277,7 @@ export default function AppointmentPage() {
             formData={formData}
             setFormData={setFormData}
             formErrors={formErrors}
-            services={services} // <-- pass services
+            services={services}
           />
         );
       case 2:
@@ -268,7 +286,7 @@ export default function AppointmentPage() {
             formData={formData}
             setFormData={setFormData}
             formErrors={formErrors}
-            services={services} // <-- pass services
+            services={services}
           />
         );
       case 3:
@@ -278,6 +296,9 @@ export default function AppointmentPage() {
             setFormData={setFormData}
             registerValidator={registerValidator}
             formErrors={formErrors}
+            // ✅ NEW: Pass file upload props
+            uploadedFiles={uploadedFiles}
+            setUploadedFiles={setUploadedFiles}
           />
         );
       case 4:
@@ -288,6 +309,8 @@ export default function AppointmentPage() {
             showSuccess={showSuccess}
             onSuccess={setShowSuccess}
             resetForm={resetForm}
+            // ✅ NEW: Pass files for review
+            uploadedFiles={uploadedFiles}
           />
         );
       default:

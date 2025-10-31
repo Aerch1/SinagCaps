@@ -2,12 +2,15 @@
 
 import { useMemo } from "react";
 import { getFormComponent } from "../../../../forms/index.js";
+import FileUpload from "../../../../forms/FileUpload.jsx"; // ✅ Import
 
 export default function Step3Forms({
     formData,
     setFormData,
     registerValidator,
     formErrors = {},
+    uploadedFiles,      // ✅ NEW: Receive from parent
+    setUploadedFiles,   // ✅ NEW: Receive from parent
 }) {
     // Dynamically select the form component (BaptismForm, DefaultForm, etc.)
     const FormComponent = useMemo(
@@ -26,6 +29,7 @@ export default function Step3Forms({
 
     return (
         <div className="space-y-6">
+            {/* Form-specific fields */}
             <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
                 <div className="p-4 sm:p-6 lg:p-8">
                     <FormComponent
@@ -37,6 +41,13 @@ export default function Step3Forms({
                 </div>
             </div>
 
+            {/* ✅ NEW: File Upload Section */}
+            <FileUpload
+                uploadedFiles={uploadedFiles}
+                setUploadedFiles={setUploadedFiles}
+            />
+
+            {/* Warning message */}
             <p className="text-xs sm:text-sm text-gray-600 px-2 sm:px-4">
                 ⚠️ All information will be validated by the parish office. Incomplete or incorrect
                 details may cause delays or rejection.

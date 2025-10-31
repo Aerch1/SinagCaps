@@ -8,6 +8,9 @@ import {
   User,
   Mail,
   Clock,
+  Image,
+  File,
+  Paperclip, // ✅ NEW: Icon for files section
 } from "lucide-react";
 
 /* ---------- Labels ---------- */
@@ -58,6 +61,7 @@ export default function Step4ReviewSubmit({
   showSuccess,
   onSuccess,
   resetForm,
+  uploadedFiles, // ✅ NEW: Receive uploaded files
 }) {
   const navigate = useNavigate();
 
@@ -98,6 +102,26 @@ export default function Step4ReviewSubmit({
     if (Array.isArray(value)) return value.join(", ");
     if (typeof value === "object") return JSON.stringify(value);
     return String(value);
+  };
+
+  /* ✅ NEW: Helper function to get file icon */
+  const getFileIcon = (file) => {
+    if (file.type.startsWith("image/")) {
+      return <Image className="w-4 h-4 text-blue-500" />;
+    } else if (file.type === "application/pdf") {
+      return <FileText className="w-4 h-4 text-red-500" />;
+    } else {
+      return <File className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  /* ✅ NEW: Helper function to format file size */
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
   /* ---------- Group fields ---------- */
@@ -239,6 +263,33 @@ export default function Step4ReviewSubmit({
             </div>
           );
         })}
+
+        {/* ✅ NEW: Uploaded Files Section */}
+        {uploadedFiles && uploadedFiles.length > 0 && (
+          <div className="bg-white rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 px-4 py-2 border-b bg-gray-50">
+              <Paperclip className="w-4 h-4 text-gray-500" />
+              <h4 className="text-sm font-medium text-gray-800">
+                Uploaded Documents ({uploadedFiles.length})
+              </h4>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {uploadedFiles.map((file, idx) => (
+                <div key={idx} className="px-4 py-3 flex items-center gap-3">
+                  <div className="flex-shrink-0">{getFileIcon(file)}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {file.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {formatFileSize(file.size)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-600">
@@ -298,3 +349,7 @@ export default function Step4ReviewSubmit({
     </div>
   );
 }
+
+
+
+
