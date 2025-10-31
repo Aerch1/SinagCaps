@@ -23,6 +23,8 @@ import ProcessModal from "../ProcessModal";
 import RejectCancelModal from "./RejectCancelModal";
 import RescheduleModal from "./RescheduleModal";
 import DocumentsSection from "../DocumentsSection";
+import ApproveConfirmationModal from "./ApproveConfirmationModal.jsx";
+import { fetchRequirementsProgress } from "../../../utils/requirementsUtils.js";
 
 /* ---------- Label + Value helpers ---------- */
 function formatLabel(key) {
@@ -69,8 +71,8 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false); // ✅ NEW
   const [documents, setDocuments] = useState([]);
-
 
   // Update the fetch details useEffect to include documents
   useEffect(() => {
@@ -96,13 +98,12 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
           sponsors: res.data?.sponsors || [],
         });
 
-        // ✅ NEW: Fetch documents
+        // ✅ Fetch documents
         setDocuments(res.data?.documents || []);
 
-        const reqRes = await api.get(`/admin/appointments/${appointmentId}/requirements`);
-        const reqs = reqRes.data?.requirements || [];
-        const done = reqs.filter((r) => r.completed).length;
-        setReqProgress({ done, total: reqs.length });
+        // ✅ Fetch requirements using utility function
+        const progress = await fetchRequirementsProgress(appointmentId);
+        setReqProgress(progress);
       } catch (err) {
         console.error("❌ Failed to fetch appointment details:", err);
       } finally {
@@ -112,7 +113,11 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
     fetchDetails();
   }, [isOpen, appointmentId]);
 
-  /* 🔹 Handle status update */
+  /* 🔹 Handle approve click - show confirmation modal */
+  const handleApproveClick = () => {
+    setShowApproveConfirm(true);
+  };
+
   /* 🔹 Handle status update */
   const handleStatusChange = async (newStatus) => {
     if (!appointmentId) return;
@@ -146,7 +151,6 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
     }
   };
 
-
   /* 🔹 Trigger modal with panel hide */
   const triggerWithHide = (modalSetter) => {
     setHidePanel(true);
@@ -179,7 +183,6 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
   const status = local?.status?.toLowerCase();
   const isAdminCreated = local?.createdBy === "admin" || local?.role === "admin";
   console.log("🕒 Appointment:", local?.date, local?.time);
-
 
   /* ---------- RENDER ---------- */
   return (
@@ -395,25 +398,29 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
               <footer className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-lg">
                 {/* Left Side: Mark Completed */}
                 <div>
-                  {local?.status?.toLowerCase() === "approved" && local?.date && local?.time && (() => {
-                    const now = new Date();
-                    const datePart = local.date.split("T")[0];
-                    let apptDateTime = new Date(`${datePart}T${local.time}`);
-                    if (isNaN(apptDateTime)) apptDateTime = new Date(`${datePart} ${local.time}`);
-                    const isPast = now > apptDateTime;
+                  {local?.status?.toLowerCase() === "approved" &&
+                    local?.date &&
+                    local?.time &&
+                    (() => {
+                      const now = new Date();
+                      const datePart = local.date.split("T")[0];
+                      let apptDateTime = new Date(`${datePart}T${local.time}`);
+                      if (isNaN(apptDateTime))
+                        apptDateTime = new Date(`${datePart} ${local.time}`);
+                      const isPast = now > apptDateTime;
 
-                    if (isPast) {
-                      return (
-                        <button
-                          onClick={() => handleStatusChange("completed")}
-                          className="px-3 py-2 text-sm rounded-md border border-green-600 text-green-700 hover:bg-green-50 flex items-center gap-1"
-                        >
-                          <Check className="w-4 h-4" /> Mark Completed
-                        </button>
-                      );
-                    }
-                    return null;
-                  })()}
+                      if (isPast) {
+                        return (
+                          <button
+                            onClick={() => handleStatusChange("completed")}
+                            className="px-3 py-2 text-sm rounded-md border border-green-600 text-green-700 hover:bg-green-50 flex items-center gap-1"
+                          >
+                            <Check className="w-4 h-4" /> Mark Completed
+                          </button>
+                        );
+                      }
+                      return null;
+                    })()}
                 </div>
 
                 {/* Right Side: Other Actions */}
@@ -421,7 +428,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
                   {status === "pending" && (
                     <>
                       <button
-                        onClick={() => handleStatusChange("approved")}
+                        onClick={handleApproveClick} // ✅ Changed to show confirmation
                         className="px-3 py-2 text-sm rounded-md border border-green-500 text-green-600 hover:bg-green-50 flex items-center gap-1"
                       >
                         <Check className="w-4 h-4" /> Approve
@@ -466,6 +473,16 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
         </aside>
       )}
 
+      {/* ✅ NEW: Approve Confirmation Modal */}
+      <ApproveConfirmationModal
+        open={showApproveConfirm}
+        onClose={() => setShowApproveConfirm(false)}
+        onConfirm={() => {
+          setShowApproveConfirm(false);
+          handleStatusChange("approved");
+        }}
+        requirementsProgress={reqProgress}
+      />
 
       {/* 🔹 MODALS */}
       <RescheduleModal
@@ -523,23 +540,19 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
           appointment={local}
           onClose={async () => {
             try {
-              const reqRes = await api.get(
-                `/admin/appointments/${appointmentId}/requirements`
-              );
-              const reqs = reqRes.data?.requirements || [];
-              const done = reqs.filter((r) => r.completed).length;
-              setReqProgress({ done, total: reqs.length });
-            } catch { }
+              // ✅ Refresh requirements progress using utility function
+              const progress = await fetchRequirementsProgress(appointmentId);
+              setReqProgress(progress);
+            } catch (err) {
+              console.error("Failed to refresh requirements:", err);
+            }
             setShowProcess(false);
             setHidePanel(false);
           }}
           onSave={async () => {
-            const reqRes = await api.get(
-              `/admin/appointments/${appointmentId}/requirements`
-            );
-            const reqs = reqRes.data?.requirements || [];
-            const done = reqs.filter((r) => r.completed).length;
-            setReqProgress({ done, total: reqs.length });
+            // ✅ Refresh requirements progress using utility function
+            const progress = await fetchRequirementsProgress(appointmentId);
+            setReqProgress(progress);
           }}
           onComplete={() => {
             setShowProcess(false);
