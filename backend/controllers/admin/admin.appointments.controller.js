@@ -450,6 +450,11 @@ export const updateAppointmentAdmin = async (req, res) => {
    GET /api/admin/appointments/:id
    ✅ Ensure was_rescheduled returned to frontend
 ======================================================= */
+/* =======================================================
+   GET /api/admin/appointments/:id
+   ✅ Ensure was_rescheduled returned to frontend
+   ✅ Added documents fetching
+======================================================= */
 export const getAppointmentById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -538,7 +543,22 @@ export const getAppointmentById = async (req, res) => {
       }
     }
 
-    return res.json({ success: true, appointment: appt, details, sponsors });
+    // ✅ NEW: Fetch uploaded documents
+    const [documents] = await pool.execute(
+      `SELECT id, url 
+       FROM appointment_documents 
+       WHERE appointment_id = ? 
+       ORDER BY id ASC`,
+      [id]
+    );
+
+    return res.json({
+      success: true,
+      appointment: appt,
+      details,
+      sponsors,
+      documents, // ✅ included in response
+    });
   } catch (err) {
     console.error("❌ getAppointmentById error:", err);
     res
@@ -546,6 +566,7 @@ export const getAppointmentById = async (req, res) => {
       .json({ success: false, message: "Failed to fetch appointment" });
   }
 };
+
 /* =======================================================
    GET /api/admin/appointments
    - auto-complete old approved

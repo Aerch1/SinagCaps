@@ -22,6 +22,7 @@ import { statusClass } from "@/lib/utils";
 import ProcessModal from "../ProcessModal";
 import RejectCancelModal from "./RejectCancelModal";
 import RescheduleModal from "./RescheduleModal";
+import DocumentsSection from "../DocumentsSection";
 
 /* ---------- Label + Value helpers ---------- */
 function formatLabel(key) {
@@ -68,8 +69,10 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [documents, setDocuments] = useState([]);
 
-  /* 🔹 Fetch details */
+
+  // Update the fetch details useEffect to include documents
   useEffect(() => {
     if (!isOpen || !appointmentId) return;
     const fetchDetails = async () => {
@@ -92,6 +95,9 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
           details: res.data?.details || null,
           sponsors: res.data?.sponsors || [],
         });
+
+        // ✅ NEW: Fetch documents
+        setDocuments(res.data?.documents || []);
 
         const reqRes = await api.get(`/admin/appointments/${appointmentId}/requirements`);
         const reqs = reqRes.data?.requirements || [];
@@ -348,6 +354,8 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
                     </div>
                   </div>
                 </section>
+
+                <DocumentsSection documents={documents} />
 
                 {/* CONTACT INFO */}
                 <section className="bg-white rounded-xl border p-5">
