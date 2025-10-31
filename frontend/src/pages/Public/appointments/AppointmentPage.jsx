@@ -200,8 +200,12 @@ export default function AppointmentPage() {
       formDataToSend.append("time", formData.preferredTime);
       formDataToSend.append(
         "name",
-        user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest"
+        formData.name || user?.fullName || user?.name || "Guest"
       );
+      // formDataToSend.append(
+      //   "name",
+      //   user?.fullName || user?.name || user?.email?.split("@")[0] || "Guest"
+      // );
       formDataToSend.append("email", formData.email || user?.email);
       formDataToSend.append("contactNumber", formData.phone);
       formDataToSend.append("address", formData.address);
