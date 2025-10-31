@@ -214,7 +214,8 @@ async function ensureSchema(conn) {
       INDEX idx_service (service_id, date, time, status)
     )
   `);
-await conn.execute(`CREATE TABLE IF EXISTS appointment_documents`)
+  await conn.execute(` DROP TABLE IF EXISTS appointment_documents`);
+
   await conn.execute(`
     CREATE TABLE appointment_documents (
      id INT AUTO_INCREMENT PRIMARY KEY,
