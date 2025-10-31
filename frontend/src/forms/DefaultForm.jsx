@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { parseISO, format } from "date-fns";
 import { User, Mail, Phone, MapPin, FileText } from "lucide-react";
 import Input from "../components/ui/Input";
-
+import api from "@/api/api"; // ✅ make sure this import exists
 const Req = () => <span className="text-red-500 ml-0.5">*</span>;
 
 export default function DefaultForm({
@@ -18,6 +18,36 @@ export default function DefaultForm({
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+
+  const [loadingUser, setLoadingUser] = useState(true);
+
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { data } = await api.get("/auth/check-auth"); // ✅ correct endpoint
+        if (data?.user) {
+          // ✅ Auto-fill only if logged in
+          setFormData((prev) => ({
+            ...prev,
+            firstName: data.user.name?.split(" ")[0] || "",
+            lastName: data.user.name?.split(" ").slice(1).join(" ") || "",
+            email: data.user.email || "",
+            phone: data.user.phone || "",
+            address: data.user.location || "",
+          }));
+        }
+      } catch {
+        // Not logged in — do nothing, keep blank
+      } finally {
+        setLoadingUser(false);
+      }
+    };
+
+    fetchUser();
+  }, [setFormData]);
+
 
   /* =====================================================
      ✅ Validation (Smooth scroll + highlight)
