@@ -1,9 +1,7 @@
-// src/pages/Public/appointments/AppointmentTerms.jsx
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuthStore } from "../../../store/authStore.js";
 import HeroBanner from "../../../components/section/HeroBanner.jsx";
 import toast from "react-hot-toast";
 
@@ -11,20 +9,12 @@ const HERO_IMG = "/forgot.jpg";
 
 export default function AppointmentTerms() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuthStore();
   const [agreed, setAgreed] = useState(false);
   const [showAgreeModal, setShowAgreeModal] = useState(false);
 
   const proceedCore = useCallback(() => {
-    if (!isAuthenticated) {
-      navigate("/services/appointments/book");
-    } else {
-      toast.error("Please login your account first.");
-      setTimeout(() => {
-        navigate("/login", { replace: true, state: { from: "/services/appointments/book" } });
-      }, 1200);
-    }
-  }, [isAuthenticated, navigate]);
+    navigate("/services/appointments/book");
+  }, [navigate]);
 
   const handleProceed = () => {
     if (!agreed) {
@@ -54,7 +44,7 @@ export default function AppointmentTerms() {
       <HeroBanner title="Appointment Terms & Conditions" imageSrc={HERO_IMG} />
 
       <div className="max-w-3xl mx-auto px-6 lg:px-8 py-12">
-        {/* Reminder (simple paragraph) */}
+        {/* Reminder */}
         <section className="border-l-4 border-red-500 pl-4 mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Reminder</h2>
           <p className="text-sm text-gray-700 leading-6">
@@ -65,7 +55,7 @@ export default function AppointmentTerms() {
           </p>
         </section>
 
-        {/* Terms & Conditions (all paragraphs, no bullets or per-item titles) */}
+        {/* Terms & Conditions */}
         <section>
           <h3 className="text-center text-2xl font-semibold text-gray-900">TERMS AND CONDITIONS</h3>
 
@@ -131,7 +121,7 @@ export default function AppointmentTerms() {
         </section>
       </div>
 
-      {/* Simple Agree Modal (also paragraph-only) */}
+      {/* Simple Agree Modal */}
       {showAgreeModal && (
         <div
           className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-[1px] grid place-items-center px-4"
