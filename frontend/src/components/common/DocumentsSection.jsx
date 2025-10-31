@@ -30,18 +30,26 @@ export default function DocumentsSection({ documents }) {
         setShowViewer(true);
     };
 
+    const getDownloadUrl = (url) => {
+        if (!url) return "";
+        const parts = url.split("/upload/");
+        if (parts.length !== 2) return url;
+        return `${parts[0]}/upload/fl_attachment/${parts[1]}`;
+    };
+
+
     return (
         <>
             <section className="bg-white rounded-xl border p-5">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase mb-4 flex items-center gap-2">
                     <div className="w-1 h-4 bg-orange-500 rounded-full" />
-                    Uploaded Documents ({documents?.length || 0})
+                    Uploaded Documents
                 </h4>
 
                 {(!documents || documents.length === 0) ? (
                     <p className="text-sm text-gray-500 italic">No documents uploaded.</p>
                 ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
                         {documents.map((doc, idx) => (
                             <div
                                 key={idx}
@@ -71,7 +79,7 @@ export default function DocumentsSection({ documents }) {
                                     </button>
 
                                     <a
-                                        href={doc.url}
+                                        href={getDownloadUrl(doc.url)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         download

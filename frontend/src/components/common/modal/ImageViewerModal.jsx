@@ -55,6 +55,16 @@ export default function ImageViewerModal({ isOpen, onClose, documents, initialIn
         return decodeURIComponent(filename);
     };
 
+
+    // ✅ Cloudinary-safe download URL
+    const getDownloadUrl = (url) => {
+        if (!url) return "";
+        const parts = url.split("/upload/");
+        if (parts.length !== 2) return url;
+        return `${parts[0]}/upload/fl_attachment/${parts[1]}`;
+    };
+
+
     return (
         <div
             className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95"
@@ -74,12 +84,9 @@ export default function ImageViewerModal({ isOpen, onClose, documents, initialIn
             >
                 <X className="w-6 h-6" />
             </button>
-
-            {/* Download Button */}
+                  {/* Download Button */}
             <a
-                href={currentDoc.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={getDownloadUrl(currentDoc.url)} // ✅ uses Cloudinary download format
                 download
                 className="absolute top-4 right-20 z-50 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
             >
@@ -171,11 +178,10 @@ export default function ImageViewerModal({ isOpen, onClose, documents, initialIn
                                 <button
                                     key={idx}
                                     onClick={() => setCurrentIndex(idx)}
-                                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                                        idx === currentIndex
+                                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === currentIndex
                                             ? "border-white scale-110"
                                             : "border-white/30 opacity-60 hover:opacity-100"
-                                    }`}
+                                        }`}
                                 >
                                     {isThumbImage ? (
                                         <img
