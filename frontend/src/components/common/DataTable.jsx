@@ -21,6 +21,7 @@ import ViewAppointmentModal from "../common/modal/ViewAppointmentModal.jsx";
 import RejectCancelModal from "../common/modal/RejectCancelModal.jsx";
 import RescheduleModal from "../common/modal/RescheduleModal.jsx";
 import AppointmentExportModal from "./modal/AppointmentExportModal.jsx";
+import ApproveConfirmationModal from "../common/modal/ApproveConfirmationModal.jsx"; // ✅ NEW
 import {
     statusClass,
     formatDate,
@@ -30,6 +31,7 @@ import {
 } from "../../lib/utils.js";
 import toast from "react-hot-toast";
 import api from "@/api/api";
+import { fetchRequirementsProgress } from "../../utils/requirementsUtils.js"; // ✅ NEW
 
 export default function DataTable({
     manageHref = "/admin/appointments",
@@ -59,6 +61,11 @@ export default function DataTable({
     const [showRescheduleModal, setShowRescheduleModal] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState(null);
     const [viewingId, setViewingId] = useState(null);
+
+    // ✅ NEW: Approval confirmation states
+    const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+    const [pendingApproval, setPendingApproval] = useState(null);
+    const [approveReqProgress, setApproveReqProgress] = useState({ done: 0, total: 0 });
 
     const [showRangeKey, setShowRangeKey] = useState("all");
     const [{ startDate, endDate }, setRange] = useState({
@@ -189,6 +196,21 @@ export default function DataTable({
         );
     };
 
+    /* ✅ NEW: Handle Approve Click - Fetch Requirements First */
+    const handleApproveClick = async (row) => {
+        try {
+            // Fetch requirements progress before showing confirmation
+            const progress = await fetchRequirementsProgress(row.id);
+
+            setApproveReqProgress(progress);
+            setPendingApproval(row);
+            setShowApproveConfirm(true);
+        } catch (err) {
+            console.error("Failed to fetch requirements:", err);
+            toast.error("Failed to check requirements");
+        }
+    };
+
     /* ---------------- Status Change ---------------- */
     const handleStatusChange = async (r, newStatus) => {
         const oldStatus = r.status;
@@ -235,7 +257,7 @@ export default function DataTable({
                 {status === "pending" && (
                     <>
                         <button
-                            onClick={() => handleStatusChange(r, "approved")}
+                            onClick={() => handleApproveClick(r)} // ✅ Changed to show confirmation
                             className="inline-flex items-center gap-1 px-2 py-1 border border-gray-300 text-green-600 rounded-md hover:bg-green-50 text-xs"
                         >
                             <Check className="h-3.5 w-3.5" />
@@ -478,7 +500,6 @@ export default function DataTable({
                 {/* Table */}
                 <div className="flex-1 overflow-x-auto custom-scrollbar">
                     <table className="w-full min-w-full md:min-w-0 divide-y divide-gray-200 text-xs md:text-sm table-auto md:table-fixed">
-
                         <thead className="bg-gray-50">
                             <tr>
                                 <th
@@ -624,6 +645,23 @@ export default function DataTable({
                     </div>
                 )}
             </div>
+
+            {/* ✅ NEW: Approve Confirmation Modal */}
+            <ApproveConfirmationModal
+                open={showApproveConfirm}
+                onClose={() => {
+                    setShowApproveConfirm(false);
+                    setPendingApproval(null);
+                }}
+                onConfirm={() => {
+                    setShowApproveConfirm(false);
+                    if (pendingApproval) {
+                        handleStatusChange(pendingApproval, "approved");
+                    }
+                    setPendingApproval(null);
+                }}
+                requirementsProgress={approveReqProgress}
+            />
 
             <AppointmentExportModal
                 open={showExportModal}
