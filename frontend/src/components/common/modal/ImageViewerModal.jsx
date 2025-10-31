@@ -135,41 +135,44 @@ export default function ImageViewerModal({ isOpen, onClose, documents, initialIn
                 </AnimatePresence>
             </div>
 
-            {/* Filename Display */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-xl px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm font-medium text-center truncate">
-                {getFileName(currentDoc.url)}
-            </div>
-
-            {/* Thumbnail Strip */}
-            {documents.length > 1 && (
-                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-50 flex gap-2 max-w-screen-lg overflow-x-auto p-2 bg-white/5 backdrop-blur-sm rounded-lg">
-                    {documents.map((doc, idx) => {
-                        const isThumbImage = doc.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => setCurrentIndex(idx)}
-                                className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === currentIndex
-                                    ? "border-white scale-110"
-                                    : "border-white/30 opacity-60 hover:opacity-100"
-                                    }`}
-                            >
-                                {isThumbImage ? (
-                                    <img
-                                        src={doc.url}
-                                        alt={`Thumbnail ${idx + 1}`}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full bg-gray-700 flex items-center justify-center">
-                                        <FileText className="w-6 h-6 text-gray-400" />
-                                    </div>
-                                )}
-                            </button>
-                        );
-                    })}
+            {/* Bottom Controls: Filename + Thumbnails */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 max-w-full px-4">
+                {/* Filename Display */}
+                <div className="max-w-xl px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm font-medium text-center truncate">
+                    {getFileName(currentDoc.url)}
                 </div>
-            )}
+
+                {/* Thumbnail Strip */}
+                {documents.length > 1 && (
+                    <div className="flex gap-2 max-w-screen-lg overflow-x-auto p-2 bg-white/5 backdrop-blur-sm rounded-lg">
+                        {documents.map((doc, idx) => {
+                            const isThumbImage = doc.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                            return (
+                                <button
+                                    key={idx}
+                                    onClick={() => setCurrentIndex(idx)}
+                                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === currentIndex
+                                        ? "border-white scale-110"
+                                        : "border-white/30 opacity-60 hover:opacity-100"
+                                        }`}
+                                >
+                                    {isThumbImage ? (
+                                        <img
+                                            src={doc.url}
+                                            alt={`Thumbnail ${idx + 1}`}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                                            <FileText className="w-6 h-6 text-gray-400" />
+                                        </div>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
