@@ -7,6 +7,7 @@ import ImageViewerModal from "./modal/ImageViewerModal";
 export default function DocumentsSection({ documents }) {
     const [showViewer, setShowViewer] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const [hoveredImage, setHoveredImage] = useState(null);
 
     const getFileIcon = (url) => {
         if (!url) return <File className="w-4 h-4 text-gray-500" />;
@@ -17,6 +18,10 @@ export default function DocumentsSection({ documents }) {
         } else {
             return <File className="w-4 h-4 text-gray-500" />;
         }
+    };
+
+    const isImageFile = (url) => {
+        return url && url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
     };
 
     const getFileName = (url) => {
@@ -59,7 +64,6 @@ export default function DocumentsSection({ documents }) {
         document.body.removeChild(link);
     };
 
-
     return (
         <>
             <section className="bg-white rounded-xl border p-5">
@@ -75,7 +79,9 @@ export default function DocumentsSection({ documents }) {
                         {documents.map((doc, idx) => (
                             <div
                                 key={idx}
-                                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors group"
+                                className="relative flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors group"
+                                onMouseEnter={() => isImageFile(doc.url) && setHoveredImage(doc.url)}
+                                onMouseLeave={() => setHoveredImage(null)}
                             >
                                 {/* File Info */}
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -108,6 +114,23 @@ export default function DocumentsSection({ documents }) {
                                         Download
                                     </button>
                                 </div>
+
+                                {/* Hover Preview Tooltip */}
+                                {hoveredImage === doc.url && (
+                                    <div className="absolute left-full top-0 ml-4 z-50 pointer-events-none">
+                                        <div className="bg-white rounded-lg shadow-2xl border-2 border-gray-200 p-2">
+                                            <img
+                                                src={doc.url}
+                                                alt="Preview"
+                                                className="w-64 h-64 object-cover rounded"
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                }}
+                                            />
+                                            <div className="absolute -left-2 top-4 w-4 h-4 bg-white border-l-2 border-t-2 border-gray-200 transform rotate-45" />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
