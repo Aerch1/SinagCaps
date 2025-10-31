@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import api from "@/api/api";
 import toast from "react-hot-toast";
-import { formatDate, to12h } from "@/utils/availabilityUtils";
+import { to12h } from "@/utils/availabilityUtils";
 import { statusClass } from "@/lib/utils";
 import ProcessModal from "../ProcessModal";
 import RejectCancelModal from "./RejectCancelModal";
@@ -47,7 +47,7 @@ function formatLabel(key) {
 
 function formatFieldValue(key, val) {
   if (!val) return "—";
-  if (["childDob", "confirmandDob", "baptizedOn"].includes(key)) return formatDate(val);
+  if (["childDob", "confirmandDob", "baptizedOn"].includes(key)) return formatDateShort(val);
   if (key === "parentsMarriageType") {
     const map = {
       church: "Church Marriage",
@@ -57,6 +57,23 @@ function formatFieldValue(key, val) {
     return map[val] || val;
   }
   return val;
+}
+
+
+
+
+function formatDateShort(dateStr) {
+  if (!dateStr) return "";
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("en-Ph", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
 }
 
 /* ---------- MAIN MODAL ---------- */
@@ -255,9 +272,14 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
                       icon={CalendarClock}
                       label="Date & Time"
                       value={
-                        local?.date
-                          ? `${formatDate(local.date)} · ${to12h(local?.time)}`
-                          : "—"
+                        local?.date && local?.time ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span>{formatDateShort(local.date)}</span>
+                            <span>{to12h(local.time)}</span>
+                          </div>
+                        ) : (
+                          "—"
+                        )
                       }
                     />
                     <Detail icon={Tag} label="Service" value={local?.serviceName} />
