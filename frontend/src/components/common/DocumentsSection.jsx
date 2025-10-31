@@ -32,9 +32,31 @@ export default function DocumentsSection({ documents }) {
 
     const getDownloadUrl = (url) => {
         if (!url) return "";
-        const parts = url.split("/upload/");
-        if (parts.length !== 2) return url;
-        return `${parts[0]}/upload/fl_attachment/${parts[1]}`;
+
+        // For Cloudinary URLs, add fl_attachment flag to force download
+        if (url.includes('cloudinary.com')) {
+            const parts = url.split("/upload/");
+            if (parts.length === 2) {
+                // Add fl_attachment to force download
+                return `${parts[0]}/upload/fl_attachment/${parts[1]}`;
+            }
+        }
+
+        return url;
+    };
+
+    const handleDownload = (doc, idx) => {
+        const downloadUrl = getDownloadUrl(doc.url);
+        const fileName = getFileName(doc.url);
+
+        // Create temporary link and trigger download
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
 
@@ -78,16 +100,13 @@ export default function DocumentsSection({ documents }) {
                                         View
                                     </button>
 
-                                    <a
-                                        href={getDownloadUrl(doc.url)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        download
+                                    <button
+                                        onClick={() => handleDownload(doc, idx)}
                                         className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors flex items-center gap-1"
                                     >
                                         <Download className="w-3.5 h-3.5" />
                                         Download
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
                         ))}
