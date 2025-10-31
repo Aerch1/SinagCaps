@@ -3,9 +3,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import HeroBanner from "../../../components/section/HeroBanner.jsx";
-import toast from "react-hot-toast";
 
-const HERO_IMG = "/forgot.jpg";
+const HERO_IMG = "/bg2.jpg";
 
 export default function AppointmentTerms() {
   const navigate = useNavigate();
