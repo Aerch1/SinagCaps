@@ -7,6 +7,8 @@ import { User, Mail, Phone, MapPin, Info, Plus, Trash2, House } from "lucide-rea
 import Input from "../components/ui/Input.jsx";
 import Dropdown from "../components/ui/Dropdown1.jsx";
 import DateInput from "../components/ui/DateInput.jsx";
+import api from "@/api/api";
+
 
 const RequiredIndicator = () => <span className="text-red-500 ml-1">*</span>;
 const SectionHeader = ({ title, description }) => (
@@ -32,6 +34,33 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
             }));
         }
     }, []);
+
+
+    const [loadingUser, setLoadingUser] = useState(true);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const { data } = await api.get("/auth/check-auth"); // ✅ backend route
+                if (data?.user) {
+                    setFormData((prev) => ({
+                        ...prev,
+                        fatherName: prev.fatherName || data.user.name || "",
+                        email: prev.email || data.user.email || "",
+                        phone: prev.phone || data.user.phone || "",
+                        address: prev.address || data.user.location || "",
+                    }));
+                }
+            } catch {
+                // not logged in — ignore
+            } finally {
+                setLoadingUser(false);
+            }
+        };
+        fetchUser();
+    }, [setFormData]);
+
+
 
     // ---------- Update helpers ----------
     const updateField = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));

@@ -14,6 +14,8 @@ import {
 import Input from "../components/ui/Input.jsx";
 import Dropdown from "../components/ui/Dropdown1.jsx";
 import DateInput from "../components/ui/DateInput.jsx";
+import api from "@/api/api"; // ✅ make sure this exists
+
 
 /* ---------- Small Helpers ---------- */
 const RequiredIndicator = () => <span className="text-red-500 ml-1">*</span>;
@@ -31,6 +33,34 @@ export default function ConfirmationForm({
   formErrors = {},
 }) {
   const firstErrorRef = useRef(null);
+
+
+
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { data } = await api.get("/auth/check-auth"); // ✅ correct endpoint
+        if (data?.user) {
+          // ✅ Auto-fill if user logged in
+          setFormData((prev) => ({
+            ...prev,
+            confirmandName: data.user.name || "",
+            email: data.user.email || "",
+            phone: data.user.phone || "",
+            address: data.user.location || "",
+          }));
+        }
+      } catch {
+        // not logged in — do nothing
+      } finally {
+        setLoadingUser(false);
+      }
+    };
+    fetchUser();
+  }, [setFormData]);
+
 
   /* ---------- Initialize Sponsors ---------- */
   useEffect(() => {
