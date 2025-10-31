@@ -28,12 +28,7 @@ router.get("/appointments", verifyToken, isAdmin, getAppointments);
 router.post("/appointments/filter", verifyToken, isAdmin, filterAppointments);
 router.get("/appointments/today", verifyToken, isAdmin, getTodayAppointments);
 router.post("/appointments", verifyToken, isAdmin, createAppointmentAdmin);
-router.get(
-  "/appointments/conflicts",
-  verifyToken,
-  isAdmin,
-  getAppointmentConflicts
-);
+router.get("/appointments/conflicts", verifyToken, isAdmin, getAppointmentConflicts);
 router.patch("/appointments/:id", verifyToken, isAdmin, updateAppointmentAdmin);
 router.get("/appointments/:id", verifyToken, isAdmin, getAppointmentById);
 
@@ -60,7 +55,7 @@ router.patch(
 );
 
 /* ---------------- Requirement Management ---------------- */
-router.post("/requirements", createRequirement);
+router.post("/requirements", verifyToken, isAdmin, createRequirement);
 router.patch("/requirements/:id", verifyToken, isAdmin, updateRequirement);
 router.delete("/requirements/:id", verifyToken, isAdmin, deleteRequirement);
 

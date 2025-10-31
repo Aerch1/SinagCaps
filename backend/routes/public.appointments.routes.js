@@ -77,7 +77,6 @@ const handleMulterError = (err, req, res, next) => {
 // ✅ Create appointment (with document upload support)
 router.post(
   "/",
-  verifyToken,
   upload.array("files"),
   handleMulterError,
   createPublicAppointment
