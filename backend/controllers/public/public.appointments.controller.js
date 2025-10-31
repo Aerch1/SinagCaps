@@ -66,7 +66,16 @@ export async function createPublicAppointment(req, res) {
       });
     }
 
+    // ✅ ADDED: Debug log to check user authentication during appointment creation
+    console.log("🔐 createPublicAppointment - User:", req.user);
     const userId = req.user?.id || null;
+    console.log(
+      "📝 Creating appointment with user_id:",
+      userId,
+      "for email:",
+      email
+    );
+
     await conn.beginTransaction();
 
     // -------------------------------
@@ -384,25 +393,53 @@ export async function createPublicAppointment(req, res) {
     conn.release();
   }
 }
+
 /* ==================================================
    GET /api/public/appointments/my
    → Get all appointments for the logged-in user
 ================================================== */
 export async function getMyAppointments(req, res) {
   try {
+    // ✅ ADDED: Debug logs to check authentication
+    console.log("🔐 getMyAppointments - Request user:", req.user);
     const userId = req.user?.id;
-    if (!userId) {
+    const userEmail = req.user?.email;
+
+    if (!userId || !userEmail) {
+      console.log("❌ getMyAppointments - Missing user ID or email");
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
+    console.log("🔍 getMyAppointments - Querying for user:", {
+      userId,
+      userEmail,
+    });
+
+    // ✅ UPDATED: Query to find appointments by user_id OR email
     const [rows] = await pool.execute(
       `SELECT a.*, s.name AS serviceName, s.form_type
        FROM appointments a
        JOIN services s ON a.service_id = s.id
-       WHERE a.user_id = ?
+       WHERE a.user_id = ? OR a.email = ?
        ORDER BY a.created_at DESC`,
-      [userId]
+      [userId, userEmail]
     );
+
+    console.log(`📋 getMyAppointments - Found ${rows.length} appointments`);
+
+    // ✅ ADDED: Debug log to show what appointments were found
+    if (rows.length > 0) {
+      console.log(
+        "📊 Appointments found:",
+        rows.map((a) => ({
+          id: a.id,
+          service: a.serviceName,
+          date: a.date,
+          user_id: a.user_id,
+          email: a.email,
+        }))
+      );
+    }
 
     return res.json({
       success: true,
