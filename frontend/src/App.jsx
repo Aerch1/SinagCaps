@@ -109,10 +109,12 @@ function App() {
                   <Route path="/services/appointments/terms" element={<AppointmentTerms />} />
 
                   {/* Public area but requires login (non-admin) */}
+                  {/* Public area - no login required */}
                   <Route
                     path="/services/appointments/book"
-                    element={<PublicAuthOnly><AppointmentPage /></PublicAuthOnly>}
+                    element={<AppointmentPage />}
                   />
+
 
                   {/* Success page (open) */}
                   <Route path="/appointments/success" element={<AppointmentSuccess />} />
