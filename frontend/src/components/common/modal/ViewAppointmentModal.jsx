@@ -386,11 +386,14 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
             )}
           </div>
 
-          {/* FOOTER */}
-          <footer className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-lg">
-            {window.location.href !== "https://lodlod.olpgvp.com/admin/appointments?status=requests" && (
-              <>
-                {/* 🔹 Left Side: Manual "Mark Completed" Button */}
+          {/* FOOTER: Render only if buttons exist */}
+          {window.location.href !== "https://lodlod.olpgvp.com/admin/appointments?status=requests" &&
+            ((status === "pending") ||
+              (status === "approved") ||
+              (status === "completed" && local?.status) ||
+              (local?.status?.toLowerCase() === "approved" && local?.date && local?.time)) && (
+              <footer className="border-t border-gray-200 px-6 py-4 bg-white flex justify-between items-center shadow-lg">
+                {/* Left Side: Mark Completed */}
                 <div>
                   {local?.status?.toLowerCase() === "approved" && local?.date && local?.time && (() => {
                     const now = new Date();
@@ -413,7 +416,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
                   })()}
                 </div>
 
-                {/* 🔹 Right Side: Other Actions */}
+                {/* Right Side: Other Actions */}
                 <div className="flex gap-2">
                   {status === "pending" && (
                     <>
@@ -458,13 +461,11 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
                     </button>
                   )}
                 </div>
-              </>
+              </footer>
             )}
-          </footer>
-
-
         </aside>
       )}
+
 
       {/* 🔹 MODALS */}
       <RescheduleModal
