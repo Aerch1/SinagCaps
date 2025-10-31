@@ -304,6 +304,21 @@ async function ensureSchema(conn) {
     )
   `);
 
+//   await conn.execute(` 
+//   CREATE TABLE IF NOT EXISTS baptism_children (
+//   id INT AUTO_INCREMENT PRIMARY KEY,
+//   baptism_id INT NOT NULL,
+//   childFullName VARCHAR(255) NOT NULL,
+//   childDob DATE NOT NULL,
+//   childBirthplace VARCHAR(255) NOT NULL,
+//   child_order INT DEFAULT 1, -- For twins: 1st child, 2nd child, etc.
+//   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+//   CONSTRAINT fk_baptism_child FOREIGN KEY (baptism_id) 
+//   REFERENCES baptism_details(id) ON DELETE CASCADE
+// );
+//     `)
+
   // ---- Baptism sponsors
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS baptism_sponsors (
