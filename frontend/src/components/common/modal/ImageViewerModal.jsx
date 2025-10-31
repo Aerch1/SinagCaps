@@ -11,6 +11,18 @@ export default function ImageViewerModal({ isOpen, onClose, documents, initialIn
         setCurrentIndex(initialIndex);
     }, [initialIndex]);
 
+    // ✅ Lock body scroll when modal is open
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [isOpen]);
+
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (!isOpen) return;
@@ -44,7 +56,17 @@ export default function ImageViewerModal({ isOpen, onClose, documents, initialIn
     };
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95">
+        <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95"
+            style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                width: "100vw",
+                height: "100vh",
+                overscrollBehavior: "contain",
+            }}
+        >
             {/* Close Button */}
             <button
                 onClick={onClose}
@@ -99,7 +121,7 @@ export default function ImageViewerModal({ isOpen, onClose, documents, initialIn
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.9 }}
                             transition={{ duration: 0.3 }}
-                            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl select-none"
                         />
                     ) : (
                         <motion.div
@@ -137,12 +159,10 @@ export default function ImageViewerModal({ isOpen, onClose, documents, initialIn
 
             {/* Bottom Controls: Filename + Thumbnails */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 max-w-full px-4">
-                {/* Filename Display */}
                 <div className="max-w-xl px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm font-medium text-center truncate">
                     {getFileName(currentDoc.url)}
                 </div>
 
-                {/* Thumbnail Strip */}
                 {documents.length > 1 && (
                     <div className="flex gap-2 max-w-screen-lg overflow-x-auto p-2 bg-white/5 backdrop-blur-sm rounded-lg">
                         {documents.map((doc, idx) => {
@@ -151,10 +171,11 @@ export default function ImageViewerModal({ isOpen, onClose, documents, initialIn
                                 <button
                                     key={idx}
                                     onClick={() => setCurrentIndex(idx)}
-                                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === currentIndex
-                                        ? "border-white scale-110"
-                                        : "border-white/30 opacity-60 hover:opacity-100"
-                                        }`}
+                                    className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                                        idx === currentIndex
+                                            ? "border-white scale-110"
+                                            : "border-white/30 opacity-60 hover:opacity-100"
+                                    }`}
                                 >
                                     {isThumbImage ? (
                                         <img
