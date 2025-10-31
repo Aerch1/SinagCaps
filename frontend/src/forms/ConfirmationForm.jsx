@@ -146,18 +146,23 @@ export default function ConfirmationForm({
   }, [formData, registerValidator]);
 
   /* ---------- Schedule Label ---------- */
-  const scheduleLabel = useMemo(() => {
-    if (!formData.preferredDate) return "";
-    try {
-      const d = parseISO(formData.preferredDate);
-      const dateStr = format(d, "EEE, MMM d, yyyy");
-      return formData.preferredTime
-        ? `${dateStr} • ${formData.preferredTime}`
-        : dateStr;
-    } catch {
-      return formData.preferredDate;
-    }
-  }, [formData.preferredDate, formData.preferredTime]);
+const scheduleLabel = useMemo(() => {
+  if (!formData.preferredDate) return "";
+  try {
+    const d = parseISO(formData.preferredDate);
+    const dateStr = format(d, "EEE, MMM d, yyyy");
+
+    // ✅ Convert preferredTime (e.g. "14:30") to 12-hour format (2:30 PM)
+    const timeStr = formData.preferredTime
+      ? format(parseISO(`2000-01-01T${formData.preferredTime}`), "h:mm a")
+      : "";
+
+    return timeStr ? `${dateStr} • ${timeStr}` : dateStr;
+  } catch {
+    return formData.preferredDate;
+  }
+}, [formData.preferredDate, formData.preferredTime]);
+
 
   /* ======================================================
      🧱 UI Layout

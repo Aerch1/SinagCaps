@@ -163,11 +163,18 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
         try {
             const d = parseISO(formData.preferredDate);
             const dateStr = format(d, "EEE, MMM d, yyyy");
-            return formData.preferredTime ? `${dateStr} • ${formData.preferredTime}` : dateStr;
+
+            // ✅ Convert preferredTime (e.g. "14:30") to 12-hour format (2:30 PM)
+            const timeStr = formData.preferredTime
+                ? format(parseISO(`2000-01-01T${formData.preferredTime}`), "h:mm a")
+                : "";
+
+            return timeStr ? `${dateStr} • ${timeStr}` : dateStr;
         } catch {
             return formData.preferredDate;
         }
     }, [formData.preferredDate, formData.preferredTime]);
+
 
     // ======================================================
     // 🧱 UI Layout
