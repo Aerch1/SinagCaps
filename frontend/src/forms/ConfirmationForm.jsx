@@ -167,9 +167,11 @@ export default function ConfirmationForm({
       {/* Header */}
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-base font-medium">Confirmation Application</h3>
-        {scheduleLabel && (
+        {(formData.selectedService || scheduleLabel) && (
           <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-800">
-            Selected schedule: {scheduleLabel}
+            Selected:{" "}
+            {formData.selectedService ? `${formData.selectedService}` : "—"}
+            {scheduleLabel ? ` • ${scheduleLabel}` : ""}
           </span>
         )}
       </div>

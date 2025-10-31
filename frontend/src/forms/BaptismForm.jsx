@@ -177,9 +177,11 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-4 pb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Baptism Application</h3>
-                {scheduleLabel && (
+                {(formData.selectedService || scheduleLabel) && (
                     <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800">
-                        Selected schedule: {scheduleLabel}
+                        Selected:{" "}
+                        {formData.selectedService ? `${formData.selectedService}` : "—"}
+                        {scheduleLabel ? ` • ${scheduleLabel}` : ""}
                     </span>
                 )}
             </div>

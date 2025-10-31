@@ -128,11 +128,14 @@ export default function DefaultForm({
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h3 className="text-lg font-medium">Personal Information & Details</h3>
-        {scheduleLabel && (
+        {(formData.selectedService || scheduleLabel) && (
           <span className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-800">
-            Selected schedule: {scheduleLabel}
+            Selected:{" "}
+            {formData.selectedService ? `${formData.selectedService}` : "—"}
+            {scheduleLabel ? ` • ${scheduleLabel}` : ""}
           </span>
         )}
+
       </div>
 
       {/* ---------- Input Fields ---------- */}
