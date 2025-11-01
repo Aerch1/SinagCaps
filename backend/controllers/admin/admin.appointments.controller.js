@@ -235,6 +235,12 @@ export const createAppointmentAdmin = async (req, res) => {
 /* =======================================================
    PATCH /api/admin/appointments/:id
 ======================================================= */
+/* =======================================================
+   PATCH /api/admin/appointments/:id
+   ✅ Note: Updating children is complex - consider adding 
+   separate endpoint if needed. For now, this handles 
+   basic appointment updates only.
+======================================================= */
 export const updateAppointmentAdmin = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -317,7 +323,7 @@ export const updateAppointmentAdmin = async (req, res) => {
           success: false,
           code: "TIME_CONFLICT",
           confirmNeeded: true,
-          message: `There’s another appointment near ${safeTime}. Proceed anyway?`,
+          message: `There's another appointment near ${safeTime}. Proceed anyway?`,
         });
       }
     }
@@ -398,7 +404,6 @@ export const updateAppointmentAdmin = async (req, res) => {
 
       // 🛎️ Notifications
       let title, message;
-      // ✅ Put rescheduling check first
       if (isRescheduling) {
         title = "Appointment Rescheduled";
         message = `${finalName}'s ${serviceName} appointment was rescheduled to ${formattedNewDate} at ${formattedNewTime}.`;
@@ -415,7 +420,6 @@ export const updateAppointmentAdmin = async (req, res) => {
 
       // 🛎️ Notifications - only for the public user
       if (title && oldAppt.user_id) {
-        // ✅ Fetch user role to ensure it's a public user
         const [[user]] = await pool.query(
           `SELECT role FROM users WHERE id = ?`,
           [oldAppt.user_id]
@@ -423,7 +427,7 @@ export const updateAppointmentAdmin = async (req, res) => {
 
         if (user?.role !== "admin") {
           await createNotification({
-            user_id: oldAppt.user_id, // only the actual public user
+            user_id: oldAppt.user_id,
             title,
             message,
             type: "appointment",
@@ -445,13 +449,9 @@ export const updateAppointmentAdmin = async (req, res) => {
     if (conn) conn.release();
   }
 };
-
 /* =======================================================
    GET /api/admin/appointments/:id
-   ✅ Ensure was_rescheduled returned to frontend
-======================================================= */
-/* =======================================================
-   GET /api/admin/appointments/:id
+   ✅ UPDATED: Fetch multiple children for baptism
    ✅ Ensure was_rescheduled returned to frontend
    ✅ Added documents fetching
 ======================================================= */
@@ -488,13 +488,13 @@ export const getAppointmentById = async (req, res) => {
 
     let details = null;
     let sponsors = [];
+    let children = []; // ✅ NEW: Array for multiple children
 
     if (appt.form_type === "baptism") {
+      // ✅ Fetch baptism_details (parent info only)
       [[details]] = await pool.execute(
         `SELECT 
-           childFullName,
-           childDob,
-           childBirthplace,
+           id,
            fatherName,
            motherMaidenName,
            parentsMarriageType
@@ -502,16 +502,36 @@ export const getAppointmentById = async (req, res) => {
          WHERE appointment_id=?`,
         [id]
       );
+
       if (details) {
+        const baptismId = details.id;
+
+        // ✅ NEW: Fetch all children for this baptism
+        const [childrenRows] = await pool.execute(
+          `SELECT 
+             id,
+             childFullName,
+             childDob,
+             childBirthplace,
+             child_order
+           FROM baptism_children 
+           WHERE baptism_id=?
+           ORDER BY child_order ASC`,
+          [baptismId]
+        );
+        children = childrenRows;
+
+        // ✅ Fetch sponsors (shared across all children)
         const [sponsorRows] = await pool.execute(
           `SELECT role, name, address
            FROM baptism_sponsors 
-           WHERE baptism_id = (
-             SELECT id FROM baptism_details WHERE appointment_id=? LIMIT 1
-           )`,
-          [id]
+           WHERE baptism_id=?`,
+          [baptismId]
         );
         sponsors = sponsorRows;
+
+        // ✅ Remove baptism_id from response (internal use only)
+        delete details.id;
       }
     }
 
@@ -543,7 +563,7 @@ export const getAppointmentById = async (req, res) => {
       }
     }
 
-    // ✅ NEW: Fetch uploaded documents
+    // ✅ Fetch uploaded documents
     const [documents] = await pool.execute(
       `SELECT id, url 
        FROM appointment_documents 
@@ -552,13 +572,21 @@ export const getAppointmentById = async (req, res) => {
       [id]
     );
 
-    return res.json({
+    // ✅ Build response with children array for baptism
+    const response = {
       success: true,
       appointment: appt,
       details,
       sponsors,
-      documents, // ✅ included in response
-    });
+      documents,
+    };
+
+    // ✅ Add children array only for baptism
+    if (appt.form_type === "baptism") {
+      response.children = children;
+    }
+
+    return res.json(response);
   } catch (err) {
     console.error("❌ getAppointmentById error:", err);
     res
