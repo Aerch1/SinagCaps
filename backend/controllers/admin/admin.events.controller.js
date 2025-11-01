@@ -21,12 +21,19 @@ function validateEvent(data) {
     }
   }
 
-  if (!data.time) errors.time = "Time is required";
+  // ✅ Only require time if NOT all-day event
+  const isAllDay =
+    data.all_day === "1" || data.all_day === 1 || data.all_day === true;
+
+  if (!isAllDay && !data.time) {
+    errors.time = "Time is required for non-all-day events";
+  }
+
   if (!data.type) errors.type = "Type (event/news) is required";
 
-  // ✅ Validate end_time
-  if (data.end_time) {
-    const [h1, m1] = data.time?.split(":") || [];
+  // ✅ Validate end_time only if provided and not all-day
+  if (!isAllDay && data.time && data.end_time) {
+    const [h1, m1] = data.time.split(":") || [];
     const [h2, m2] = data.end_time.split(":");
     const startMinutes = parseInt(h1) * 60 + parseInt(m1);
     const endMinutes = parseInt(h2) * 60 + parseInt(m2);
@@ -51,6 +58,7 @@ export async function createEvent(req, res) {
       date,
       time,
       end_time = null,
+      all_day = 0,
       status = "Active",
       type,
     } = req.body;
@@ -61,14 +69,32 @@ export async function createEvent(req, res) {
 
     const image_url = req.file?.path || null;
 
+    // ✅ Convert all_day to proper boolean for database
+    const isAllDay =
+      all_day === "1" || all_day === 1 || all_day === true ? 1 : 0;
+
+    // ✅ Clear time fields if all-day event
+    const finalTime = isAllDay ? null : time;
+    const finalEndTime = isAllDay ? null : end_time;
+
     await conn.beginTransaction();
 
     const [result] = await conn.query(
       `
-        INSERT INTO events (title, description, date, time, end_time, status, type, image_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO events (title, description, date, time, end_time, all_day, status, type, image_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      [title, description, date, time, end_time, status, type, image_url]
+      [
+        title,
+        description,
+        date,
+        finalTime,
+        finalEndTime,
+        isAllDay,
+        status,
+        type,
+        image_url,
+      ]
     );
 
     const eventId = result.insertId;
@@ -143,6 +169,7 @@ export async function updateEvent(req, res) {
       date,
       time,
       end_time = null,
+      all_day = 0,
       status,
       type,
     } = req.body;
@@ -153,15 +180,34 @@ export async function updateEvent(req, res) {
 
     const image_url = req.file?.path || null;
 
+    // ✅ Convert all_day to proper boolean for database
+    const isAllDay =
+      all_day === "1" || all_day === 1 || all_day === true ? 1 : 0;
+
+    // ✅ Clear time fields if all-day event
+    const finalTime = isAllDay ? null : time;
+    const finalEndTime = isAllDay ? null : end_time;
+
     await conn.beginTransaction();
 
     await conn.query(
       `
         UPDATE events
-        SET title=?, description=?, date=?, time=?, end_time=?, status=?, type=?, image_url=COALESCE(?, image_url)
+        SET title=?, description=?, date=?, time=?, end_time=?, all_day=?, status=?, type=?, image_url=COALESCE(?, image_url)
         WHERE id=?
       `,
-      [title, description, date, time, end_time, status, type, image_url, id]
+      [
+        title,
+        description,
+        date,
+        finalTime,
+        finalEndTime,
+        isAllDay,
+        status,
+        type,
+        image_url,
+        id,
+      ]
     );
 
     // ✅ If event re-activated or rescheduled soon — notify users again
@@ -172,7 +218,7 @@ export async function updateEvent(req, res) {
 
       const templates = [
         `Heads up! "${title}" is coming up soon — mark your calendar.`,
-        `Upcoming ${type.toLowerCase()}: "${title}" on ${date}. Don’t miss it!`,
+        `Upcoming ${type.toLowerCase()}: "${title}" on ${date}. Don't miss it!`,
         `⏰ Reminder: "${title}" is scheduled on ${date}. Check details in Events & News.`,
         `✨ "${title}" is back on schedule — see the latest updates now.`,
         `Don't miss "${title}" happening on ${date}. Tap Events to see full details.`,
@@ -240,13 +286,13 @@ export async function getUpcomingEvents(req, res) {
   const conn = await pool.getConnection();
   try {
     const [rows] = await conn.query(`
-  SELECT id, title, description, date, time, status, type, image_url
-  FROM events
-  WHERE LOWER(TRIM(status))='active'
-    AND type='event'              -- <-- only events, exclude news
-    AND (date > CURDATE() OR (date = CURDATE() AND time >= CURTIME()))
-  ORDER BY date ASC, time ASC
-`);
+      SELECT id, title, description, date, time, all_day, status, type, image_url
+      FROM events
+      WHERE LOWER(TRIM(status))='active'
+        AND type='event'
+        AND (date > CURDATE() OR (date = CURDATE() AND (all_day = 1 OR time >= CURTIME())))
+      ORDER BY date ASC, time ASC
+    `);
 
     // ✅ Auto-send reminder notifications for events happening today/tomorrow
     const today = new Date().toISOString().slice(0, 10);
@@ -262,10 +308,12 @@ export async function getUpcomingEvents(req, res) {
       );
 
       for (const event of upcomingSoon) {
+        const timeStr = event.all_day ? "" : ` at ${event.time}`;
+
         const templates = [
           `⏰ Reminder: "${event.title}" is happening ${
             event.date === today ? "today" : "tomorrow"
-          } at ${event.time}.`,
+          }${timeStr}.`,
           `Don't miss it! "${event.title}" takes place ${
             event.date === today ? "today" : "tomorrow"
           } — check the details in Events & News.`,
@@ -284,7 +332,7 @@ export async function getUpcomingEvents(req, res) {
           await createNotification({
             user_id: u.id,
             title: `🎟️ ${
-              event.date === today ? "Today’s Event" : "Tomorrow’s Event"
+              event.date === today ? "Today's Event" : "Tomorrow's Event"
             }`,
             message,
             type: "event",

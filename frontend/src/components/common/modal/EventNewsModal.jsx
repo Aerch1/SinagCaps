@@ -22,6 +22,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
     const [errors, setErrors] = useState({});
     const [preview, setPreview] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isAllDay, setIsAllDay] = useState(false);
 
     // Populate form when editing
     useEffect(() => {
@@ -37,9 +38,12 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                 image: null,
             });
             setPreview(editItem.image_url || null);
+            // Check if it's an all-day event (no time and end_time)
+            setIsAllDay(!editItem.time && !editItem.end_time);
         } else {
             setForm(emptyForm);
             setPreview(null);
+            setIsAllDay(false);
         }
         setErrors({});
     }, [editItem, isOpen]);
@@ -65,11 +69,22 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         setForm((prev) => ({ ...prev, [name]: value }));
     };
 
+    // All day checkbox handler
+    const handleAllDayChange = (e) => {
+        const checked = e.target.checked;
+        setIsAllDay(checked);
+        if (checked) {
+            // Clear time and end_time when all day is checked
+            setForm((prev) => ({ ...prev, time: "", end_time: "" }));
+        }
+    };
+
     // Close modal
     const handleClose = () => {
         setForm(emptyForm);
         setErrors({});
         setPreview(null);
+        setIsAllDay(false);
         onClose?.();
     };
 
@@ -83,6 +98,9 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         Object.entries(form).forEach(([key, value]) => {
             if (value !== null) data.append(key, value);
         });
+
+        // ✅ Add all_day flag to FormData
+        data.append('all_day', isAllDay ? '1' : '0');
 
         try {
             if (editItem) {
@@ -201,7 +219,7 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                 </div>
 
                 {/* Date & Time */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Date</label>
                         <input
@@ -214,27 +232,43 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                         {errors.date && <p className="text-xs text-red-600 mt-1">{errors.date}</p>}
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Time</label>
-                        <input
-                            type="time"
-                            name="time"
-                            value={form.time}
-                            onChange={handleChange}
-                            className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm"
-                        />
+                        <label className="block text-sm font-medium text-gray-700">Start Time to End Time</label>
+                        <div className="flex gap-2 items-center">
+                            <input
+                                type="time"
+                                name="time"
+                                value={form.time}
+                                onChange={handleChange}
+                                disabled={isAllDay}
+                                className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            />
+                            <span className="text-gray-500 mt-1">to</span>
+                            <input
+                                type="time"
+                                name="end_time"
+                                value={form.end_time}
+                                onChange={handleChange}
+                                disabled={isAllDay}
+                                className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            />
+                        </div>
                         {errors.time && <p className="text-xs text-red-600 mt-1">{errors.time}</p>}
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">End Time</label>
-                        <input
-                            type="time"
-                            name="end_time"
-                            value={form.end_time}
-                            onChange={handleChange}
-                            className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm"
-                        />
                         {errors.end_time && <p className="text-xs text-red-600 mt-1">{errors.end_time}</p>}
                     </div>
+                </div>
+
+                {/* All Day Checkbox */}
+                <div className="flex items-center">
+                    <input
+                        type="checkbox"
+                        id="allDay"
+                        checked={isAllDay}
+                        onChange={handleAllDayChange}
+                        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                    />
+                    <label htmlFor="allDay" className="ml-2 text-sm font-medium text-gray-700">
+                        All day event
+                    </label>
                 </div>
 
                 {/* Type & Status */}
