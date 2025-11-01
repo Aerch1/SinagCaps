@@ -232,8 +232,9 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
     // ======================================================
     // 🧱 UI Layout
     // ======================================================
+
     return (
-        <div className="w-full space-y-8 px-2 sm:px-2 lg:px-3" noValidate>
+        <div className="w-full space-y-8" noValidate>
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-4 pb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Baptism Application</h3>
