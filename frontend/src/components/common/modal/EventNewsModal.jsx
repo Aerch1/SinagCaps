@@ -74,8 +74,10 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         const checked = e.target.checked;
         setIsAllDay(checked);
         if (checked) {
-            // Clear time and end_time when all day is checked
-            setForm((prev) => ({ ...prev, time: "", end_time: "" }));
+            // Set time to current time and clear end_time when all day is checked
+            const now = new Date();
+            const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            setForm((prev) => ({ ...prev, time: currentTime, end_time: "" }));
         }
     };
 
@@ -232,25 +234,29 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
                         {errors.date && <p className="text-xs text-red-600 mt-1">{errors.date}</p>}
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Start Time to End Time</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                            {isAllDay ? "Start Time" : "Start Time to End Time"}
+                        </label>
                         <div className="flex gap-2 items-center">
                             <input
                                 type="time"
                                 name="time"
                                 value={form.time}
                                 onChange={handleChange}
-                                disabled={isAllDay}
-                                className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm"
                             />
-                            <span className="text-gray-500 mt-1">to</span>
-                            <input
-                                type="time"
-                                name="end_time"
-                                value={form.end_time}
-                                onChange={handleChange}
-                                disabled={isAllDay}
-                                className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            />
+                            {!isAllDay && (
+                                <>
+                                    <span className="text-gray-500 mt-1">to</span>
+                                    <input
+                                        type="time"
+                                        name="end_time"
+                                        value={form.end_time}
+                                        onChange={handleChange}
+                                        className="mt-1 w-full rounded-md border border-gray-300 p-2 text-sm"
+                                    />
+                                </>
+                            )}
                         </div>
                         {errors.time && <p className="text-xs text-red-600 mt-1">{errors.time}</p>}
                         {errors.end_time && <p className="text-xs text-red-600 mt-1">{errors.end_time}</p>}
