@@ -91,6 +91,25 @@ export const connectDB = async () => {
 async function ensureSchema(conn) {
   console.log("🛠️ Ensuring database schema...");
 
+  await conn.query("SET FOREIGN_KEY_CHECKS = 0");
+
+  /* 🧨 Drop old tables before recreating (for clean schema rebuild) */
+  const dropTables = [
+    "baptism_sponsors",
+    "baptism_children",
+    "baptism_details",
+    "confirmation_sponsors",
+    "confirmation_details",
+    "appointments",
+  ];
+
+  for (const table of dropTables) {
+    console.log(`🗑️ Dropping table if exists: ${table}`);
+    await conn.query(`DROP TABLE IF EXISTS ${table}`);
+  }
+
+  await conn.query("SET FOREIGN_KEY_CHECKS = 1");
+
   // ---- Users
   await conn.execute(`
     CREATE TABLE IF NOT EXISTS users (
@@ -301,21 +320,21 @@ async function ensureSchema(conn) {
     )
   `);
 
-  await conn.execute(` 
+  await conn.execute(`
   CREATE TABLE IF NOT EXISTS baptism_children (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  baptism_id INT NOT NULL,
-  childFullName VARCHAR(255) NOT NULL,
-  childDob DATE NOT NULL,
-  childBirthplace VARCHAR(255) NOT NULL,
-  child_order INT DEFAULT 1, -- For twins: 1st child, 2nd child, etc.
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_baptism_child FOREIGN KEY (baptism_id) 
-    INDEX idx_baptism_children (baptism_id, child_order) 
-  REFERENCES baptism_details(id) ON DELETE CASCADE
-);
-    `);
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    baptism_id INT NOT NULL,
+    childFullName VARCHAR(255) NOT NULL,
+    childDob DATE NOT NULL,
+    childBirthplace VARCHAR(255) NOT NULL,
+    child_order INT DEFAULT 1, -- For twins: 1st child, 2nd child, etc.
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_baptism_child FOREIGN KEY (baptism_id)
+      REFERENCES baptism_details(id) ON DELETE CASCADE,
+    INDEX idx_baptism_children (baptism_id, child_order)
+  )
+`);
 
   // ---- Baptism sponsors
   await conn.execute(`
