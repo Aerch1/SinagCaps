@@ -30,6 +30,9 @@ export default function AppointmentPage() {
   // ✅ NEW: File upload state
   const [uploadedFiles, setUploadedFiles] = useState([]);
 
+  // ✅ Track if user manually navigated back to prevent auto-advance
+  const [manualNavigation, setManualNavigation] = useState(false);
+
   const validatorsRef = useRef({});
 
   const registerValidator = (step, fn) => (validatorsRef.current[step] = fn);
@@ -122,29 +125,23 @@ export default function AppointmentPage() {
     const prevService = prevTypeRef.current;
     const currentService = formData.service_id;
 
-    // ✅ only auto-go to step 2 if user is currently on step 1
-    if (
-      currentStep === 1 &&             // 👈 only when on step 1
-      currentService &&
-      prevService !== currentService &&
-      formData.formType
-    ) {
+    if (prevService && prevService !== currentService && formData.formType) {
       resetStorage(prevService);
-      setUploadedFiles([]);
-      setFormData((prev) => ({
+      setUploadedFiles([]); // ✅ Clear files when switching service
+      setFormData(prev => ({
         ...prev,
         preferredDate: "",
         preferredTime: "",
         extraData: {},
         service_id: currentService,
         serviceName: formData.serviceName,
-        formType: formData.formType || "default",
+        formType: formData.formType || "default"
       }));
-      setCurrentStep(2); // ✅ only once when choosing service
+      setCurrentStep(2);
     }
 
     prevTypeRef.current = currentService;
-  }, [formData.service_id, formData.formType, currentStep]);
+  }, [formData.service_id, formData.formType]);
 
 
   /* =====================================================
@@ -177,16 +174,30 @@ export default function AppointmentPage() {
   const back = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
     setFormErrors({});
+    setManualNavigation(true); // ✅ Mark as manual navigation
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // ✅ Auto-advance to Step 2 when service is selected
+  useEffect(() => {
+    if (currentStep === 1 && formData.service_id && !showSuccess && !manualNavigation) {
+      // Small delay to allow the selection to be visible before transitioning
+      const timer = setTimeout(() => {
+        setCurrentStep(2);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [formData.service_id, currentStep, showSuccess, manualNavigation]);
 
   const resetForm = () => {
     resetStorage(formData.formType);
     setFormData({});
     setFormErrors({});
-    setUploadedFiles([]);
+    setUploadedFiles([]); 
     setCurrentStep(1);
     setShowSuccess(false);
+    setManualNavigation(false); // ✅ Reset manual navigation flag
   };
 
   const handleSubmit = async (e) => {
@@ -227,7 +238,7 @@ export default function AppointmentPage() {
       formDataToSend.append("service_id", formData.service_id);
       formDataToSend.append("date", formData.preferredDate);
       formDataToSend.append("time", formData.preferredTime);
-      formDataToSend.append("name", displayName);
+      formDataToSend.append("name", displayName); 
       formDataToSend.append("email", formData.email || user?.email);
       formDataToSend.append("contactNumber", formData.phone);
       formDataToSend.append("address", formData.address);
@@ -310,7 +321,7 @@ export default function AppointmentPage() {
             setFormData={setFormData}
             formErrors={formErrors}
             services={services}
-            onNextStep={() => setCurrentStep(2)}
+            setManualNavigation={setManualNavigation} // ✅ Pass down to reset flag
           />
         );
       case 2:

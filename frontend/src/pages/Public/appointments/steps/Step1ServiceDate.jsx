@@ -2,7 +2,12 @@
 
 import Dropdown from "../../../../components/ui/Dropdown1.jsx";
 
-export default function Step1Service({ formData, setFormData, services = [], onNextStep }) {
+export default function Step1Service({
+  formData,
+  setFormData,
+  services = [],
+  setManualNavigation
+}) {
   const onServiceChange = (label) => {
     const picked = services.find((s) => s.name === label);
     if (!picked) return;
@@ -10,20 +15,20 @@ export default function Step1Service({ formData, setFormData, services = [], onN
     setFormData((prev) => ({
       ...prev,
       service_id: picked.id,
-      formType: picked.form_type || "default",
+      formType: picked.form_type || "default", // fallback to default
       serviceName: picked.name,
       // Only reset date/time if service changed
       preferredDate: prev.service_id !== picked.id ? "" : prev.preferredDate,
       preferredTime: prev.service_id !== picked.id ? "" : prev.preferredTime,
       extraData: {}, // optional: clear extraData on service change
     }));
+
+    // ✅ Reset manual navigation flag when user selects a new service
+    // This allows auto-advance to work when selecting a service
+    if (setManualNavigation) {
+      setManualNavigation(false);
+    }
   };
-
-  // ✅ Automatically go to Step 2
-  if (onNextStep) {
-    setTimeout(() => onNextStep(), 200);
-  }
-
 
   return (
     <div className="space-y-8">
