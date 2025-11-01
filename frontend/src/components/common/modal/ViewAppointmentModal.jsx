@@ -29,9 +29,10 @@ import { fetchRequirementsProgress } from "../../../utils/requirementsUtils.js";
 /* ---------- Label + Value helpers ---------- */
 function formatLabel(key) {
   const map = {
-    childFullName: "Buong Pangalan ng Bibinyagan",
-    childDob: "Araw ng Kapanganakan",
-    childBirthplace: "Lugar ng Kapanganakan",
+    // ✅ Remove single child fields (no longer needed in details)
+    // childFullName: "...", 
+    // childDob: "...",
+    // childBirthplace: "...",
     fatherName: "Pangalan ng Ama",
     motherMaidenName: "Pangalan ng Ina (Bago Ikasal)",
     parentsMarriageType: "Uri ng Kasal ng mga Magulang",
@@ -90,6 +91,8 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [showApproveConfirm, setShowApproveConfirm] = useState(false); // ✅ NEW
   const [documents, setDocuments] = useState([]);
+  const [children, setChildren] = useState([]); // ✅ NEW
+
 
   // Update the fetch details useEffect to include documents
   useEffect(() => {
@@ -117,6 +120,9 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
 
         // ✅ Fetch documents
         setDocuments(res.data?.documents || []);
+
+        // ✅ NEW: Fetch children array for baptism
+        setChildren(res.data?.children || []);
 
         // ✅ Fetch requirements using utility function
         const progress = await fetchRequirementsProgress(appointmentId);
@@ -297,13 +303,58 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
                   </div>
                 </section>
 
-                {/* ADDITIONAL DETAILS */}
+                {/* ADDITIONAL DETAILS - Updated with Children Section */}
                 {local?.details && (
                   <section className="bg-white rounded-xl border p-5">
                     <h4 className="text-xs font-semibold text-gray-500 uppercase mb-4 flex items-center gap-2">
                       <div className="w-1 h-4 bg-purple-500 rounded-full" />
                       Additional Information
                     </h4>
+
+                    {/* ✅ NEW: Show Children FIRST for Baptism */}
+                    {children?.length > 0 && (
+                      <div className="mb-6">
+                        <h5 className="text-xs font-semibold text-gray-500 uppercase mb-3 flex items-center gap-2">
+                          <span className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 rounded-full text-xs font-bold">
+                            {children.length}
+                          </span>
+                          {children.length === 1 ? "Child to be Baptized" : "Children to be Baptized"}
+                        </h5>
+                        <div className="space-y-3">
+                          {children.map((child, idx) => (
+                            <div
+                              key={child.id}
+                              className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-blue-50/50 to-white hover:shadow-md transition-all duration-200"
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <h6 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                                  <span className="flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-xs font-bold">
+                                    {idx + 1}
+                                  </span>
+                                  {child.childFullName || "—"}
+                                </h6>
+                              </div>
+                              <div className="grid md:grid-cols-2 gap-3 pl-8">
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Araw ng Kapanganakan</p>
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {child.childDob ? formatDateShort(child.childDob) : "—"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 mb-1">Lugar ng Kapanganakan</p>
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {child.childBirthplace || "—"}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Parent/Confirmand Details */}
                     <div className="grid md:grid-cols-2 gap-4">
                       {Object.entries(local.details).map(([key, value]) => (
                         <Detail
@@ -315,6 +366,7 @@ export default function ViewAppointmentModal({ isOpen, onClose, appointmentId, o
                       ))}
                     </div>
 
+                    {/* Sponsors Section */}
                     {local.sponsors?.length > 0 && (
                       <div className="mt-6">
                         <h5 className="text-xs font-semibold text-gray-500 uppercase mb-3">

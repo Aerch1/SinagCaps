@@ -232,9 +232,7 @@ export const createAppointmentAdmin = async (req, res) => {
   }
 };
 
-/* =======================================================
-   PATCH /api/admin/appointments/:id
-======================================================= */
+
 /* =======================================================
    PATCH /api/admin/appointments/:id
    ✅ Note: Updating children is complex - consider adding 
