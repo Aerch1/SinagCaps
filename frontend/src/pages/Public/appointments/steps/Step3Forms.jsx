@@ -31,14 +31,12 @@ export default function Step3Forms({
         <div className="space-y-6">
             {/* Form-specific fields */}
             <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
-                <div className="p-4 sm:p-6 lg:p-8">
                     <FormComponent
                         formData={formData}
                         setFormData={setFormData}
                         registerValidator={registerValidator}
                         formErrors={formErrors}
                     />
-                </div>
             </div>
 
             {/* ✅ NEW: File Upload Section */}
