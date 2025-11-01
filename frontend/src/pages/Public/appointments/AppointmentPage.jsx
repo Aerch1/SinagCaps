@@ -117,28 +117,34 @@ export default function AppointmentPage() {
   /* =====================================================
      🔄 Auto Reset When Switching Service Type
   ===================================================== */
-  const prevTypeRef = useRef(null);
   useEffect(() => {
     const prevService = prevTypeRef.current;
     const currentService = formData.service_id;
 
-    if (prevService && prevService !== currentService && formData.formType) {
+    // ✅ only auto-go to step 2 if user is currently on step 1
+    if (
+      currentStep === 1 &&             // 👈 only when on step 1
+      currentService &&
+      prevService !== currentService &&
+      formData.formType
+    ) {
       resetStorage(prevService);
-      setUploadedFiles([]); // ✅ Clear files when switching service
-      setFormData(prev => ({
+      setUploadedFiles([]);
+      setFormData((prev) => ({
         ...prev,
         preferredDate: "",
         preferredTime: "",
         extraData: {},
         service_id: currentService,
         serviceName: formData.serviceName,
-        formType: formData.formType || "default"
+        formType: formData.formType || "default",
       }));
-      setCurrentStep(2);
+      setCurrentStep(2); // ✅ only once when choosing service
     }
 
     prevTypeRef.current = currentService;
-  }, [formData.service_id, formData.formType]);
+  }, [formData.service_id, formData.formType, currentStep]);
+
 
 
   /* =====================================================
@@ -178,7 +184,7 @@ export default function AppointmentPage() {
     resetStorage(formData.formType);
     setFormData({});
     setFormErrors({});
-    setUploadedFiles([]); 
+    setUploadedFiles([]);
     setCurrentStep(1);
     setShowSuccess(false);
   };
@@ -221,7 +227,7 @@ export default function AppointmentPage() {
       formDataToSend.append("service_id", formData.service_id);
       formDataToSend.append("date", formData.preferredDate);
       formDataToSend.append("time", formData.preferredTime);
-      formDataToSend.append("name", displayName); 
+      formDataToSend.append("name", displayName);
       formDataToSend.append("email", formData.email || user?.email);
       formDataToSend.append("contactNumber", formData.phone);
       formDataToSend.append("address", formData.address);
@@ -304,8 +310,7 @@ export default function AppointmentPage() {
             setFormData={setFormData}
             formErrors={formErrors}
             services={services}
-              onNextStep={() => setCurrentStep(2)} 
-
+            onNextStep={() => setCurrentStep(2)}
           />
         );
       case 2:
