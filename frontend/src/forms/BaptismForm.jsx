@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseISO, format } from "date-fns";
-import { User, Mail, Phone, MapPin, Info, Plus, Trash2, House, Baby } from "lucide-react";
+import { User, Mail, Phone, MapPin, Info, Plus, Trash2, House } from "lucide-react";
 
 import Input from "../components/ui/Input.jsx";
 import Dropdown from "../components/ui/Dropdown1.jsx";
@@ -304,19 +304,13 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                     ? firstErrorRef
                                     : null
                             }
-                            className="relative rounded-xl border border-gray-200 p-5 sm:p-6 bg-gradient-to-br from-blue-50 to-white"
+                            className="relative rounded-xl border border-gray-200 p-5 sm:p-6 bg-gray-50"
                         >
                             {/* Child Header */}
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-2">
-                                    <Baby className="h-5 w-5 text-blue-600" />
                                     <span className="text-sm font-semibold text-gray-700">
-                                        Child #{idx + 1}
-                                        {formData.children.length > 1 && (
-                                            <span className="text-xs text-gray-500 ml-2">
-                                                ({idx === 0 ? "1st" : idx === 1 ? "2nd" : idx === 2 ? "3rd" : `${idx + 1}th`} child)
-                                            </span>
-                                        )}
+                                        Child {idx + 1}
                                     </span>
                                 </div>
                                 {formData.children.length > 1 && (
