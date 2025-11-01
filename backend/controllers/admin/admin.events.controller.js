@@ -22,13 +22,12 @@ function validateEvent(data) {
   }
 
   // ✅ Only require time if NOT all-day event
-  const isAllDay =
-    data.all_day === "1" || data.all_day === 1 || data.all_day === true;
-
+  const isAllDay = data.all_day === '1' || data.all_day === 1 || data.all_day === true;
+  
   if (!isAllDay && !data.time) {
     errors.time = "Time is required for non-all-day events";
   }
-
+  
   if (!data.type) errors.type = "Type (event/news) is required";
 
   // ✅ Validate end_time only if provided and not all-day
@@ -57,7 +56,7 @@ export async function createEvent(req, res) {
       description,
       date,
       time,
-      end_time = null,
+      end_time,
       all_day = 0,
       status = "Active",
       type,
@@ -70,12 +69,11 @@ export async function createEvent(req, res) {
     const image_url = req.file?.path || null;
 
     // ✅ Convert all_day to proper boolean for database
-    const isAllDay =
-      all_day === "1" || all_day === 1 || all_day === true ? 1 : 0;
-
-    // ✅ Clear time fields if all-day event
-    const finalTime = isAllDay ? null : time;
-    const finalEndTime = isAllDay ? null : end_time;
+    const isAllDay = all_day === '1' || all_day === 1 || all_day === true ? 1 : 0;
+    
+    // ✅ For all-day events, keep time but set end_time to NULL
+    // ✅ For regular events, use provided values or NULL
+    const finalEndTime = isAllDay ? null : (end_time || null);
 
     await conn.beginTransaction();
 
@@ -84,17 +82,7 @@ export async function createEvent(req, res) {
         INSERT INTO events (title, description, date, time, end_time, all_day, status, type, image_url)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      [
-        title,
-        description,
-        date,
-        finalTime,
-        finalEndTime,
-        isAllDay,
-        status,
-        type,
-        image_url,
-      ]
+      [title, description, date, time, finalEndTime, isAllDay, status, type, image_url]
     );
 
     const eventId = result.insertId;
@@ -181,9 +169,8 @@ export async function updateEvent(req, res) {
     const image_url = req.file?.path || null;
 
     // ✅ Convert all_day to proper boolean for database
-    const isAllDay =
-      all_day === "1" || all_day === 1 || all_day === true ? 1 : 0;
-
+    const isAllDay = all_day === '1' || all_day === 1 || all_day === true ? 1 : 0;
+    
     // ✅ Clear time fields if all-day event
     const finalTime = isAllDay ? null : time;
     const finalEndTime = isAllDay ? null : end_time;
@@ -196,18 +183,7 @@ export async function updateEvent(req, res) {
         SET title=?, description=?, date=?, time=?, end_time=?, all_day=?, status=?, type=?, image_url=COALESCE(?, image_url)
         WHERE id=?
       `,
-      [
-        title,
-        description,
-        date,
-        finalTime,
-        finalEndTime,
-        isAllDay,
-        status,
-        type,
-        image_url,
-        id,
-      ]
+      [title, description, date, finalTime, finalEndTime, isAllDay, status, type, image_url, id]
     );
 
     // ✅ If event re-activated or rescheduled soon — notify users again
@@ -308,8 +284,8 @@ export async function getUpcomingEvents(req, res) {
       );
 
       for (const event of upcomingSoon) {
-        const timeStr = event.all_day ? "" : ` at ${event.time}`;
-
+        const timeStr = event.all_day ? '' : ` at ${event.time}`;
+        
         const templates = [
           `⏰ Reminder: "${event.title}" is happening ${
             event.date === today ? "today" : "tomorrow"

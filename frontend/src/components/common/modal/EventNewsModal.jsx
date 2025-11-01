@@ -97,10 +97,16 @@ export default function EventNewsModal({ isOpen, onClose, onSaved, editItem }) {
         const loadingToast = toast.loading(editItem ? "Updating..." : "Uploading...");
 
         const data = new FormData();
+        
+        // ✅ Only append non-empty values, and handle all_day logic
         Object.entries(form).forEach(([key, value]) => {
-            if (value !== null) data.append(key, value);
+            // Skip end_time if all_day is checked or if it's empty
+            if (key === 'end_time' && (isAllDay || !value)) return;
+            if (value !== null && value !== '') {
+                data.append(key, value);
+            }
         });
-
+        
         // ✅ Add all_day flag to FormData
         data.append('all_day', isAllDay ? '1' : '0');
 

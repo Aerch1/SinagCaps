@@ -22,6 +22,8 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
     const [showSponsorTip, setShowSponsorTip] = useState(false);
     const [showChildTip, setShowChildTip] = useState(false);
     const firstErrorRef = useRef(null);
+    const [sameAsPrimaryBirthplace, setSameAsPrimaryBirthplace] = useState({});
+
 
     // ✅ Initialize children array
     useEffect(() => {
@@ -82,7 +84,29 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
     const updateChild = (idx, field, value) => {
         const children = [...(formData.children || [])];
         children[idx][field] = value;
+
+        // ✅ If updating first child's birthplace, sync to all children marked "same as first"
+        if (idx === 0 && field === "birthplace") {
+            children.forEach((child, i) => {
+                if (i > 0 && sameAsPrimaryBirthplace[i]) {
+                    children[i].birthplace = value;
+                }
+            });
+        }
+
         setFormData((prev) => ({ ...prev, children }));
+    };
+
+
+    // ✅ NEW: Toggle "same birthplace" for a child
+    const toggleSameBirthplace = (idx) => {
+        const newState = { ...sameAsPrimaryBirthplace, [idx]: !sameAsPrimaryBirthplace[idx] };
+        setSameAsPrimaryBirthplace(newState);
+
+        // If checked, copy first child's birthplace
+        if (!sameAsPrimaryBirthplace[idx] && formData.children?.[0]?.birthplace) {
+            updateChild(idx, "birthplace", formData.children[0].birthplace);
+        }
     };
 
     // ✅ NEW: Add/Remove child
@@ -98,8 +122,22 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
             ...prev,
             children: (prev.children || []).filter((_, i) => i !== idx),
         }));
-    };
 
+        // ✅ Clean up the "same birthplace" state
+        const newState = { ...sameAsPrimaryBirthplace };
+        delete newState[idx];
+        // Re-index remaining items
+        const reindexed = {};
+        Object.keys(newState).forEach(key => {
+            const keyNum = parseInt(key);
+            if (keyNum > idx) {
+                reindexed[keyNum - 1] = newState[key];
+            } else {
+                reindexed[key] = newState[key];
+            }
+        });
+        setSameAsPrimaryBirthplace(reindexed);
+    };
     const updateSponsor = (idx, field, value) => {
         const sponsors = [...(formData.sponsors || [])];
         sponsors[idx][field] = value;
@@ -369,15 +407,40 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                     <label className="block text-sm font-medium text-gray-900 mb-2">
                                         Place of Birth <RequiredIndicator />
                                     </label>
+
+                                    {/* ✅ Show checkbox for children after the first one */}
+                                    {idx > 0 && formData.children?.[0]?.birthplace && (
+                                        <label className="flex items-center gap-2 mb-3 cursor-pointer group">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!sameAsPrimaryBirthplace[idx]}
+                                                onChange={() => toggleSameBirthplace(idx)}
+                                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors">
+                                                Same as first child ({formData.children[0].birthplace})
+                                            </span>
+                                        </label>
+                                    )}
+
                                     <Input
                                         icon={MapPin}
                                         placeholder="City / Hospital / Address"
                                         value={child.birthplace || ""}
                                         onChange={(e) => updateChild(idx, "birthplace", e.target.value)}
-                                        className={`h-12 text-base ${formErrors[`child_${idx}_birthplace`] ? "border-red-500 focus:ring-red-500" : ""}`}
+                                        disabled={!!sameAsPrimaryBirthplace[idx]}
+                                        className={`h-12 text-base ${formErrors[`child_${idx}_birthplace`]
+                                                ? "border-red-500 focus:ring-red-500"
+                                                : ""
+                                            } ${sameAsPrimaryBirthplace[idx]
+                                                ? "bg-gray-100 cursor-not-allowed opacity-75"
+                                                : ""
+                                            }`}
                                     />
                                     {formErrors[`child_${idx}_birthplace`] && (
-                                        <p className="text-red-500 text-xs mt-1.5">{formErrors[`child_${idx}_birthplace`]}</p>
+                                        <p className="text-red-500 text-xs mt-1.5">
+                                            {formErrors[`child_${idx}_birthplace`]}
+                                        </p>
                                     )}
                                 </div>
                             </div>
