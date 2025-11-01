@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseISO, format } from "date-fns";
-import { User, Mail, Phone, MapPin, Info, Plus, Trash2, House } from "lucide-react";
+import { User, Mail, Phone, MapPin, Info, Plus, Trash2, House, Baby } from "lucide-react";
 
 import Input from "../components/ui/Input.jsx";
 import Dropdown from "../components/ui/Dropdown1.jsx";
@@ -20,7 +20,20 @@ const SectionHeader = ({ title, description }) => (
 
 export default function BaptismForm({ formData, setFormData, registerValidator, formErrors = {} }) {
     const [showSponsorTip, setShowSponsorTip] = useState(false);
+    const [showChildTip, setShowChildTip] = useState(false);
     const firstErrorRef = useRef(null);
+
+    // ✅ Initialize children array
+    useEffect(() => {
+        if (!formData.children || formData.children.length === 0) {
+            setFormData((prev) => ({
+                ...prev,
+                children: [
+                    { fullName: "", dob: "", birthplace: "" }
+                ],
+            }));
+        }
+    }, []);
 
     // ---------- Initialize sponsors ----------
     useEffect(() => {
@@ -41,7 +54,7 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const { data } = await api.get("/auth/check-auth"); // ✅ backend route
+                const { data } = await api.get("/auth/check-auth");
                 if (data?.user) {
                     setFormData((prev) => ({
                         ...prev,
@@ -64,6 +77,29 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
 
     // ---------- Update helpers ----------
     const updateField = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
+
+    // ✅ NEW: Update child helper
+    const updateChild = (idx, field, value) => {
+        const children = [...(formData.children || [])];
+        children[idx][field] = value;
+        setFormData((prev) => ({ ...prev, children }));
+    };
+
+    // ✅ NEW: Add/Remove child
+    const addChild = () => {
+        setFormData((prev) => ({
+            ...prev,
+            children: [...(prev.children || []), { fullName: "", dob: "", birthplace: "" }],
+        }));
+    };
+
+    const removeChild = (idx) => {
+        setFormData((prev) => ({
+            ...prev,
+            children: (prev.children || []).filter((_, i) => i !== idx),
+        }));
+    };
+
     const updateSponsor = (idx, field, value) => {
         const sponsors = [...(formData.sponsors || [])];
         sponsors[idx][field] = value;
@@ -76,6 +112,16 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
         Object.keys(clean).forEach((key) => {
             if (typeof clean[key] === "string") clean[key] = clean[key].trim();
         });
+
+        // ✅ Sanitize children array
+        if (Array.isArray(clean.children)) {
+            clean.children = clean.children.map((c) => ({
+                fullName: c.fullName?.trim() || "",
+                dob: c.dob?.trim() || "",
+                birthplace: c.birthplace?.trim() || "",
+            }));
+        }
+
         if (Array.isArray(clean.sponsors)) {
             clean.sponsors = clean.sponsors.map((s) => ({
                 ...s,
@@ -102,7 +148,7 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
     };
 
     // ======================================================
-    // ✅ Validation (Scroll + Highlight)
+    // ✅ UPDATED Validation (with children array)
     // ======================================================
     useEffect(() => {
         if (!registerValidator) return;
@@ -111,9 +157,6 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
             const cleaned = sanitizeFormData(formData);
             const errs = {};
             const requiredFields = [
-                "childFullName",
-                "childDob",
-                "childBirthplace",
                 "fatherName",
                 "motherMaidenName",
                 "parentsMarriageType",
@@ -134,6 +177,17 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
             const emailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
             if (cleaned.email && !emailRegex.test(cleaned.email)) {
                 errs.email = "Email must be a valid @gmail.com address.";
+            }
+
+            // ✅ Validate children array
+            if (!cleaned.children || cleaned.children.length === 0) {
+                errs.children = "At least 1 child is required.";
+            } else {
+                cleaned.children.forEach((child, idx) => {
+                    if (!child.fullName) errs[`child_${idx}_fullName`] = "Child's name is required.";
+                    if (!child.dob) errs[`child_${idx}_dob`] = "Date of birth is required.";
+                    if (!child.birthplace) errs[`child_${idx}_birthplace`] = "Place of birth is required.";
+                });
             }
 
             if (!cleaned.sponsors || cleaned.sponsors.length < 2) {
@@ -164,7 +218,6 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
             const d = parseISO(formData.preferredDate);
             const dateStr = format(d, "EEE, MMM d, yyyy");
 
-            // ✅ Convert preferredTime (e.g. "14:30") to 12-hour format (2:30 PM)
             const timeStr = formData.preferredTime
                 ? format(parseISO(`2000-01-01T${formData.preferredTime}`), "h:mm a")
                 : "";
@@ -193,64 +246,143 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                 )}
             </div>
 
-            {/* Child Info */}
-            <section className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 lg:p-8 space-y-6 shadow-sm">
-                <SectionHeader title="Child Information" description="Impormasyon ng Bibinyagan" />
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 pt-2">
-                    <div
-                        ref={
-                            formErrors.childFullName && !firstErrorRef.current ? firstErrorRef : null
-                        }
-                        className="lg:col-span-2"
-                    >
-                        <label className="block text-sm font-medium text-gray-900 mb-2">
-                            Child&apos;s Full Name <RequiredIndicator />
-                        </label>
-                        <Input
-                            icon={User}
-                            placeholder="Juan Dela Cruz"
-                            value={formData.childFullName || ""}
-                            onChange={(e) => updateField("childFullName", e.target.value)}
-                            className={formErrors.childFullName ? "border-red-500 focus:ring-red-500" : ""}
-                        />
-                        {formErrors.childFullName && (
-                            <p className="text-red-500 text-xs mt-1.5">{formErrors.childFullName}</p>
-                        )}
+            {/* ✅ NEW: Children Section (Multiple Children Support) */}
+            <section className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 lg:p-8 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+                    <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                            <h4 className="text-base font-semibold text-gray-900">
+                                Children to be Baptized <RequiredIndicator />
+                            </h4>
+                            <div
+                                className="relative"
+                                onMouseEnter={() => setShowChildTip(true)}
+                                onMouseLeave={() => setShowChildTip(false)}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setShowChildTip((s) => !s)}
+                                    className="p-1.5 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
+                                >
+                                    <Info className="h-4 w-4" />
+                                </button>
+                                {showChildTip && (
+                                    <div className="absolute z-50 left-0 sm:left-full sm:ml-2 top-full sm:top-0 mt-2 sm:mt-0 w-72 sm:w-80 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 shadow-xl">
+                                        <p className="font-semibold text-gray-900 mb-2">Multiple Children:</p>
+                                        <ul className="list-disc list-inside space-y-1.5 text-gray-600">
+                                            <li>Add multiple children for twins/triplets</li>
+                                            <li>Each child must have complete information</li>
+                                            <li>Sponsors will be shared across all children</li>
+                                            <li>Additional fees may apply for multiple children</li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <p className="text-sm text-gray-600">Impormasyon ng mga Bibinyagan</p>
                     </div>
 
-                    <div
-                        ref={formErrors.childDob && !firstErrorRef.current ? firstErrorRef : null}
+                    <button
+                        type="button"
+                        onClick={addChild}
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors whitespace-nowrap"
                     >
-                        <label className="block text-sm font-medium text-gray-900 mb-2">
-                            Date of Birth <RequiredIndicator />
-                        </label>
-                        <DateInput
-                            value={formData.childDob || ""}
-                            onDateChange={(val) => updateField("childDob", val)}
-                            className={formErrors.childDob ? "border-red-500 focus:ring-red-500" : ""}
-                        />
-                        {formErrors.childDob && (
-                            <p className="text-red-500 text-xs mt-1.5">{formErrors.childDob}</p>
-                        )}
-                    </div>
+                        <Plus className="h-4 w-4" />
+                        Add Child
+                    </button>
+                </div>
 
-                    <div
-                        ref={formErrors.childBirthplace && !firstErrorRef.current ? firstErrorRef : null}
-                    >
-                        <label className="block text-sm font-medium text-gray-900 mb-2">
-                            Place of Birth <RequiredIndicator />
-                        </label>
-                        <Input
-                            icon={MapPin}
-                            placeholder="City / Hospital / Address"
-                            value={formData.childBirthplace || ""}
-                            onChange={(e) => updateField("childBirthplace", e.target.value)}
-                            className={formErrors.childBirthplace ? "border-red-500 focus:ring-red-500" : ""}
-                        />
-                        {formErrors.childBirthplace && (
-                            <p className="text-red-500 text-xs mt-1.5">{formErrors.childBirthplace}</p>
-                        )}
-                    </div>
+                <div className="space-y-5">
+                    {(formData.children || []).map((child, idx) => (
+                        <div
+                            key={idx}
+                            ref={
+                                (formErrors[`child_${idx}_fullName`] ||
+                                    formErrors[`child_${idx}_dob`] ||
+                                    formErrors[`child_${idx}_birthplace`]) &&
+                                    !firstErrorRef.current
+                                    ? firstErrorRef
+                                    : null
+                            }
+                            className="relative rounded-xl border border-gray-200 p-5 sm:p-6 bg-gradient-to-br from-blue-50 to-white"
+                        >
+                            {/* Child Header */}
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <Baby className="h-5 w-5 text-blue-600" />
+                                    <span className="text-sm font-semibold text-gray-700">
+                                        Child #{idx + 1}
+                                        {formData.children.length > 1 && (
+                                            <span className="text-xs text-gray-500 ml-2">
+                                                ({idx === 0 ? "1st" : idx === 1 ? "2nd" : idx === 2 ? "3rd" : `${idx + 1}th`} child)
+                                            </span>
+                                        )}
+                                    </span>
+                                </div>
+                                {formData.children.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => removeChild(idx)}
+                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                        title="Remove child"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
+                                {/* Child Full Name */}
+                                <div className="lg:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                                        Child&apos;s Full Name <RequiredIndicator />
+                                    </label>
+                                    <Input
+                                        icon={User}
+                                        placeholder="Juan Dela Cruz"
+                                        value={child.fullName || ""}
+                                        onChange={(e) => updateChild(idx, "fullName", e.target.value)}
+                                        className={`h-12 text-base ${formErrors[`child_${idx}_fullName`] ? "border-red-500 focus:ring-red-500" : ""}`}
+                                    />
+                                    {formErrors[`child_${idx}_fullName`] && (
+                                        <p className="text-red-500 text-xs mt-1.5">{formErrors[`child_${idx}_fullName`]}</p>
+                                    )}
+                                </div>
+
+                                {/* Date of Birth */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                                        Date of Birth <RequiredIndicator />
+                                    </label>
+                                    <DateInput
+                                        value={child.dob || ""}
+                                        onDateChange={(val) => updateChild(idx, "dob", val)}
+                                        className={`h-12 ${formErrors[`child_${idx}_dob`] ? "border-red-500 focus:ring-red-500" : ""}`}
+                                    />
+                                    {formErrors[`child_${idx}_dob`] && (
+                                        <p className="text-red-500 text-xs mt-1.5">{formErrors[`child_${idx}_dob`]}</p>
+                                    )}
+                                </div>
+
+                                {/* Place of Birth */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                                        Place of Birth <RequiredIndicator />
+                                    </label>
+                                    <Input
+                                        icon={MapPin}
+                                        placeholder="City / Hospital / Address"
+                                        value={child.birthplace || ""}
+                                        onChange={(e) => updateChild(idx, "birthplace", e.target.value)}
+                                        className={`h-12 text-base ${formErrors[`child_${idx}_birthplace`] ? "border-red-500 focus:ring-red-500" : ""}`}
+                                    />
+                                    {formErrors[`child_${idx}_birthplace`] && (
+                                        <p className="text-red-500 text-xs mt-1.5">{formErrors[`child_${idx}_birthplace`]}</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </section>
 
@@ -412,6 +544,7 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                         <ul className="list-disc list-inside space-y-1.5 text-gray-600">
                                             <li>Must be at least 16 years old</li>
                                             <li>Two sponsors minimum (1 Ninong + 1 Ninang)</li>
+                                            <li>Sponsors are shared across all children</li>
                                             <li>Additional sponsors may incur extra fees</li>
                                             <li>Subject to parish approval</li>
                                         </ul>
@@ -419,7 +552,7 @@ export default function BaptismForm({ formData, setFormData, registerValidator, 
                                 )}
                             </div>
                         </div>
-                        <p className="text-sm text-gray-600">16 taong gulang pataas</p>
+                        <p className="text-sm text-gray-600">16 taong gulang pataas • Shared for all children</p>
                     </div>
 
                     <button

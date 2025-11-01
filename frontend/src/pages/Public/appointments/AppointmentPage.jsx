@@ -220,7 +220,13 @@ export default function AppointmentPage() {
         // User is guest - use name from form based on service type
         switch (formData.formType) {
           case "baptism":
-            displayName = formData.childFullName || "Guest";
+            // ✅ UPDATED: Handle multiple children
+            const firstChild = formData.children?.[0];
+            if (formData.children?.length > 1) {
+              displayName = `${firstChild?.fullName || "Guest"} +${formData.children.length - 1} more`;
+            } else {
+              displayName = firstChild?.fullName || formData.childFullName || "Guest";
+            }
             break;
           case "confirmation":
             displayName = formData.confirmandName || "Guest";
@@ -244,11 +250,20 @@ export default function AppointmentPage() {
       formDataToSend.append("address", formData.address);
       formDataToSend.append("notes", formData.notes || formData.additionalNotes || "");
 
-      // ✅ Add baptism fields if applicable
+      // ✅ UPDATED: Add baptism fields with children array support
       if (formData.formType === "baptism") {
-        formDataToSend.append("childFullName", formData.childFullName);
-        formDataToSend.append("childDob", formData.childDob);
-        formDataToSend.append("childBirthplace", formData.childBirthplace);
+        // ✅ Send children array (new approach)
+        if (formData.children && Array.isArray(formData.children)) {
+          formDataToSend.append("children", JSON.stringify(formData.children));
+        } 
+        // ✅ Backward compatibility: single child fields
+        else if (formData.childFullName) {
+          formDataToSend.append("childFullName", formData.childFullName);
+          formDataToSend.append("childDob", formData.childDob);
+          formDataToSend.append("childBirthplace", formData.childBirthplace);
+        }
+        
+        // Parent fields (always sent)
         formDataToSend.append("fatherName", formData.fatherName);
         formDataToSend.append("motherMaidenName", formData.motherMaidenName);
         formDataToSend.append("parentsMarriageType", formData.parentsMarriageType);

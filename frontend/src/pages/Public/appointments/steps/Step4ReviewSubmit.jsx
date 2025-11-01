@@ -10,7 +10,8 @@ import {
   Clock,
   Image,
   File,
-  Paperclip, // ✅ NEW: Icon for files section
+  Paperclip,
+  Baby, // ✅ NEW: Icon for children section
 } from "lucide-react";
 
 /* ---------- Labels ---------- */
@@ -45,7 +46,7 @@ const LABELS = {
 };
 
 /* ---------- Skip keys ---------- */
-const HIDDEN_KEYS = new Set(["extraData", "formErrors", "formType"]);
+const HIDDEN_KEYS = new Set(["extraData", "formErrors", "formType", "children"]); // ✅ Added 'children' to skip
 
 /* ---------- Section Icons ---------- */
 const SECTION_ICONS = {
@@ -53,6 +54,7 @@ const SECTION_ICONS = {
   Schedule: Calendar,
   Contact: Mail,
   Details: User,
+  Children: Baby, // ✅ NEW: Icon for children section
 };
 
 export default function Step4ReviewSubmit({
@@ -61,7 +63,7 @@ export default function Step4ReviewSubmit({
   showSuccess,
   onSuccess,
   resetForm,
-  uploadedFiles, // ✅ NEW: Receive uploaded files
+  uploadedFiles,
 }) {
   const navigate = useNavigate();
 
@@ -104,7 +106,7 @@ export default function Step4ReviewSubmit({
     return String(value);
   };
 
-  /* ✅ NEW: Helper function to get file icon */
+  /* ✅ Helper function to get file icon */
   const getFileIcon = (file) => {
     if (file.type.startsWith("image/")) {
       return <Image className="w-4 h-4 text-blue-500" />;
@@ -115,7 +117,7 @@ export default function Step4ReviewSubmit({
     }
   };
 
-  /* ✅ NEW: Helper function to format file size */
+  /* ✅ Helper function to format file size */
   const formatFileSize = (bytes) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -128,7 +130,13 @@ export default function Step4ReviewSubmit({
   const grouped = useMemo(() => {
     if (!formData) return {};
 
-    const sections = { Service: [], Schedule: [], Contact: [], Details: [] };
+    const sections = {
+      Service: [],
+      Schedule: [],
+      Contact: [],
+      Children: [], // ✅ NEW: Children section
+      Details: []
+    };
 
     for (const [key, rawValue] of Object.entries(formData)) {
       if (HIDDEN_KEYS.has(key)) continue;
@@ -148,12 +156,22 @@ export default function Step4ReviewSubmit({
         sections.Schedule.push({ label, value });
       } else if (["phone", "email", "address"].includes(key)) {
         sections.Contact.push({ label, value });
-      } else {
+      }
+      // ✅ Skip old single child fields if children array exists
+      else if (
+        ["childFullName", "childDob", "childBirthplace"].includes(key) &&
+        formData.children &&
+        Array.isArray(formData.children) &&
+        formData.children.length > 0
+      ) {
+        continue; // Skip single child fields when children array is present
+      }
+      else {
         sections.Details.push({ label, value });
       }
     }
 
-    // merge schedule line
+    // Merge schedule line
     if (sections.Schedule.length === 2) {
       const date = sections.Schedule.find((f) => f.label === "Date")?.value;
       const time = sections.Schedule.find((f) => f.label === "Time")?.value;
@@ -166,6 +184,19 @@ export default function Step4ReviewSubmit({
     }
 
     return sections;
+  }, [formData]);
+
+  /* ✅ NEW: Format children data for display */
+  const childrenData = useMemo(() => {
+    if (!formData?.children || !Array.isArray(formData.children)) return null;
+
+    return formData.children.map((child, idx) => ({
+      number: idx + 1,
+      ordinal: idx === 0 ? "1st" : idx === 1 ? "2nd" : idx === 2 ? "3rd" : `${idx + 1}th`,
+      fullName: child.fullName || "-",
+      dob: child.dob ? formatValue("childDob", child.dob) : "-",
+      birthplace: child.birthplace || "-",
+    }));
   }, [formData]);
 
   /* ---------- Success Modal ---------- */
@@ -264,7 +295,49 @@ export default function Step4ReviewSubmit({
           );
         })}
 
-        {/* ✅ NEW: Uploaded Files Section */}
+        {/* ✅ NEW: Multiple Children Section */}
+        {childrenData && childrenData.length > 0 && (
+          <div className="bg-white rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 px-4 py-2 border-b bg-blue-50">
+              <Baby className="w-4 h-4 text-blue-600" />
+              <h4 className="text-sm font-medium text-gray-800">
+                Children to be Baptized ({childrenData.length})
+              </h4>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {childrenData.map((child) => (
+                <div key={child.number} className="px-4 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                      {child.number}
+                    </span>
+                    <span className="text-xs text-gray-500 font-medium">
+                      {child.ordinal} Child
+                    </span>
+                  </div>
+                  <div className="ml-8 space-y-1">
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <dt className="text-gray-500">Full Name</dt>
+                      <dd className="col-span-2 text-gray-900 font-medium">
+                        {child.fullName}
+                      </dd>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <dt className="text-gray-500">Date of Birth</dt>
+                      <dd className="col-span-2 text-gray-900">{child.dob}</dd>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <dt className="text-gray-500">Place of Birth</dt>
+                      <dd className="col-span-2 text-gray-900">{child.birthplace}</dd>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ✅ Uploaded Files Section */}
         {uploadedFiles && uploadedFiles.length > 0 && (
           <div className="bg-white rounded-lg border border-gray-200">
             <div className="flex items-center gap-2 px-4 py-2 border-b bg-gray-50">
@@ -349,7 +422,3 @@ export default function Step4ReviewSubmit({
     </div>
   );
 }
-
-
-
-

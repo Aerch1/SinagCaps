@@ -292,9 +292,6 @@ async function ensureSchema(conn) {
     CREATE TABLE IF NOT EXISTS baptism_details (
       id INT AUTO_INCREMENT PRIMARY KEY,
       appointment_id INT NOT NULL,
-      childFullName VARCHAR(255) NOT NULL,
-      childDob DATE NOT NULL,
-      childBirthplace VARCHAR(255) NOT NULL,
       fatherName VARCHAR(255) NOT NULL,
       motherMaidenName VARCHAR(255) NOT NULL,
       parentsMarriageType ENUM('church','civil','unmarried') NOT NULL,
@@ -304,20 +301,21 @@ async function ensureSchema(conn) {
     )
   `);
 
-//   await conn.execute(` 
-//   CREATE TABLE IF NOT EXISTS baptism_children (
-//   id INT AUTO_INCREMENT PRIMARY KEY,
-//   baptism_id INT NOT NULL,
-//   childFullName VARCHAR(255) NOT NULL,
-//   childDob DATE NOT NULL,
-//   childBirthplace VARCHAR(255) NOT NULL,
-//   child_order INT DEFAULT 1, -- For twins: 1st child, 2nd child, etc.
-//   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-//   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-//   CONSTRAINT fk_baptism_child FOREIGN KEY (baptism_id) 
-//   REFERENCES baptism_details(id) ON DELETE CASCADE
-// );
-//     `)
+  await conn.execute(` 
+  CREATE TABLE IF NOT EXISTS baptism_children (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  baptism_id INT NOT NULL,
+  childFullName VARCHAR(255) NOT NULL,
+  childDob DATE NOT NULL,
+  childBirthplace VARCHAR(255) NOT NULL,
+  child_order INT DEFAULT 1, -- For twins: 1st child, 2nd child, etc.
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_baptism_child FOREIGN KEY (baptism_id) 
+    INDEX idx_baptism_children (baptism_id, child_order) 
+  REFERENCES baptism_details(id) ON DELETE CASCADE
+);
+    `);
 
   // ---- Baptism sponsors
   await conn.execute(`

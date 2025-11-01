@@ -2,7 +2,7 @@ import pool from "../../config/db.js";
 import { sendAppointmentCreatedEmail } from "../../utils/appointmentEmails.js";
 import fs from "fs/promises";
 import { createNotification } from "../../utils/createNotification.js";
-import { v2 as cloudinary } from "cloudinary"; // ✅ add this import
+import { v2 as cloudinary } from "cloudinary";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -32,9 +32,10 @@ export async function createPublicAppointment(req, res) {
       notes = null,
 
       // Baptism fields
-      childFullName,
+      childFullName, // ⚠️ Keep for backward compatibility if needed
       childDob,
       childBirthplace,
+      children, // ✅ NEW: Array of children for twins/triplets
       fatherName,
       motherMaidenName,
       parentsMarriageType,
@@ -48,7 +49,6 @@ export async function createPublicAppointment(req, res) {
       baptizedOn,
     } = req.body;
 
-    // Expect: req.files = [{ path: 'temp/path/to/file1' }, { path: 'temp/path/to/file2' }]
     const uploadedFiles = req.files || [];
 
     if (
@@ -66,7 +66,6 @@ export async function createPublicAppointment(req, res) {
       });
     }
 
-    // ✅ ADDED: Debug log to check user authentication during appointment creation
     console.log("🔐 createPublicAppointment - User:", req.user);
     const userId = req.user?.id || null;
     console.log(
@@ -118,20 +117,46 @@ export async function createPublicAppointment(req, res) {
       [service_id]
     );
 
-    if (service?.form_type === "baptism" && childFullName) {
-      const [bapDupes] = await conn.execute(
-        `SELECT a.id FROM appointments a
-         JOIN baptism_details b ON a.id = b.appointment_id
-         WHERE a.service_id=? AND b.childFullName=? AND a.status IN ('pending','approved')`,
-        [service_id, childFullName]
-      );
-      if (bapDupes.length > 0) {
-        await conn.rollback();
-        return res.status(400).json({
-          success: false,
-          error:
-            "This child already has a pending/approved baptism appointment.",
-        });
+    // ✅ UPDATED: Handle both single child and multiple children
+    if (service?.form_type === "baptism") {
+      let childrenToCheck = [];
+
+      // Parse children array if it's a string (from FormData)
+      if (typeof children === "string") {
+        try {
+          childrenToCheck = JSON.parse(children);
+        } catch (e) {
+          console.error("Failed to parse children array:", e);
+        }
+      } else if (Array.isArray(children)) {
+        childrenToCheck = children;
+      } else if (childFullName) {
+        // Backward compatibility: single child
+        childrenToCheck = [
+          {
+            fullName: childFullName,
+            dob: childDob,
+            birthplace: childBirthplace,
+          },
+        ];
+      }
+
+      // Check each child for duplicates
+      for (const child of childrenToCheck) {
+        const [bapDupes] = await conn.execute(
+          `SELECT a.id FROM appointments a
+           JOIN baptism_details bd ON a.id = bd.appointment_id
+           JOIN baptism_children bc ON bd.id = bc.baptism_id
+           WHERE a.service_id=? AND bc.childFullName=? AND a.status IN ('pending','approved')`,
+          [service_id, child.fullName]
+        );
+        if (bapDupes.length > 0) {
+          await conn.rollback();
+          return res.status(400).json({
+            success: false,
+            error: `${child.fullName} already has a pending/approved baptism appointment.`,
+          });
+        }
       }
     }
 
@@ -202,36 +227,67 @@ export async function createPublicAppointment(req, res) {
     // -------------------------------
     // 6️⃣ Handle special forms
     if (service?.form_type === "baptism") {
+      // ✅ NEW: Parse children array
+      let childrenArray = [];
+      if (typeof children === "string") {
+        try {
+          childrenArray = JSON.parse(children);
+        } catch (e) {
+          console.error("Failed to parse children:", e);
+        }
+      } else if (Array.isArray(children)) {
+        childrenArray = children;
+      } else if (childFullName) {
+        // Backward compatibility
+        childrenArray = [
+          {
+            fullName: childFullName,
+            dob: childDob,
+            birthplace: childBirthplace,
+          },
+        ];
+      }
+
+      // Validate required fields
       if (
-        !childFullName ||
-        !childDob ||
-        !childBirthplace ||
+        childrenArray.length === 0 ||
         !fatherName ||
         !motherMaidenName ||
         !parentsMarriageType
       ) {
         await conn.rollback();
-        return res
-          .status(400)
-          .json({ success: false, error: "Missing required baptism fields." });
+        return res.status(400).json({
+          success: false,
+          error: "Missing required baptism fields or children data.",
+        });
       }
 
+      // ✅ Insert baptism_details (parent info only)
       const [bapResult] = await conn.execute(
         `INSERT INTO baptism_details
-          (appointment_id, childFullName, childDob, childBirthplace, fatherName, motherMaidenName, parentsMarriageType)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          appointmentId,
-          childFullName,
-          childDob,
-          childBirthplace,
-          fatherName,
-          motherMaidenName,
-          parentsMarriageType,
-        ]
+          (appointment_id, fatherName, motherMaidenName, parentsMarriageType)
+         VALUES (?, ?, ?, ?)`,
+        [appointmentId, fatherName, motherMaidenName, parentsMarriageType]
       );
       const baptismId = bapResult.insertId;
 
+      // ✅ Insert each child
+      for (let i = 0; i < childrenArray.length; i++) {
+        const child = childrenArray[i];
+        if (!child.fullName || !child.dob || !child.birthplace) {
+          console.warn(`Skipping incomplete child data at index ${i}`);
+          continue;
+        }
+
+        await conn.execute(
+          `INSERT INTO baptism_children 
+            (baptism_id, childFullName, childDob, childBirthplace, child_order)
+           VALUES (?, ?, ?, ?, ?)`,
+          [baptismId, child.fullName, child.dob, child.birthplace, i + 1]
+        );
+      }
+
+      // ✅ Insert sponsors (unchanged - shared across all children)
       if (Array.isArray(sponsors)) {
         for (const s of sponsors) {
           if (!s.name || !s.role) continue;
@@ -302,7 +358,6 @@ export async function createPublicAppointment(req, res) {
             [appointmentId, result.secure_url]
           );
 
-          // ✅ ADD THIS: Clean up temporary file
           await fs
             .unlink(file.path)
             .catch((err) => console.error("File cleanup failed:", err));
