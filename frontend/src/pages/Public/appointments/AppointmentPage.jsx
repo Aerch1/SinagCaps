@@ -304,6 +304,8 @@ export default function AppointmentPage() {
             setFormData={setFormData}
             formErrors={formErrors}
             services={services}
+              onNextStep={() => setCurrentStep(2)} 
+
           />
         );
       case 2:
