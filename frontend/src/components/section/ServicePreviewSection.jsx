@@ -239,15 +239,15 @@ export default function ServiceAvailabilityPreview() {
                                             "text-slate-300 bg-slate-50 cursor-not-allowed";
                                     } else if (data.status === "blocked") {
                                         cellClasses +=
-                                            "text-slate-400 bg-slate-100 cursor-not-allowed border border-slate-200";
+                                            "text-slate-400 bg-slate-100 cursor-not-allowed";
                                     } else if (data.status === "full") {
                                         cellClasses +=
-                                            "text-slate-500 bg-slate-50 cursor-not-allowed border border-slate-200";
+                                            "text-slate-500 bg-slate-50 cursor-not-allowed";
                                     } else if (data.status === "available" && data.remaining > 0) {
                                         cellClasses +=
                                             "text-slate-900 bg-white border border-slate-200 hover:border-red-400 hover:shadow-md cursor-pointer";
                                     } else {
-                                        cellClasses += "text-slate-400 bg-white border";
+                                        cellClasses += "text-slate-400 bg-white border border-slate-300";
                                     }
 
                                     if (isSelected) {
@@ -326,25 +326,25 @@ export default function ServiceAvailabilityPreview() {
                                             type="button"
                                             disabled={slot.remaining === 0}
                                             className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${slot.remaining === 0
-                                                    ? "bg-slate-50 border-slate-200 cursor-not-allowed opacity-60"
-                                                    : "bg-white border-slate-200 hover:border-red-400 hover:shadow-md cursor-pointer"
+                                                ? "bg-slate-50 border-slate-200 cursor-not-allowed opacity-60"
+                                                : "bg-white border-slate-200 hover:border-red-400 hover:shadow-md cursor-pointer"
                                                 }`}
                                         >
                                             <div className="flex justify-between items-center">
                                                 <span
                                                     className={`font-semibold ${slot.remaining === 0
-                                                            ? "text-slate-400"
-                                                            : "text-slate-900"
+                                                        ? "text-slate-400"
+                                                        : "text-slate-900"
                                                         }`}
                                                 >
                                                     {format12h(slot.time)}
                                                 </span>
                                                 <span
                                                     className={`text-xs px-2 py-1 rounded-full font-medium ${slot.remaining === 0
-                                                            ? "bg-slate-200 text-slate-500"
-                                                            : slot.remaining <= 2
-                                                                ? "bg-orange-100 text-orange-700"
-                                                                : "bg-green-100 text-green-700"
+                                                        ? "bg-slate-200 text-slate-500"
+                                                        : slot.remaining <= 2
+                                                            ? "bg-orange-100 text-orange-700"
+                                                            : "bg-green-100 text-green-700"
                                                         }`}
                                                 >
                                                     {slot.remaining === 0
