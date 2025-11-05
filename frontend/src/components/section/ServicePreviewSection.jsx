@@ -37,12 +37,12 @@ export default function ServiceAvailabilityPreview() {
         [year, month]
     );
 
-    /* Load all services */
+    // 📦 Load all services for dropdown
     useEffect(() => {
         const loadServices = async () => {
             try {
                 const res = await api.get("/public/services");
-                setServices(res.data || []);
+                setServices(res.data?.services || []);
             } catch (err) {
                 console.error("❌ Failed to fetch services:", err);
                 toast.error("Failed to load services");
@@ -51,7 +51,7 @@ export default function ServiceAvailabilityPreview() {
         loadServices();
     }, []);
 
-    /* Fetch month availability */
+    // 📅 Fetch monthly availability for selected service
     useEffect(() => {
         if (!serviceId) return;
         const loadMonth = async () => {
@@ -66,7 +66,7 @@ export default function ServiceAvailabilityPreview() {
         loadMonth();
     }, [serviceId, year, month]);
 
-    /* Fetch day times */
+    // 🕒 Fetch available times for selected day
     useEffect(() => {
         if (!selectedDate || !serviceId) return setAvailableTimes([]);
         const loadTimes = async () => {
@@ -137,11 +137,11 @@ export default function ServiceAvailabilityPreview() {
                         Check Availability
                     </h2>
                     <p className="text-gray-600 text-base max-w-2xl mx-auto">
-                        Select a service to view available appointment slots and book your preferred time instantly
+                        Select a service to view available appointment slots and book your preferred time
                     </p>
                 </div>
 
-                {/* Service Dropdown */}
+                {/* Service Selector */}
                 <div className="max-w-md mx-auto mb-12">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                         Choose Service
@@ -166,10 +166,11 @@ export default function ServiceAvailabilityPreview() {
                 {/* Calendar and Time Slots Grid */}
                 <div className="grid lg:grid-cols-5 gap-8">
                     {/* Calendar - Takes 3 columns */}
-                    <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                         {/* Calendar Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
                             <button
+                                type="button"
                                 onClick={() => changeMonth(-1)}
                                 className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
                                 aria-label="Previous month"
@@ -180,6 +181,7 @@ export default function ServiceAvailabilityPreview() {
                             </button>
                             <h3 className="text-lg font-semibold text-gray-900">{monthLabel}</h3>
                             <button
+                                type="button"
                                 onClick={() => changeMonth(1)}
                                 className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
                                 aria-label="Next month"
@@ -230,6 +232,7 @@ export default function ServiceAvailabilityPreview() {
                                     return (
                                         <button
                                             key={idx}
+                                            type="button"
                                             onClick={() => handleDayClick(date)}
                                             disabled={!inMonth || data.status === "blocked" || (data.status !== "available" && data.remaining === 0)}
                                             className={cellClasses}
@@ -262,7 +265,7 @@ export default function ServiceAvailabilityPreview() {
                     </div>
 
                     {/* Time Slots - Takes 2 columns */}
-                    <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
                             <h3 className="font-semibold text-gray-900 text-lg">
                                 {selectedDate ? "Available Times" : "Time Slots"}
@@ -303,10 +306,11 @@ export default function ServiceAvailabilityPreview() {
                                     {availableTimes.map((slot) => (
                                         <button
                                             key={slot.time}
+                                            type="button"
                                             disabled={slot.remaining === 0}
                                             className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${slot.remaining === 0
-                                                ? "bg-gray-50 border-gray-200 cursor-not-allowed opacity-60"
-                                                : "bg-white border-gray-200 hover:border-blue-400 hover:shadow-md cursor-pointer"
+                                                    ? "bg-gray-50 border-gray-200 cursor-not-allowed opacity-60"
+                                                    : "bg-white border-gray-200 hover:border-blue-400 hover:shadow-md cursor-pointer"
                                                 }`}
                                         >
                                             <div className="flex justify-between items-center">
@@ -314,10 +318,10 @@ export default function ServiceAvailabilityPreview() {
                                                     {format12h(slot.time)}
                                                 </span>
                                                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${slot.remaining === 0
-                                                    ? "bg-gray-200 text-gray-500"
-                                                    : slot.remaining <= 2
-                                                        ? "bg-orange-100 text-orange-700"
-                                                        : "bg-green-100 text-green-700"
+                                                        ? "bg-gray-200 text-gray-500"
+                                                        : slot.remaining <= 2
+                                                            ? "bg-orange-100 text-orange-700"
+                                                            : "bg-green-100 text-green-700"
                                                     }`}>
                                                     {slot.remaining === 0 ? "Fully Booked" : `${slot.remaining} slot${slot.remaining > 1 ? 's' : ''} left`}
                                                 </span>
