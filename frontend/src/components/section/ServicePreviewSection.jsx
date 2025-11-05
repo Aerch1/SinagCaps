@@ -239,15 +239,15 @@ export default function ServiceAvailabilityPreview() {
                                             "text-slate-300 bg-slate-50 cursor-not-allowed";
                                     } else if (data.status === "blocked") {
                                         cellClasses +=
-                                            "text-slate-400 bg-slate-100 cursor-not-allowed";
+                                            "text-slate-400 bg-slate-100 cursor-not-allowed border border-slate-200";
                                     } else if (data.status === "full") {
                                         cellClasses +=
-                                            "text-slate-500 bg-slate-50 cursor-not-allowed";
+                                            "text-slate-500 bg-slate-50 cursor-not-allowed border border-slate-200";
                                     } else if (data.status === "available" && data.remaining > 0) {
                                         cellClasses +=
                                             "text-slate-900 bg-white border border-slate-200 hover:border-red-400 hover:shadow-md cursor-pointer";
                                     } else {
-                                        cellClasses += "text-slate-400 bg-white border border border-slate-200";
+                                        cellClasses += "text-slate-400 bg-white border";
                                     }
 
                                     if (isSelected) {
