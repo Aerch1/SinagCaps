@@ -37,13 +37,12 @@ export default function ServiceAvailabilityPreview() {
         [year, month]
     );
 
-    // 📦 Load all services for dropdown
+    /* Load all services */
     useEffect(() => {
         const loadServices = async () => {
             try {
-                // ✅ match AppointmentPage.jsx
-                const res = await api.get("/public/services");
-                setServices(res.data?.services || []);
+                const res = await api.get("/services");
+                setServices(res.data || []);
             } catch (err) {
                 console.error("❌ Failed to fetch services:", err);
                 toast.error("Failed to load services");
@@ -52,7 +51,7 @@ export default function ServiceAvailabilityPreview() {
         loadServices();
     }, []);
 
-    // 📅 Fetch monthly availability for selected service
+    /* Fetch month availability */
     useEffect(() => {
         if (!serviceId) return;
         const loadMonth = async () => {
@@ -67,7 +66,7 @@ export default function ServiceAvailabilityPreview() {
         loadMonth();
     }, [serviceId, year, month]);
 
-    // 🕒 Fetch available times for selected day
+    /* Fetch day times */
     useEffect(() => {
         if (!selectedDate || !serviceId) return setAvailableTimes([]);
         const loadTimes = async () => {
@@ -130,19 +129,23 @@ export default function ServiceAvailabilityPreview() {
     };
 
     return (
-        <section className="bg-gray-50 py-12">
-            <div className="max-w-6xl mx-auto px-6">
-                <div className="text-center mb-8">
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-                        Service Availability
+        <section className="bg-gradient-to-b from-gray-50 to-white">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+                {/* Header */}
+                <div className="text-center mb-12">
+                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+                        Check Availability
                     </h2>
-                    <p className="text-gray-600 text-sm">
-                        Check available slots by selecting a service.
+                    <p className="text-gray-600 text-base max-w-2xl mx-auto">
+                        Select a service to view available appointment slots and book your preferred time instantly
                     </p>
                 </div>
 
-                {/* Service Selector */}
-                <div className="max-w-md mx-auto mb-8">
+                {/* Service Dropdown */}
+                <div className="max-w-md mx-auto mb-12">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Choose Service
+                    </label>
                     <Dropdown
                         value={serviceName}
                         onChange={(name) => {
@@ -155,124 +158,175 @@ export default function ServiceAvailabilityPreview() {
                             setSelectedDate("");
                         }}
                         options={services.map((s) => s.name)}
-                        placeholder="Select a service"
+                        placeholder="Select a service to get started"
                         className="w-full"
                     />
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-8">
-                    {/* Calendar */}
-                    <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
-                        <div className="flex items-center justify-between mb-3">
+                {/* Calendar and Time Slots Grid */}
+                <div className="grid lg:grid-cols-5 gap-8">
+                    {/* Calendar - Takes 3 columns */}
+                    <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        {/* Calendar Header */}
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
                             <button
-                                type="button"
                                 onClick={() => changeMonth(-1)}
-                                className="text-sm text-gray-600 hover:text-gray-800"
+                                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                                aria-label="Previous month"
                             >
-                                ←
+                                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
                             </button>
-                            <h4 className="font-semibold text-gray-900">{monthLabel}</h4>
+                            <h3 className="text-lg font-semibold text-gray-900">{monthLabel}</h3>
                             <button
-                                type="button"
                                 onClick={() => changeMonth(1)}
-                                className="text-sm text-gray-600 hover:text-gray-800"
+                                className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                                aria-label="Next month"
                             >
-                                →
+                                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-7 gap-1 text-[11px] text-gray-500 mb-1">
-                            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                                <div key={d} className="text-center font-medium">
-                                    {d}
+                        {/* Calendar Body */}
+                        <div className="p-6">
+                            {/* Day Headers */}
+                            <div className="grid grid-cols-7 gap-2 mb-3">
+                                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                                    <div key={d} className="text-center text-xs font-semibold text-gray-500 py-2">
+                                        {d}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Calendar Grid */}
+                            <div className="grid grid-cols-7 gap-2">
+                                {calendarCells.map(({ date, inMonth }, idx) => {
+                                    const iso = toISO(date);
+                                    const data = getDayData(date);
+                                    const isSelected = selectedDate === iso;
+                                    const isToday = toISO(new Date()) === iso;
+
+                                    let cellClasses = "relative h-12 rounded-lg text-sm font-medium transition-all duration-200 ";
+
+                                    if (!inMonth) {
+                                        cellClasses += "text-gray-300 bg-gray-50 cursor-not-allowed";
+                                    } else if (data.status === "blocked") {
+                                        cellClasses += "text-gray-400 bg-gray-100 cursor-not-allowed";
+                                    } else if (data.status === "full") {
+                                        cellClasses += "text-gray-500 bg-gray-50 cursor-not-allowed";
+                                    } else if (data.status === "available" && data.remaining > 0) {
+                                        cellClasses += "text-gray-900 bg-white border-2 border-gray-200 hover:border-blue-400 hover:shadow-md cursor-pointer";
+                                    } else {
+                                        cellClasses += "text-gray-400 bg-white border border-gray-100";
+                                    }
+
+                                    if (isSelected) {
+                                        cellClasses += " !border-blue-500 !bg-blue-50 shadow-lg scale-105";
+                                    }
+
+                                    return (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleDayClick(date)}
+                                            disabled={!inMonth || data.status === "blocked" || (data.status !== "available" && data.remaining === 0)}
+                                            className={cellClasses}
+                                        >
+                                            <span className={isToday ? "font-bold" : ""}>{date.getDate()}</span>
+                                            {data.status === "available" && data.remaining > 0 && (
+                                                <span className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-green-500 rounded-full"></span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Legend */}
+                            <div className="flex flex-wrap justify-center gap-4 mt-6 pt-6 border-t border-gray-200">
+                                <div className="flex items-center gap-2 text-xs text-gray-600">
+                                    <span className="w-3 h-3 bg-white border-2 border-gray-200 rounded"></span>
+                                    <span>Available</span>
                                 </div>
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-7 gap-1">
-                            {calendarCells.map(({ date, inMonth }, idx) => {
-                                const iso = toISO(date);
-                                const data = getDayData(date);
-                                const isSelected = selectedDate === iso;
-
-                                let text = "text-gray-400";
-                                let bg = "bg-gray-50";
-
-                                if (data.status === "available" && data.remaining > 0) {
-                                    text = "text-green-800 font-semibold";
-                                    bg = "bg-green-100";
-                                } else if (data.status === "full") {
-                                    text = "text-red-700 font-semibold";
-                                    bg = "bg-red-100";
-                                } else if (data.status === "blocked") {
-                                    text = "text-gray-600 font-medium";
-                                    bg = "bg-gray-300";
-                                }
-
-                                return (
-                                    <button
-                                        key={idx}
-                                        type="button"
-                                        onClick={() => handleDayClick(date)}
-                                        className={[
-                                            "h-9 w-full rounded text-xs grid place-items-center border transition",
-                                            text,
-                                            bg,
-                                            isSelected ? "ring-2 ring-blue-400 font-bold" : "",
-                                            !inMonth ? "opacity-50" : "",
-                                        ].join(" ")}
-                                    >
-                                        {date.getDate()}
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        <div className="flex justify-center gap-4 text-xs text-gray-500 mt-4">
-                            <div className="flex items-center gap-1">
-                                <span className="w-3 h-3 bg-green-200 border border-green-500 rounded" /> Available
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <span className="w-3 h-3 bg-red-200 border border-red-500 rounded" /> Full
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <span className="w-3 h-3 bg-gray-300 border border-gray-500 rounded" /> Blocked
+                                <div className="flex items-center gap-2 text-xs text-gray-600">
+                                    <span className="w-3 h-3 bg-gray-50 border border-gray-300 rounded"></span>
+                                    <span>Full</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-gray-600">
+                                    <span className="w-3 h-3 bg-gray-100 border border-gray-300 rounded"></span>
+                                    <span>Blocked</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Time Slots */}
-                    <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
-                        <h4 className="font-semibold text-gray-800 mb-3">
-                            {selectedDate
-                                ? `Available Times (${selectedDate})`
-                                : "Select a date to view times"}
-                        </h4>
+                    {/* Time Slots - Takes 2 columns */}
+                    <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                            <h3 className="font-semibold text-gray-900 text-lg">
+                                {selectedDate ? "Available Times" : "Time Slots"}
+                            </h3>
+                            {selectedDate && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                    {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-US", {
+                                        weekday: "long",
+                                        month: "short",
+                                        day: "numeric",
+                                    })}
+                                </p>
+                            )}
+                        </div>
 
-                        {loading ? (
-                            <p className="text-sm text-gray-500">Loading times...</p>
-                        ) : availableTimes.length === 0 ? (
-                            <p className="text-sm text-gray-500">No times available.</p>
-                        ) : (
-                            <div className="space-y-2 max-h-72 overflow-y-auto">
-                                {availableTimes.map((slot) => (
-                                    <div
-                                        key={slot.time}
-                                        className={`p-3 rounded border text-sm flex justify-between ${slot.remaining === 0
-                                                ? "bg-gray-100 text-gray-400 border-gray-300"
-                                                : "bg-green-50 text-green-800 border-green-200"
-                                            }`}
-                                    >
-                                        <span>{format12h(slot.time)}</span>
-                                        <span className="text-xs font-medium">
-                                            {slot.remaining === 0
-                                                ? "Full"
-                                                : `${slot.remaining} slot(s) left`}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        <div className="p-6">
+                            {!selectedDate ? (
+                                <div className="text-center py-12">
+                                    <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <p className="text-gray-500 text-sm">Select a date to view available time slots</p>
+                                </div>
+                            ) : loading ? (
+                                <div className="text-center py-12">
+                                    <div className="inline-block w-8 h-8 border-3 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                                    <p className="text-gray-500 text-sm mt-4">Loading times...</p>
+                                </div>
+                            ) : availableTimes.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <p className="text-gray-500 text-sm">No available times for this date</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2 max-h-96 overflow-y-auto">
+                                    {availableTimes.map((slot) => (
+                                        <button
+                                            key={slot.time}
+                                            disabled={slot.remaining === 0}
+                                            className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${slot.remaining === 0
+                                                    ? "bg-gray-50 border-gray-200 cursor-not-allowed opacity-60"
+                                                    : "bg-white border-gray-200 hover:border-blue-400 hover:shadow-md cursor-pointer"
+                                                }`}
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <span className={`font-semibold ${slot.remaining === 0 ? "text-gray-400" : "text-gray-900"}`}>
+                                                    {format12h(slot.time)}
+                                                </span>
+                                                <span className={`text-xs px-2 py-1 rounded-full font-medium ${slot.remaining === 0
+                                                        ? "bg-gray-200 text-gray-500"
+                                                        : slot.remaining <= 2
+                                                            ? "bg-orange-100 text-orange-700"
+                                                            : "bg-green-100 text-green-700"
+                                                    }`}>
+                                                    {slot.remaining === 0 ? "Fully Booked" : `${slot.remaining} slot${slot.remaining > 1 ? 's' : ''} left`}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
