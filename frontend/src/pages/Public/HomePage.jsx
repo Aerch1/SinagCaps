@@ -46,7 +46,7 @@ export default function HomePage() {
                 subheading:
                     "Keep track of your records, events, and announcements—all in one place.",
                 ctas: [
-                    { label: "Notifications", to: "/settings/notification", variant: "primary" },
+                    { label: "Request for schedule", to: "/services/appointments/terms", variant: "primary" },
                     { label: "Contact Us", to: "/contact", variant: "ghost" },
                 ],
             },
