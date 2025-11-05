@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useMemo, useRef } from "react";
 import Hero from "../../components/section/Hero";
 import PublicAdvisory from "../../components/section/PublicAdvisory";
 import ChurchBulletin from "../../components/section/ChurchBulletin";
@@ -14,59 +13,45 @@ import AppointmentChatbot from "../../components/common/AppointmentChatbot";
 import { useAuthStore } from "../../store/authStore";
 import ServicePreviewSection from "../../components/section/ServicePreviewSection";
 
+
 export default function HomePage() {
     const { isAuthenticated } = useAuthStore();
-    const serviceSectionRef = useRef(null);
 
-    // 🔽 Smooth scroll to Service Preview section
-    const scrollToServices = () => {
-        serviceSectionRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    // 🧠 Memoized slides (optimized for re-renders)
-    const slides = useMemo(() => {
-        const baseCTA = [
-            { label: "Request for schedule", onClick: scrollToServices, variant: "primary" },
-            { label: "Document Request", to: "/document-request", variant: "ghost" },
-        ];
-
-        if (isAuthenticated) {
-            return [
-                {
-                    image: "/hero2.png",
-                    heading: "Welcome Back to Our Church Family",
-                    subheading:
-                        "Access your appointments, documents, and stay updated with the latest announcements.",
-                    ctas: [
-                        { label: "My Appointments", to: "/settings/appointments", variant: "primary" },
-                        ...baseCTA,
-                    ],
-                },
-                {
-                    image: "/church.jpg",
-                    heading: "Plan or Manage Your Visits",
-                    subheading:
-                        "Easily manage your church appointments and connect with our ministry leaders.",
-                    ctas: [
-                        { label: "Manage Appointments", to: "/settings/appointments", variant: "primary" },
-                        ...baseCTA,
-                    ],
-                },
-                {
-                    image: "/outsidechurch.jpg",
-                    heading: "Stay Involved and Connected",
-                    subheading:
-                        "Keep track of your records, events, and announcements—all in one place.",
-                    ctas: [
-                        { label: "Contact Us", to: "/contact", variant: "ghost" },
-                        ...baseCTA,
-                    ],
-                },
-            ];
-        }
-
-        // 👤 For unauthenticated users
-        return [
+    // 🔄 Dynamic slides based on authentication
+    const slides = isAuthenticated
+        ? [
+            {
+                image: "/hero2.png",
+                heading: "Welcome Back to Our Church Family",
+                subheading:
+                    "Access your appointments, documents, and stay updated with the latest announcements.",
+                ctas: [
+                    { label: "My Appointments", to: "/settings/appointments", variant: "primary" },
+                    { label: "Announcements", to: "/announcements", variant: "ghost" },
+                ],
+            },
+            {
+                image: "/church.jpg",
+                heading: "Plan or Manage Your Visits",
+                subheading:
+                    "Easily manage your church appointments and connect with our ministry leaders.",
+                ctas: [
+                    { label: "Manage Appointments", to: "/settings/appointments", variant: "primary" },
+                    { label: "Document Requests", to: "/document-request", variant: "ghost" },
+                ],
+            },
+            {
+                image: "/outsidechurch.jpg",
+                heading: "Stay Involved and Connected",
+                subheading:
+                    "Keep track of your records, events, and announcements—all in one place.",
+                ctas: [
+                    { label: "Notifications", to: "/settings/notification", variant: "primary" },
+                    { label: "Contact Us", to: "/contact", variant: "ghost" },
+                ],
+            },
+        ]
+        : [
             {
                 image: "/hero2.png",
                 heading: "Join Our Church Community",
@@ -75,7 +60,6 @@ export default function HomePage() {
                 ctas: [
                     { label: "Register", to: "/signup", variant: "primary" },
                     { label: "About Us", to: "/about", variant: "ghost" },
-                    ...baseCTA,
                 ],
             },
             {
@@ -83,7 +67,10 @@ export default function HomePage() {
                 heading: "Plan Your Visit With Ease",
                 subheading:
                     "Pick a time that works for you, meet with our leaders, and receive reminders directly to your inbox.",
-                ctas: baseCTA,
+                ctas: [
+                    { label: "Request for schedule", to: "/services/appointments/terms", variant: "primary" },
+                    { label: "Document Request", to: "/document-request", variant: "ghost" },
+                ],
             },
             {
                 image: "/outsidechurch.jpg",
@@ -93,11 +80,9 @@ export default function HomePage() {
                 ctas: [
                     { label: "Register", to: "/signup", variant: "primary" },
                     { label: "Contact Us", to: "/contact", variant: "ghost" },
-                    ...baseCTA,
                 ],
             },
         ];
-    }, [isAuthenticated]);
 
     return (
         <main className="bg-white">
@@ -124,15 +109,16 @@ export default function HomePage() {
                 <ChurchBulletin />
             </motion.section>
 
+
+
             {/* 🕓 Service Preview */}
             <motion.section
-                ref={serviceSectionRef}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
                 viewport={{ once: true }}
             >
-                <ServicePreviewSection serviceId="1" serviceName="Baptism" />
+                <ServicePreviewSection />
             </motion.section>
 
             {/* 🙏 About Section */}
