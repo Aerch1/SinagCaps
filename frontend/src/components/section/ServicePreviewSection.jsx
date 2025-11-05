@@ -41,7 +41,7 @@ export default function ServiceAvailabilityPreview() {
     useEffect(() => {
         const loadServices = async () => {
             try {
-                const res = await api.get("/services");
+                const res = await api.get("/public/services");
                 setServices(res.data || []);
             } catch (err) {
                 console.error("❌ Failed to fetch services:", err);
@@ -305,8 +305,8 @@ export default function ServiceAvailabilityPreview() {
                                             key={slot.time}
                                             disabled={slot.remaining === 0}
                                             className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${slot.remaining === 0
-                                                    ? "bg-gray-50 border-gray-200 cursor-not-allowed opacity-60"
-                                                    : "bg-white border-gray-200 hover:border-blue-400 hover:shadow-md cursor-pointer"
+                                                ? "bg-gray-50 border-gray-200 cursor-not-allowed opacity-60"
+                                                : "bg-white border-gray-200 hover:border-blue-400 hover:shadow-md cursor-pointer"
                                                 }`}
                                         >
                                             <div className="flex justify-between items-center">
@@ -314,10 +314,10 @@ export default function ServiceAvailabilityPreview() {
                                                     {format12h(slot.time)}
                                                 </span>
                                                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${slot.remaining === 0
-                                                        ? "bg-gray-200 text-gray-500"
-                                                        : slot.remaining <= 2
-                                                            ? "bg-orange-100 text-orange-700"
-                                                            : "bg-green-100 text-green-700"
+                                                    ? "bg-gray-200 text-gray-500"
+                                                    : slot.remaining <= 2
+                                                        ? "bg-orange-100 text-orange-700"
+                                                        : "bg-green-100 text-green-700"
                                                     }`}>
                                                     {slot.remaining === 0 ? "Fully Booked" : `${slot.remaining} slot${slot.remaining > 1 ? 's' : ''} left`}
                                                 </span>
