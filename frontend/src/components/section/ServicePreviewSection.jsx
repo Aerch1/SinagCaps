@@ -41,8 +41,9 @@ export default function ServiceAvailabilityPreview() {
     useEffect(() => {
         const loadServices = async () => {
             try {
-                const res = await api.get("/services");
-                setServices(res.data || []);
+                // ✅ match AppointmentPage.jsx
+                const res = await api.get("/public/services");
+                setServices(res.data?.services || []);
             } catch (err) {
                 console.error("❌ Failed to fetch services:", err);
                 toast.error("Failed to load services");
@@ -128,7 +129,6 @@ export default function ServiceAvailabilityPreview() {
         setSelectedDate(iso);
     };
 
-    // 🧩 UI Rendering
     return (
         <section className="bg-gray-50 py-12">
             <div className="max-w-6xl mx-auto px-6">
@@ -161,7 +161,7 @@ export default function ServiceAvailabilityPreview() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-8">
-                    {/* Calendar Section */}
+                    {/* Calendar */}
                     <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
                         <div className="flex items-center justify-between mb-3">
                             <button
@@ -230,20 +230,18 @@ export default function ServiceAvailabilityPreview() {
 
                         <div className="flex justify-center gap-4 text-xs text-gray-500 mt-4">
                             <div className="flex items-center gap-1">
-                                <span className="w-3 h-3 bg-green-200 border border-green-500 rounded" />{" "}
-                                Available
+                                <span className="w-3 h-3 bg-green-200 border border-green-500 rounded" /> Available
                             </div>
                             <div className="flex items-center gap-1">
                                 <span className="w-3 h-3 bg-red-200 border border-red-500 rounded" /> Full
                             </div>
                             <div className="flex items-center gap-1">
-                                <span className="w-3 h-3 bg-gray-300 border border-gray-500 rounded" />{" "}
-                                Blocked
+                                <span className="w-3 h-3 bg-gray-300 border border-gray-500 rounded" /> Blocked
                             </div>
                         </div>
                     </div>
 
-                    {/* Time Slots Section */}
+                    {/* Time Slots */}
                     <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
                         <h4 className="font-semibold text-gray-800 mb-3">
                             {selectedDate
