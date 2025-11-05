@@ -235,24 +235,22 @@ export default function ServiceAvailabilityPreview() {
                                         "relative h-12 rounded-lg text-sm font-medium transition-all duration-200 ";
 
                                     if (!inMonth) {
-                                        cellClasses +=
-                                            "text-slate-300 bg-slate-50 cursor-not-allowed";
+                                        cellClasses += "text-slate-300 bg-slate-50 cursor-not-allowed";
                                     } else if (data.status === "blocked") {
-                                        cellClasses +=
-                                            "text-slate-400 bg-slate-100 cursor-not-allowed";
+                                        cellClasses += "text-slate-400 bg-slate-100 cursor-not-allowed";
                                     } else if (data.status === "full") {
+                                        cellClasses += "text-slate-500 bg-slate-50 cursor-not-allowed";
+                                    }
+                                    // 🟩 Change: Available day cell turns green
+                                    else if (data.status === "available" && data.remaining > 0) {
                                         cellClasses +=
-                                            "text-slate-500 bg-slate-50 cursor-not-allowed";
-                                    } else if (data.status === "available" && data.remaining > 0) {
-                                        cellClasses +=
-                                            "text-slate-900 bg-white border border-slate-200 hover:border-red-400 hover:shadow-md cursor-pointer";
+                                            "bg-green-100 text-green-800 font-semibold hover:bg-green-200 cursor-pointer";
                                     } else {
                                         cellClasses += "text-slate-400 bg-white border border-slate-300";
                                     }
 
                                     if (isSelected) {
-                                        cellClasses +=
-                                            " !border-red-500 !bg-red-50 shadow-lg scale-105";
+                                        cellClasses += " !border-red-500 !bg-red-50 shadow-lg scale-105";
                                     }
 
                                     return (
@@ -270,12 +268,10 @@ export default function ServiceAvailabilityPreview() {
                                             <span className={isToday ? "font-bold" : ""}>
                                                 {date.getDate()}
                                             </span>
-                                            {data.status === "available" && data.remaining > 0 && (
-                                                <span className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-green-500 rounded-full"></span>
-                                            )}
                                         </button>
                                     );
                                 })}
+
                             </div>
                         </div>
                     </div>
