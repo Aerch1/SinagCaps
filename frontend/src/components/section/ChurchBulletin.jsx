@@ -37,8 +37,11 @@ export default function ChurchBulletin({ title = "Church Bulletin" }) {
   const calendarRef = useRef(null);
   const navigate = useNavigate();
 
-  const monthYear = (d) =>
-    new Date(d).toLocaleString("en-US", { month: "long", year: "numeric" });
+  const monthYear = useMemo(
+    () => (d) => new Date(d).toLocaleString("en-US", { month: "long", year: "numeric" }),
+    []
+  );
+
 
   /* ---------- Fetch Announcements ---------- */
   useEffect(() => {
