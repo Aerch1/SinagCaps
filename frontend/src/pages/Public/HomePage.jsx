@@ -21,10 +21,12 @@ export default function HomePage() {
     // ✅ Scroll handler for Check Availability button
     const handleCheckAvailability = (e) => {
         e.preventDefault();
-        servicePreviewRef.current?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-        });
+        const section = servicePreviewRef.current;
+        if (section) {
+            const offset = 100; // height of your header
+            const y = section.getBoundingClientRect().top + window.scrollY - offset;
+            window.scrollTo({ top: y, behavior: "smooth" });
+        }
     };
 
     // 🔄 Dynamic slides based on authentication
