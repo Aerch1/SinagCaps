@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { motion } from "framer-motion";
 import Hero from "../../components/section/Hero";
 import PublicAdvisory from "../../components/section/PublicAdvisory";
@@ -13,9 +14,17 @@ import AppointmentChatbot from "../../components/common/AppointmentChatbot";
 import { useAuthStore } from "../../store/authStore";
 import ServicePreviewSection from "../../components/section/ServicePreviewSection";
 
-
 export default function HomePage() {
     const { isAuthenticated } = useAuthStore();
+    const servicePreviewRef = useRef(null);
+
+    // ✅ Smooth scroll to Service Preview section
+    const scrollToServicePreview = () => {
+        servicePreviewRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+        });
+    };
 
     // 🔄 Dynamic slides based on authentication
     const slides = isAuthenticated
@@ -27,7 +36,7 @@ export default function HomePage() {
                     "Access your appointments, documents, and stay updated with the latest announcements.",
                 ctas: [
                     { label: "My Appointments", to: "/settings/appointments", variant: "primary" },
-                    { label: "Announcements", to: "/announcements", variant: "ghost" },
+                    { label: "Check Availability", onClick: scrollToServicePreview, variant: "ghost" },
                 ],
             },
             {
@@ -36,7 +45,7 @@ export default function HomePage() {
                 subheading:
                     "Easily manage your church appointments and connect with our ministry leaders.",
                 ctas: [
-                    { label: "Manage Appointments", to: "/settings/appointments", variant: "primary" },
+                    { label: "Request for Schedule", to: "/services/appointments/terms", variant: "primary" },
                     { label: "Document Requests", to: "/document-request", variant: "ghost" },
                 ],
             },
@@ -46,7 +55,7 @@ export default function HomePage() {
                 subheading:
                     "Keep track of your records, events, and announcements—all in one place.",
                 ctas: [
-                    { label: "Request for schedule", to: "/services/appointments/terms", variant: "primary" },
+                    { label: "Announcements", to: "/announcements", variant: "primary" },
                     { label: "Contact Us", to: "/contact", variant: "ghost" },
                 ],
             },
@@ -58,7 +67,7 @@ export default function HomePage() {
                 subheading:
                     "Create your account to book counseling, ministry appointments, and receive updates.",
                 ctas: [
-                    { label: "Register", to: "/signup", variant: "primary" },
+                    { label: "Check Availability", onClick: scrollToServicePreview, variant: "primary" },
                     { label: "About Us", to: "/about", variant: "ghost" },
                 ],
             },
@@ -68,7 +77,7 @@ export default function HomePage() {
                 subheading:
                     "Pick a time that works for you, meet with our leaders, and receive reminders directly to your inbox.",
                 ctas: [
-                    { label: "Request for schedule", to: "/services/appointments/terms", variant: "primary" },
+                    { label: "Request for Schedule", to: "/services/appointments/terms", variant: "primary" },
                     { label: "Document Request", to: "/document-request", variant: "ghost" },
                 ],
             },
@@ -76,7 +85,7 @@ export default function HomePage() {
                 image: "/outsidechurch.jpg",
                 heading: "Welcome Home",
                 subheading:
-                    "Whether you’re new or returning, we’re glad you’re here. Stay connected with our ministries.",
+                    "Whether you're new or returning, we're glad you're here. Stay connected with our ministries.",
                 ctas: [
                     { label: "Register", to: "/signup", variant: "primary" },
                     { label: "Contact Us", to: "/contact", variant: "ghost" },
@@ -109,10 +118,9 @@ export default function HomePage() {
                 <ChurchBulletin />
             </motion.section>
 
-
-
-            {/* 🕓 Service Preview */}
+            {/* 🕓 Service Preview - WITH REF */}
             <motion.section
+                ref={servicePreviewRef}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
