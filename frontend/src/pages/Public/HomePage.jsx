@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { motion } from "framer-motion";
 import Hero from "../../components/section/Hero";
 import PublicAdvisory from "../../components/section/PublicAdvisory";
@@ -16,15 +15,6 @@ import ServicePreviewSection from "../../components/section/ServicePreviewSectio
 
 export default function HomePage() {
     const { isAuthenticated } = useAuthStore();
-    const servicePreviewRef = useRef(null);
-
-    // ✅ Smooth scroll to Service Preview section
-    const scrollToServicePreview = () => {
-        servicePreviewRef.current?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-        });
-    };
 
     // 🔄 Dynamic slides based on authentication
     const slides = isAuthenticated
@@ -36,7 +26,7 @@ export default function HomePage() {
                     "Access your appointments, documents, and stay updated with the latest announcements.",
                 ctas: [
                     { label: "My Appointments", to: "/settings/appointments", variant: "primary" },
-                    { label: "Check Availability", onClick: scrollToServicePreview, variant: "ghost" },
+                    { label: "Check Availability", to: "#service-preview", variant: "ghost" },
                 ],
             },
             {
@@ -67,7 +57,7 @@ export default function HomePage() {
                 subheading:
                     "Create your account to book counseling, ministry appointments, and receive updates.",
                 ctas: [
-                    { label: "Check Availability", onClick: scrollToServicePreview, variant: "primary" },
+                    { label: "Check Availability", to: "#service-preview", variant: "primary" },
                     { label: "About Us", to: "/about", variant: "ghost" },
                 ],
             },
@@ -118,9 +108,9 @@ export default function HomePage() {
                 <ChurchBulletin />
             </motion.section>
 
-            {/* 🕓 Service Preview - WITH REF */}
+            {/* 🕓 Service Preview - WITH ID */}
             <motion.section
-                ref={servicePreviewRef}
+                id="service-preview"
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
