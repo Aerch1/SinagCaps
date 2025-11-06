@@ -26,7 +26,7 @@ export default function HomePage() {
                     "Access your appointments, documents, and stay updated with the latest announcements.",
                 ctas: [
                     { label: "My Appointments", to: "/settings/appointments", variant: "primary" },
-                    { label: "Check Availability", onClick: handleCheckAvailability, variant: "ghost" },
+                    { label: "Notifications", to: "/settings/notification", variant: "primary" },
                 ],
             },
             {
