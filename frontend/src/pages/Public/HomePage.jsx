@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { motion } from "framer-motion";
 import Hero from "../../components/section/Hero";
 import PublicAdvisory from "../../components/section/PublicAdvisory";
@@ -16,18 +15,6 @@ import ServicePreviewSection from "../../components/section/ServicePreviewSectio
 
 export default function HomePage() {
     const { isAuthenticated } = useAuthStore();
-    const servicePreviewRef = useRef(null);
-
-    // ✅ Scroll handler for Check Availability button
-    const handleCheckAvailability = (e) => {
-        e.preventDefault();
-        const section = servicePreviewRef.current;
-        if (section) {
-            const offset = 100; // height of your header
-            const y = section.getBoundingClientRect().top + window.scrollY - offset;
-            window.scrollTo({ top: y, behavior: "smooth" });
-        }
-    };
 
     // 🔄 Dynamic slides based on authentication
     const slides = isAuthenticated
@@ -65,12 +52,23 @@ export default function HomePage() {
         ]
         : [
             {
+                image: "/outsidechurch.jpg",
+                heading: "Welcome Home",
+                subheading:
+                    "Whether you're new or returning, we're glad you're here. Stay connected with our ministries.",
+                ctas: [
+                    { label: "Register", to: "/signup", variant: "primary" },
+                    { label: "Contact Us", to: "/contact", variant: "ghost" },
+                ],
+            },
+
+            {
                 image: "/hero2.png",
                 heading: "Join Our Church Community",
                 subheading:
-                    "Create your account to book counseling, ministry appointments, and receive updates.",
+                    "Stay informed with the latest church events, announcements, and activities that bring our community together.",
                 ctas: [
-                    { label: "Check Availability", onClick: handleCheckAvailability, variant: "primary" },
+                    { label: "Events & News", to: "/event", variant: "primary" },
                     { label: "About Us", to: "/about", variant: "ghost" },
                 ],
             },
@@ -84,16 +82,7 @@ export default function HomePage() {
                     { label: "Document Request", to: "/document-request", variant: "ghost" },
                 ],
             },
-            {
-                image: "/outsidechurch.jpg",
-                heading: "Welcome Home",
-                subheading:
-                    "Whether you're new or returning, we're glad you're here. Stay connected with our ministries.",
-                ctas: [
-                    { label: "Register", to: "/signup", variant: "primary" },
-                    { label: "Contact Us", to: "/contact", variant: "ghost" },
-                ],
-            },
+
         ];
 
     return (
@@ -123,7 +112,6 @@ export default function HomePage() {
 
             {/* 🕓 Service Preview - WITH REF */}
             <motion.section
-                ref={servicePreviewRef}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}

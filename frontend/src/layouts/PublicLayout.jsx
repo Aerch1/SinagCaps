@@ -18,7 +18,7 @@ export default function PublicLayout() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header user={user} onLogout={handleLogout} />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1">
         <Outlet />
       </main>
       <Footer />
