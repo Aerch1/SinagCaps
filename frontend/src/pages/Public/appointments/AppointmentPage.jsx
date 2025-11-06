@@ -58,6 +58,31 @@ export default function AppointmentPage() {
     loadServices();
   }, []);
 
+
+  // ✅ ADD THIS NEW USEEFFECT HERE - Handle prefilled data from ServiceAvailabilityPreview
+useEffect(() => {
+  const prefilled = localStorage.getItem("appointment_prefilled");
+  const startStep = localStorage.getItem("appointment_startStep");
+  
+  if (prefilled && startStep) {
+    try {
+      const data = JSON.parse(prefilled);
+      setFormData(data);
+      setCurrentStep(parseInt(startStep));
+      setManualNavigation(false); // Prevent auto-advance interference
+      
+      // Clean up the temporary storage
+      localStorage.removeItem("appointment_prefilled");
+      localStorage.removeItem("appointment_startStep");
+      
+      toast.success(`Continuing appointment for ${data.serviceName}`);
+    } catch (err) {
+      console.error("❌ Failed to load prefilled data:", err);
+      toast.error("Failed to load appointment details");
+    }
+  }
+}, [services]); // Run after services are loaded
+
   /* =====================================================
      🧠 LocalStorage Isolation per Service (Safe Version)
   ===================================================== */
@@ -68,6 +93,10 @@ export default function AppointmentPage() {
 
   useEffect(() => {
     const loadSavedData = async () => {
+
+      const hasPrefilled = localStorage.getItem("appointment_prefilled");
+      if (hasPrefilled) return;
+
       const savedType = localStorage.getItem("appointment_activeType");
       if (!savedType) return;
 
@@ -194,7 +223,7 @@ export default function AppointmentPage() {
     resetStorage(formData.formType);
     setFormData({});
     setFormErrors({});
-    setUploadedFiles([]); 
+    setUploadedFiles([]);
     setCurrentStep(1);
     setShowSuccess(false);
     setManualNavigation(false); // ✅ Reset manual navigation flag
@@ -244,7 +273,7 @@ export default function AppointmentPage() {
       formDataToSend.append("service_id", formData.service_id);
       formDataToSend.append("date", formData.preferredDate);
       formDataToSend.append("time", formData.preferredTime);
-      formDataToSend.append("name", displayName); 
+      formDataToSend.append("name", displayName);
       formDataToSend.append("email", formData.email || user?.email);
       formDataToSend.append("contactNumber", formData.phone);
       formDataToSend.append("address", formData.address);
@@ -255,14 +284,14 @@ export default function AppointmentPage() {
         // ✅ Send children array (new approach)
         if (formData.children && Array.isArray(formData.children)) {
           formDataToSend.append("children", JSON.stringify(formData.children));
-        } 
+        }
         // ✅ Backward compatibility: single child fields
         else if (formData.childFullName) {
           formDataToSend.append("childFullName", formData.childFullName);
           formDataToSend.append("childDob", formData.childDob);
           formDataToSend.append("childBirthplace", formData.childBirthplace);
         }
-        
+
         // Parent fields (always sent)
         formDataToSend.append("fatherName", formData.fatherName);
         formDataToSend.append("motherMaidenName", formData.motherMaidenName);
