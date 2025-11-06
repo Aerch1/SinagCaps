@@ -21,6 +21,7 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
     const [month, setMonth] = useState(now.getMonth());
     const [monthAvailability, setMonthAvailability] = useState({});
     const [availableTimes, setAvailableTimes] = useState([]);
+    const [loading, setLoading] = useState(false);
 
     const serviceId = formData.service_id || "";
 
@@ -91,12 +92,15 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
         let cancel = false;
         const loadTimes = async () => {
             try {
+                setLoading(true);
                 const res = await api.get(`/availability/${serviceId}/${formData.preferredDate}`);
                 if (!cancel) setAvailableTimes(res.data.slots || []);
             } catch (err) {
                 if (!cancel) toast.error("Failed to load times");
                 console.error("❌ Daily slots error:", err);
                 setAvailableTimes([]);
+            } finally {
+                if (!cancel) setLoading(false);
             }
         };
         loadTimes();
@@ -155,7 +159,9 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
         <div className="space-y-6">
             {/* Service Selector */}
             <div className="md:col-span-12">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Selected Service</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Selected Service
+                </label>
                 <Dropdown
                     value={formData.serviceName || ""}
                     onChange={onServiceChange}
@@ -165,139 +171,239 @@ export default function Step2DateTime({ formData, setFormData, services = [] }) 
                 />
             </div>
 
-            {/* Calendar & Times */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            {/* Calendar & Times Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 {/* Calendar */}
-                <div className="md:col-span-7 border border-gray-200 rounded-md p-4">
-                    <h4 className="mb-2 font-medium text-gray-900">Select a Date</h4>
-                    <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-3">
+                <div className="lg:col-span-3 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
                         <button
                             type="button"
                             onClick={() => changeMonth(-1)}
-                            className="text-sm text-gray-600 hover:text-gray-800"
+                            className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
                         >
-                            &larr;
+                            <svg
+                                className="w-5 h-5 text-slate-700"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M15 19l-7-7 7-7"
+                                />
+                            </svg>
                         </button>
-                        <span className="text-gray-900 font-medium">{monthLabel}</span>
+                        <h3 className="text-base font-semibold text-slate-900">
+                            {monthLabel}
+                        </h3>
                         <button
                             type="button"
                             onClick={() => changeMonth(1)}
-                            className="text-sm text-gray-600 hover:text-gray-800"
+                            className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
                         >
-                            &rarr;
+                            <svg
+                                className="w-5 h-5 text-slate-700"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5l7 7-7 7"
+                                />
+                            </svg>
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-7 gap-1 mb-1 text-[11px] text-gray-500">
-                        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((w) => (
-                            <div key={w} className="text-center">
-                                {w}
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="grid grid-cols-7 gap-1">
-                        {calendarCells.map(({ date, inMonth }, idx) => {
-                            const iso = toISO(date);
-                            const dayData = getDayData(date);
-                            const { status = "none", remaining = 0 } = dayData;
-                            const isSelected = selectedISO === iso;
-
-                            let textClass = "",
-                                bgClass = "";
-                            if (!inMonth) textClass = "text-gray-300";
-                            else if (status === "available" && remaining > 0) {
-                                textClass = "text-green-800 font-semibold";
-                                bgClass = "bg-green-100";
-                            } else if (status === "full") {
-                                textClass = "text-red-700 font-semibold";
-                                bgClass = "bg-red-100";
-                            } else if (status === "blocked") {
-                                textClass = "text-gray-700 font-medium";
-                                bgClass = "bg-gray-300";
-                            } else {
-                                textClass = "text-gray-400";
-                                bgClass = "bg-gray-50";
-                            }
-
-                            return (
-                                <button
-                                    key={iso + idx}
-                                    type="button"
-                                    onClick={() => handleDayClick(date)}
-                                    className={[
-                                        "h-9 w-full rounded-md text-xs grid place-items-center transition border border-transparent hover:bg-gray-100/30",
-                                        textClass,
-                                        bgClass,
-                                        isSelected ? "ring-2 ring-blue-400 font-bold" : "",
-                                    ].join(" ")}
+                    {/* Calendar Body */}
+                    <div className="p-6">
+                        <div className="grid grid-cols-7 gap-2 mb-3">
+                            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                                <div
+                                    key={d}
+                                    className="text-center text-xs font-semibold text-slate-500"
                                 >
-                                    {date.getDate()}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
+                                    {d}
+                                </div>
+                            ))}
+                        </div>
 
-                {/* Times */}
-                <div className="md:col-span-5">
-                    <h4 className="mb-2 font-medium text-gray-900">Available Times</h4>
-                    {!serviceId ? (
-                        <p className="text-sm text-gray-500">Select a service first.</p>
-                    ) : !formData.preferredDate ? (
-                        <p className="text-sm text-gray-500">Select a date to view times.</p>
-                    ) : availableTimes.length === 0 ? (
-                        <p className="text-sm text-gray-500">No times available for this date.</p>
-                    ) : (
-                        <div className="space-y-2 max-h-70 overflow-y-auto pr-1">
-                            {availableTimes.map((slot) => {
-                                const isFull = slot.remaining === 0;
+                        <div className="grid grid-cols-7 gap-2 text-slate-700">
+                            {calendarCells.map(({ date, inMonth }, idx) => {
+                                const iso = toISO(date);
+                                const data = getDayData(date);
+                                const isSelected = selectedISO === iso;
+                                const isToday = toISO(new Date()) === iso;
+
+                                let cellClasses =
+                                    "relative h-12 rounded-lg text-sm font-medium transition-all duration-200 ";
+
+                                if (!inMonth) {
+                                    cellClasses += "text-slate-300 bg-slate-50 cursor-not-allowed";
+                                } else if (data.status === "blocked") {
+                                    cellClasses += "text-slate-400 bg-slate-100 cursor-not-allowed";
+                                } else if (data.status === "full") {
+                                    cellClasses += "text-slate-500 bg-slate-50 cursor-not-allowed";
+                                } else if (data.status === "available" && data.remaining > 0) {
+                                    cellClasses +=
+                                        "bg-green-100 text-green-800 font-semibold hover:bg-green-200 cursor-pointer";
+                                } else {
+                                    cellClasses += "text-slate-400 bg-white border border-slate-300";
+                                }
+
+                                if (isSelected) {
+                                    cellClasses += " !border-red-500 !bg-red-50 shadow-lg scale-105";
+                                }
+
                                 return (
                                     <button
-                                        key={slot.time}
+                                        key={idx}
                                         type="button"
-                                        disabled={isFull}
-                                        onClick={() =>
-                                            !isFull &&
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                preferredTime: slot.time,
-                                            }))
+                                        onClick={() => handleDayClick(date)}
+                                        disabled={
+                                            !inMonth ||
+                                            data.status === "blocked" ||
+                                            (data.status !== "available" && data.remaining === 0)
                                         }
-                                        className={[
-                                            "w-full px-3 py-2 rounded border text-sm flex items-center justify-between transition",
-                                            isFull
-                                                ? "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed"
-                                                : formData.preferredTime === slot.time
-                                                    ? "bg-secondary text-white border-secondary"
-                                                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100/30",
-                                        ].join(" ")}
+                                        className={cellClasses}
                                     >
-                                        <span>{format12h(slot.time)}</span>
-                                        <span className="text-xs font-medium">
-                                            {isFull ? "Fully Booked" : `${slot.remaining} slot(s) left`}
+                                        <span className={isToday ? "font-bold" : ""}>
+                                            {date.getDate()}
                                         </span>
                                     </button>
                                 );
                             })}
                         </div>
-                    )}
+                    </div>
+                </div>
+
+                {/* Time Slots */}
+                <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                        <h3 className="font-semibold text-slate-900 text-base">
+                            {formData.preferredDate ? "Available Times" : "Time Slots"}
+                        </h3>
+                        {formData.preferredDate && (
+                            <p className="text-sm text-slate-600 mt-1">
+                                {new Date(formData.preferredDate + "T00:00:00").toLocaleDateString(
+                                    "en-US",
+                                    {
+                                        weekday: "long",
+                                        month: "short",
+                                        day: "numeric",
+                                    }
+                                )}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="p-6 text-slate-700">
+                        {!serviceId ? (
+                            <div className="text-center py-12">
+                                <p className="text-slate-500 text-sm">
+                                    Select a service first
+                                </p>
+                            </div>
+                        ) : !formData.preferredDate ? (
+                            <div className="text-center py-12">
+                                <p className="text-slate-500 text-sm">
+                                    Select a date to view available time slots
+                                </p>
+                            </div>
+                        ) : loading ? (
+                            <div className="text-center py-12">
+                                <div className="inline-block w-8 h-8 border-3 border-slate-300 border-t-red-500 rounded-full animate-spin"></div>
+                                <p className="text-slate-500 text-sm mt-4">Loading times...</p>
+                            </div>
+                        ) : availableTimes.length === 0 ? (
+                            <div className="text-center py-12">
+                                <p className="text-slate-500 text-sm">
+                                    No available times for this date
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2 max-h-96 overflow-y-auto scroll-thin">
+                                {availableTimes.map((slot) => {
+                                    const isFull = slot.remaining === 0;
+                                    const isSelected = formData.preferredTime === slot.time;
+                                    return (
+                                        <button
+                                            key={slot.time}
+                                            type="button"
+                                            disabled={isFull}
+                                            onClick={() =>
+                                                !isFull &&
+                                                setFormData((prev) => ({
+                                                    ...prev,
+                                                    preferredTime: slot.time,
+                                                }))
+                                            }
+                                            className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 ${
+                                                isFull
+                                                    ? "bg-slate-50 border-slate-200 cursor-not-allowed opacity-60"
+                                                    : isSelected
+                                                    ? "bg-red-50 border-red-500 shadow-md"
+                                                    : "bg-white border-slate-200 hover:border-red-400 hover:shadow-md cursor-pointer"
+                                            }`}
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <span
+                                                    className={`font-semibold ${
+                                                        isFull
+                                                            ? "text-slate-400"
+                                                            : isSelected
+                                                            ? "text-red-700"
+                                                            : "text-slate-900"
+                                                    }`}
+                                                >
+                                                    {format12h(slot.time)}
+                                                </span>
+                                                <span
+                                                    className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                                        isFull
+                                                            ? "bg-slate-200 text-slate-500"
+                                                            : slot.remaining <= 2
+                                                            ? "bg-orange-100 text-orange-700"
+                                                            : "bg-green-100 text-green-700"
+                                                    }`}
+                                                >
+                                                    {isFull
+                                                        ? "Fully Booked"
+                                                        : `${slot.remaining} slot${
+                                                              slot.remaining > 1 ? "s" : ""
+                                                          } left`}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
             {/* Legend */}
-            <div className="flex flex-wrap gap-6 text-xs text-gray-600 pt-2">
-                <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded bg-green-200 border border-green-500" /> Available
+            <div className="flex flex-wrap gap-6 text-xs text-slate-600 pt-2">
+                <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded bg-green-100 border-2 border-green-500" />
+                    <span>Available</span>
                 </div>
-                <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded bg-red-200 border border-red-500" /> Fully Booked
+                <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded bg-slate-50 border-2 border-slate-300" />
+                    <span>Fully Booked</span>
                 </div>
-                <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded bg-gray-300 border border-gray-500" /> Blocked/Closed
+                <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded bg-slate-100 border-2 border-slate-400" />
+                    <span>Blocked/Closed</span>
                 </div>
-                <div className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded bg-gray-100 border border-gray-300" /> No Schedule
+                <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 rounded bg-white border-2 border-slate-300" />
+                    <span>No Schedule</span>
                 </div>
             </div>
         </div>
