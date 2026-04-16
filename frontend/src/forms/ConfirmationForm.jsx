@@ -152,7 +152,6 @@ const scheduleLabel = useMemo(() => {
     const d = parseISO(formData.preferredDate);
     const dateStr = format(d, "EEE, MMM d, yyyy");
 
-    // ✅ Convert preferredTime (e.g. "14:30") to 12-hour format (2:30 PM)
     const timeStr = formData.preferredTime
       ? format(parseISO(`2000-01-01T${formData.preferredTime}`), "h:mm a")
       : "";
